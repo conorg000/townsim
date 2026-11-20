@@ -25,18 +25,22 @@ def assert_prompt_clean(decisions: list[Decision]) -> None:
             assert match is None, f"{d.id}: {match.group()!r} in {text!r}"
 
 
-def rule_deciders(cfg: TownConfig, seed: int = 0) -> dict[str, Decider]:
-    """The config's deciders, with an rng of their own so they never shift the engine's draws."""
-    return make_deciders(cfg, random.Random(f"{seed}:deciders"))
+def rule_deciders(cfg: TownConfig, seed: int = 0, people=None) -> dict[str, Decider]:
+    """The config's deciders, with an rng of their own so they never shift the engine's draws.
+
+    Model deciders, if configured, read from `people`.
+    """
+    return make_deciders(cfg, random.Random(f"{seed}:deciders"), people)
 
 
 def make_sim(cfg: TownConfig, db_path, seed: int, deciders=None, run_id: str = "r") -> Simulation:
     """A new run `run_id` of the config's starting world, logged to `db_path`."""
     log = EventLog(str(db_path))
     log.create_run(run_id, seed, cfg.model_dump_json())
+    world = build_world(cfg)
     if deciders is None:
-        deciders = rule_deciders(cfg, seed)
-    return Simulation(build_world(cfg), deciders, log, run_id, seed)
+        deciders = rule_deciders(cfg, seed, world.people)
+    return Simulation(world, deciders, log, run_id, seed)
 
 
 def run_rule_sim(cfg: TownConfig, db_path, seed: int, steps: int, run_id: str = "r") -> Simulation:

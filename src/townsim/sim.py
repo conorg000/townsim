@@ -12,17 +12,29 @@ from townsim.actions import _load, _save
 from townsim.config import ConfigError, TownConfig
 from townsim.decide import Choice, Decider, Decision, ModelUnavailable, RecordingDecider, RuleDecider
 from townsim.events import Event, EventLog, state_hash
-from townsim.world import World
+from townsim.model import ModelDecider
+from townsim.world import Person, World
 
 START_STEP = -1  # the snapshot of the starting world, saved before the first step
 
 
-def make_deciders(cfg: TownConfig, rng: random.Random) -> dict[str, Decider]:
-    """One decider per configured name. Rule deciders draw from `rng`, not the engine's rng."""
+def make_deciders(
+    cfg: TownConfig, rng: random.Random, people: dict[str, Person] | None = None
+) -> dict[str, Decider]:
+    """One decider per configured name. Rule deciders draw from `rng`, not the engine's rng.
+
+    Model deciders read each person from `people` at decision time, so pass the
+    `world.people` of the world being run (for a resumed or forked run, that run's
+    `sim.world.people`); `people` is required when any decider has `type: model`.
+    """
     deciders: dict[str, Decider] = {}
     for name, spec in cfg.deciders.items():
         if spec.type == "rule":
             deciders[name] = RuleDecider(rng)
+        elif spec.type == "model":
+            if people is None:
+                raise ConfigError(f"decider {name!r}: a model decider needs the world's people")
+            deciders[name] = ModelDecider(spec.model, spec.temperature, people)
         else:
             raise ConfigError(f"decider {name!r}: type {spec.type!r} is not available yet")
     return deciders
@@ -31,7 +43,9 @@ def make_deciders(cfg: TownConfig, rng: random.Random) -> dict[str, Decider]:
 class Simulation:
     """One run of the town, logged to `log` under `run_id`; the engine rng is `Random(seed)`.
 
-    A new run saves the starting world as the snapshot for step -1.
+    A new run saves the starting world as the snapshot for step -1. `deciders` is read
+    afresh at every step, so a resumed or forked run whose deciders need its own world
+    can be given `{}` and then `sim.deciders = make_deciders(cfg, rng, sim.world.people)`.
     """
 
     def __init__(

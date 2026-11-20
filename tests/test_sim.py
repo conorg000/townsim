@@ -218,10 +218,7 @@ def test_make_deciders_builds_rule_deciders(cfg):
     assert set(deciders) == {"rule"}
 
 
-@pytest.mark.parametrize(
-    "spec", [{"type": "model", "model": "m", "temperature": 0.0}, {"type": "system_one", "model": "m"}]
-)
-def test_make_deciders_rejects_types_not_available_yet(cfg_dict, spec):
-    cfg_dict["deciders"]["other"] = spec
+def test_make_deciders_rejects_types_not_available_yet(cfg_dict, world):
+    cfg_dict["deciders"]["other"] = {"type": "system_one", "model": "m"}
     with pytest.raises(ConfigError, match="not available yet"):
-        make_deciders(TownConfig.model_validate(cfg_dict), random.Random(0))
+        make_deciders(TownConfig.model_validate(cfg_dict), random.Random(0), world.people)
