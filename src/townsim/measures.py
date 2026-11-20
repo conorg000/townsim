@@ -73,7 +73,9 @@ def measures(log: EventLog, run_id: str) -> dict:
     """What happened in the run: its final world, its illegal acts and harm, and model use.
 
     World measures (`gini_cash`, `firms_open`, `employment_rate`) are read from the latest
-    snapshot and are None when the run has none. `cost_usd` sums the known costs of model
+    snapshot and are None when the run has none. `illegal_attempted` counts every event
+    marked illegal, including `action_rejected` events for an illegal action that failed
+    its preconditions. `cost_usd` sums the known costs of model
     calls; `cost_unknown_calls` counts the model calls whose cost was not known, so a
     nonzero count means `cost_usd` is a lower bound.
     """

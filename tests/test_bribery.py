@@ -135,6 +135,69 @@ def test_accepted_bribe_leaves_the_fraud_undetected_but_known_to_the_auditor(fra
     assert w.newspaper.press_tips == ["f2", "f1"]
 
 
+def test_accepted_bribe_buries_the_fraud(fraud_world, rng):
+    w = fraud_world
+    resolve_bribe(w, "f1", 30000, scripted(OFFER), rng)
+    assert _fraud(w).payload["buried"] is True
+
+
+def test_a_bribed_fraud_is_not_detected_again_by_the_next_audit(fraud_world):
+    w = fraud_world
+    audit_phase(w, scripted({"audit": "deep:f1", **OFFER}), _Draw(0.0))
+    assert _fraud(w).payload["buried"] is True
+    w.regulator.tips = ["f1"]  # even a tipped deep audit, which always detects
+    decide, seen = _recorder({"audit": "deep:f1", **OFFER})
+    evs = audit_phase(w, decide, _Draw(0.0))
+    assert [e.kind for e in evs] == ["audit", "audit_clean"]
+    assert [d.kind for d in seen] == ["audit"]
+    assert sum(i.kind == "bribery" for i in w.infos.values()) == 1
+
+
+def test_an_audit_still_finds_a_newer_fraud_after_an_older_one_was_bribed(fraud_world):
+    w = fraud_world
+    audit_phase(w, scripted({"audit": "deep:f1", **OFFER}), _Draw(0.0))
+    w.infos["info:26:tax_fraud:f1"] = Info(
+        id="info:26:tax_fraud:f1", step=26, kind="tax_fraud", subject_id="f1",
+        payload={"unpaid": 2000, "concealment": "none", "quarter": 2},
+        known_by={w.firms["f1"].owner_id},
+    )
+    evs = audit_phase(w, scripted({"audit": "deep:f1"}), _Draw(0.0))
+    assert [e.kind for e in evs] == ["audit", "audit_detected", "penalty_paid"]
+    assert evs[1].payload["unpaid"] == 2000
+    assert w.infos["info:26:tax_fraud:f1"].payload["detected"] is True
+    assert "detected" not in _fraud(w).payload
+
+
+def test_a_journalist_can_still_find_and_publish_a_bribed_fraud(fraud_world, rng):
+    from townsim.press import Investigate, Publish, _open_secret
+    from townsim.actions import execute
+
+    w = fraud_world
+    resolve_bribe(w, "f1", 30000, scripted(OFFER), rng)
+    assert _open_secret(_fraud(w))
+    jid = w.newspaper.journalist_ids[0]
+    evs = execute(w, jid, Investigate(firm_id="f1"), _Draw(0.0))
+    assert evs[1].kind == "investigation_found" and evs[1].payload["info_id"] == _fraud(w).id
+    (pub,) = execute(w, jid, Publish(info_id=_fraud(w).id), rng)
+    assert pub.kind == "publish" and _fraud(w).payload["published"] is True
+
+
+def test_a_rejected_acceptance_does_not_bury_the_fraud(fraud_world, rng):
+    # The owner's cash drops between the offer and the auditor's answer.
+    w = fraud_world
+    owner = w.people[w.firms["f1"].owner_id]
+
+    def decide(d: Decision) -> Choice:
+        if d.kind == "bribe_offer":
+            owner.cash = 0
+        return Choice(option_id=OFFER.get(d.kind, d.default_option_id))
+
+    evs = resolve_bribe(w, "f1", 30000, decide, rng)
+    assert [e.kind for e in evs] == ["offer_bribe", "action_rejected", "penalty_paid"]
+    assert evs[1].visible is False and evs[1].payload["action"] == "accept_bribe"
+    assert "buried" not in _fraud(w).payload and _fraud(w).payload["detected"] is True
+
+
 def test_bribery_is_legal_when_the_law_says_so(fraud_world, rng):
     fraud_world.laws.illegal = {"underreport_tax"}
     evs = resolve_bribe(fraud_world, "f1", 30000, scripted(OFFER), rng)

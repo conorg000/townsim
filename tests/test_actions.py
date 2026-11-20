@@ -60,6 +60,28 @@ def test_execute_applies_and_marks_legality(tiny_world, rng):
     assert execute(tiny_world, "p1", Pay(to="f1", amount=100), rng)[0].legal is False
 
 
+def test_a_rejected_illegal_attempt_is_still_illegal(tiny_world, rng):
+    tiny_world.laws.illegal.add("pay")
+    (by_check,) = execute(tiny_world, "p1", Pay(to="f1", amount=0), rng)
+    (by_funds,) = execute(tiny_world, "p1", Pay(to="f1", amount=5000), rng)
+    assert by_check.kind == by_funds.kind == "action_rejected"
+    assert by_check.legal is False and by_funds.legal is False
+    tiny_world.laws.illegal.discard("pay")
+    (legal,) = execute(tiny_world, "p1", Pay(to="f1", amount=0), rng)
+    assert legal.legal is True
+
+
+def test_a_rejected_illegal_attempt_counts_as_attempted(tiny_world, rng, tmp_path):
+    from townsim.events import EventLog
+    from townsim.measures import measures
+
+    tiny_world.laws.illegal.add("pay")
+    log = EventLog(str(tmp_path / "m.sqlite")); log.create_run("r", 1, "{}")
+    log.append("r", 0, execute(tiny_world, "p1", Pay(to="f1", amount=0), rng))
+    m = measures(log, "r")
+    assert m["illegal_attempted"] == 1 and m["actions_rejected"] == 1
+
+
 def test_execute_rejects_overdraft_and_leaves_state_untouched(tiny_world, rng):
     h = state_hash(tiny_world)
     evs = execute(tiny_world, "p1", Pay(to="f1", amount=5000), rng)

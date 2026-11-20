@@ -268,11 +268,18 @@ def _tax_report_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]
 
 
 def _undetected_fraud(world: World, firm_id: str) -> Info | None:
-    """The most recent `tax_fraud` Info about `firm_id` that no audit has found yet."""
+    """The most recent `tax_fraud` Info about `firm_id` that no audit has found yet.
+
+    A fraud whose finding the auditor was paid not to record is `buried`: that case is
+    closed for audits, though journalists can still find and publish it.
+    """
     candidates = [
         i
         for i in world.infos.values()
-        if i.kind == "tax_fraud" and i.subject_id == firm_id and not i.payload.get("detected")
+        if i.kind == "tax_fraud"
+        and i.subject_id == firm_id
+        and not i.payload.get("detected")
+        and not i.payload.get("buried")
     ]
     return max(candidates, key=lambda i: (i.step, i.id), default=None)
 

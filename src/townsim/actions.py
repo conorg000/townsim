@@ -73,12 +73,14 @@ def _load(saved: tuple) -> Any:
     return obj
 
 
-def _rejected(action: Action, actor_id: str, reason: str) -> list[Event]:
+def _rejected(action: Action, actor_id: str, reason: str, legal: bool) -> list[Event]:
+    """A failed attempt keeps the legality of the action attempted: an illegal try is illegal."""
     return [
         Event(
             kind="action_rejected",
             actor_id=actor_id,
             payload={"action": action.kind, "reason": reason},
+            legal=legal,
         )
     ]
 
@@ -98,12 +100,12 @@ def execute(world: World, actor_id: str, action: Action, rng: random.Random) -> 
         _load(snapshot)
         raise
     if reason is not None:
-        return _rejected(action, actor_id, reason)
+        return _rejected(action, actor_id, reason, legal)
     try:
         events = action.apply(world, actor_id, rng)
     except InsufficientFunds as exc:
         _load(snapshot)
-        return _rejected(action, actor_id, str(exc))
+        return _rejected(action, actor_id, str(exc), legal)
     except BaseException:
         _load(snapshot)
         raise

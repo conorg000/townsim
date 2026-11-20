@@ -58,7 +58,10 @@ class OfferBribe(Action):
 
 @register
 class AcceptBribe(Action):
-    """The auditor takes the owner's payment and drops `penalty`; both now share a secret."""
+    """The auditor takes the owner's payment and drops `penalty`; both now share a secret.
+
+    The fraud found is marked `buried`, so later audits do not find it again.
+    """
 
     kind = "accept_bribe"
     firm_id: str
@@ -76,6 +79,7 @@ class AcceptBribe(Action):
         fraud = _undetected_fraud(world, self.firm_id)
         if fraud is not None:
             fraud.known_by.add(actor_id)
+            fraud.payload["buried"] = True  # the finding goes unrecorded: audits skip it now
         info_id = f"info:{world.step}:bribery:{self.firm_id}"
         world.infos[info_id] = Info(
             id=info_id,
