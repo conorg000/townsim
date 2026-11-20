@@ -54,6 +54,7 @@ def _fraud(w: World) -> Info:
 
 def test_honest_report_pays_full_tax(world, rng):
     world.step = 13; world.firms["f1"].profit_qtd = 100000
+    world.laws.tax_rate = 0.2; world.firms["f1"].cash = 400000
     t = world.treasury.cash
     tax_phase(world, scripted({"tax_report": "honest"}), rng)
     assert world.treasury.cash - t >= 20000   # f1's 20% plus the other firms
@@ -61,6 +62,7 @@ def test_honest_report_pays_full_tax(world, rng):
 
 def test_underreporting_hides_tax_creates_secret_and_is_illegal(one_firm_world, rng):
     w = one_firm_world; w.step = 13; w.firms["f1"].profit_qtd = 100000
+    w.laws.tax_rate = 0.2; w.firms["f1"].cash = 400000
     evs = tax_phase(w, scripted({"tax_report": "hide50_heavy"}), rng)
     ev = next(e for e in evs if e.kind == "underreport_tax")
     assert ev.legal is False and ev.visible is False and ev.harm == {"treasury": 10000}
@@ -268,6 +270,7 @@ def test_rejected_underreport_files_honestly_and_keeps_the_rejection(one_firm_wo
     assert kinds.index("action_rejected") < kinds.index("file_tax")
     rejected = evs[kinds.index("action_rejected")]
     assert rejected.payload["action"] == "underreport_tax"
+    assert rejected.visible is False
     honest = evs[kinds.index("file_tax")]
     assert honest.payload["tax_due"] == 20000 and honest.payload["tax_paid"] == 11000
     assert "underreport_tax" not in kinds
@@ -307,6 +310,20 @@ def test_dividend_profit_reset_and_budget_reset(one_firm_world, rng):
     assert div.payload == {"firm_id": "f1", "owner_id": owner.id, "amount": dividend}
     assert w.firms["f1"].profit_qtd == 0
     assert w.regulator.budget_left == 6
+
+
+def test_fractional_reserve_weeks_are_not_truncated(one_firm_world, rng):
+    w = _quarter(one_firm_world, profit=0, cash=400000)
+    w.params["reserve_weeks"] = 2.5
+    f1 = w.firms["f1"]
+    f1.wage = 1001
+    worker = w.people[sorted(set(w.people) - {f1.owner_id})[0]]
+    worker.role, worker.employer_id = "worker", "f1"
+    f1.employee_ids = [worker.id]
+    o = w.people[f1.owner_id].cash
+    tax_phase(w, scripted({}), rng)
+    # 2.5 weeks of a 1001 wage bill is a 2502.5 reserve; truncating to 2 weeks would give 2002.
+    assert w.people[f1.owner_id].cash == o + round(0.5 * (400000 - 2502.5))
 
 
 def test_no_dividend_when_cash_is_below_the_reserve(one_firm_world, rng):

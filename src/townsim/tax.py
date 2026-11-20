@@ -156,6 +156,7 @@ def tax_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Event]
         filed = execute(world, f.owner_id, action_from_dict(options[choice.option_id].action), rng)
         events += filed
         if filed[0].kind == "action_rejected" and choice.option_id != "honest":
+            filed[0].visible = False  # the attempt to underreport was a hidden act
             events += execute(world, f.owner_id, _honest(fid), rng)
         events += _pay_dividend(world, fid)
         world.firms[fid].profit_qtd = 0
@@ -169,7 +170,7 @@ def _honest(firm_id: str) -> FileTax:
 
 def _pay_dividend(world: World, firm_id: str) -> list[Event]:
     f = world.firms[firm_id]
-    reserve = int(world.params["reserve_weeks"]) * f.wage * len(f.employee_ids)
+    reserve = world.params["reserve_weeks"] * f.wage * len(f.employee_ids)
     amount = round(world.params["dividend_share"] * max(0, f.cash - reserve))
     if amount <= 0:
         return []
