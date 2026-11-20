@@ -23,7 +23,7 @@ import yaml
 
 from townsim.config import ConfigError
 from townsim.decide import Choice, Decider, Decision, ModelUnavailable, Option
-from townsim.model import render_prompt
+from townsim.model import render_prompt, token_count
 from townsim.world import Person
 
 
@@ -308,11 +308,13 @@ class SystemOneDecider:
             if r < acc:
                 chosen = oid
                 break
-        usage = getattr(self.client, "last_usage", None) or {}
+        usage = getattr(self.client, "last_usage", None)
+        if not isinstance(usage, dict):
+            usage = {}
         meta = {
             "probs": probs,
-            "prompt_tokens": usage.get("input_tokens"),
-            "completion_tokens": usage.get("output_tokens"),
+            "prompt_tokens": token_count(usage, "input_tokens"),
+            "completion_tokens": token_count(usage, "output_tokens"),
             "cost_usd": None,
         }
         return Choice(option_id=chosen, meta=meta)

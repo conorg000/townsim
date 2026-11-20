@@ -232,6 +232,17 @@ def test_system_one_records_token_usage_from_the_client(people, tax_decision):
     assert c.meta["cost_usd"] is None
 
 
+@pytest.mark.parametrize(
+    "usage",
+    ["lots", ["input_tokens", 3], {"input_tokens": "300", "output_tokens": None}, 7],
+)
+def test_system_one_ignores_malformed_usage(people, tax_decision, usage):
+    client = FakeProbClient({"honest": 1.0}, usage=usage)
+    c = SystemOneDecider("jev", people, random.Random(1), client=client).decide(tax_decision)
+    assert c.option_id == "honest"
+    assert c.meta["prompt_tokens"] is None and c.meta["completion_tokens"] is None
+
+
 def test_system_one_builds_its_client_on_first_decision(people, tax_decision):
     made = []
 
@@ -508,6 +519,23 @@ def test_typesafe_client_question_wording_is_clean(probes):
 
 @pytest.mark.parametrize("resp", [RuntimeError("HTTP 422"), {"answers": {}}, {"detail": "bad"}])
 def test_typesafe_failures_become_model_unavailable(people, tax_decision, resp):
+    client = TypeSafeClient("jev", api_key="k", post_fn=FakePost(resp))
+    d = SystemOneDecider("jev", people, random.Random(1), client=client)
+    with pytest.raises(ModelUnavailable):
+        d.decide(tax_decision)
+
+
+@pytest.mark.parametrize("usage", ["lots", [1, 2], 7, None])
+def test_typesafe_client_keeps_only_a_mapping_as_usage(usage):
+    resp = jev_response({"a": 1.0})
+    resp["usage"] = usage
+    client = TypeSafeClient("jev", api_key="k", post_fn=FakePost(resp))
+    assert client.probabilities("p", "s", [("a", "A")]) == {"a": 1.0}
+    assert client.last_usage is None
+
+
+@pytest.mark.parametrize("resp", [None, [], "ok", {"answers": None}, {"answers": {"choice": None}}])
+def test_typesafe_badly_shaped_responses_become_model_unavailable(people, tax_decision, resp):
     client = TypeSafeClient("jev", api_key="k", post_fn=FakePost(resp))
     d = SystemOneDecider("jev", people, random.Random(1), client=client)
     with pytest.raises(ModelUnavailable):

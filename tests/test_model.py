@@ -106,7 +106,12 @@ def test_completion_is_called_with_model_messages_and_temperature(people, pricin
     d = ModelDecider("x/y", 0.7, people, completion_fn=fake_reply('{"choice": "hold"}', calls))
     d.decide(pricing_decision)
     assert calls == [
-        {"model": "x/y", "messages": render_prompt(people["p0"], pricing_decision), "temperature": 0.7}
+        {
+            "model": "x/y",
+            "messages": render_prompt(people["p0"], pricing_decision),
+            "temperature": 0.7,
+            "timeout": 60.0,
+        }
     ]
 
 
@@ -311,3 +316,136 @@ def test_prompts_from_a_model_run_use_no_forbidden_words(model_cfg, tmp_path, st
     for text in texts:
         assert FORBIDDEN_PROMPT_WORDS.search(text) is None, text
         assert not re.search(r"(?i)ambition|scruples|\bp\d\d\b", text), text
+
+
+# --- timeouts (review I3) ---
+
+
+class Timeout(Exception):
+    """Stands in for LiteLLM's request timeout error."""
+
+
+def times_out(calls):
+    def completion(**kwargs):
+        calls.append(kwargs)
+        raise Timeout(f"request timed out after {kwargs['timeout']} seconds")
+
+    return completion
+
+
+def test_completion_is_given_the_configured_timeout(people, pricing_decision):
+    calls = []
+    d = ModelDecider(
+        "x/y", 0.7, people, completion_fn=fake_reply('{"choice": "hold"}', calls), timeout=12.5
+    )
+    d.decide(pricing_decision)
+    assert calls[0]["timeout"] == 12.5
+
+
+def test_a_timeout_is_retried_then_raises_model_unavailable(people, pricing_decision):
+    calls, sleeps = [], []
+    d = ModelDecider(
+        "x/y", 0.7, people, completion_fn=times_out(calls), sleep_fn=sleeps.append, timeout=5
+    )
+    with pytest.raises(ModelUnavailable, match="timed out"):
+        d.decide(pricing_decision)
+    assert len(calls) == 3 and sleeps == [1, 4]
+    assert all(c["timeout"] == 5 for c in calls)
+
+
+def test_model_decider_config_timeout_defaults_to_sixty_seconds(model_cfg):
+    assert model_cfg.deciders["model"].timeout == 60.0
+
+
+@pytest.mark.parametrize("bad", [0, -1])
+def test_model_decider_config_timeout_must_be_positive(cfg_dict, bad):
+    cfg_dict["deciders"]["model"] = {"type": "model", "model": "x/y", "temperature": 0.4, "timeout": bad}
+    with pytest.raises(ConfigError):
+        TownConfig.model_validate(cfg_dict)
+
+
+def test_make_deciders_passes_the_configured_timeout(cfg_dict, people):
+    cfg_dict["deciders"]["model"] = {"type": "model", "model": "x/y", "temperature": 0.4, "timeout": 9}
+    cfg = TownConfig.model_validate(cfg_dict)
+    assert make_deciders(cfg, random.Random(0), people)["model"].timeout == 9
+
+
+def test_a_model_timeout_aborts_the_step_and_logs_run_aborted(model_cfg, tmp_path):
+    from townsim.events import state_hash
+
+    calls = []
+    sim = make_sim(model_cfg, tmp_path / "a.sqlite", seed=3, deciders={})
+    sim.deciders = {
+        "model": ModelDecider(
+            "x/y", 0.4, sim.world.people, completion_fn=times_out(calls), sleep_fn=lambda s: None
+        )
+    }
+    before = state_hash(sim.world)
+    with pytest.raises(ModelUnavailable):
+        sim.step()
+    assert len(calls) == 3 and state_hash(sim.world) == before and sim.world.step == 0
+    assert [e.kind for _, e in sim.log.events("r", step=0)] == ["run_aborted"]
+
+
+# --- badly shaped replies (review I4) ---
+
+
+def returns(resp, calls=None):
+    def completion(**kwargs):
+        if calls is not None:
+            calls.append(kwargs)
+        return resp
+
+    return completion
+
+
+def _choices(*choices):
+    return SimpleNamespace(choices=list(choices))
+
+
+@pytest.mark.parametrize(
+    "resp",
+    [
+        None,
+        SimpleNamespace(),                                    # no choices at all
+        _choices(),                                           # empty choices
+        SimpleNamespace(choices=None),
+        _choices(SimpleNamespace()),                          # a choice with no message
+        _choices(SimpleNamespace(message=None)),
+        _choices(SimpleNamespace(message=SimpleNamespace())),  # a message with no content
+        _choices(SimpleNamespace(message=SimpleNamespace(content=["up5"]))),
+        _choices(SimpleNamespace(message=SimpleNamespace(content={"choice": "up5"}))),
+        _choices(SimpleNamespace(message=SimpleNamespace(content=5))),
+    ],
+)
+def test_an_unreadable_reply_is_an_invalid_response_not_an_exception(people, pricing_decision, resp):
+    calls, sink = [], []
+    model = ModelDecider("x/y", 0.7, people, completion_fn=returns(resp, calls))
+    choice = model.decide(pricing_decision)
+    assert choice.option_id == "" and choice.meta["raw"] is None and len(calls) == 1
+    recorded = RecordingDecider(model, sink).decide(pricing_decision)
+    assert recorded.option_id == "hold"
+    assert [e.kind for e in sink] == ["invalid_response", "decision"]
+    for e in sink:
+        e.model_dump_json()  # the record of it can be logged
+
+
+@pytest.mark.parametrize(
+    "usage",
+    [
+        None,
+        "lots",
+        {"prompt_tokens": 12, "completion_tokens": 3},
+        SimpleNamespace(prompt_tokens="12", completion_tokens=None),
+        SimpleNamespace(prompt_tokens=True, completion_tokens=2.5),
+    ],
+)
+def test_malformed_usage_gives_no_token_counts(people, pricing_decision, usage):
+    resp = response('{"choice": "up5"}', usage=None)
+    resp.usage = usage
+    choice = ModelDecider("x/y", 0.7, people, completion_fn=returns(resp)).decide(pricing_decision)
+    assert choice.option_id == "up5"
+    if isinstance(usage, dict):
+        assert (choice.meta["prompt_tokens"], choice.meta["completion_tokens"]) == (12, 3)
+    else:
+        assert choice.meta["prompt_tokens"] is None and choice.meta["completion_tokens"] is None

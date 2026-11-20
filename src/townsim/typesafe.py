@@ -90,7 +90,10 @@ class TypeSafeClient:
         body = self.request_body(persona, situation, options)
         post = self.post_fn or _urllib_post
         resp = post(TYPESAFE_URL, self._headers, body, self.timeout)
-        self.last_usage = resp.get("usage")
+        if not isinstance(resp, dict):
+            raise ValueError(f"expected a JSON object, got {type(resp).__name__}")
+        usage = resp.get("usage")
+        self.last_usage = usage if isinstance(usage, dict) else None
         answer = resp["answers"][QUESTION_ID]
         return dict(answer["probabilities"])
 

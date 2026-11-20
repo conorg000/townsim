@@ -53,6 +53,7 @@ class ModelDeciderConfig(_Strict):
     type: Literal["model"]
     model: str
     temperature: float
+    timeout: float = Field(default=60.0, gt=0)  # seconds per completion call
 
 
 class SystemOneDeciderConfig(_Strict):

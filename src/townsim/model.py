@@ -25,6 +25,7 @@ ROLE_WORDS = {
 }
 
 RETRY_SLEEPS = (1, 4)  # seconds to wait after the first and second failed attempts
+DEFAULT_TIMEOUT = 60.0  # seconds a completion call may take before it counts as failed
 
 
 def render_prompt(person: Person, decision: Decision) -> list[dict]:
@@ -74,13 +75,36 @@ def _no_cost(resp) -> None:
     return None
 
 
+def reply_text(resp) -> str | None:
+    """The text of the reply's first choice, or None if the reply has no readable text."""
+    try:
+        content = resp.choices[0].message.content
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+    return content if isinstance(content, str) else None
+
+
+def token_count(usage, name: str) -> int | None:
+    """`usage.name` (or `usage[name]` for a mapping) if it is a whole number, else None."""
+    if isinstance(usage, dict):
+        value = usage.get(name)
+    else:
+        value = getattr(usage, name, None)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
 class ModelDecider:
     """Asks `model` to choose for the person making each decision.
 
     `completion_fn` defaults to `litellm.completion`, and the reply is then priced with
     `litellm.completion_cost`; an injected `completion_fn` has no price, so `cost_usd` is
-    None. A reply with no usable choice gives `Choice(option_id="")`. An exception from
-    `completion_fn` is retried, up to 3 attempts in all, then `ModelUnavailable` is raised.
+    None. A reply with no usable choice gives `Choice(option_id="")`, and so does a reply
+    whose shape cannot be read (no choices, no message, content that is not text); its
+    `meta["raw"]` is then None. Each call is given `timeout` seconds. An exception from
+    `completion_fn`, a timeout included, is retried, up to 3 attempts in all, then
+    `ModelUnavailable` is raised.
     """
 
     def __init__(
@@ -90,9 +114,11 @@ class ModelDecider:
         people: dict[str, Person],
         completion_fn: Callable | None = None,
         sleep_fn: Callable[[float], None] = time.sleep,
+        timeout: float = DEFAULT_TIMEOUT,
     ):
         self.model = model
         self.temperature = temperature
+        self.timeout = timeout
         self.people = people
         if completion_fn is None:
             self.completion_fn, self.cost_fn = _litellm_completion, _litellm_cost
@@ -103,11 +129,11 @@ class ModelDecider:
     def decide(self, decision: Decision) -> Choice:
         messages = render_prompt(self.people[decision.actor_id], decision)
         resp = self._complete(messages)
-        text = resp.choices[0].message.content
+        text = reply_text(resp)
         usage = getattr(resp, "usage", None)
         meta = {
-            "prompt_tokens": getattr(usage, "prompt_tokens", None),
-            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "prompt_tokens": token_count(usage, "prompt_tokens"),
+            "completion_tokens": token_count(usage, "completion_tokens"),
             "cost_usd": self.cost_fn(resp),
             "raw": text,
         }
@@ -117,7 +143,10 @@ class ModelDecider:
         for attempt, wait in enumerate((*RETRY_SLEEPS, None), start=1):
             try:
                 return self.completion_fn(
-                    model=self.model, messages=messages, temperature=self.temperature
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    timeout=self.timeout,
                 )
             except Exception as exc:
                 if wait is None:

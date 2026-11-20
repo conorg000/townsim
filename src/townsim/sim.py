@@ -39,7 +39,7 @@ def make_deciders(
         elif spec.type == "model":
             if people is None:
                 raise ConfigError(f"decider {name!r}: a model decider needs the world's people")
-            deciders[name] = ModelDecider(spec.model, spec.temperature, people)
+            deciders[name] = ModelDecider(spec.model, spec.temperature, people, timeout=spec.timeout)
         elif spec.type == "system_one":
             if people is None:
                 raise ConfigError(
