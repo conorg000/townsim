@@ -17,6 +17,26 @@ MIN_PRICE = 100
 PRICE_FACTORS = {"down10": 0.90, "down5": 0.95, "hold": 1.0, "up5": 1.05, "up10": 1.10}
 MIN_WAGE = 100
 WAGE_FACTORS = {"cut10": 0.90, "cut5": 0.95, "hold": 1.0, "raise5": 1.05, "raise10": 1.10}
+REGULARS_MARKUPS = {"less5": -0.05, "same": 0.0, "plus5": 0.05, "plus10": 0.10, "plus15": 0.15}
+DEFAULT_REGULAR_LOYALTY = 0.2
+
+
+def is_regular(world: World, person_id: str, firm_id: str) -> bool:
+    """A regular has bought from the firm often enough to be attached to it."""
+    threshold = world.params.get("regular_loyalty", DEFAULT_REGULAR_LOYALTY)
+    return world.people[person_id].loyalty.get(firm_id, 0) >= threshold
+
+
+def regulars_price(f: Firm) -> int:
+    return round(f.price * (1 + f.regulars_markup))
+
+
+def price_for(world: World, f: Firm, person_id: str) -> int:
+    """What this person pays at this firm: the listed price, or the regulars' price if the
+    firm charges its regulars differently."""
+    if f.regulars_markup != 0 and is_regular(world, person_id, f.id):
+        return regulars_price(f)
+    return f.price
 
 
 def market_phase(world: World, rng: random.Random) -> list[Event]:
@@ -30,6 +50,8 @@ def market_phase(world: World, rng: random.Random) -> list[Event]:
     loyalty_cap = p["loyalty_cap"]
 
     sold = {fid: 0 for fid in world.firms}
+    takings = {fid: 0 for fid in world.firms}
+    surcharge = {fid: 0 for fid in world.firms}
     events: list[Event] = []
     for market in MARKETS:
         firm_ids = sorted(
@@ -45,7 +67,7 @@ def market_phase(world: World, rng: random.Random) -> list[Event]:
             scores = {}
             for fid in firm_ids:
                 f = world.firms[fid]
-                relative_price = f.price / mean_price if mean_price > 0 else 0.0
+                relative_price = price_for(world, f, pid) / mean_price if mean_price > 0 else 0.0
                 scores[fid] = (
                     quality_weight * f.quality
                     - price_weight * relative_price
@@ -55,27 +77,26 @@ def market_phase(world: World, rng: random.Random) -> list[Event]:
             for fid in sorted(firm_ids, key=lambda fid: (-scores[fid], fid)):
                 f = world.firms[fid]
                 capacity = capacity_per_employee * len(f.employee_ids)
-                if sold[fid] >= capacity or f.price > world.people[pid].cash:
+                price = price_for(world, f, pid)
+                if sold[fid] >= capacity or price > world.people[pid].cash:
                     continue
-                if f.price > 0:
-                    transfer(world, pid, fid, f.price, f"purchase:{market}")
-                world.firms[fid].profit_qtd += world.firms[fid].price
+                if price > 0:
+                    transfer(world, pid, fid, price, f"purchase:{market}")
+                world.firms[fid].profit_qtd += price
                 sold[fid] += 1
+                takings[fid] += price
+                surcharge[fid] += price - f.price
                 person = world.people[pid]
                 person.loyalty[fid] = min(loyalty_cap, person.loyalty.get(fid, 0) + loyalty_gain)
                 break
         for fid in firm_ids:
-            f = world.firms[fid]
-            events.append(
-                Event(
-                    kind="sales",
-                    actor_id=fid,
-                    payload={"firm_id": fid, "customers": sold[fid], "revenue": sold[fid] * f.price},
-                )
-            )
+            payload = {"firm_id": fid, "customers": sold[fid], "revenue": takings[fid]}
+            if surcharge[fid]:
+                payload["surcharge"] = surcharge[fid]  # what regulars paid above (below, if negative) the listed price
+            events.append(Event(kind="sales", actor_id=fid, payload=payload))
     for fid in world.firms:
         world.firms[fid].customers_last_step = sold[fid]
-        world.firms[fid].revenue_last_step = sold[fid] * world.firms[fid].price
+        world.firms[fid].revenue_last_step = takings[fid]
     return events
 
 
@@ -297,6 +318,37 @@ class SetWage(Action):
 
 
 @register
+class SetRegularsMarkup(Action):
+    """Charge the firm's regulars this share more (or, if negative, less) than the listed price."""
+
+    kind = "set_regulars_markup"
+    firm_id: str
+    markup: float
+
+    def check(self, world: World, actor_id: str) -> str | None:
+        if self.markup not in REGULARS_MARKUPS.values():
+            return f"regulars markup must be one of {sorted(REGULARS_MARKUPS.values())}, got {self.markup}"
+        return _owned_open_firm(world, actor_id, self.firm_id)
+
+    def apply(self, world: World, actor_id: str, rng: random.Random) -> list[Event]:
+        f = world.firms[self.firm_id]
+        old = f.regulars_markup
+        f.regulars_markup = self.markup
+        return [
+            Event(
+                kind=self.kind,
+                actor_id=actor_id,
+                payload={
+                    "firm_id": self.firm_id,
+                    "old_markup": old,
+                    "new_markup": self.markup,
+                    "regulars": _regulars(world, self.firm_id),
+                },
+            )
+        ]
+
+
+@register
 class QuitJob(Action):
     """A worker leaves their employer and is out of work."""
 
@@ -335,6 +387,15 @@ def _is_wage_review_week(world: World) -> bool:
     return every > 0 and world.step > 0 and world.step % every == 0
 
 
+def _regulars(world: World, firm_id: str) -> int:
+    return sum(1 for pid in world.people if is_regular(world, pid, firm_id))
+
+
+def _is_regulars_review_week(world: World) -> bool:
+    every = int(world.params.get("regulars_review_weeks", 0))
+    return every > 0 and world.step > 0 and world.step % every == 0
+
+
 def _take(world, decide, decision, actor_id, rng) -> list[Event]:
     choice = decide(decision)
     options = {o.id: o for o in decision.options}
@@ -351,12 +412,15 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
 
     Every `wage_review_weeks` weeks the owner also decides what to pay staff. When pay
     is cut, each member of that firm's staff, in id order, decides whether to stay.
+    Every `regulars_review_weeks` weeks the owner decides what to charge regulars.
     """
     events: list[Event] = []
     seqs: dict[tuple[str, str], int] = {}
     builders = [_pricing_decision, _staffing_decision]
     if _is_wage_review_week(world):
         builders.append(_wage_decision)
+    if _is_regulars_review_week(world):
+        builders.append(_regulars_decision)
     for fid in sorted(world.firms):
         for build in builders:
             f = world.firms[fid]
@@ -388,7 +452,9 @@ def _firm_facts(world: World, f: Firm) -> dict:
         g.price for g in world.firms.values() if g.open and g.market == f.market and g.id != f.id
     ]
     staff = len(f.employee_ids)
+    extra = {"regulars_price": regulars_price(f)} if f.regulars_markup != 0 else {}
     return {
+        **extra,
         "price": f.price,
         "mean_market_price": round(sum(competitors) / len(competitors)) if competitors else None,
         "customers_last_step": f.customers_last_step,
@@ -438,7 +504,7 @@ def _describe_firm(f: Firm, facts: dict) -> str:
         market = f"Other open firms in the {f.market} market charge {_dollars(mean)} on average."
     return (
         f"You own {f.name}, which sells in the {f.market} market. "
-        f"Your price is {_dollars(facts['price'])}. {market} "
+        f"Your price is {_dollars(facts['price'])}{_regulars_note(facts)}. {market} "
         f"Last week you served {_count(facts['customers_last_step'], 'customer')}; "
         f"with {_count(facts['staff'], 'staff member')} you could have served up to "
         f"{facts['capacity']}. "
@@ -447,6 +513,12 @@ def _describe_firm(f: Firm, facts: dict) -> str:
         f"{_each(facts)}."
         f"{_describe_recent_weeks(facts['recent_weeks'])}"
     )
+
+
+def _regulars_note(facts: dict) -> str:
+    if "regulars_price" not in facts:
+        return ""
+    return f" (your regulars pay {_dollars(facts['regulars_price'])})"
 
 
 def _each(facts: dict) -> str:
@@ -508,6 +580,40 @@ def _wage_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -> D
         ),
         options=options,
         default_option_id="hold",
+        facts=facts,
+    )
+
+
+def _regulars_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -> Decision:
+    regulars = _regulars(world, f.id)
+    facts = {**_firm_facts(world, f), "regulars": regulars, "regulars_markup": f.regulars_markup}
+    options, current = [], "same"
+    for oid, markup in REGULARS_MARKUPS.items():
+        charged = round(f.price * (1 + markup))
+        if markup == 0:
+            label = f"Charge regulars the listed price, {_dollars(f.price)}"
+        else:
+            how = "more" if markup > 0 else "less"
+            label = f"Charge regulars {round(abs(markup) * 100)}% {how} than the listed price: {_dollars(charged)}"
+        if markup == f.regulars_markup:
+            current = oid
+            options.append(Option(id=oid, label=label + " (as now)"))
+        else:
+            action = _action_dict(SetRegularsMarkup(firm_id=f.id, markup=markup))
+            options.append(Option(id=oid, label=label, action=action))
+    people = "person in town is a regular" if regulars == 1 else "people in town are regulars"
+    return Decision(
+        id=_decision_id(world, f.owner_id, "regulars", seqs),
+        actor_id=f.owner_id,
+        kind="regulars",
+        situation=(
+            _describe_firm(f, facts)
+            + f" {regulars} {people} of {f.name}: they have bought from you many times and"
+            " tend to come back. You can charge your regulars a different price from"
+            " other customers, starting this week."
+        ),
+        options=options,
+        default_option_id=current,
         facts=facts,
     )
 
@@ -615,3 +721,8 @@ def _wages_rule(decision: Decision, rng: random.Random) -> str:
 @rule("pay_cut")
 def _pay_cut_rule(decision: Decision, rng: random.Random) -> str:
     return "quit" if decision.facts["wage"] < decision.facts["benefit"] else "stay"
+
+
+@rule("regulars")
+def _regulars_rule(decision: Decision, rng: random.Random) -> str:
+    return decision.default_option_id

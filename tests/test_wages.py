@@ -39,6 +39,7 @@ def test_wages_are_only_reviewed_on_review_weeks(world, rng):
 
 def test_no_review_when_the_town_sets_no_review_weeks(world, rng):
     world.params["wage_review_weeks"] = 0
+    world.params["regulars_review_weeks"] = 0
     world.step = 4
     decide, seen = _play({})
     owners_phase(world, decide, rng)
