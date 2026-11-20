@@ -2,6 +2,7 @@ import random
 
 import pytest
 
+from townsim.decide import Decision, Option
 from townsim.world import (
     Firm,
     Laws,
@@ -65,4 +66,35 @@ def tiny_world() -> World:
             benefit=6000,
             illegal={"underreport_tax", "offer_bribe", "accept_bribe"},
         ),
+    )
+
+
+@pytest.fixture
+def pricing_decision() -> Decision:
+    return Decision(
+        id="0:p0:pricing:0",
+        actor_id="p0",
+        kind="pricing",
+        situation="Your shop sells bread at 100 cents a loaf. Choose a new price.",
+        options=[
+            Option(id="down10", label="Lower the price by 10%"),
+            Option(id="down5", label="Lower the price by 5%"),
+            Option(id="hold", label="Keep the price"),
+            Option(id="up5", label="Raise the price by 5%"),
+            Option(id="up10", label="Raise the price by 10%"),
+        ],
+        default_option_id="hold",
+        facts={"price": 100},
+    )
+
+
+@pytest.fixture
+def unknown_kind_decision() -> Decision:
+    return Decision(
+        id="0:p0:no_such_kind:0",
+        actor_id="p0",
+        kind="no_such_kind",
+        situation="Choose one.",
+        options=[Option(id="a", label="A"), Option(id="b", label="B")],
+        default_option_id="b",
     )
