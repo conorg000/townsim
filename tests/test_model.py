@@ -125,6 +125,7 @@ def test_meta_has_tokens_raw_and_cost(people, pricing_decision):
         "reasoning_tokens": None,
         "cost_usd": None,
         "raw": reply,
+        "finish_reason": None,
     }
 
 

@@ -208,7 +208,7 @@ def _compare_one(decider: Decider, probes: list[Probe], n: int, clock) -> dict:
 def _run_probe(decider: Decider, probe: Probe, n: int, clock) -> dict:
     d = probe.decision
     counts = {o.id: 0 for o in d.options}
-    invalid = failures = priced = prompt_tokens = completion_tokens = 0
+    invalid = truncated = failures = priced = prompt_tokens = completion_tokens = 0
     latency = cost = 0.0
     errors: list[str] = []
     for _ in range(n):
@@ -225,6 +225,9 @@ def _run_probe(decider: Decider, probe: Probe, n: int, clock) -> dict:
             counts[choice.option_id] += 1
         else:
             invalid += 1
+            # A reply cut off at the token cap is not a choice; count it apart so a model
+            # that ran out of room while deliberating is not mistaken for one that refused.
+            truncated += choice.meta.get("finish_reason") == "length"
         c = choice.meta.get("cost_usd")
         if c is not None:
             priced += 1
@@ -232,12 +235,16 @@ def _run_probe(decider: Decider, probe: Probe, n: int, clock) -> dict:
         prompt_tokens += choice.meta.get("prompt_tokens") or 0
         completion_tokens += choice.meta.get("completion_tokens") or 0
     answered = n - failures
+    chose = sum(counts.values())
     return {
         "kind": d.kind,
         "pair_id": probe.pair_id,
         "expect_more": probe.expect_more,
-        "shares": {oid: k / answered for oid, k in counts.items()} if answered else {},
+        # Shares are of the replies that named an offered option, so they sum to 1.
+        "shares": {oid: k / chose for oid, k in counts.items()} if chose else {},
+        "chose": chose,
         "invalid": invalid,
+        "truncated": truncated,
         "failures": failures,
         "invalid_rate": invalid / n,
         "failure_rate": failures / n,

@@ -59,6 +59,7 @@ def parse_choice(text: str | None) -> str:
 def _litellm_completion(**kwargs):
     import litellm
 
+    litellm.suppress_debug_info = True  # it otherwise prints help text to stdout on errors
     return litellm.completion(**kwargs)
 
 
@@ -82,6 +83,15 @@ def reply_text(resp) -> str | None:
     except (AttributeError, IndexError, KeyError, TypeError):
         return None
     return content if isinstance(content, str) else None
+
+
+def finish_reason(resp) -> str | None:
+    """Why the reply ended; "length" means it was cut off at the token cap."""
+    try:
+        reason = resp.choices[0].finish_reason
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+    return reason if isinstance(reason, str) else None
 
 
 def token_count(usage, name: str) -> int | None:
@@ -165,6 +175,7 @@ class ModelDecider:
             ),
             "cost_usd": self.cost_fn(resp),
             "raw": text,
+            "finish_reason": finish_reason(resp),
         }
         return Choice(option_id=_match_option(parse_choice(text), decision, meta), meta=meta)
 
