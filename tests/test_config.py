@@ -166,3 +166,50 @@ def test_personas_do_not_name_a_firm_trade_or_role(cfg):
     for p in cfg.personas:
         for pat in patterns:
             assert not re.search(pat, p.persona, re.IGNORECASE), (p.name, pat, p.persona)
+
+
+# Personas go into every prompt, so they may not say the world is constructed.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Suspects the town is a simulation.",
+        "Feels life here is simulated.",
+        "Treats every deal as a game.",
+        "Plays games with suppliers.",
+        "Sees each week as a test.",
+        "Keeps testing the rules.",
+        "Thinks this is an experiment.",
+        "Likes to EXPERIMENT with prices.",
+    ],
+)
+def test_a_persona_using_a_forbidden_word_is_a_config_error(cfg_dict, text):
+    cfg_dict["personas"][3]["persona"] = text
+    with pytest.raises(ConfigError, match="persona"):
+        TownConfig.model_validate(cfg_dict)
+
+
+def test_a_persona_name_using_a_forbidden_word_is_a_config_error(cfg_dict):
+    cfg_dict["personas"][0]["name"] = "Sim Ulation Test"
+    with pytest.raises(ConfigError, match="persona"):
+        TownConfig.model_validate(cfg_dict)
+
+
+@pytest.mark.parametrize("text", ["Gave testimony once.", "Won a local contest.", "Plays the long game."])
+def test_the_forbidden_word_check_matches_words_not_fragments(cfg_dict, text):
+    cfg_dict["personas"][3]["persona"] = text
+    if "game" in text:
+        with pytest.raises(ConfigError):
+            TownConfig.model_validate(cfg_dict)
+    else:
+        TownConfig.model_validate(cfg_dict)
+
+
+def test_the_test_helper_uses_the_same_forbidden_words():
+    from helpers import FORBIDDEN_PROMPT_WORDS
+    from townsim.config import FORBIDDEN_WORDS
+
+    assert FORBIDDEN_WORDS.pattern in FORBIDDEN_PROMPT_WORDS.pattern
+    for word in ("simulation", "games", "testing", "experiments"):
+        assert FORBIDDEN_WORDS.search(word) and FORBIDDEN_PROMPT_WORDS.search(word)

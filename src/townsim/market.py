@@ -378,6 +378,8 @@ def _staffing_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) 
 def _pricing_rule(decision: Decision, rng: random.Random) -> str:
     customers = decision.facts["customers_last_step"]
     capacity = decision.facts["capacity"]
+    if capacity == 0:
+        return "hold"  # no staff, so no sales to read demand from: 0 >= 0 is not "full"
     if customers < 0.7 * capacity:
         return "down5"
     if customers >= capacity:

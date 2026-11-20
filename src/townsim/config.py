@@ -1,5 +1,6 @@
 """Town configuration: load it from YAML, check it, and build the starting world."""
 
+import re
 from pathlib import Path
 from typing import Annotated, Any, Literal, get_args
 
@@ -14,6 +15,13 @@ ROLES: frozenset[str] = frozenset(get_args(Role))
 
 class ConfigError(ValueError):
     """The town configuration is missing, malformed or inconsistent."""
+
+
+# Words that would say or imply the world is constructed. No prompt may use them; config
+# load rejects persona text that does, and the tests check every prompt against them.
+FORBIDDEN_WORDS = re.compile(
+    r"(?i)simulat|experiment|\btest(?:s|ed|ing|er|ers)?\b|\bgam(?:e|es|ed|ing|er|ers)\b"
+)
 
 
 class _Strict(BaseModel):
@@ -121,6 +129,13 @@ class TownConfig(_Strict):
             raise ValueError(
                 f"only {len(self.personas)} personas for {self.people.count} people"
             )
+        for i, p in enumerate(self.personas):
+            for field, text in (("name", p.name), ("persona", p.persona)):
+                match = FORBIDDEN_WORDS.search(text)
+                if match:
+                    raise ValueError(
+                        f"personas[{i}].{field} uses the forbidden word {match.group()!r}: {text!r}"
+                    )
         if self.people.auditors > 1:
             raise ValueError("the regulator has one auditor; people.auditors must be 0 or 1")
 

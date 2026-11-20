@@ -171,3 +171,19 @@ def test_recorded_decisions_and_invalid_responses_are_hidden(pricing_decision):
     RecordingDecider(WithMeta("up5"), sink).decide(pricing_decision)
     assert [e.kind for e in sink] == ["invalid_response", "decision", "decision"]
     assert all(e.visible is False for e in sink)
+
+
+def _options(*ids):
+    return [Option(id=i, label=i.upper()) for i in ids]
+
+
+def test_a_decision_must_offer_its_default():
+    with pytest.raises(ValueError, match="default"):
+        Decision(id="0:p0:k:0", actor_id="p0", kind="k", situation="Choose.",
+                 options=_options("a", "b"), default_option_id="c")
+
+
+def test_a_decision_must_not_offer_the_same_option_id_twice():
+    with pytest.raises(ValueError, match="duplicate"):
+        Decision(id="0:p0:k:0", actor_id="p0", kind="k", situation="Choose.",
+                 options=_options("a", "b", "a"), default_option_id="a")

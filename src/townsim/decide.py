@@ -8,7 +8,7 @@ import random
 from collections.abc import Callable
 from typing import Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from townsim.events import Event
 
@@ -20,7 +20,10 @@ class Option(BaseModel):
 
 
 class Decision(BaseModel):
-    """`id` is f"{step}:{actor_id}:{kind}:{seq}". `facts` is for rules; never shown to a model."""
+    """`id` is f"{step}:{actor_id}:{kind}:{seq}". `facts` is for rules; never shown to a model.
+
+    Option ids are unique and `default_option_id` is one of them.
+    """
 
     id: str
     actor_id: str
@@ -29,6 +32,18 @@ class Decision(BaseModel):
     options: list[Option]
     default_option_id: str
     facts: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _check_options(self) -> "Decision":
+        ids = [o.id for o in self.options]
+        duplicates = sorted({i for i in ids if ids.count(i) > 1})
+        if duplicates:
+            raise ValueError(f"decision {self.id}: duplicate option ids {duplicates}")
+        if self.default_option_id not in ids:
+            raise ValueError(
+                f"decision {self.id}: default option {self.default_option_id!r} is not offered"
+            )
+        return self
 
 
 class Choice(BaseModel):

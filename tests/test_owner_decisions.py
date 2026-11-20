@@ -298,6 +298,29 @@ def test_pricing_rule(world, rng, customers, expected):
     assert _rule_choice(world, "pricing", rng) == expected
 
 
+def test_pricing_rule_holds_for_a_firm_with_no_staff(world, rng):
+    # With no capacity, 0 customers would count as "full" and ratchet the price up weekly.
+    world.firms["f1"].employee_ids = []
+    world.firms["f1"].customers_last_step = 0
+    assert _rule_choice(world, "pricing", rng) == "hold"
+
+
+def test_a_firm_with_no_staff_keeps_its_price_week_after_week(world, rng):
+    f = world.firms["f1"]
+    f.employee_ids = []
+    price = f.price
+    rules = RuleDecider(rng)
+
+    def decide(d):  # the pricing rule decides; nobody is hired, so the firm stays unstaffed
+        return Choice(option_id="hold") if d.kind == "staffing" else rules.decide(d)
+
+    for _ in range(5):
+        f.customers_last_step = 0
+        owners_phase(world, decide, rng)
+    assert world.firms["f1"].employee_ids == []
+    assert world.firms["f1"].price == price
+
+
 def test_staffing_rule_hires_when_full_and_cash_covers_eight_weeks_of_wages(world, rng):
     f = world.firms["f1"]
     f.customers_last_step = _capacity(world, "f1")

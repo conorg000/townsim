@@ -3,12 +3,13 @@
 import random
 import re
 
-from townsim.config import TownConfig, build_world
+from townsim.config import FORBIDDEN_WORDS, TownConfig, build_world
 from townsim.decide import Choice, Decider, Decision, ModelUnavailable, RuleDecider, ScriptedDecider
 from townsim.events import EventLog
 from townsim.sim import Simulation, make_deciders
 
-FORBIDDEN_PROMPT_WORDS = re.compile(r"(?i)simulat|experiment|\btest\b|\bgame\b|you should|ought to")
+# The shared forbidden words, plus coaching phrases no prompt may use.
+FORBIDDEN_PROMPT_WORDS = re.compile(rf"{FORBIDDEN_WORDS.pattern}|you should|ought to", re.IGNORECASE)
 
 
 def scripted(mapping: dict[str, str]):
