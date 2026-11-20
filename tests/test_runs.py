@@ -107,3 +107,83 @@ def test_replay_skips_a_step_that_was_aborted_and_rerun(cfg, tmp_path):
     resumed.run(5)
     assert [e.kind for _, e in sim.log.events("r", kind="run_aborted")] == ["run_aborted"]
     replay(sim.log, "r")
+
+
+def _tamper(log, sql: str) -> None:
+    assert log._conn.execute(sql).rowcount >= 1, "the tampering changed nothing"
+
+
+def test_replay_detects_a_deleted_hash(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(sim.log, "DELETE FROM events WHERE run_id = 'r' AND step = 29 AND kind = 'state_hash'")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 29 and "hash" in e.value.detail
+
+
+def test_replay_detects_that_every_hash_was_deleted(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(sim.log, "DELETE FROM events WHERE run_id = 'r' AND kind = 'state_hash'")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "hash" in e.value.detail
+
+
+def test_replay_detects_deleted_trailing_steps(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(sim.log, "DELETE FROM events WHERE run_id = 'r' AND step >= 20")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 20
+
+
+def test_replay_detects_events_logged_past_the_last_snapshot(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(sim.log, "DELETE FROM snapshots WHERE run_id = 'r' AND step >= 20")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 20 and "outside" in e.value.detail
+
+
+def test_replay_detects_an_edited_snapshot(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(
+        sim.log,
+        "UPDATE snapshots SET world_json = json_set(world_json, '$.treasury.cash', 1)"
+        " WHERE run_id = 'r' AND step = 15",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 15 and "snapshot" in e.value.detail
+
+
+def test_replay_detects_an_edited_rng_state_in_a_snapshot(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(
+        sim.log,
+        "UPDATE snapshots SET rng_json = json_set(rng_json, '$[1][0]', 12345)"
+        " WHERE run_id = 'r' AND step = 15",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 15 and "rng" in e.value.detail
+
+
+def test_replay_detects_an_edited_non_decision_event(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 30)
+    _tamper(
+        sim.log,
+        "UPDATE events SET json = json_set(json, '$.harm.edited', 1)"
+        " WHERE run_id = 'r' AND step = 10 AND kind NOT IN ('decision', 'state_hash')",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 10 and "event" in e.value.detail
+
+
+def test_replay_of_a_run_with_no_steps_is_a_mismatch(cfg, tmp_path):
+    base = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    fork(base.log, "r", 5, "f", seed=1, deciders=rule_deciders(cfg))
+    with pytest.raises(ReplayMismatch) as e:
+        replay(base.log, "f")
+    assert e.value.step == 5 and "no logged steps" in e.value.detail
