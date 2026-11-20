@@ -91,6 +91,23 @@ the API key your chosen provider expects. Model runs cost money and are not
 deterministic, but every reply is recorded, so any finished run still replays
 exactly.
 
+## Estimating cost
+
+`townsim estimate` works out what runs would cost with different models, without
+calling any of them. It runs the town with the rule deciders, renders the exact
+prompt each decision would send, counts tokens offline and multiplies by the
+prices in [config/prices.yaml](config/prices.yaml). The same inputs always give
+the same figures.
+
+```bash
+uv run townsim estimate config/town.yaml --steps 104 --runs 50
+```
+
+Price a mix of models by role with `--mix owner=big,default=small`. The shipped
+prices are example tiers; replace them with real ones. It is an estimate: each
+provider's tokenizer differs a little, a town played by models makes somewhat
+different decisions, and retries are not counted.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).

@@ -246,3 +246,91 @@ def _check_system_one_keys(cfg: TownConfig) -> None:
             f"decider(s) {', '.join(system_one)} call TypeSafe AI's API: "
             f"set {TYPESAFE_KEY_ENV} first; no calls were made"
         )
+
+
+@app.command("estimate")
+def estimate_cmd(
+    config: Annotated[str, typer.Argument(help="The town file to estimate.")],
+    prices: Annotated[
+        str, typer.Option("--prices", help="Model prices file, dollars per million tokens.")
+    ] = "config/prices.yaml",
+    steps: Annotated[int, typer.Option("--steps", min=1, help="Weeks per run.")] = 104,
+    runs: Annotated[int, typer.Option("--runs", min=1, help="Number of runs to price.")] = 1,
+    seed: Annotated[int, typer.Option("--seed", help="Seed for the town used to count prompts.")] = 1,
+    mix: Annotated[
+        str,
+        typer.Option(
+            "--mix",
+            help="Price a mix of models by role, e.g. owner=big,default=small.",
+        ),
+    ] = "",
+    openrouter: Annotated[
+        str,
+        typer.Option(
+            "--openrouter",
+            help="Comma-separated OpenRouter model ids to price from its live list, instead of --prices.",
+        ),
+    ] = "",
+    fee_pct: Annotated[
+        float,
+        typer.Option("--fee-pct", min=0, help="Percentage added on top, e.g. a credit purchase fee."),
+    ] = 0.0,
+    as_json: Annotated[bool, typer.Option("--json", help="Print JSON instead of tables.")] = False,
+) -> None:
+    """Estimate what runs would cost with each priced model, without calling any model."""
+    from townsim.estimate import count_usage, estimate, load_prices, openrouter_prices
+
+    try:
+        cfg = load_config(config)
+        ids = [i.strip() for i in openrouter.split(",") if i.strip()]
+        price_list = openrouter_prices(ids) if ids else load_prices(prices)
+        mix_map = _parse_mix(mix)
+        result = estimate(count_usage(cfg, steps, seed), price_list, runs=runs, mix=mix_map)
+    except ConfigError as exc:
+        _fail(str(exc))
+    factor = 1 + fee_pct / 100
+    result["fee_pct"] = fee_pct
+    for row in result["models"].values():
+        row["cost_usd"] *= factor
+    if "mix" in result:
+        result["mix"]["cost_usd"] *= factor
+        for row in result["mix"]["roles"].values():
+            row["cost_usd"] *= factor
+    if as_json:
+        typer.echo(json.dumps(result, indent=2))
+        return
+    source = "OpenRouter's live list" if ids else prices
+    fee = f", plus a {fee_pct:g}% fee" if fee_pct else ""
+    typer.echo(f"{runs} run(s) of {steps} weeks, seed {seed}. Estimate only; no model was called.")
+    typer.echo(f"Prices from {source}{fee}.\n")
+    typer.echo("Per run, by who is deciding:")
+    for role, u in result["per_run"].items():
+        typer.echo(f"  {role:<12}{u['calls']:>8,} calls{u['input_tokens']:>12,} input tokens")
+    typer.echo("\nIf one model played everyone:")
+    typer.echo(f"  {'model':<28}{'calls':>9}{'input tok':>13}{'output tok':>12}{'cost':>12}")
+    for name, row in sorted(result["models"].items(), key=lambda kv: kv[1]["cost_usd"]):
+        typer.echo(
+            f"  {name:<28}{row['calls']:>9,}{row['input_tokens']:>13,}"
+            f"{row['output_tokens']:>12,}{_dollars(row['cost_usd']):>12}"
+        )
+    if "mix" in result:
+        typer.echo("\nWith the mix you gave:")
+        for role, row in result["mix"]["roles"].items():
+            typer.echo(f"  {role:<12}{row['model']:<28}{_dollars(row['cost_usd']):>12}")
+        typer.echo(f"  {'total':<40}{_dollars(result['mix']['cost_usd']):>12}")
+
+
+def _parse_mix(text: str) -> dict[str, str] | None:
+    if not text.strip():
+        return None
+    out: dict[str, str] = {}
+    for part in text.split(","):
+        role, sep, model = part.partition("=")
+        if not sep or not role.strip() or not model.strip():
+            raise ConfigError(f"--mix needs role=model pairs separated by commas, got {part!r}")
+        out[role.strip()] = model.strip()
+    return out
+
+
+def _dollars(amount: float) -> str:
+    return f"${amount:,.2f}" if amount >= 1 else f"${amount:,.4f}"
