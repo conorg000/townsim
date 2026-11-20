@@ -45,6 +45,16 @@ def run_rule_sim(cfg: TownConfig, db_path, seed: int, steps: int, run_id: str = 
     return sim
 
 
+def delete_first_decision_at_step(log: EventLog, run_id: str, step: int) -> None:
+    """Tamper with the log: remove the first recorded decision of `step` in `run_id`."""
+    cursor = log._conn.execute(
+        "DELETE FROM events WHERE rowid = (SELECT rowid FROM events"
+        " WHERE run_id = ? AND step = ? AND kind = 'decision' ORDER BY seq LIMIT 1)",
+        (run_id, step),
+    )
+    assert cursor.rowcount == 1, f"no decision recorded at step {step} of run {run_id!r}"
+
+
 def hashes(sim: Simulation) -> list[str]:
     """The state hash logged at each step of `sim`'s run, in step order."""
     return [e.payload["hash"] for _, e in sim.log.events(sim.run_id, kind="state_hash")]
