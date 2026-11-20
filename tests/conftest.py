@@ -4,10 +4,13 @@ from pathlib import Path
 import pytest
 
 import townsim.market  # noqa: F401  (registers the production rules before any test saves RULES)
+import townsim.tax  # noqa: F401  (registers the production rules before any test saves RULES)
 from townsim.config import TownConfig, build_world, read_config_dict
 from townsim.decide import RULES, Decision, Option
+from townsim.market import close_firm
 from townsim.world import (
     Firm,
+    Info,
     Laws,
     Newspaper,
     Person,
@@ -48,6 +51,36 @@ def cfg(cfg_dict) -> TownConfig:
 @pytest.fixture
 def world(cfg) -> World:
     return build_world(cfg)
+
+
+@pytest.fixture
+def one_firm_world(world) -> World:
+    """The config world with every firm except f1 closed."""
+    for fid in sorted(world.firms):
+        if fid != "f1":
+            close_firm(world, fid)
+    return world
+
+
+@pytest.fixture
+def fraud_world(world) -> World:
+    """The config world one week after f1 hid 10000 of tax at step 13 with heavy concealment."""
+    f1 = world.firms["f1"]
+    world.step = 14
+    f1.cash = 100000
+    f1.last_reported_profit = 50000
+    world.regulator.budget_per_quarter = 6
+    world.regulator.budget_left = 6
+    world.regulator.tips = []
+    world.infos["info:13:tax_fraud:f1"] = Info(
+        id="info:13:tax_fraud:f1",
+        step=13,
+        kind="tax_fraud",
+        subject_id="f1",
+        payload={"unpaid": 10000, "concealment": "heavy", "quarter": 1},
+        known_by={f1.owner_id},
+    )
+    return world
 
 
 @pytest.fixture
