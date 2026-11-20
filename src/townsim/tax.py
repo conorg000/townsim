@@ -335,7 +335,10 @@ class Audit(Action):
 
 
 def settle_penalty(world: World, firm_id: str, penalty: int) -> list[Event]:
-    """The firm pays as much of `penalty` as it has; the fraud becomes known to the auditor."""
+    """The firm pays as much of `penalty` as it has; the fraud becomes known to the auditor.
+
+    A settled case is closed, so the firm also leaves the newspaper's tips.
+    """
     f = world.firms[firm_id]
     paid = min(penalty, max(0, f.cash))
     if paid > 0:
@@ -345,6 +348,7 @@ def settle_penalty(world: World, firm_id: str, penalty: int) -> list[Event]:
         if world.regulator.auditor_id:
             fraud.known_by.add(world.regulator.auditor_id)
         fraud.payload["detected"] = True
+    world.newspaper.press_tips = [fid for fid in world.newspaper.press_tips if fid != firm_id]
     return [
         Event(
             kind="penalty_paid",
@@ -355,7 +359,9 @@ def settle_penalty(world: World, firm_id: str, penalty: int) -> list[Event]:
 
 
 def audit_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Event]:
-    """The auditor makes one audit choice; a detected fraud is settled with a penalty."""
+    """The auditor makes one audit choice; a detected fraud is settled by `resolve_bribe`."""
+    from townsim.bribery import resolve_bribe  # bribery builds on this module
+
     auditor_id = world.regulator.auditor_id
     if auditor_id not in world.people:
         return []
@@ -370,7 +376,8 @@ def audit_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Even
     events = execute(world, auditor_id, action_from_dict(action), rng)
     for ev in list(events):
         if ev.kind == "audit_detected":
-            events += settle_penalty(world, ev.payload["firm_id"], ev.payload["penalty"])
+            fid, penalty = ev.payload["firm_id"], ev.payload["penalty"]
+            events += resolve_bribe(world, fid, penalty, decide, rng)
     return events
 
 

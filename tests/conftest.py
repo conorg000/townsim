@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+import townsim.bribery  # noqa: F401  (registers the production rules before any test saves RULES)
 import townsim.market  # noqa: F401  (registers the production rules before any test saves RULES)
 import townsim.press  # noqa: F401  (registers the production rules before any test saves RULES)
 import townsim.tax  # noqa: F401  (registers the production rules before any test saves RULES)
