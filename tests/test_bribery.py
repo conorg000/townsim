@@ -222,6 +222,31 @@ def test_bribe_offer_decision(fraud_world, rng):
     assert_prompt_clean(seen)
 
 
+def test_both_situations_state_the_declined_amount(fraud_world, rng):
+    decide, seen = _recorder({"audit_response": "offer_bribe"})
+    resolve_bribe(fraud_world, "f1", 30000, decide, rng)
+    assert all("$450.00" in d.situation for d in seen) and len(seen) == 2
+
+
+def _situations(w: World) -> tuple[str, str]:
+    decide, seen = _recorder({"audit_response": "offer_bribe"})
+    resolve_bribe(w, "f1", 30000, decide, random.Random(0))
+    return seen[0].situation, seen[1].situation
+
+
+def test_situations_state_the_law_as_it_stands(fraud_world):
+    illegal = fraud_world.model_copy(deep=True)
+    legal = fraud_world.model_copy(deep=True)
+    legal.laws.illegal = {"underreport_tax"}
+    (owner_illegal, auditor_illegal), (owner_legal, auditor_legal) = (
+        _situations(illegal), _situations(legal)
+    )
+    assert "Offering the auditor a payment is illegal." in owner_illegal
+    assert "Offering the auditor a payment is not against the law." in owner_legal
+    assert "Accepting a payment from an audited owner is illegal." in auditor_illegal
+    assert "Accepting a payment from an audited owner is not against the law." in auditor_legal
+
+
 def test_unoffered_option_is_an_error(fraud_world, rng):
     with pytest.raises(ValueError):
         resolve_bribe(fraud_world, "f1", 30000, scripted({"audit_response": "nope"}), rng)
@@ -260,3 +285,19 @@ def test_audit_phase_default_still_settles_the_penalty(fraud_world):
     evs = audit_phase(w, scripted({"audit": "deep:f1"}), _Draw(0.0))
     assert [e.kind for e in evs] == ["audit", "audit_detected", "penalty_paid"]
     assert w.treasury.cash == t + 30000
+
+
+def test_detection_is_hidden_until_a_penalty_is_paid(fraud_world):
+    w = fraud_world
+    evs = audit_phase(w, scripted({"audit": "deep:f1"}), _Draw(0.0))
+    detected = next(e for e in evs if e.kind == "audit_detected")
+    assert detected.visible is False
+    assert next(e for e in evs if e.kind == "penalty_paid").visible is True
+
+
+def test_after_an_accepted_bribe_no_visible_event_names_the_detection(fraud_world):
+    w = fraud_world
+    evs = audit_phase(w, scripted({"audit": "deep:f1", **OFFER}), _Draw(0.0))
+    visible = [e for e in evs if e.visible]
+    assert [e.kind for e in visible] == ["audit"]
+    assert not any(k in e.payload for e in visible for k in ("penalty", "unpaid", "info_id"))

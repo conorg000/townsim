@@ -321,6 +321,7 @@ class Audit(Action):
                         "unpaid": unpaid,
                         "penalty": _penalty(world, unpaid),
                     },
+                    visible=False,  # known to the auditor and owner until a penalty is paid
                 )
             )
         else:
