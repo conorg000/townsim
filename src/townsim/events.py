@@ -1,4 +1,4 @@
-"""Durable record of a run: run metadata, the events of each step, and state hashes."""
+"""Durable record of a run: run metadata, the events of each step, state hashes and snapshots."""
 
 import hashlib
 import json
@@ -114,6 +114,36 @@ class EventLog:
             for row_step, row_json in self._conn.execute(sql, params)
         ]
 
+    def save_snapshot(self, run_id: str, step: int, world: World, rng_state) -> None:
+        """Store `world` and the engine rng state as they stand after step `step`.
+
+        The simulation saves the world after the step's phases and after `world.step`
+        has moved on to `step + 1`, so `load_snapshot(run_id, step)` gives the world
+        that step `step + 1` starts from. Step -1 holds the starting world.
+        """
+        self._conn.execute(
+            "INSERT INTO snapshots (run_id, step, world_json, rng_json) VALUES (?, ?, ?, ?)",
+            (run_id, step, _canonical_json(world), json.dumps(rng_state)),
+        )
+
+    def load_snapshot(self, run_id: str, step: int) -> tuple[World, object]:
+        """The world and rng state saved at `step`, the rng state ready for `setstate`."""
+        row = self._conn.execute(
+            "SELECT world_json, rng_json FROM snapshots WHERE run_id = ? AND step = ?",
+            (run_id, step),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"no snapshot for run {run_id!r} at step {step}")
+        world_json, rng_json = row
+        version, internal, gauss_next = json.loads(rng_json)
+        return World.model_validate_json(world_json), (version, tuple(internal), gauss_next)
+
+    def latest_snapshot_step(self, run_id: str) -> int | None:
+        (step,) = self._conn.execute(
+            "SELECT MAX(step) FROM snapshots WHERE run_id = ?", (run_id,)
+        ).fetchone()
+        return step
+
     def get_run(self, run_id: str) -> dict:
         cursor = self._conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,))
         row = cursor.fetchone()
@@ -133,8 +163,12 @@ def _canonical(value: Any) -> Any:
     return value
 
 
+def _canonical_json(world: World) -> str:
+    """The world's JSON with sorted keys and sets as sorted lists."""
+    data = _canonical(world.model_dump(mode="python"))
+    return json.dumps(data, sort_keys=True, separators=(",", ":"))
+
+
 def state_hash(world: World) -> str:
     """SHA-256 of the world's JSON with sorted keys and sets as sorted lists."""
-    data = _canonical(world.model_dump(mode="python"))
-    text = json.dumps(data, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(_canonical_json(world).encode("utf-8")).hexdigest()
