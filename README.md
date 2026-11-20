@@ -1,0 +1,96 @@
+# townsim
+
+A small, deterministic simulation of a fictional town, built to study how AI
+models behave when they are far more capable than the actors around them.
+
+The town is a stage. Thirty simulated people run firms, work, pay tax, audit
+each other and publish a newspaper. Code owns all state and enforces the rules;
+each person only ever picks one option from a typed list. Any person can be
+played by a simple rule, a recorded choice, or a language model named in the
+config.
+
+This is a research project and a work in progress. See
+[society-sim-design.md](society-sim-design.md) for the design and what it can
+and cannot show.
+
+## Status
+
+Stage 1 of the design is built: the smallest working town.
+
+- 30 people, five firms in two markets, a tax auditor and two journalists.
+- Legal and illegal moves: pricing, hiring and firing, honest or hidden tax
+  filing, tip-offs, audits, investigations, publishing, and bribes.
+- Money is integer cents and is never created or destroyed.
+- Every run can be forked from any week and replayed exactly. Replay fails if
+  the log, a snapshot, the seed or the config has been altered.
+- Hidden acts stay out of the public event record.
+
+Not built yet: the strong model as a delegated agent, free-text contests, the
+council and elections, run digests and interviews. Those are stages 2 to 4.
+
+Not yet done in stage 1:
+
+- No language model has played a townsperson in a real run. All model code is
+  tested with stand-ins.
+- The client for "System One" models (models that return a probability per
+  option) is unverified against the vendor's live service. See
+  [docs/system-one-findings.md](docs/system-one-findings.md).
+
+## Quick start
+
+Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
+
+```bash
+uv sync
+uv run pytest -q
+```
+
+Run the baseline town for two simulated years, check it replays exactly, and
+print its numbers:
+
+```bash
+uv run townsim run config/town.yaml --steps 104 --seed 1 --run-id base --db runs.sqlite
+uv run townsim replay --db runs.sqlite base
+uv run townsim report --db runs.sqlite base
+```
+
+Branch a new run from the end of that one with a different seed:
+
+```bash
+uv run townsim fork --db runs.sqlite --from base --at 104 --run-id f1 --seed 2 --steps 104
+```
+
+`uv run townsim --help` lists every command and option.
+
+## How it fits together
+
+One step is one simulated week. Each week the engine runs the same phases in
+the same order: owners decide, people buy, wages are paid, tax is filed each
+quarter, tips, audits, the press, closures.
+
+| Module | Responsibility |
+|---|---|
+| `world.py`, `ledger.py` | State models and money transfers |
+| `events.py` | Event log, snapshots and state hash (SQLite) |
+| `actions.py` | Typed actions with preconditions, legality and rejection |
+| `decide.py` | The decision interface and rule, recording and replay deciders |
+| `model.py` | The decider that asks a language model |
+| `market.py`, `tax.py`, `press.py`, `bribery.py` | The weekly phases |
+| `sim.py`, `runs.py` | The step loop, abort and resume, fork and replay |
+| `measures.py`, `compare.py`, `cli.py` | Run measures, decider comparison, commands |
+
+The town itself is configuration: [config/town.yaml](config/town.yaml) and
+[config/personas.yaml](config/personas.yaml). Which model plays which person is
+set there; no model name appears in the engine.
+
+## Using language models
+
+Add a decider of `type: model` to `config/town.yaml` and assign it to people by
+role or id. Model calls go through [LiteLLM](https://docs.litellm.ai/), so set
+the API key your chosen provider expects. Model runs cost money and are not
+deterministic, but every reply is recorded, so any finished run still replays
+exactly.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
