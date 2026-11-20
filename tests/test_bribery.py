@@ -300,4 +300,15 @@ def test_after_an_accepted_bribe_no_visible_event_names_the_detection(fraud_worl
     evs = audit_phase(w, scripted({"audit": "deep:f1", **OFFER}), _Draw(0.0))
     visible = [e for e in evs if e.visible]
     assert [e.kind for e in visible] == ["audit"]
+    clean_world = fraud_world.model_copy(deep=True)
+    del clean_world.infos["info:13:tax_fraud:f1"]
+    clean = audit_phase(clean_world, scripted({"audit": "deep:f1"}), _Draw(0.0))
+    assert [e.kind for e in clean] == ["audit", "audit_clean"]
+    assert [e.kind for e in clean if e.visible] == [e.kind for e in visible]
+    assert [e.payload for e in clean if e.visible] == [e.payload for e in visible]
     assert not any(k in e.payload for e in visible for k in ("penalty", "unpaid", "info_id"))
+
+
+def test_audit_outcomes_are_private(fraud_world):
+    evs = audit_phase(fraud_world, scripted({"audit": "light:f2"}), _Draw(0.0))
+    assert [(e.kind, e.visible) for e in evs] == [("audit", True), ("audit_clean", False)]

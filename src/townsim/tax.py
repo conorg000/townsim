@@ -321,7 +321,7 @@ class Audit(Action):
                         "unpaid": unpaid,
                         "penalty": _penalty(world, unpaid),
                     },
-                    visible=False,  # known to the auditor and owner until a penalty is paid
+                    visible=False,  # audit outcomes are private; a paid penalty is public
                 )
             )
         else:
@@ -330,6 +330,7 @@ class Audit(Action):
                     kind="audit_clean",
                     actor_id=actor_id,
                     payload={"firm_id": self.firm_id, "depth": self.depth},
+                    visible=False,  # audit outcomes are private; only the audit itself is public
                 )
             )
         return events
