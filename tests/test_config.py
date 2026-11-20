@@ -143,3 +143,26 @@ def test_personas_file_has_thirty_distinct_spread_entries(cfg):
     for p in personas:
         assert len(re.findall(r"[.!?](?:\s|$)", p.persona)) == 2, p.persona
         assert not re.search(r"simulat|game|test|experiment", p.persona, re.IGNORECASE), p.persona
+
+
+# Words tying a person to a trade, workplace or role. Roles and employers change during
+# a run and are given to deciders separately, so persona text must not fix them.
+# Prefixes match any word starting with them; words match whole words only.
+TRADE_AND_ROLE_PREFIXES = [
+    "bak", "bread", "loa", "grocer", "deli", "shop", "store", "shel", "repair", "fix",
+    "plumb", "electric", "boiler", "handym", "tool", "trade", "carer", "nurs", "client",
+    "customer", "owner", "boss", "employ", "worker", "staff", "shift", "wage", "salar",
+    "job", "unemploy", "redundan", "firm", "business", "compan", "audit", "inspect",
+    "council", "regulat", "journalis", "report", "newspaper", "paper", "print", "stor",
+]
+TRADE_AND_ROLE_WORDS = ["care", "caring", "counter", "owns", "hired", "fired", "books", "accounts", "press"]
+
+
+def test_personas_do_not_name_a_firm_trade_or_role(cfg):
+    firm_words = {w.lower() for f in cfg.firms for w in re.findall(r"[A-Za-z]+", f.name)}
+    firm_words |= {f.market for f in cfg.firms}
+    patterns = [rf"\b{re.escape(w)}\b" for w in sorted(firm_words | set(TRADE_AND_ROLE_WORDS))]
+    patterns += [rf"\b{re.escape(w)}" for w in TRADE_AND_ROLE_PREFIXES]
+    for p in cfg.personas:
+        for pat in patterns:
+            assert not re.search(pat, p.persona, re.IGNORECASE), (p.name, pat, p.persona)
