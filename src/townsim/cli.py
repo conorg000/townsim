@@ -2,7 +2,9 @@
 and compare deciders on canned probe decisions."""
 
 import json
+import os
 import random
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -25,6 +27,13 @@ RunId = Annotated[str, typer.Option("--run-id", help="Name of the run.")]
 def _fail(message: str) -> None:
     typer.echo(message, err=True)
     raise typer.Exit(code=1)
+
+
+def _open_existing(db: str) -> EventLog:
+    """The log in `db`, which must already exist: a mistyped path is not a new, empty log."""
+    if not Path(db).is_file():
+        _fail(f"no database file {db}")
+    return EventLog(db)
 
 
 def _decider_rng(seed: int) -> random.Random:
@@ -72,7 +81,11 @@ def _advance(sim: Simulation, target_step: int, resume_hint: str) -> None:
 def run(
     config: Annotated[str, typer.Argument(help="The town file, e.g. config/town.yaml.")],
     steps: Annotated[int, typer.Option("--steps", min=0, help="Steps the run should have.")] = 104,
-    seed: Annotated[int, typer.Option("--seed", help="Seed for a new run.")] = 1,
+    seed: Annotated[
+        int | None,
+        typer.Option("--seed", help="Seed for a new run (default 1); with --resume, if given, "
+                     "it must be the run's own seed."),
+    ] = None,
     run_id: RunId = "base",
     db: Db = "runs.sqlite",
     resume: Annotated[
@@ -84,13 +97,21 @@ def run(
         cfg = load_config(config)
     except ConfigError as exc:
         _fail(f"bad config: {exc}")
-    log = EventLog(db)
+    if resume:
+        log = _open_existing(db)
+        if not _has_run(log, run_id):
+            _fail(f"no run {run_id!r} in {db} to resume")
+        stored_seed = log.get_run(run_id)["seed"]
+        if seed is not None and seed != stored_seed:
+            _fail(f"--seed {seed} differs from the seed {stored_seed} run {run_id!r} was started with")
+        seed = stored_seed
+    else:
+        seed = 1 if seed is None else seed
+        log = EventLog(db)
     hint = (
         f"townsim run {config} --steps {steps} --seed {seed} --run-id {run_id} --db {db} --resume"
     )
     if resume:
-        if not _has_run(log, run_id):
-            _fail(f"no run {run_id!r} in {db} to resume")
         if log.get_run(run_id)["config_json"] != cfg.model_dump_json():
             _fail(f"{config} differs from the config run {run_id!r} was started with")
         sim = Simulation.resume(log, run_id, {})
@@ -123,7 +144,7 @@ def fork(
     steps: Annotated[int, typer.Option("--steps", min=0, help="Steps to run after the branch.")] = 104,
 ) -> None:
     """Start a new run from another run's world at the start of step --at."""
-    log = EventLog(db)
+    log = _open_existing(db)
     if not _has_run(log, source):
         _fail(f"no run {source!r} in {db}")
     if _has_run(log, run_id):
@@ -147,7 +168,7 @@ def replay(
     db: Db = "runs.sqlite",
 ) -> None:
     """Rebuild a run from its recorded choices and check it matches its log exactly."""
-    log = EventLog(db)
+    log = _open_existing(db)
     if not _has_run(log, run_id):
         _fail(f"no run {run_id!r} in {db}")
     try:
@@ -163,7 +184,7 @@ def report(
     db: Db = "runs.sqlite",
 ) -> None:
     """Print the run's measures and stability verdict as one JSON object."""
-    log = EventLog(db)
+    log = _open_existing(db)
     if not _has_run(log, run_id):
         _fail(f"no run {run_id!r} in {db}")
     start_key = _start_step(log, run_id) - 1
@@ -205,8 +226,23 @@ def compare_deciders_cmd(
         known = ", ".join(sorted(cfg.deciders))
         _fail(f"unknown decider(s) {', '.join(unknown)}; the config has: {known}")
     selected = cfg.model_copy(update={"deciders": {name: cfg.deciders[name] for name in names}})
+    _check_system_one_keys(selected)
     try:
         built = make_deciders(selected, _decider_rng(seed), probe_people(probe_list))
     except ConfigError as exc:
         _fail(f"bad config: {exc}")
     typer.echo(json.dumps(compare_deciders(built, probe_list, n), indent=2))
+
+
+def _check_system_one_keys(cfg: TownConfig) -> None:
+    """Fail before any call if a selected System One decider has no API key to call with."""
+    system_one = [name for name, spec in cfg.deciders.items() if spec.type == "system_one"]
+    if not system_one:
+        return
+    from townsim.typesafe import TYPESAFE_KEY_ENV  # loaded only when a System One decider is used
+
+    if not os.environ.get(TYPESAFE_KEY_ENV):
+        _fail(
+            f"decider(s) {', '.join(system_one)} call TypeSafe AI's API: "
+            f"set {TYPESAFE_KEY_ENV} first; no calls were made"
+        )

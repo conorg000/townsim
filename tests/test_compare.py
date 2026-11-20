@@ -22,7 +22,7 @@ from townsim.compare import (
 )
 from townsim.typesafe import TypeSafeClient
 from townsim.config import ConfigError, TownConfig
-from townsim.decide import Choice, Decision, ModelUnavailable, ScriptedDecider
+from townsim.decide import Choice, Decision, ModelUnavailable, RuleDecider, ScriptedDecider
 from townsim.model import render_prompt
 from townsim.press import _tip_decision
 from townsim.sim import make_deciders
@@ -616,6 +616,33 @@ def test_cli_compare_deciders_prints_one_json_object(town_dir, monkeypatch):
     out = json.loads(result.stdout)
     assert list(out) == ["rule"]
     assert out["rule"]["calls"] == 24 and out["rule"]["directional_checks"] == 4
+
+
+def test_cli_compare_deciders_without_the_system_one_key_fails_before_any_call(
+    town_dir, monkeypatch
+):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    asked = []
+    monkeypatch.setattr(RuleDecider, "decide", lambda self, d: asked.append(d) or Choice(
+        option_id=d.default_option_id))
+    result = CliRunner().invoke(app, ["compare-deciders", str(town_dir / "town.yaml"),
+                                      "--deciders", "rule,jev", "--probes", str(PROBES_YAML),
+                                      "--n", "2"])
+    assert result.exit_code != 0
+    assert "TYPESAFE_API_KEY" in result.output and "jev" in result.output
+    assert asked == []
+
+
+def test_cli_compare_deciders_with_the_system_one_key_set_runs(town_dir, monkeypatch):
+    import townsim.typesafe
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "k")
+    monkeypatch.setattr(townsim.typesafe, "_urllib_post", FakePost(jev_response({"honest": 1.0})))
+    result = CliRunner().invoke(app, ["compare-deciders", str(town_dir / "town.yaml"),
+                                      "--deciders", "jev", "--probes", str(PROBES_YAML),
+                                      "--n", "1"])
+    assert result.exit_code == 0, result.output
+    assert list(json.loads(result.stdout)) == ["jev"]
 
 
 def test_cli_compare_deciders_unknown_name_is_an_error(town_dir):

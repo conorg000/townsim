@@ -57,9 +57,54 @@ def test_resume_continues_a_run_to_its_requested_length(db):
 
 
 def test_resume_of_an_unknown_run_is_an_error(db):
+    assert _base(db, steps=2).exit_code == 0
     result = _run("run", str(TOWN_YAML), "--steps", "3", "--seed", "1",
                   "--run-id", "nope", "--db", db, "--resume")
     assert result.exit_code != 0 and "nope" in result.output
+
+
+def test_resume_without_a_seed_uses_the_runs_own_seed(db):
+    assert _run("run", str(TOWN_YAML), "--steps", "3", "--seed", "5",
+                "--run-id", "base", "--db", db).exit_code == 0
+    result = _run("run", str(TOWN_YAML), "--steps", "5", "--run-id", "base", "--db", db,
+                  "--resume")
+    assert result.exit_code == 0, result.output
+    assert EventLog(db).latest_snapshot_step("base") == 4
+    replay(EventLog(db), "base")
+
+
+def test_resume_with_the_runs_own_seed_is_allowed(db):
+    assert _base(db, steps=2).exit_code == 0
+    result = _run("run", str(TOWN_YAML), "--steps", "3", "--seed", "1",
+                  "--run-id", "base", "--db", db, "--resume")
+    assert result.exit_code == 0, result.output
+
+
+def test_resume_with_a_different_seed_is_an_error(db):
+    assert _base(db, steps=2).exit_code == 0
+    before = len(EventLog(db).events("base"))
+    result = _run("run", str(TOWN_YAML), "--steps", "4", "--seed", "9",
+                  "--run-id", "base", "--db", db, "--resume")
+    assert result.exit_code != 0
+    assert "seed" in result.output and "9" in result.output and "1" in result.output
+    assert len(EventLog(db).events("base")) == before
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("replay", "base"),
+        ("report", "base"),
+        ("fork", "--from", "base", "--at", "1", "--run-id", "f1", "--steps", "1"),
+        ("run", str(TOWN_YAML), "--steps", "2", "--run-id", "base", "--resume"),
+    ],
+)
+def test_commands_on_a_missing_database_are_an_error_and_create_no_file(tmp_path, args):
+    db = tmp_path / "typo.sqlite"
+    result = _run(*args, "--db", str(db))
+    assert result.exit_code != 0
+    assert "no database" in result.output and str(db) in result.output
+    assert not db.exists()
 
 
 def test_a_model_outage_exits_non_zero_and_says_how_to_resume(db, monkeypatch):
@@ -116,6 +161,7 @@ def test_replay_exits_zero_on_success_and_non_zero_with_the_step_on_mismatch(db)
 
 
 def test_replay_of_an_unknown_run_is_an_error(db):
+    assert _base(db, steps=2).exit_code == 0
     result = _run("replay", "--db", db, "nope")
     assert result.exit_code != 0 and "nope" in result.output
 
