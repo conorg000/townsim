@@ -1,0 +1,26 @@
+[project]
+name = "townsim"
+version = "0.1.0"
+description = "A small deterministic town simulation engine"
+authors = [
+    { name = "conorg000", email = "20813490+conorg000@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "litellm>=1.110.1",
+    "pydantic>=2.14.4",
+    "pyyaml>=6.0.3",
+    "typer>=0.29.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
