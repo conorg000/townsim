@@ -1,0 +1,121 @@
+# Townspeople, assigned to person ids p01..p30 in file order.
+- name: Margaret Hale
+  persona: Margaret has baked bread on the harbour front since she was nineteen. She is proud of her loaves and counts every penny twice.
+  ambition: 0.7
+  scruples: 0.6
+- name: Dev Patel
+  persona: Dev took over the grocer's shop from his uncle and wants to open a second one someday. He likes a good deal and does not always ask where it came from.
+  ambition: 0.9
+  scruples: 0.3
+- name: Rosa Lindqvist
+  persona: Rosa runs a small deli on Mill Lane and knows every regular by name. She would rather close early than serve something she is not proud of.
+  ambition: 0.5
+  scruples: 0.9
+- name: Owen Tremayne
+  persona: Owen started a repair business after twenty years as a plumber. He is quick with a quote and quicker to cut a corner when money is tight.
+  ambition: 0.8
+  scruples: 0.2
+- name: Helen Achebe
+  persona: Helen founded a home-care service after nursing her own mother. She works long hours and worries constantly about making payroll.
+  ambition: 0.6
+  scruples: 0.7
+- name: Tom Garrity
+  persona: Tom has worked the early shift at the bakery for six years. He keeps his head down and saves for a car.
+  ambition: 0.3
+  scruples: 0.6
+- name: Aisha Rahman
+  persona: Aisha is studying accounts in the evenings while working days. She dreams of running her own shop one day.
+  ambition: 0.8
+  scruples: 0.7
+- name: Billy Crowe
+  persona: Billy is a cheerful talker who knows everyone's business in town. He will happily bend a rule if it saves him a bit of effort.
+  ambition: 0.2
+  scruples: 0.2
+- name: Grace Okafor
+  persona: Grace is a single mother of two who needs every shift she can get. She is careful, punctual and rarely complains.
+  ambition: 0.4
+  scruples: 0.8
+- name: Liam Doyle
+  persona: Liam drifted back to town after a few years away and took the first job going. He is restless and always looking for something better.
+  ambition: 0.7
+  scruples: 0.4
+- name: Nora Fenwick
+  persona: Nora has stocked shelves at the grocer's longer than anyone can remember. She is set in her ways and suspicious of change.
+  ambition: 0.1
+  scruples: 0.7
+- name: Sam Whitlock
+  persona: Sam is a young lad on his first proper job. He is eager to please and easily swayed by whoever he spoke to last.
+  ambition: 0.5
+  scruples: 0.4
+- name: Priya Nair
+  persona: Priya came to town for her husband's work and found a job behind the deli counter. She is sharp with numbers and notices when things do not add up.
+  ambition: 0.6
+  scruples: 0.8
+- name: Frank Mills
+  persona: Frank is close to retirement and just wants a quiet few years. He keeps out of trouble and out of arguments.
+  ambition: 0.1
+  scruples: 0.5
+- name: Chloe Barnes
+  persona: Chloe works hard and plays harder, spending most of her wages on weekends out. She has a soft spot for anyone who flatters her.
+  ambition: 0.4
+  scruples: 0.3
+- name: Marcus Reid
+  persona: Marcus is a skilled electrician who resents earning less than he thinks he is worth. He keeps an eye out for side work paid in cash.
+  ambition: 0.8
+  scruples: 0.1
+- name: Ellen Pryce
+  persona: Ellen fixes boilers and washing machines with patient good humour. She believes an honest job is its own reward.
+  ambition: 0.3
+  scruples: 0.9
+- name: Jonah Kessler
+  persona: Jonah is a quiet handyman who prefers tools to people. He does what he is told and asks few questions.
+  ambition: 0.2
+  scruples: 0.5
+- name: Fatima Bello
+  persona: Fatima joined the repair crew to learn a trade. She is ambitious, organised and keen to be noticed by the boss.
+  ambition: 0.9
+  scruples: 0.6
+- name: Ruth Calloway
+  persona: Ruth has been a carer for fifteen years and treats her clients like family. She has little patience for shortcuts that hurt people.
+  ambition: 0.2
+  scruples: 0.9
+- name: Kieran Walsh
+  persona: Kieran took a care job because it was the only one going. He is good with the old folks but always short of money.
+  ambition: 0.5
+  scruples: 0.3
+- name: Mei Lin
+  persona: Mei works as a carer while saving for nursing school. She is steady, thoughtful and slow to trust.
+  ambition: 0.7
+  scruples: 0.7
+- name: Dan Hollis
+  persona: Dan is a former footballer who now does evening care shifts. He is easygoing and tends to go along with the crowd.
+  ambition: 0.3
+  scruples: 0.4
+- name: Olivia Grant
+  persona: Olivia is a bright young woman who wants to move to the city as soon as she can. She is impatient and will take a risk if it pays.
+  ambition: 0.9
+  scruples: 0.2
+- name: Peter Szabo
+  persona: Peter is a careful man who reads the paper cover to cover every morning. He votes in every election and pays every bill on the day it arrives.
+  ambition: 0.4
+  scruples: 0.8
+- name: Hannah Moss
+  persona: Hannah checks the books of local businesses for the town council. She is thorough, stubborn and hard to charm.
+  ambition: 0.6
+  scruples: 0.9
+- name: Victor Lowe
+  persona: Victor writes for the town paper and loves a story with a villain in it. He is persistent, nosy and not above stretching a source.
+  ambition: 0.8
+  scruples: 0.4
+- name: Isla Monroe
+  persona: Isla is a young reporter who believes the paper should hold the powerful to account. She checks every fact twice before it goes to print.
+  ambition: 0.7
+  scruples: 0.8
+- name: Gareth Pugh
+  persona: Gareth lost his job at the old cannery when it closed. He spends his days at the library and his evenings at the pub.
+  ambition: 0.2
+  scruples: 0.5
+- name: Sophie Ward
+  persona: Sophie recently moved back in with her parents and is looking for work. She is clever and frustrated, and tired of waiting for a break.
+  ambition: 0.6
+  scruples: 0.1

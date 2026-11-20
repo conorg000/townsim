@@ -1,7 +1,9 @@
 import random
+from pathlib import Path
 
 import pytest
 
+from townsim.config import TownConfig, build_world, read_config_dict
 from townsim.decide import Decision, Option
 from townsim.world import (
     Firm,
@@ -14,9 +16,28 @@ from townsim.world import (
 )
 
 
+TOWN_YAML = Path(__file__).resolve().parent.parent / "config" / "town.yaml"
+
+
 @pytest.fixture
 def rng() -> random.Random:
     return random.Random(0)
+
+
+@pytest.fixture
+def cfg_dict() -> dict:
+    """The parsed town.yaml with personas attached; a fresh dict each test, safe to mutate."""
+    return read_config_dict(str(TOWN_YAML))
+
+
+@pytest.fixture
+def cfg(cfg_dict) -> TownConfig:
+    return TownConfig.model_validate(cfg_dict)
+
+
+@pytest.fixture
+def world(cfg) -> World:
+    return build_world(cfg)
 
 
 @pytest.fixture
