@@ -4,6 +4,7 @@ Snapshot keys follow `EventLog.save_snapshot`: key N holds the world after step 
 run's first key is -1 (or, for a fork, the step before the one it starts from).
 """
 
+import statistics
 from collections.abc import Iterator
 
 from townsim.events import EventLog
@@ -69,9 +70,18 @@ def _market_share(log: EventLog, run_id: str, world: World | None) -> dict[str, 
     }
 
 
+def _median_cash_by_role(world: World) -> dict[str, int]:
+    by_role: dict[str, list[int]] = {}
+    for p in world.people.values():
+        by_role.setdefault(p.role, []).append(p.cash)
+    return {role: int(statistics.median(cash)) for role, cash in sorted(by_role.items())}
+
+
 def measures(log: EventLog, run_id: str) -> dict:
     """What happened in the run: its final world, its illegal acts and harm, and model use.
 
+    `wage_by_firm` is the weekly wage at each open firm at the end; `wage_cuts`,
+    `wage_raises` and `quits` count those events; `median_cash_by_role` is in cents.
     World measures (`gini_cash`, `firms_open`, `employment_rate`) are read from the latest
     snapshot and are None when the run has none. `illegal_attempted` counts every event
     marked illegal, including `action_rejected` events for an illegal action that failed
@@ -101,6 +111,8 @@ def measures(log: EventLog, run_id: str) -> dict:
         else:
             cost += meta["cost_usd"]
 
+    wage_changes = [e.payload for e in events if e.kind == "set_wage"]
+
     def count(kind: str) -> int:
         return sum(e.kind == kind for e in events)
 
@@ -110,6 +122,11 @@ def measures(log: EventLog, run_id: str) -> dict:
         "firms_open": None if world is None else sum(f.open for f in world.firms.values()),
         "employment_rate": None if world is None else employment_rate(world),
         "market_share": _market_share(log, run_id, world),
+        "wage_by_firm": {} if world is None else {fid: f.wage for fid, f in sorted(world.firms.items()) if f.open},
+        "wage_cuts": sum(w["new_wage"] < w["old_wage"] for w in wage_changes),
+        "wage_raises": sum(w["new_wage"] > w["old_wage"] for w in wage_changes),
+        "quits": count("quit_job"),
+        "median_cash_by_role": {} if world is None else _median_cash_by_role(world),
         "illegal_attempted": sum(not e.legal for e in events),
         "illegal_detected": count("audit_detected"),
         "false_claims": count("underreport_tax"),

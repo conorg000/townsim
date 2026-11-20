@@ -63,6 +63,8 @@ class Laws(BaseModel):
     penalty_multiplier: float
     benefit: int
     illegal: set[str]
+    # The lowest weekly wage a firm may set, in cents; 0 means the town has no minimum.
+    min_wage: int = 0
 
 
 class Info(BaseModel):

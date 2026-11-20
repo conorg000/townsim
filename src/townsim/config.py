@@ -51,6 +51,7 @@ class LawsConfig(_Strict):
     penalty_multiplier: float
     benefit: int
     illegal: list[str]
+    min_wage: int = Field(default=0, ge=0)
 
 
 class RuleDeciderConfig(_Strict):
@@ -270,6 +271,7 @@ def build_world(cfg: TownConfig) -> World:
             penalty_multiplier=cfg.laws.penalty_multiplier,
             benefit=cfg.laws.benefit,
             illegal=set(cfg.laws.illegal),
+            min_wage=cfg.laws.min_wage,
         ),
         params=dict(cfg.params),
     )

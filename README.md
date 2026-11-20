@@ -15,26 +15,32 @@ and cannot show.
 
 ## Status
 
-Stage 1 of the design is built: the smallest working town.
+Stage 1 of the design is built, and stage 2 has started.
 
 - 30 people, five firms in two markets, a tax auditor and two journalists.
-- Legal and illegal moves: pricing, hiring and firing, honest or hidden tax
-  filing, tip-offs, audits, investigations, publishing, and bribes.
+- Legal and illegal moves: pricing, hiring and firing, setting pay, honest or
+  hidden tax filing, tip-offs, audits, investigations, publishing, and bribes.
+- Owners review what they pay staff every few weeks. Staff whose pay is cut
+  can stay or leave, and nobody takes a job that pays less than the benefit.
+  The town can set a minimum wage (`laws.min_wage`); by default it has none.
+- A person can hand their decisions to an AI agent with a standing instruction
+  (`agents:` in the config).
 - Money is integer cents and is never created or destroyed.
 - Every run can be forked from any week and replayed exactly. Replay fails if
   the log, a snapshot, the seed or the config has been altered.
 - Hidden acts stay out of the public event record.
+- Language models have played the whole town in live runs, and those runs
+  replay exactly from their recorded replies.
+- `compare-deciders` puts the same decision to several models many times.
+  Probe decisions are in [config/probe_decisions.yaml](config/probe_decisions.yaml)
+  and [config/probe_agent_decisions.yaml](config/probe_agent_decisions.yaml).
 
-Not built yet: the strong model as a delegated agent, free-text contests, the
-council and elections, run digests and interviews. Those are stages 2 to 4.
+Not built yet: free-text contests, the council and elections, run digests and
+interviews.
 
-Not yet done in stage 1:
-
-- No language model has played a townsperson in a real run. All model code is
-  tested with stand-ins.
-- The client for "System One" models (models that return a probability per
-  option) is unverified against the vendor's live service. See
-  [docs/system-one-findings.md](docs/system-one-findings.md).
+The client for "System One" models (models that return a probability per
+option) is unverified against the vendor's live service. See
+[docs/system-one-findings.md](docs/system-one-findings.md).
 
 ## Quick start
 
@@ -104,7 +110,8 @@ uv run townsim estimate config/town.yaml --steps 104 --runs 50
 ```
 
 Price a mix of models by role with `--mix owner=big,default=small`. The shipped
-prices are example tiers; replace them with real ones. It is an estimate: each
+prices are a dated snapshot of OpenRouter's list; `--openrouter ID,ID` prices
+from the live list. It is an estimate: each
 provider's tokenizer differs a little, a town played by models makes somewhat
 different decisions, and retries are not counted.
 

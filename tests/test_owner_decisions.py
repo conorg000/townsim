@@ -116,6 +116,7 @@ def test_facts_describe_the_owners_firm_and_market(world, rng):
         "capacity": _capacity(world, "f1"),
         "cash": f.cash,
         "weekly_wage_bill": f.wage * len(f.employee_ids),
+            "wage": f.wage,
         "staff": len(f.employee_ids),
         "recent_weeks": [],
     }
