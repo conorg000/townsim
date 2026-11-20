@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from townsim import market
-from townsim.config import ConfigError, TownConfig, build_world
+from townsim.config import build_world
 from townsim.decide import Choice, Decision, ModelUnavailable, Option, ReplayDecider
 from townsim.events import EventLog, state_hash
 from townsim.sim import Simulation, make_deciders
@@ -218,7 +218,3 @@ def test_make_deciders_builds_rule_deciders(cfg):
     assert set(deciders) == {"rule"}
 
 
-def test_make_deciders_rejects_types_not_available_yet(cfg_dict, world):
-    cfg_dict["deciders"]["other"] = {"type": "system_one", "model": "m"}
-    with pytest.raises(ConfigError, match="not available yet"):
-        make_deciders(TownConfig.model_validate(cfg_dict), random.Random(0), world.people)

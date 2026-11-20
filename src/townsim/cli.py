@@ -1,4 +1,5 @@
-"""The `townsim` command: run, fork, replay and report on runs kept in a SQLite log."""
+"""The `townsim` command: run, fork, replay and report on runs kept in a SQLite log,
+and compare deciders on canned probe decisions."""
 
 import json
 import random
@@ -6,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from townsim.compare import compare_deciders, load_probes, probe_people
 from townsim.config import ConfigError, TownConfig, build_world, load_config
 from townsim.decide import ModelUnavailable
 from townsim.events import EventLog
@@ -169,3 +171,36 @@ def report(
         "stability": stability(log, run_id, total_money(start_world)),
     }
     typer.echo(json.dumps(out, indent=2))
+
+
+@app.command("compare-deciders")
+def compare_deciders_cmd(
+    config: Annotated[str, typer.Argument(help="The town file whose deciders to compare.")],
+    deciders: Annotated[
+        str, typer.Option("--deciders", help="Comma-separated decider names from the config.")
+    ],
+    probes: Annotated[
+        str, typer.Option("--probes", help="The probe decisions file.")
+    ] = "config/probe_decisions.yaml",
+    n: Annotated[int, typer.Option("--n", min=1, help="Calls per decider per probe.")] = 50,
+    seed: Annotated[int, typer.Option("--seed", help="Seed for the deciders' rng.")] = 1,
+) -> None:
+    """Put the same probe decisions to each decider and print what each chose as one JSON object."""
+    try:
+        cfg = load_config(config)
+        probe_list = load_probes(probes)
+    except ConfigError as exc:
+        _fail(f"bad config: {exc}")
+    names = [name.strip() for name in deciders.split(",") if name.strip()]
+    if not names:
+        _fail("--deciders names no decider")
+    unknown = [name for name in names if name not in cfg.deciders]
+    if unknown:
+        known = ", ".join(sorted(cfg.deciders))
+        _fail(f"unknown decider(s) {', '.join(unknown)}; the config has: {known}")
+    selected = cfg.model_copy(update={"deciders": {name: cfg.deciders[name] for name in names}})
+    try:
+        built = make_deciders(selected, _decider_rng(seed), probe_people(probe_list))
+    except ConfigError as exc:
+        _fail(f"bad config: {exc}")
+    typer.echo(json.dumps(compare_deciders(built, probe_list, n), indent=2))

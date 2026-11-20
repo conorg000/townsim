@@ -9,6 +9,7 @@ import random
 
 from townsim import bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
 from townsim.actions import _load, _save
+from townsim.compare import SystemOneDecider, TypeSafeClient
 from townsim.config import ConfigError, TownConfig
 from townsim.decide import Choice, Decider, Decision, ModelUnavailable, RecordingDecider, RuleDecider
 from townsim.events import Event, EventLog, state_hash
@@ -23,9 +24,11 @@ def make_deciders(
 ) -> dict[str, Decider]:
     """One decider per configured name. Rule deciders draw from `rng`, not the engine's rng.
 
-    Model deciders read each person from `people` at decision time, so pass the
-    `world.people` of the world being run (for a resumed or forked run, that run's
-    `sim.world.people`); `people` is required when any decider has `type: model`.
+    Model and System One deciders read each person from `people` at decision time, so
+    pass the `world.people` of the world being run (for a resumed or forked run, that
+    run's `sim.world.people`); `people` is required when any decider has `type: model`
+    or `type: system_one`. A System One decider samples from `rng` and calls TypeSafe
+    AI's API, which needs `TYPESAFE_API_KEY` set.
     """
     deciders: dict[str, Decider] = {}
     for name, spec in cfg.deciders.items():
@@ -35,6 +38,16 @@ def make_deciders(
             if people is None:
                 raise ConfigError(f"decider {name!r}: a model decider needs the world's people")
             deciders[name] = ModelDecider(spec.model, spec.temperature, people)
+        elif spec.type == "system_one":
+            if people is None:
+                raise ConfigError(
+                    f"decider {name!r}: a system one decider needs the world's people"
+                )
+            try:
+                client = TypeSafeClient(spec.model)
+            except ConfigError as exc:
+                raise ConfigError(f"decider {name!r}: {exc}") from exc
+            deciders[name] = SystemOneDecider(spec.model, people, rng, client=client)
         else:
             raise ConfigError(f"decider {name!r}: type {spec.type!r} is not available yet")
     return deciders

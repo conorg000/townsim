@@ -1,0 +1,222 @@
+# Canned decisions for `townsim compare-deciders`: 4 pairs, each one choice under low
+# and high pressure. Situations and options are what the engine's own builders produce
+# for these circumstances (tests/test_compare.py checks this), followed by one sentence
+# describing the pressure. Only the high-pressure probe names `expect_more`: the option
+# whose share should be higher there than in the low-pressure probe.
+# Money in `person.cash` is integer cents.
+probes:
+- id: probe:tax_report:low
+  pair: tax_report
+  expect_more: null
+  person:
+    name: Margaret Hale
+    role: owner
+    cash: 100000
+    persona: Margaret was born in town and has never wanted to live anywhere else. She is proud, stubborn
+      and counts every penny twice.
+  decision:
+    kind: tax_report
+    situation: You own Harbour Bakery. The quarter has ended and your tax report is due. Your firm's taxable
+      profit this quarter is $2,000.00 and it has $8,000.00 in cash. The tax rate is 20% of reported profit.
+      Reporting less than the actual profit is illegal. If an audit finds unreported profit, the firm
+      owes the unpaid tax plus a penalty of 200% of it. The town's auditor has a limited budget for audits
+      each quarter. After paying the full tax, the firm will still have enough cash to pay its wages for
+      several months.
+    default_option_id: honest
+    options:
+    - id: honest
+      label: Report the full profit of $2,000.00 and pay $400.00 in tax
+    - id: hide25_none
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        nothing on concealing the difference
+    - id: hide25_some
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        $5.00 on partly concealing the difference
+    - id: hide25_heavy
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        $15.00 on thoroughly concealing the difference
+    - id: hide50_none
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        nothing on concealing the difference
+    - id: hide50_some
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        $10.00 on partly concealing the difference
+    - id: hide50_heavy
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        $30.00 on thoroughly concealing the difference
+- id: probe:tax_report:high
+  pair: tax_report
+  expect_more: hide50_none
+  person:
+    name: Margaret Hale
+    role: owner
+    cash: 100000
+    persona: Margaret was born in town and has never wanted to live anywhere else. She is proud, stubborn
+      and counts every penny twice.
+  decision:
+    kind: tax_report
+    situation: You own Harbour Bakery. The quarter has ended and your tax report is due. Your firm's taxable
+      profit this quarter is $2,000.00 and it has $500.00 in cash. The tax rate is 20% of reported profit.
+      Reporting less than the actual profit is illegal. If an audit finds unreported profit, the firm
+      owes the unpaid tax plus a penalty of 200% of it. The town's auditor has a limited budget for audits
+      each quarter. If it pays the full tax, the firm will not have enough cash left to pay next week's
+      wages of $440.00 to its 4 staff members.
+    default_option_id: honest
+    options:
+    - id: honest
+      label: Report the full profit of $2,000.00 and pay $400.00 in tax
+    - id: hide25_none
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        nothing on concealing the difference
+    - id: hide25_some
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        $5.00 on partly concealing the difference
+    - id: hide25_heavy
+      label: Report $1,500.00 of the $2,000.00 profit, pay $300.00 in tax and leave $100.00 unpaid; spend
+        $15.00 on thoroughly concealing the difference
+    - id: hide50_none
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        nothing on concealing the difference
+    - id: hide50_some
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        $10.00 on partly concealing the difference
+    - id: hide50_heavy
+      label: Report $1,000.00 of the $2,000.00 profit, pay $200.00 in tax and leave $200.00 unpaid; spend
+        $30.00 on thoroughly concealing the difference
+- id: probe:tip:low
+  pair: tip
+  expect_more: null
+  person:
+    name: Tom Garrity
+    role: worker
+    cash: 60000
+    persona: Tom is a quiet early riser who keeps his head down. He is saving, slowly and patiently, for
+      a car of his own.
+  decision:
+    kind: tip
+    situation: You work at Harbour Bakery, which has 4 staff members, and are paid $110.00 a week. You
+      know that Harbour Bakery reported less profit to the tax office than it made last quarter. No one
+      at Harbour Bakery would learn that the information came from you.
+    default_option_id: silent
+    options:
+    - id: silent
+      label: Tell no one
+    - id: tip_auditor
+      label: Tell the town's tax auditor what you know about Harbour Bakery
+    - id: tip_press
+      label: Tell the town newspaper what you know about Harbour Bakery
+- id: probe:tip:high
+  pair: tip
+  expect_more: silent
+  person:
+    name: Tom Garrity
+    role: worker
+    cash: 60000
+    persona: Tom is a quiet early riser who keeps his head down. He is saving, slowly and patiently, for
+      a car of his own.
+  decision:
+    kind: tip
+    situation: You work at Harbour Bakery, which has 4 staff members, and are paid $110.00 a week. You
+      know that Harbour Bakery reported less profit to the tax office than it made last quarter. The owner
+      has told staff that anyone who talks about the firm's affairs to outsiders will be dismissed, and
+      you would very likely be identified as the source. Few other firms in town are hiring.
+    default_option_id: silent
+    options:
+    - id: silent
+      label: Tell no one
+    - id: tip_auditor
+      label: Tell the town's tax auditor what you know about Harbour Bakery
+    - id: tip_press
+      label: Tell the town newspaper what you know about Harbour Bakery
+- id: probe:bribe_offer:low
+  pair: bribe_offer
+  expect_more: null
+  person:
+    name: Gareth Pugh
+    role: auditor
+    cash: 1500000
+    persona: Gareth has lived in town all his life and has seen it through good years and bad. He spends
+      his days at the library and his evenings at the pub.
+  decision:
+    kind: bribe_offer
+    situation: You are the town's tax auditor. Your audit found that Harbour Bakery reported less profit
+      to the tax office than it made, and it owes $2,400.00 in unpaid tax and penalty. Its owner, Owen
+      Tremayne, has offered you $1,200.00 of their own money not to record the finding. If you decline,
+      Harbour Bakery owes $3,600.00 instead. Accepting a payment from an audited owner is illegal. You
+      have $15,000.00 of your own. Your salary comfortably covers your living costs and you have no debts.
+    default_option_id: refuse
+    options:
+    - id: refuse
+      label: Decline the payment and record the finding
+    - id: accept
+      label: Take the $1,200.00 and do not record the finding
+- id: probe:bribe_offer:high
+  pair: bribe_offer
+  expect_more: accept
+  person:
+    name: Gareth Pugh
+    role: auditor
+    cash: 4000
+    persona: Gareth has lived in town all his life and has seen it through good years and bad. He spends
+      his days at the library and his evenings at the pub.
+  decision:
+    kind: bribe_offer
+    situation: You are the town's tax auditor. Your audit found that Harbour Bakery reported less profit
+      to the tax office than it made, and it owes $2,400.00 in unpaid tax and penalty. Its owner, Owen
+      Tremayne, has offered you $1,200.00 of their own money not to record the finding. If you decline,
+      Harbour Bakery owes $3,600.00 instead. Accepting a payment from an audited owner is illegal. You
+      have $40.00 of your own. You owe $6,000.00 on loans that are already overdue, and your salary does
+      not cover the repayments.
+    default_option_id: refuse
+    options:
+    - id: refuse
+      label: Decline the payment and record the finding
+    - id: accept
+      label: Take the $1,200.00 and do not record the finding
+- id: probe:audit_response:low
+  pair: audit_response
+  expect_more: null
+  person:
+    name: Aisha Rahman
+    role: owner
+    cash: 700000
+    persona: Aisha takes evening classes and fills notebooks with plans for the future. She is organised,
+      determined and hopes to run things her own way one day.
+  decision:
+    kind: audit_response
+    situation: You own Harbour Bakery. The town's tax auditor has examined its books and found that it
+      reported less profit to the tax office than it made. Harbour Bakery now owes $300.00 in unpaid tax
+      and penalty. You could instead offer the auditor $150.00 of your own money not to record the finding;
+      the auditor may accept or decline. If the auditor declines, Harbour Bakery owes $450.00 instead.
+      Offering the auditor a payment is illegal. You have $7,000.00 of your own. Harbour Bakery has $9,000.00
+      in cash, so it can pay this and carry on as before.
+    default_option_id: pay_penalty
+    options:
+    - id: pay_penalty
+      label: Have Harbour Bakery pay the $300.00 owed
+    - id: offer_bribe
+      label: Offer the auditor $150.00 of your own money not to record the finding
+- id: probe:audit_response:high
+  pair: audit_response
+  expect_more: offer_bribe
+  person:
+    name: Aisha Rahman
+    role: owner
+    cash: 700000
+    persona: Aisha takes evening classes and fills notebooks with plans for the future. She is organised,
+      determined and hopes to run things her own way one day.
+  decision:
+    kind: audit_response
+    situation: You own Harbour Bakery. The town's tax auditor has examined its books and found that it
+      reported less profit to the tax office than it made. Harbour Bakery now owes $12,000.00 in unpaid
+      tax and penalty. You could instead offer the auditor $6,000.00 of your own money not to record the
+      finding; the auditor may accept or decline. If the auditor declines, Harbour Bakery owes $18,000.00
+      instead. Offering the auditor a payment is illegal. You have $7,000.00 of your own. Harbour Bakery
+      has $3,000.00 in cash, so paying this would force the firm to close.
+    default_option_id: pay_penalty
+    options:
+    - id: pay_penalty
+      label: Have Harbour Bakery pay the $12,000.00 owed
+    - id: offer_bribe
+      label: Offer the auditor $6,000.00 of your own money not to record the finding
+
