@@ -64,7 +64,12 @@ def _amounts(world: World, f: Firm, hide_share: float, concealment: str) -> dict
 
 @register
 class FileTax(Action):
-    """File the quarter's tax report for a firm, reporting `1 - hide_share` of its profit."""
+    """File the quarter's tax report for a firm, reporting `1 - hide_share` of its profit.
+
+    The first event, `file_tax` or `underreport_tax`, is the owner's private act and is
+    hidden. Every filing then emits a visible `tax_filed` event with the reported figures
+    (`reported`, `tax_due`, `tax_paid`), so an underreport looks like any other filing.
+    """
 
     kind = _KindByHideShare()
     firm_id: str
@@ -99,8 +104,11 @@ class FileTax(Action):
             "tax_due": a["tax_due"],
             "tax_paid": tax_paid,
         }
+        # What the tax office receives, and so what the public sees: the same event, with
+        # the reported figures only, whether the filing was honest or not.
+        filed = Event(kind="tax_filed", actor_id=actor_id, payload=dict(payload))
         if self.hide_share == 0:
-            return [Event(kind=self.kind, actor_id=actor_id, payload=payload)]
+            return [Event(kind=self.kind, actor_id=actor_id, payload=payload, visible=False), filed]
 
         info_id = f"info:{world.step}:tax_fraud:{self.firm_id}"
         world.infos[info_id] = Info(
@@ -134,7 +142,8 @@ class FileTax(Action):
                 payload=payload,
                 visible=False,
                 harm={"treasury": a["unpaid"]},
-            )
+            ),
+            filed,
         ]
 
 

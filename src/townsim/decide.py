@@ -90,6 +90,9 @@ class RecordingDecider:
     An option id not among the offered options (including "") is replaced by the
     default and recorded as an `invalid_response` event. `ModelUnavailable` propagates
     and nothing is recorded for that decision.
+
+    Both events are hidden (`visible=False`): a choice is a private act, and the action
+    events it causes carry their own visibility.
     """
 
     def __init__(self, inner: Decider, sink: list[Event]):
@@ -105,6 +108,7 @@ class RecordingDecider:
                     kind="invalid_response",
                     actor_id=decision.actor_id,
                     payload={"decision_id": decision.id, "option_id": choice.option_id},
+                    visible=False,
                 )
             )
             choice = Choice(option_id=decision.default_option_id, meta=choice.meta)
@@ -118,6 +122,7 @@ class RecordingDecider:
                     "option_id": choice.option_id,
                     "meta": choice.meta,
                 },
+                visible=False,
             )
         )
         return choice

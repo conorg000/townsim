@@ -210,8 +210,13 @@ def test_honest_filing_pays_tax_and_records_reported_profit(one_firm_world, rng)
     t = w.treasury.cash
     evs = tax_phase(w, scripted({}), rng)
     ev = next(e for e in evs if e.kind == "file_tax")
-    assert ev.legal and ev.visible and ev.harm == {}
+    assert ev.legal and not ev.visible and ev.harm == {}
     assert ev.payload["tax_due"] == 20000 and ev.payload["tax_paid"] == 20000
+    (filed,) = [e for e in evs if e.kind == "tax_filed"]
+    assert filed.visible and filed.legal and filed.harm == {}
+    assert filed.payload == {
+        "firm_id": "f1", "reported": 100000, "tax_due": 20000, "tax_paid": 20000,
+    }
     assert w.treasury.cash == t + 20000
     assert w.firms["f1"].last_reported_profit == 100000
     assert not any(i.kind == "tax_fraud" for i in w.infos.values())
@@ -240,6 +245,12 @@ def test_underreporting_amounts(one_firm_world, rng, option, reported, paid, unp
     assert ev.harm == {"treasury": unpaid}
     assert w.treasury.cash == t + paid + cost
     assert w.firms["f1"].last_reported_profit == reported
+    assert [e.kind for e in evs[:2]] == ["underreport_tax", "tax_filed"]
+    filed = evs[1]
+    assert filed.visible and filed.legal and filed.harm == {}
+    assert filed.payload == {
+        "firm_id": "f1", "reported": reported, "tax_due": paid, "tax_paid": paid,
+    }
 
 
 def test_underreporting_creates_a_secret_with_a_deterministic_id(one_firm_world):
@@ -274,7 +285,24 @@ def test_rejected_underreport_files_honestly_and_keeps_the_rejection(one_firm_wo
     honest = evs[kinds.index("file_tax")]
     assert honest.payload["tax_due"] == 20000 and honest.payload["tax_paid"] == 11000
     assert "underreport_tax" not in kinds
+    assert kinds.count("tax_filed") == 1 and evs[kinds.index("tax_filed")].visible
     assert not any(i.kind == "tax_fraud" for i in w.infos.values())
+
+
+def _public(events):
+    return [(e.kind, e.actor_id, sorted(e.payload)) for e in events if e.visible]
+
+
+@pytest.mark.parametrize("option", ["hide25_none", "hide50_heavy"])
+def test_an_underreport_looks_like_an_honest_filing_from_outside(one_firm_world, option):
+    # The public record shows one filing per firm either way, with the same shape.
+    honest_world = one_firm_world.model_copy(deep=True)
+    honest = tax_phase(_quarter(honest_world), scripted({}), random.Random(0))
+    hidden = tax_phase(_quarter(one_firm_world), scripted({"tax_report": option}), random.Random(0))
+    assert _public(hidden) == _public(honest)
+    assert [e.kind for e in hidden if e.visible] == ["tax_filed", "dividend"]
+    assert not any(k in e.payload for e in hidden if e.visible
+                   for k in ("taxable", "unpaid", "concealment", "concealment_cost", "info_id"))
 
 
 def test_underreporting_with_nothing_to_hide_is_rejected(one_firm_world, rng):

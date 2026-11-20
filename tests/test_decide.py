@@ -162,3 +162,12 @@ def test_option_and_choice_defaults():
     assert Option(id="x", label="X").action is None
     assert Choice(option_id="x").meta == {}
     assert Choice(option_id="x").meta is not Choice(option_id="y").meta
+
+
+def test_recorded_decisions_and_invalid_responses_are_hidden(pricing_decision):
+    # A choice is a private act; the action events it causes carry their own visibility.
+    sink = []
+    RecordingDecider(WithMeta("nonsense"), sink).decide(pricing_decision)
+    RecordingDecider(WithMeta("up5"), sink).decide(pricing_decision)
+    assert [e.kind for e in sink] == ["invalid_response", "decision", "decision"]
+    assert all(e.visible is False for e in sink)
