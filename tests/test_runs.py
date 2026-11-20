@@ -187,3 +187,101 @@ def test_replay_of_a_run_with_no_steps_is_a_mismatch(cfg, tmp_path):
     with pytest.raises(ReplayMismatch) as e:
         replay(base.log, "f")
     assert e.value.step == 5 and "no logged steps" in e.value.detail
+
+
+# A run is bound to its seed and config, and a fork to its parent (review I2).
+
+
+def test_replay_detects_an_edited_seed(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    _tamper(sim.log, "UPDATE runs SET seed = 999 WHERE run_id = 'r'")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "seed" in e.value.detail
+
+
+def test_replay_detects_an_edited_config(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    _tamper(
+        sim.log,
+        "UPDATE runs SET config_json = json_set(config_json, '$.laws.tax_rate', 0.5)"
+        " WHERE run_id = 'r'",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "config" in e.value.detail
+
+
+def test_replay_detects_an_unreadable_config(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    _tamper(sim.log, "UPDATE runs SET config_json = '{}' WHERE run_id = 'r'")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "config" in e.value.detail
+
+
+def test_replay_detects_an_edited_starting_world_even_with_matching_later_snapshots(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    _tamper(
+        sim.log,
+        "UPDATE snapshots SET world_json = json_set(world_json, '$.treasury.cash', 1)"
+        " WHERE run_id = 'r' AND step = -1",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "config" in e.value.detail
+
+
+def test_replay_detects_an_edited_starting_rng(cfg, tmp_path):
+    sim = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 5)
+    _tamper(
+        sim.log,
+        "UPDATE snapshots SET rng_json = json_set(rng_json, '$[1][0]', 12345)"
+        " WHERE run_id = 'r' AND step = -1",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(sim.log, "r")
+    assert e.value.step == 0 and "seed" in e.value.detail
+
+
+def _forked(cfg, tmp_path):
+    base = run_rule_sim(cfg, tmp_path / "a.sqlite", 7, 10)
+    f = fork(base.log, "r", 6, "f", seed=3, deciders=rule_deciders(cfg))
+    f.run(3)
+    replay(base.log, "f")
+    return base
+
+
+def test_replay_detects_an_edited_fork_start(cfg, tmp_path):
+    base = _forked(cfg, tmp_path)
+    _tamper(
+        base.log,
+        "UPDATE snapshots SET world_json = json_set(world_json, '$.treasury.cash', 1)"
+        " WHERE run_id = 'f' AND step = 5",
+    )
+    with pytest.raises(ReplayMismatch) as e:
+        replay(base.log, "f")
+    assert e.value.step == 6 and "parent" in e.value.detail
+
+
+def test_replay_detects_an_edited_fork_seed(cfg, tmp_path):
+    base = _forked(cfg, tmp_path)
+    _tamper(base.log, "UPDATE runs SET seed = 4 WHERE run_id = 'f'")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(base.log, "f")
+    assert e.value.step == 6 and "seed" in e.value.detail
+
+
+def test_replay_detects_a_fork_moved_to_another_parent_step(cfg, tmp_path):
+    base = _forked(cfg, tmp_path)
+    _tamper(base.log, "UPDATE runs SET parent_step = 7 WHERE run_id = 'f'")
+    with pytest.raises(ReplayMismatch):
+        replay(base.log, "f")
+
+
+def test_replay_detects_a_fork_whose_parent_snapshot_is_missing(cfg, tmp_path):
+    base = _forked(cfg, tmp_path)
+    _tamper(base.log, "DELETE FROM snapshots WHERE run_id = 'r' AND step = 5")
+    with pytest.raises(ReplayMismatch) as e:
+        replay(base.log, "f")
+    assert e.value.step == 6 and "parent" in e.value.detail

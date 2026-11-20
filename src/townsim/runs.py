@@ -5,11 +5,14 @@ that step N + 1 starts from, and key -1 is the starting world. So the world as i
 stands at the start of step K is the snapshot under key K - 1.
 """
 
+import json
 import random
 
+from townsim.config import ConfigError, TownConfig, build_world
 from townsim.decide import Choice, Decider, Decision, ReplayDecider
 from townsim.events import Event, EventLog, state_hash
 from townsim.sim import Simulation
+from townsim.world import World
 
 
 class ReplayMismatch(Exception):
@@ -76,10 +79,18 @@ def replay(log: EventLog, run_id: str) -> None:
     the decisions asked for and chosen, every other event, the state hash, and the
     snapshot saved after the step. `ReplayMismatch` names the first step that differs.
     Events of a step that was aborted and rolled back (`run_aborted`) are skipped.
+
+    First the starting snapshot is tied to the run row (see `_check_start`): a root
+    run's to `build_world` of its stored config, a fork's to its parent's snapshot,
+    and either's rng to `Random(seed)`.
     """
     run = log.get_run(run_id)
     start_key = -1 if run["parent_step"] is None else run["parent_step"] - 1
-    world, rng_state = log.load_snapshot(run_id, start_key)
+    try:
+        world, rng_state = log.load_snapshot(run_id, start_key)
+    except ValueError:
+        raise ReplayMismatch(start_key + 1, "the run has no starting snapshot") from None
+    _check_start(log, run, start_key, world, rng_state)
     last_step = log.latest_snapshot_step(run_id)
     steps = range(start_key + 1, last_step + 1)
     if not steps:
@@ -125,6 +136,38 @@ def replay(log: EventLog, run_id: str) -> None:
         _check_hash(step, expected, replayed)
         _check_events(step, expected, replayed)
         _check_snapshot(step, log, scratch, run_id)
+
+
+def _check_start(log: EventLog, run: dict, start_key: int, world: World, rng_state) -> None:
+    """The starting snapshot must be the one the run row describes.
+
+    A root run starts from `build_world` of its stored config; a fork starts from its
+    parent's snapshot at `parent_step - 1`. Either way the engine rng starts as
+    `Random(seed)`.
+    """
+    step = start_key + 1
+    if run["parent_step"] is None:
+        try:
+            cfg = TownConfig.model_validate(json.loads(run["config_json"]))
+        except (ConfigError, ValueError, TypeError) as exc:
+            raise ReplayMismatch(step, f"the run's stored config cannot be read: {exc}") from None
+        if state_hash(world) != state_hash(build_world(cfg)):
+            raise ReplayMismatch(
+                step, "the starting snapshot is not the world built from the run's config"
+            )
+    else:
+        try:
+            parent_world, _ = log.load_snapshot(run["parent_run_id"], start_key)
+        except ValueError:
+            raise ReplayMismatch(
+                step, f"the parent run has no snapshot at step {start_key} to fork from"
+            ) from None
+        if state_hash(world) != state_hash(parent_world):
+            raise ReplayMismatch(
+                step, f"the fork's starting snapshot differs from the parent's at step {start_key}"
+            )
+    if rng_state != random.Random(run["seed"]).getstate():
+        raise ReplayMismatch(step, "the starting rng state is not Random(seed) for the run's seed")
 
 
 def _check_hash(step: int, expected: list[Event], got: list[Event]) -> None:
