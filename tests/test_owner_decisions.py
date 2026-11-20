@@ -117,6 +117,7 @@ def test_facts_describe_the_owners_firm_and_market(world, rng):
         "cash": f.cash,
         "weekly_wage_bill": f.wage * len(f.employee_ids),
         "staff": len(f.employee_ids),
+        "recent_weeks": [],
     }
     assert seen[0].facts == expected
     assert seen[1].facts == expected
@@ -348,3 +349,29 @@ def test_staffing_rule_holds_in_between(world, rng):
     f.customers_last_step = cap - 1
     f.cash = 10 * f.wage * len(f.employee_ids)
     assert _rule_choice(world, "staffing", rng) == "hold"
+
+
+def test_owner_sees_the_firms_books_for_recent_weeks_most_recent_first(world, rng):
+    from townsim.market import market_phase, payroll_phase
+
+    for _ in range(6):
+        market_phase(world, rng)
+        payroll_phase(world)
+    f = world.firms["f1"]
+    assert len(f.recent_weeks) == 4
+    price, customers, takings, wages = f.recent_weeks[-1]
+    assert takings == price * customers and wages == f.wage * len(f.employee_ids)
+    decide, seen = _recorder()
+    owners_phase(world, decide, rng)
+    text = seen[0].situation
+    assert "Your books for recent weeks." in text
+    assert text.index("Last week:") < text.index("The week before:") < text.index("Four weeks ago:")
+    assert_prompt_clean(seen)
+
+
+def test_a_week_short_of_wages_is_stated_as_a_shortfall(world, rng):
+    f = world.firms["f1"]
+    f.recent_weeks = [[1000, 2, 2000, 5000]]
+    decide, seen = _recorder()
+    owners_phase(world, decide, rng)
+    assert "$30.00 short of wages" in seen[0].situation

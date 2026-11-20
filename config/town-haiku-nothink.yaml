@@ -1,0 +1,30 @@
+# The same town as town.yaml, with every person played by Claude Haiku 5.5 (thinking off) through
+# OpenRouter. Needs OPENROUTER_API_KEY. Keep the values below in step with town.yaml.
+# Money is integer cents. Task 14 tuned these for a stable two-year baseline (see its report).
+firms:
+  - {id: f1, name: Harbour Bakery,  market: food,     quality: 0.6, price: 5000, wage: 11000, staff: 4, cash: 400000}
+  - {id: f2, name: Corner Grocer,   market: food,     quality: 0.5, price: 4800, wage: 11000, staff: 4, cash: 400000}
+  - {id: f3, name: Mill Lane Deli,  market: food,     quality: 0.7, price: 5300, wage: 11000, staff: 4, cash: 400000}
+  - {id: f4, name: Fixit Services,  market: services, quality: 0.6, price: 5000, wage: 11000, staff: 4, cash: 400000}
+  - {id: f5, name: Brightside Care, market: services, quality: 0.5, price: 4900, wage: 11000, staff: 4, cash: 400000}
+people: {count: 30, auditors: 1, journalists: 2, start_cash: 100000}
+treasury_cash: 1000000
+newspaper_cash: 200000
+laws: {tax_rate: 0.2, penalty_multiplier: 2.0, benefit: 6000, illegal: [underreport_tax, offer_bribe, accept_bribe]}
+params:
+  units_per_employee: 3
+  quality_weight: 1.0
+  price_weight: 2.0
+  choice_noise: 0.2
+  loyalty_gain: 0.02
+  loyalty_cap: 0.3
+  scandal_loyalty_hit: 0.3
+  public_salary: 10000
+  subscription: 700
+  reserve_weeks: 4
+  dividend_share: 0.5
+  audit_budget_per_quarter: 6
+deciders:
+  rule: {type: rule}
+  haiku: {type: model, model: openrouter/anthropic/claude-haiku-5.5, reasoning_effort: none, max_tokens: 2000}
+assignment: {default: haiku, by_role: {}, by_person: {}}

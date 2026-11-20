@@ -95,6 +95,23 @@ def token_count(usage, name: str) -> int | None:
     return value
 
 
+def _match_option(option_id: str, decision: Decision, meta: dict) -> str:
+    """`option_id`, or the one offered id it is plainly short for.
+
+    Some ids carry a prefix ("firm:f5"), and a model sometimes replies with the part after
+    it ("f5"). When exactly one offered id ends that way it is taken as meant, and the
+    reply as given is kept in `meta["replied"]`.
+    """
+    offered = [o.id for o in decision.options]
+    if not option_id or option_id in offered:
+        return option_id
+    matches = [o for o in offered if o.endswith(":" + option_id)]
+    if len(matches) != 1:
+        return option_id
+    meta["replied"] = option_id
+    return matches[0]
+
+
 class ModelDecider:
     """Asks `model` to choose for the person making each decision.
 
@@ -110,15 +127,24 @@ class ModelDecider:
     def __init__(
         self,
         model: str,
-        temperature: float,
+        temperature: float | None,
         people: dict[str, Person],
         completion_fn: Callable | None = None,
         sleep_fn: Callable[[float], None] = time.sleep,
         timeout: float = DEFAULT_TIMEOUT,
+        reasoning_effort: str | None = None,
+        max_tokens: int | None = None,
     ):
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
+        # Optional settings are sent only when set, so a model that rejects one is not sent it.
+        optional = {
+            "temperature": temperature,
+            "reasoning_effort": reasoning_effort,
+            "max_tokens": max_tokens,
+        }
+        self.params = {k: v for k, v in optional.items() if v is not None}
         self.people = people
         if completion_fn is None:
             self.completion_fn, self.cost_fn = _litellm_completion, _litellm_cost
@@ -134,10 +160,13 @@ class ModelDecider:
         meta = {
             "prompt_tokens": token_count(usage, "prompt_tokens"),
             "completion_tokens": token_count(usage, "completion_tokens"),
+            "reasoning_tokens": token_count(
+                getattr(usage, "completion_tokens_details", None), "reasoning_tokens"
+            ),
             "cost_usd": self.cost_fn(resp),
             "raw": text,
         }
-        return Choice(option_id=parse_choice(text), meta=meta)
+        return Choice(option_id=_match_option(parse_choice(text), decision, meta), meta=meta)
 
     def _complete(self, messages: list[dict]):
         for attempt, wait in enumerate((*RETRY_SLEEPS, None), start=1):
@@ -145,8 +174,8 @@ class ModelDecider:
                 return self.completion_fn(
                     model=self.model,
                     messages=messages,
-                    temperature=self.temperature,
                     timeout=self.timeout,
+                    **self.params,
                 )
             except Exception as exc:
                 if wait is None:

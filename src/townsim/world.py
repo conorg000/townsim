@@ -31,6 +31,10 @@ class Firm(BaseModel):
     open: bool = True
     profit_qtd: int = 0
     customers_last_step: int = 0
+    revenue_last_step: int = 0
+    # The firm's own books for its last few weeks, oldest first: one
+    # [price, customers, takings, wages paid] entry per week. The owner can see these.
+    recent_weeks: list[list[int]] = Field(default_factory=list)
     last_reported_profit: int | None = None
 
 

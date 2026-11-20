@@ -73,6 +73,7 @@ def market_phase(world: World, rng: random.Random) -> list[Event]:
             )
     for fid in world.firms:
         world.firms[fid].customers_last_step = sold[fid]
+        world.firms[fid].revenue_last_step = sold[fid] * world.firms[fid].price
     return events
 
 
@@ -94,6 +95,9 @@ def payroll_phase(world: World) -> list[Event]:
             if f.wage > 0:
                 transfer(world, fid, pid, f.wage, "wage")
             world.firms[fid].profit_qtd -= world.firms[fid].wage
+        f = world.firms[fid]
+        week = [f.price, f.customers_last_step, f.revenue_last_step, f.wage * len(staff)]
+        f.recent_weeks = (f.recent_weeks + [week])[-RECENT_WEEKS_KEPT:]
 
     auditor_id = world.regulator.auditor_id
     if auditor_id in world.people:
@@ -296,7 +300,27 @@ def _firm_facts(world: World, f: Firm) -> dict:
         "cash": f.cash,
         "weekly_wage_bill": f.wage * staff,
         "staff": staff,
+        "recent_weeks": [list(w) for w in f.recent_weeks],
     }
+
+
+RECENT_WEEKS_KEPT = 4
+
+
+def _describe_recent_weeks(weeks: list[list[int]]) -> str:
+    """The firm's own books for its last weeks, most recent first, as plain figures."""
+    if not weeks:
+        return ""
+    names = ["Last week", "The week before", "Three weeks ago", "Four weeks ago"]
+    lines = []
+    for name, (price, customers, takings, wages) in zip(names, reversed(weeks)):
+        left = takings - wages
+        result = f"{_dollars(left)} left after wages" if left >= 0 else f"{_dollars(-left)} short of wages"
+        lines.append(
+            f"{name}: price {_dollars(price)}, {_count(customers, 'customer')}, "
+            f"takings {_dollars(takings)}, wages {_dollars(wages)}, {result}."
+        )
+    return " Your books for recent weeks. " + " ".join(lines)
 
 
 def _dollars(cents: int) -> str:
@@ -323,6 +347,7 @@ def _describe_firm(f: Firm, facts: dict) -> str:
         f"{facts['capacity']}. "
         f"Your firm has {_dollars(facts['cash'])} in cash and pays "
         f"{_dollars(facts['weekly_wage_bill'])} a week in wages."
+        f"{_describe_recent_weeks(facts['recent_weeks'])}"
     )
 
 

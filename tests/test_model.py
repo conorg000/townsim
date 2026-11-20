@@ -119,7 +119,13 @@ def test_meta_has_tokens_raw_and_cost(people, pricing_decision):
     reply = '{"choice": "up5"}'
     d = ModelDecider("x/y", 0.7, people, completion_fn=fake_reply(reply, usage=(40, 6)))
     meta = d.decide(pricing_decision).meta
-    assert meta == {"prompt_tokens": 40, "completion_tokens": 6, "cost_usd": None, "raw": reply}
+    assert meta == {
+        "prompt_tokens": 40,
+        "completion_tokens": 6,
+        "reasoning_tokens": None,
+        "cost_usd": None,
+        "raw": reply,
+    }
 
 
 def test_token_counts_are_none_without_usage(people, pricing_decision):
@@ -449,3 +455,52 @@ def test_malformed_usage_gives_no_token_counts(people, pricing_decision, usage):
         assert (choice.meta["prompt_tokens"], choice.meta["completion_tokens"]) == (12, 3)
     else:
         assert choice.meta["prompt_tokens"] is None and choice.meta["completion_tokens"] is None
+
+
+def test_unset_optional_settings_are_left_out_of_the_call(people, pricing_decision):
+    calls = []
+
+    def fn(**kwargs):
+        calls.append(kwargs)
+        return fake_reply('{"choice": "up5"}')(**kwargs)
+
+    ModelDecider("x/y", None, people, completion_fn=fn).decide(pricing_decision)
+    assert set(calls[0]) == {"model", "messages", "timeout"}
+
+
+def test_reasoning_effort_and_max_tokens_are_sent_when_set(people, pricing_decision):
+    calls = []
+
+    def fn(**kwargs):
+        calls.append(kwargs)
+        return fake_reply('{"choice": "up5"}')(**kwargs)
+
+    ModelDecider(
+        "x/y", None, people, completion_fn=fn, reasoning_effort="none", max_tokens=200
+    ).decide(pricing_decision)
+    assert calls[0]["reasoning_effort"] == "none" and calls[0]["max_tokens"] == 200
+    assert "temperature" not in calls[0]
+
+
+def test_reply_naming_the_part_after_a_prefix_is_taken_as_the_one_matching_option(people):
+    from townsim.decide import Decision, Option
+
+    d = Decision(
+        id="0:p0:investigate:0", actor_id="p0", kind="investigate", situation="s",
+        options=[Option(id="none", label="n"), Option(id="firm:f4", label="a"), Option(id="firm:f5", label="b")],
+        default_option_id="none",
+    )
+    choice = ModelDecider("x/y", None, people, completion_fn=fake_reply('{"choice": "f5"}')).decide(d)
+    assert choice.option_id == "firm:f5" and choice.meta["replied"] == "f5"
+
+
+def test_ambiguous_short_reply_is_left_alone(people):
+    from townsim.decide import Decision, Option
+
+    d = Decision(
+        id="0:p0:audit:0", actor_id="p0", kind="audit", situation="s",
+        options=[Option(id="none", label="n"), Option(id="light:f1", label="a"), Option(id="deep:f1", label="b")],
+        default_option_id="none",
+    )
+    choice = ModelDecider("x/y", None, people, completion_fn=fake_reply('{"choice": "f1"}')).decide(d)
+    assert choice.option_id == "f1" and "replied" not in choice.meta

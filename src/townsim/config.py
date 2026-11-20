@@ -60,7 +60,12 @@ class RuleDeciderConfig(_Strict):
 class ModelDeciderConfig(_Strict):
     type: Literal["model"]
     model: str
-    temperature: float
+    # Left out of the call when None: some models reject or ignore a temperature.
+    temperature: float | None = None
+    # Sent only when set, e.g. "none", "low", "high". Leave unset for the model's default.
+    reasoning_effort: str | None = None
+    # Upper bound on tokens billed per reply, hidden reasoning included. Unset means no cap.
+    max_tokens: int | None = Field(default=None, gt=0)
     timeout: float = Field(default=60.0, gt=0)  # seconds per completion call
 
 
