@@ -22,6 +22,7 @@ QUARTER_STEPS = 13
 Concealment = Literal["none", "some", "heavy"]
 CONCEALMENT_COST = {"none": 0.0, "some": 0.05, "heavy": 0.15}
 DETECTION_MULTIPLIER = {"none": 1.0, "some": 0.6, "heavy": 0.3}
+EMPLOYEE_LEARNS = {"none": 0.5, "some": 0.2, "heavy": 0.0}
 
 HIDE_OPTIONS = {
     f"hide{pct}_{level}": (pct / 100, level)
@@ -114,6 +115,11 @@ class FileTax(Action):
             },
             known_by={f.owner_id},
         )
+        learns = EMPLOYEE_LEARNS[self.concealment]
+        if learns > 0:
+            for pid in f.employee_ids:
+                if rng.random() < learns:
+                    world.infos[info_id].known_by.add(pid)
         payload.update(
             taxable=a["taxable"],
             unpaid=a["unpaid"],

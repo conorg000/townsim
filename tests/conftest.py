@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 import townsim.market  # noqa: F401  (registers the production rules before any test saves RULES)
+import townsim.press  # noqa: F401  (registers the production rules before any test saves RULES)
 import townsim.tax  # noqa: F401  (registers the production rules before any test saves RULES)
 from townsim.config import TownConfig, build_world, read_config_dict
 from townsim.decide import RULES, Decision, Option
@@ -81,6 +82,14 @@ def fraud_world(world) -> World:
         known_by={f1.owner_id},
     )
     return world
+
+
+@pytest.fixture
+def known_fraud_world(fraud_world) -> World:
+    """`fraud_world` where f1's first employee also knows of the fraud."""
+    first = fraud_world.firms["f1"].employee_ids[0]
+    fraud_world.infos["info:13:tax_fraud:f1"].known_by.add(first)
+    return fraud_world
 
 
 @pytest.fixture

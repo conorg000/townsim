@@ -41,6 +41,7 @@ class Treasury(BaseModel):
 class Newspaper(BaseModel):
     cash: int
     journalist_ids: list[str]
+    press_tips: list[str] = Field(default_factory=list)
 
 
 class Regulator(BaseModel):
@@ -64,6 +65,7 @@ class Info(BaseModel):
     subject_id: str
     payload: dict
     known_by: set[str]
+    decided_by: set[str] = Field(default_factory=set)
 
 
 class World(BaseModel):

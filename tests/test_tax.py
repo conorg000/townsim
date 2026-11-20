@@ -242,10 +242,10 @@ def test_underreporting_amounts(one_firm_world, rng, option, reported, paid, unp
     assert w.firms["f1"].last_reported_profit == reported
 
 
-def test_underreporting_creates_a_secret_with_a_deterministic_id(one_firm_world, rng):
+def test_underreporting_creates_a_secret_with_a_deterministic_id(one_firm_world):
     w = _quarter(one_firm_world, profit=100000)
     w.step = 26
-    tax_phase(w, scripted({"tax_report": "hide25_some"}), rng)
+    tax_phase(w, scripted({"tax_report": "hide25_some"}), _Draw(0.99))  # no employee learns
     info = w.infos["info:26:tax_fraud:f1"]
     assert info.kind == "tax_fraud" and info.subject_id == "f1" and info.step == 26
     assert info.payload == {"unpaid": 5000, "concealment": "some", "quarter": 2}
