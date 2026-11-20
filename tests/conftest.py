@@ -3,8 +3,9 @@ from pathlib import Path
 
 import pytest
 
+import townsim.market  # noqa: F401  (registers the production rules before any test saves RULES)
 from townsim.config import TownConfig, build_world, read_config_dict
-from townsim.decide import Decision, Option
+from townsim.decide import RULES, Decision, Option
 from townsim.world import (
     Firm,
     Laws,
@@ -17,6 +18,15 @@ from townsim.world import (
 
 
 TOWN_YAML = Path(__file__).resolve().parent.parent / "config" / "town.yaml"
+
+
+@pytest.fixture(autouse=True)
+def _restore_rules():
+    """Leave RULES as it was, so rules a test registers do not leak into other tests."""
+    saved = dict(RULES)
+    yield
+    RULES.clear()
+    RULES.update(saved)
 
 
 @pytest.fixture

@@ -14,13 +14,8 @@ from townsim.decide import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _restore_rules():
-    """Leave RULES as it was, so rules registered here do not leak into other tests."""
-    saved = dict(RULES)
-    yield
-    RULES.clear()
-    RULES.update(saved)
+# Rules registered in these tests use kinds no production code registers.
+PROBE_KIND = "probe_kind"
 
 
 class Unavailable:
@@ -65,14 +60,15 @@ def test_rule_decider_uses_registered_rule_else_default(rng, unknown_kind_decisi
 
 def test_rule_decider_calls_registered_rule_with_decision_and_rng(rng, pricing_decision):
     seen = []
+    decision = pricing_decision.model_copy(update={"kind": PROBE_KIND})
 
-    @rule("pricing")
-    def pricing(decision, r):
-        seen.append((decision, r))
-        return "up10" if decision.facts["price"] < 200 else "down10"
+    @rule(PROBE_KIND)
+    def probe(d, r):
+        seen.append((d, r))
+        return "up10" if d.facts["price"] < 200 else "down10"
 
-    assert RuleDecider(rng).decide(pricing_decision).option_id == "up10"
-    assert seen == [(pricing_decision, rng)]
+    assert RuleDecider(rng).decide(decision).option_id == "up10"
+    assert seen == [(decision, rng)]
 
 
 def test_rule_decorator_returns_function_and_registers_it():
@@ -84,21 +80,21 @@ def test_rule_decorator_returns_function_and_registers_it():
 
 
 def test_rule_registered_twice_for_same_kind_is_an_error():
-    @rule("pricing")
+    @rule(PROBE_KIND)
     def first(decision, r):
         return "hold"
 
-    with pytest.raises(ValueError, match="pricing"):
+    with pytest.raises(ValueError, match=PROBE_KIND):
 
-        @rule("pricing")
+        @rule(PROBE_KIND)
         def second(decision, r):
             return "up5"
 
-    assert RULES["pricing"] is first
+    assert RULES[PROBE_KIND] is first
 
 
 def test_rule_registration_does_not_leak_between_tests():
-    assert "pricing" not in RULES
+    assert PROBE_KIND not in RULES
     assert "some_kind" not in RULES
 
 
