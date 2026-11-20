@@ -182,3 +182,69 @@ def test_apply_must_return_its_own_event_first(tiny_world, rng):
     with pytest.raises(ValueError, match="wrong_first_event"):
         execute(tiny_world, "p1", WrongFirstEvent(), rng)
     assert tiny_world == before
+
+
+def _held_references(world: World) -> dict:
+    return {
+        "people": world.people,
+        "p1": world.people["p1"],
+        "loyalty": world.people["p1"].loyalty,
+        "firms": world.firms,
+        "f1": world.firms["f1"],
+        "employee_ids": world.firms["f1"].employee_ids,
+        "treasury": world.treasury,
+        "laws": world.laws,
+        "illegal": world.laws.illegal,
+    }
+
+
+def _assert_same_objects(world: World, held: dict) -> None:
+    assert world.people is held["people"]
+    assert world.people["p1"] is held["p1"]
+    assert world.people["p1"].loyalty is held["loyalty"]
+    assert world.firms is held["firms"]
+    assert world.firms["f1"] is held["f1"]
+    assert world.firms["f1"].employee_ids is held["employee_ids"]
+    assert world.treasury is held["treasury"]
+    assert world.laws is held["laws"]
+    assert world.laws.illegal is held["illegal"]
+
+
+def test_check_rejection_keeps_held_references_attached(tiny_world, rng):
+    held = _held_references(tiny_world)
+    execute(tiny_world, "p1", Pay(to="f1", amount=0), rng)
+    _assert_same_objects(tiny_world, held)
+
+
+def test_apply_rejection_keeps_held_references_attached(tiny_world, rng):
+    @register
+    class MessUpThenOverdraw(Action):
+        kind = "mess_up_then_overdraw"
+
+        def check(self, world, actor_id):
+            return None
+
+        def apply(self, world, actor_id, rng):
+            transfer(world, actor_id, "f1", 100, "first")
+            world.people["p1"].loyalty["f1"] = 1.0
+            world.firms["f1"].employee_ids.append("p0")
+            world.laws.illegal.add("pay")
+            world.people = {"p0": world.people["p0"]}  # p1 gone from the dict
+            world.treasury = world.treasury.model_copy()
+            transfer(world, "p0", "f1", 5000, "second")
+            return []
+
+    before = tiny_world.model_copy(deep=True)
+    held = _held_references(tiny_world)
+    evs = execute(tiny_world, "p1", MessUpThenOverdraw(), rng)
+    assert evs[0].kind == "action_rejected" and tiny_world == before
+    _assert_same_objects(tiny_world, held)
+    held["p1"].cash -= 5
+    assert tiny_world.people["p1"].cash == 995
+
+
+def test_other_exception_restore_keeps_held_references_attached(tiny_world, rng):
+    held = _held_references(tiny_world)
+    with pytest.raises(RuntimeError):
+        execute(tiny_world, "p1", PayThenCrash(), rng)
+    _assert_same_objects(tiny_world, held)

@@ -1,7 +1,8 @@
 """Typed actions: what an actor may do, whether it is allowed, and what it changes."""
 
+import copy
 import random
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic import BaseModel
 
@@ -38,36 +39,76 @@ def action_from_dict(d: dict) -> Action:
     return ACTIONS[d["kind"]].model_validate(fields)
 
 
-def _restore(world: World, snapshot: World) -> None:
-    """Put `snapshot`'s state back into `world`, keeping `world` the same object."""
-    for name in type(world).model_fields:
-        setattr(world, name, getattr(snapshot, name))
+def _save(value: Any) -> tuple:
+    """Record `value` and its contents, keeping a reference to each model and container."""
+    if isinstance(value, BaseModel):
+        fields = {name: _save(getattr(value, name)) for name in type(value).model_fields}
+        return ("model", value, fields)
+    if isinstance(value, dict):
+        return ("dict", value, [(k, _save(v)) for k, v in value.items()])
+    if isinstance(value, list):
+        return ("list", value, [_save(v) for v in value])
+    if isinstance(value, set):
+        return ("set", value, list(value))
+    return ("value", None, copy.deepcopy(value))
+
+
+def _load(saved: tuple) -> Any:
+    """Put each recorded object back to its recorded contents and return it."""
+    kind, obj, data = saved
+    if kind == "model":
+        for name, child in data.items():
+            setattr(obj, name, _load(child))
+    elif kind == "dict":
+        items = {k: _load(child) for k, child in data}
+        obj.clear()
+        obj.update(items)
+    elif kind == "list":
+        obj[:] = [_load(child) for child in data]
+    elif kind == "set":
+        obj.clear()
+        obj.update(data)
+    else:
+        obj = data
+    return obj
+
+
+def _rejected(action: Action, actor_id: str, reason: str) -> list[Event]:
+    return [
+        Event(
+            kind="action_rejected",
+            actor_id=actor_id,
+            payload={"action": action.kind, "reason": reason},
+        )
+    ]
 
 
 def execute(world: World, actor_id: str, action: Action, rng: random.Random) -> list[Event]:
-    """Check and apply `action`; on rejection the world is left exactly as it was."""
-    snapshot = world.model_copy(deep=True)
+    """Check and apply `action`; on rejection the world is left exactly as it was.
+
+    Restoring is in place: every model and container that existed before the call
+    is put back where it was, with its old contents, so references callers hold
+    into the world stay attached to it.
+    """
+    snapshot = _save(world)
     legal = action.kind not in world.laws.illegal
     try:
         reason = action.check(world, actor_id)
-        if reason is None:
-            events = action.apply(world, actor_id, rng)
-    except InsufficientFunds as exc:
-        reason = str(exc)
     except BaseException:
-        _restore(world, snapshot)
+        _load(snapshot)
         raise
     if reason is not None:
-        _restore(world, snapshot)
-        return [
-            Event(
-                kind="action_rejected",
-                actor_id=actor_id,
-                payload={"action": action.kind, "reason": reason},
-            )
-        ]
+        return _rejected(action, actor_id, reason)
+    try:
+        events = action.apply(world, actor_id, rng)
+    except InsufficientFunds as exc:
+        _load(snapshot)
+        return _rejected(action, actor_id, str(exc))
+    except BaseException:
+        _load(snapshot)
+        raise
     if not events or events[0].kind != action.kind:
-        _restore(world, snapshot)
+        _load(snapshot)
         raise ValueError(f"{action.kind!r} must return its own event first")
     events[0].legal = legal
     return events
