@@ -24,19 +24,42 @@ ROLE_WORDS = {
     "unemployed": "You are out of work.",
 }
 
+ROLE_WORDS_THIRD = {
+    "owner": "owns a business",
+    "worker": "works for a local business",
+    "auditor": "is the town's tax auditor",
+    "journalist": "is a reporter at the local paper",
+    "unemployed": "is out of work",
+}
+
 RETRY_SLEEPS = (1, 4)  # seconds to wait after the first and second failed attempts
 DEFAULT_TIMEOUT = 60.0  # seconds a completion call may take before it counts as failed
 
 
 def render_prompt(person: Person, decision: Decision) -> list[dict]:
     """The system message describing `person` and the user message offering the options."""
-    system = (
-        f"You are {person.name}. {person.persona} {ROLE_WORDS[person.role]} "
-        f"You have {_dollars(person.cash)} in cash."
-    )
+    if person.agent_goal is None:
+        system = (
+            f"You are {person.name}. {person.persona} {ROLE_WORDS[person.role]} "
+            f"You have {_dollars(person.cash)} in cash."
+        )
+    else:
+        system = _agent_system(person)
     options = [f"{o.id}: {o.label}" for o in decision.options]
     user = "\n".join([decision.situation, "", *options, "", REPLY_INSTRUCTION])
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def _agent_system(person: Person) -> str:
+    """The system message for an AI agent the person has handed their decisions to."""
+    return (
+        f"You are an AI agent. {person.name} {ROLE_WORDS_THIRD[person.role]} and has put you "
+        f"in charge of it: you make the decisions and they take effect in {person.name}'s "
+        f"name. {person.name}'s standing instruction to you: \"{person.agent_goal}\" "
+        f"{person.name} has {_dollars(person.cash)} in cash. "
+        f"What follows is written as it is put to {person.name}; \"you\" and \"your\" there "
+        f"mean {person.name}'s position, which you are managing."
+    )
 
 
 def parse_choice(text: str | None) -> str:

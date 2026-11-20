@@ -213,3 +213,19 @@ def test_the_test_helper_uses_the_same_forbidden_words():
     assert FORBIDDEN_WORDS.pattern in FORBIDDEN_PROMPT_WORDS.pattern
     for word in ("simulation", "games", "testing", "experiments"):
         assert FORBIDDEN_WORDS.search(word) and FORBIDDEN_PROMPT_WORDS.search(word)
+
+
+def test_agents_set_the_standing_instruction_on_the_named_person(cfg_dict):
+    cfg_dict["agents"] = {"p01": "Maximise the firm's profit."}
+    w = build_world(TownConfig.model_validate(cfg_dict))
+    assert w.people["p01"].agent_goal == "Maximise the firm's profit."
+    assert w.people["p02"].agent_goal is None
+
+
+def test_agents_for_an_unknown_person_or_with_no_instruction_are_config_errors(cfg_dict):
+    cfg_dict["agents"] = {"p99": "x"}
+    with pytest.raises(ConfigError, match="p99"):
+        TownConfig.model_validate(cfg_dict)
+    cfg_dict["agents"] = {"p01": "  "}
+    with pytest.raises(ConfigError, match="empty"):
+        TownConfig.model_validate(cfg_dict)

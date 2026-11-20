@@ -104,6 +104,9 @@ class TownConfig(_Strict):
     params: dict[str, float]
     deciders: dict[str, DeciderConfig]
     assignment: AssignmentConfig
+    # People who have handed their decisions to an AI agent: person id -> the standing
+    # instruction they gave it. Which model plays the agent is set in `assignment`.
+    agents: dict[str, str] = Field(default_factory=dict)
     personas: list[PersonaConfig]
 
     @classmethod
@@ -157,6 +160,11 @@ class TownConfig(_Strict):
         for pid in a.by_person:
             if pid not in person_ids:
                 raise ValueError(f"assignment.by_person: unknown person id {pid!r}")
+        for pid, goal in self.agents.items():
+            if pid not in person_ids:
+                raise ValueError(f"agents: unknown person id {pid!r}")
+            if not goal.strip():
+                raise ValueError(f"agents.{pid}: the standing instruction is empty")
         return self
 
 
@@ -225,6 +233,7 @@ def build_world(cfg: TownConfig) -> World:
             ambition=persona.ambition,
             scruples=persona.scruples,
             decider=a.by_person.get(pid, a.by_role.get(role, a.default)),
+            agent_goal=cfg.agents.get(pid),
         )
 
     firms: dict[str, Firm] = {}

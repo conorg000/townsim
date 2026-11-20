@@ -16,6 +16,9 @@ class Person(BaseModel):
     scruples: float
     decider: str
     loyalty: dict[str, float] = Field(default_factory=dict)
+    # Set when this person has handed their decisions to an AI agent: the standing
+    # instruction they gave it. The agent acts in their name with their powers.
+    agent_goal: str | None = None
 
 
 class Firm(BaseModel):

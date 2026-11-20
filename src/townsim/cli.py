@@ -211,6 +211,13 @@ def compare_deciders_cmd(
     ] = "config/probe_decisions.yaml",
     n: Annotated[int, typer.Option("--n", min=1, help="Calls per decider per probe.")] = 50,
     seed: Annotated[int, typer.Option("--seed", help="Seed for the deciders' rng.")] = 1,
+    agent_goal: Annotated[
+        str,
+        typer.Option(
+            "--agent-goal",
+            help="Put each probe to an AI agent acting for the person, with this standing instruction.",
+        ),
+    ] = "",
 ) -> None:
     """Put the same probe decisions to each decider and print what each chose as one JSON object."""
     try:
@@ -228,7 +235,11 @@ def compare_deciders_cmd(
     selected = cfg.model_copy(update={"deciders": {name: cfg.deciders[name] for name in names}})
     _check_system_one_keys(selected)
     try:
-        built = make_deciders(selected, _decider_rng(seed), probe_people(probe_list))
+        people = probe_people(probe_list)
+        if agent_goal.strip():
+            for person in people.values():
+                person.agent_goal = agent_goal.strip()
+        built = make_deciders(selected, _decider_rng(seed), people)
     except ConfigError as exc:
         _fail(f"bad config: {exc}")
     typer.echo(json.dumps(compare_deciders(built, probe_list, n), indent=2))

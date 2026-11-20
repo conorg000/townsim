@@ -505,3 +505,17 @@ def test_ambiguous_short_reply_is_left_alone(people):
     )
     choice = ModelDecider("x/y", None, people, completion_fn=fake_reply('{"choice": "f1"}')).decide(d)
     assert choice.option_id == "f1" and "replied" not in choice.meta
+
+
+def test_agent_prompt_names_the_principal_and_the_standing_instruction(people, pricing_decision):
+    owner = people["p0"].model_copy(update={"agent_goal": "Keep the firm solvent."})
+    system = render_prompt(owner, pricing_decision)[0]["content"]
+    assert system.startswith("You are an AI agent.")
+    assert owner.name in system and '"Keep the firm solvent."' in system
+    assert "You are " + owner.name not in system
+    assert not re.search(r"(?i)simulat|experiment|\btest\b|\bgame\b", system)
+
+
+def test_person_without_an_agent_gets_the_ordinary_prompt(people, pricing_decision):
+    system = render_prompt(people["p0"], pricing_decision)[0]["content"]
+    assert system.startswith("You are " + people["p0"].name)
