@@ -2,19 +2,18 @@
 
 A probe is one decision put to a decider `n` times. Two probes sharing a `pair_id`
 describe the same choice under low and high pressure; the high-pressure probe names, in
-`expect_more`, the option whose share should be higher there than in the low one.
+`expect_more`, the options whose combined share should be higher there than in the low one.
 
 A System One model returns a probability for each offered option instead of text.
-`SystemOneDecider` samples one option from those probabilities with its own rng.
+`SystemOneDecider` samples one option from those probabilities with its own rng. The
+HTTP client for TypeSafe AI's API lives in `townsim.typesafe` (its API shape comes from
+summaries of the vendor's docs and is unverified; see that module) and is loaded only
+when first needed.
 """
 
-import json
 import math
-import os
 import random
 import time
-import urllib.error
-import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,10 +32,18 @@ from townsim.world import Person
 
 @dataclass(frozen=True)
 class Probe:
+    """`expect_more` lists the options of the pressured choice; a single string is one option."""
+
     decision: Decision
     pair_id: str | None
-    expect_more: str | None
+    expect_more: list[str] | None
     person: Person | None = None
+
+    def __post_init__(self):
+        if isinstance(self.expect_more, str):
+            object.__setattr__(self, "expect_more", [self.expect_more])
+        elif self.expect_more is not None:
+            object.__setattr__(self, "expect_more", list(self.expect_more))
 
 
 def load_probes(path: str) -> list[Probe]:
@@ -94,8 +101,12 @@ def check_probes(probes: list[Probe]) -> None:
         offered = [o.id for o in pr.decision.options]
         if pr.decision.default_option_id not in offered:
             raise ConfigError(f"{pr.decision.id}: default option is not offered")
-        if pr.expect_more is not None and pr.expect_more not in offered:
-            raise ConfigError(f"{pr.decision.id}: expect_more {pr.expect_more!r} is not offered")
+        if pr.expect_more is not None:
+            if not pr.expect_more:
+                raise ConfigError(f"{pr.decision.id}: expect_more names no option")
+            missing = [o for o in pr.expect_more if o not in offered]
+            if missing:
+                raise ConfigError(f"{pr.decision.id}: expect_more {missing!r} is not offered")
     for pair_id, pair in _pairs(probes).items():
         if len(pair) != 2:
             raise ConfigError(f"pair {pair_id!r} has {len(pair)} probes, not 2")
@@ -134,13 +145,16 @@ def compare_deciders(
 ) -> dict:
     """Put each probe to each decider `n` times and summarise what each one chose.
 
-    Per probe: `shares` (each offered option's share of the `n` calls), `invalid` (calls
-    answered with an option not offered), `failures` (calls that raised), mean latency
-    in seconds over answered calls, and summed `cost_usd` (None if no call was priced).
-    Per decider: the same totals, `directional_passes` (pairs whose `expect_more` share
-    is strictly higher in the high-pressure probe) out of `directional_checks`, and
-    `max_option_share` (the highest share any single option takes on any probe).
-    A decider that raises on one call has that call counted as a failure; the rest go on.
+    Per probe: `shares` (each offered option's share of the calls that were answered,
+    i.e. did not raise; empty if none was), `invalid` (answers naming an option not
+    offered, which take no share), `failures` (calls that raised) and their rates over
+    the `n` calls, mean latency in seconds over answered calls, and summed `cost_usd`
+    (None if no call was priced). Per decider: the same totals, `directional_passes`
+    out of `directional_checks`, and `max_option_share` (the highest share any single
+    option takes on any probe). A pair passes when the summed share of its
+    `expect_more` options is strictly higher in the high-pressure probe; a pair with
+    empty shares on either probe fails. A call that raises is counted as a failure for
+    that decider and the comparison goes on.
     """
     if n < 1:
         raise ValueError(f"n must be at least 1, got {n}")
@@ -163,10 +177,9 @@ def _compare_one(decider: Decider, probes: list[Probe], n: int, clock) -> dict:
     for pair in pairs.values():
         high = next(p for p in pair if p.expect_more is not None)
         low = next(p for p in pair if p is not high)
-        option = high.expect_more
-        if (
-            per_probe[high.decision.id]["shares"][option]
-            > per_probe[low.decision.id]["shares"][option]
+        hi, lo = per_probe[high.decision.id]["shares"], per_probe[low.decision.id]["shares"]
+        if hi and lo and sum(hi[o] for o in high.expect_more) > sum(
+            lo[o] for o in high.expect_more
         ):
             passes += 1
 
@@ -175,6 +188,8 @@ def _compare_one(decider: Decider, probes: list[Probe], n: int, clock) -> dict:
         "calls": calls,
         "invalid": sum(r["invalid"] for r in results),
         "failures": calls - answered,
+        "invalid_rate": sum(r["invalid"] for r in results) / calls if calls else 0.0,
+        "failure_rate": (calls - answered) / calls if calls else 0.0,
         "mean_latency_s": latency / answered if answered else None,
         "total_cost_usd": (
             sum(r["cost_usd"] for r in results if r["cost_usd"] is not None) if priced else None
@@ -221,9 +236,11 @@ def _run_probe(decider: Decider, probe: Probe, n: int, clock) -> dict:
         "kind": d.kind,
         "pair_id": probe.pair_id,
         "expect_more": probe.expect_more,
-        "shares": {oid: k / n for oid, k in counts.items()},
+        "shares": {oid: k / answered for oid, k in counts.items()} if answered else {},
         "invalid": invalid,
         "failures": failures,
+        "invalid_rate": invalid / n,
+        "failure_rate": failures / n,
         "errors": errors,
         "mean_latency_s": latency / answered if answered else None,
         "cost_usd": cost if priced else None,
@@ -249,6 +266,10 @@ class SystemOneDecider:
     returned probabilities are normalised over the offered options (missing ones count as
     0, unknown ids are dropped) and stored in `Choice.meta["probs"]`. If the client raises
     or gives nothing usable, `ModelUnavailable` is raised.
+
+    Give either `client` or `client_factory`; the factory is called on the first
+    decision, so a client that cannot be built (say, a missing key) only fails when this
+    decider is actually asked to decide, with the factory's `ConfigError`.
     """
 
     def __init__(
@@ -257,15 +278,19 @@ class SystemOneDecider:
         people: dict[str, Person],
         rng: random.Random,
         client: ProbabilityClient | None = None,
+        client_factory: Callable[[], ProbabilityClient] | None = None,
     ):
-        if client is None:
+        if client is None and client_factory is None:
             raise ConfigError(f"system one model {model!r}: no client is configured")
         self.model = model
         self.people = people
         self.rng = rng
         self.client = client
+        self.client_factory = client_factory
 
     def decide(self, decision: Decision) -> Choice:
+        if self.client is None:
+            self.client = self.client_factory()
         persona = render_prompt(self.people[decision.actor_id], decision)[0]["content"]
         options = [(o.id, o.label) for o in decision.options]
         try:
@@ -306,78 +331,3 @@ def _normalise(raw, offered: list[str]) -> dict[str, float] | None:
     if total <= 0:
         return None
     return {oid: v / total for oid, v in probs.items()}
-
-
-# TypeSafe AI's System One API.
-
-TYPESAFE_URL = "https://api.typesafe.ai/v1/systemone"
-TYPESAFE_KEY_ENV = "TYPESAFE_API_KEY"
-QUESTION_ID = "choice"
-QUESTION = "Which of these do you do?"
-
-
-def _urllib_post(url: str, headers: dict[str, str], body: dict, timeout: float) -> dict:
-    req = urllib.request.Request(
-        url, data=json.dumps(body).encode(), headers=headers, method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:500]
-        raise RuntimeError(f"HTTP {e.code}: {detail}") from e
-
-
-class TypeSafeClient:
-    """A `ProbabilityClient` for TypeSafe AI's `POST /v1/systemone` (one `choice` question).
-
-    Written from the public docs at docs.typesafe.ai (API reference and the Choice
-    primitive); not yet tried against the live service. The state is the persona and
-    the situation; the criteria map each option id to its label. The key is read from
-    the `TYPESAFE_API_KEY` environment variable. Token usage of the last call is kept
-    in `last_usage`.
-    """
-
-    def __init__(
-        self,
-        model: str,
-        api_key: str | None = None,
-        post_fn: Callable[[str, dict[str, str], dict, float], dict] = _urllib_post,
-        timeout: float = 30.0,
-    ):
-        api_key = api_key if api_key is not None else os.environ.get(TYPESAFE_KEY_ENV)
-        if not api_key:
-            raise ConfigError(
-                f"system one model {model!r}: set {TYPESAFE_KEY_ENV} to use TypeSafe AI's API"
-            )
-        self.model = model
-        self._headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        self.post_fn = post_fn
-        self.timeout = timeout
-        self.last_usage: dict | None = None
-
-    def request_body(self, persona: str, situation: str, options: list[tuple[str, str]]) -> dict:
-        return {
-            "model": self.model,
-            "state": f"{persona}\n\n{situation}",
-            "questions": {
-                QUESTION_ID: {
-                    "type": "choice",
-                    "instructions": QUESTION,
-                    "criteria": {oid: label for oid, label in options},
-                }
-            },
-        }
-
-    def probabilities(
-        self, persona: str, situation: str, options: list[tuple[str, str]]
-    ) -> dict[str, float]:
-        self.last_usage = None
-        body = self.request_body(persona, situation, options)
-        resp = self.post_fn(TYPESAFE_URL, self._headers, body, self.timeout)
-        self.last_usage = resp.get("usage")
-        answer = resp["answers"][QUESTION_ID]
-        return dict(answer["probabilities"])

@@ -59,6 +59,12 @@ def _advance(sim: Simulation, target_step: int, resume_hint: str) -> None:
             f"run {sim.run_id!r} aborted at step {sim.world.step}: {exc}\n"
             f"Steps before {sim.world.step} are saved. To continue, run:\n  {resume_hint}"
         )
+    except ConfigError as exc:
+        _fail(
+            f"run {sim.run_id!r} stopped at step {sim.world.step}: {exc}\n"
+            f"Steps before {sim.world.step} are saved; fix the setting and resume with:\n"
+            f"  {resume_hint}"
+        )
     typer.echo(f"run {sim.run_id!r} is at step {sim.world.step}")
 
 

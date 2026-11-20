@@ -1,8 +1,9 @@
 # Canned decisions for `townsim compare-deciders`: 4 pairs, each one choice under low
 # and high pressure. Situations and options are what the engine's own builders produce
 # for these circumstances (tests/test_compare.py checks this), followed by one sentence
-# describing the pressure. Only the high-pressure probe names `expect_more`: the option
-# whose share should be higher there than in the low-pressure probe.
+# describing the pressure. Only the high-pressure probe names `expect_more`: every option
+# of the pressured choice. A pair passes when those options' combined share is strictly
+# higher in the high-pressure probe than in the low-pressure one.
 # Money in `person.cash` is integer cents.
 probes:
 - id: probe:tax_report:low
@@ -46,7 +47,13 @@ probes:
         $30.00 on thoroughly concealing the difference
 - id: probe:tax_report:high
   pair: tax_report
-  expect_more: hide50_none
+  expect_more:
+  - hide25_none
+  - hide25_some
+  - hide25_heavy
+  - hide50_none
+  - hide50_some
+  - hide50_heavy
   person:
     name: Margaret Hale
     role: owner
@@ -107,7 +114,8 @@ probes:
       label: Tell the town newspaper what you know about Harbour Bakery
 - id: probe:tip:high
   pair: tip
-  expect_more: silent
+  expect_more:
+  - silent
   person:
     name: Tom Garrity
     role: worker
@@ -152,7 +160,8 @@ probes:
       label: Take the $1,200.00 and do not record the finding
 - id: probe:bribe_offer:high
   pair: bribe_offer
-  expect_more: accept
+  expect_more:
+  - accept
   person:
     name: Gareth Pugh
     role: auditor
@@ -198,7 +207,8 @@ probes:
       label: Offer the auditor $150.00 of your own money not to record the finding
 - id: probe:audit_response:high
   pair: audit_response
-  expect_more: offer_bribe
+  expect_more:
+  - offer_bribe
   person:
     name: Aisha Rahman
     role: owner

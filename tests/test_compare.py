@@ -1,6 +1,8 @@
 import json
 import random
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,12 +15,12 @@ from townsim.cli import app
 from townsim.compare import (
     Probe,
     SystemOneDecider,
-    TypeSafeClient,
     check_probes,
     compare_deciders,
     load_probes,
     probe_people,
 )
+from townsim.typesafe import TypeSafeClient
 from townsim.config import ConfigError, TownConfig
 from townsim.decide import Choice, Decision, ModelUnavailable, ScriptedDecider
 from townsim.model import render_prompt
@@ -31,11 +33,12 @@ ROOT = Path(__file__).resolve().parent.parent
 PROBES_YAML = ROOT / "config" / "probe_decisions.yaml"
 TOWN_YAML = ROOT / "config" / "town.yaml"
 
+HIDES = [f"hide{pct}_{level}" for pct in (25, 50) for level in ("none", "some", "heavy")]
 EXPECT_MORE = {
-    "tax_report": "hide50_none",
-    "tip": "silent",
-    "bribe_offer": "accept",
-    "audit_response": "offer_bribe",
+    "tax_report": HIDES,
+    "tip": ["silent"],
+    "bribe_offer": ["accept"],
+    "audit_response": ["offer_bribe"],
 }
 
 
@@ -60,8 +63,8 @@ class PressureSensitive:
     def decide(self, decision: Decision) -> Choice:
         expected = EXPECT_MORE[decision.kind]
         if decision.id.endswith(":high"):
-            return Choice(option_id=expected)
-        return Choice(option_id=next(o.id for o in decision.options if o.id != expected))
+            return Choice(option_id=expected[0])
+        return Choice(option_id=next(o.id for o in decision.options if o.id not in expected))
 
 
 class FakeProbClient:
@@ -131,6 +134,49 @@ def test_system_one_decider_samples_from_returned_probabilities(people, tax_deci
     assert c.option_id == "hide50_heavy" and c.meta["probs"]["hide50_heavy"] == 1.0
 
 
+class Scripted2:
+    """Picks `low` on low-pressure probes of `kind` and `high` on its high-pressure probe."""
+
+    def __init__(self, kind, low, high):
+        self.kind, self.low, self.high = kind, low, high
+
+    def decide(self, decision):
+        if decision.kind != self.kind:
+            return Choice(option_id=decision.default_option_id)
+        return Choice(option_id=self.high if decision.id.endswith(":high") else self.low)
+
+
+@pytest.mark.parametrize("hide", ["hide25_none", "hide25_heavy", "hide50_some"])
+def test_moving_from_honest_to_any_hide_option_passes_the_tax_check(probes, hide):
+    tax = [p for p in probes if p.pair_id == "tax_report"]
+    out = compare_deciders({"d": Scripted2("tax_report", "honest", hide)}, tax, n=5)
+    assert out["d"]["directional_passes"] == 1
+
+
+def test_a_decider_that_never_moves_fails_the_tax_check(probes):
+    tax = [p for p in probes if p.pair_id == "tax_report"]
+    for fixed in ["honest", "hide25_some"]:
+        out = compare_deciders({"d": Scripted2("tax_report", fixed, fixed)}, tax, n=5)
+        assert out["d"]["directional_passes"] == 0
+
+
+def test_a_single_expect_more_string_is_a_one_item_list(probes):
+    p = probes[1]
+    assert Probe(p.decision, p.pair_id, "hide25_none").expect_more == ["hide25_none"]
+
+
+def test_a_probe_with_no_answered_calls_fails_its_pair(probes):
+    class DownOnHigh:
+        def decide(self, decision):
+            if decision.id.endswith(":high"):
+                raise ModelUnavailable("down")
+            return Choice(option_id=decision.default_option_id)
+
+    out = compare_deciders({"d": DownOnHigh()}, probes, n=3)["d"]
+    assert out["probes"]["probe:tip:high"]["shares"] == {}
+    assert out["directional_passes"] == 0
+
+
 # SystemOneDecider.
 
 
@@ -186,6 +232,20 @@ def test_system_one_records_token_usage_from_the_client(people, tax_decision):
     assert c.meta["cost_usd"] is None
 
 
+def test_system_one_builds_its_client_on_first_decision(people, tax_decision):
+    made = []
+
+    def factory():
+        made.append(1)
+        return FakeProbClient({"honest": 1.0})
+
+    d = SystemOneDecider("jev", people, random.Random(1), client_factory=factory)
+    assert made == []
+    d.decide(tax_decision)
+    d.decide(tax_decision)
+    assert made == [1]
+
+
 def test_system_one_without_a_client_is_a_config_error(people):
     with pytest.raises(ConfigError, match="no client"):
         SystemOneDecider("jev", people, random.Random(1))
@@ -199,7 +259,8 @@ def test_one_failing_call_is_counted_and_the_comparison_continues(probes):
     flaky = out["flaky"]
     assert flaky["calls"] == 80 and flaky["failures"] == 40
     for r in flaky["probes"].values():
-        assert r["failures"] == 5 and sum(r["shares"].values()) == pytest.approx(0.5)
+        assert r["failures"] == 5 and r["failure_rate"] == 0.5
+        assert sum(r["shares"].values()) == pytest.approx(1.0)  # over the 5 answered calls
         assert r["errors"] and "down" in r["errors"][0]
     assert out["ok"]["failures"] == 0
 
@@ -211,6 +272,8 @@ def test_a_decider_that_always_fails_still_gives_a_result(probes):
 
     out = compare_deciders({"down": Down()}, probes, n=3)
     assert out["down"]["failures"] == 24 and out["down"]["mean_latency_s"] is None
+    assert out["down"]["failure_rate"] == 1.0
+    assert all(r["shares"] == {} for r in out["down"]["probes"].values())
     assert out["down"]["directional_passes"] == 0
 
 
@@ -220,7 +283,7 @@ def test_invalid_responses_are_counted_and_take_no_share(probes):
             return Choice(option_id="")
 
     out = compare_deciders({"bad": Bad()}, probes, n=4)
-    assert out["bad"]["invalid"] == 32
+    assert out["bad"]["invalid"] == 32 and out["bad"]["invalid_rate"] == 1.0
     assert all(sum(r["shares"].values()) == 0 for r in out["bad"]["probes"].values())
 
 
@@ -334,6 +397,8 @@ def test_probe_file_holds_four_low_high_pairs(probes):
         high = [p for p in pair if p.expect_more is not None]
         assert [p.decision.id for p in high] == [f"probe:{pair_id}:high"]
         assert high[0].expect_more == EXPECT_MORE[pair_id]
+    tax_options = {o.id for o in next(p for p in probes if p.pair_id == "tax_report").decision.options}
+    assert set(EXPECT_MORE["tax_report"]) == tax_options - {"honest"}
 
 
 def test_probes_offer_exactly_what_the_engine_offers(probes):
@@ -376,6 +441,8 @@ def _write_probes(tmp_path, mutate) -> str:
     [
         (lambda ps: ps.pop(), "has 1 probes"),
         (lambda ps: ps[0].update(expect_more="silent"), "not offered"),
+        (lambda ps: ps[1].update(expect_more=["hide25_none", "nope"]), "not offered"),
+        (lambda ps: ps[1].update(expect_more=[]), "names no option"),
         (lambda ps: ps[0].update(expect_more="honest"), "exactly one probe"),
         (lambda ps: ps[1].update(id=ps[0]["id"]), "duplicate"),
         (lambda ps: ps[0]["decision"]["options"].pop(), "same choice"),
@@ -461,24 +528,46 @@ def _with_jev(cfg_dict) -> TownConfig:
     return TownConfig.model_validate(cfg_dict)
 
 
-def test_make_deciders_builds_a_system_one_decider(cfg_dict, monkeypatch, people):
-    monkeypatch.setenv("TYPESAFE_API_KEY", "k")
-    deciders = make_deciders(_with_jev(cfg_dict), random.Random(0), people)
-    jev = deciders["jev"]
-    assert isinstance(jev, SystemOneDecider) and isinstance(jev.client, TypeSafeClient)
-    assert jev.client.model == "jev-1.13.0" and jev.people is people
-
-
-def test_make_deciders_system_one_without_a_key_is_a_config_error(cfg_dict, monkeypatch, people):
+def test_make_deciders_builds_a_system_one_decider_without_needing_a_key(
+    cfg_dict, monkeypatch, people
+):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    with pytest.raises(ConfigError, match="TYPESAFE_API_KEY"):
-        make_deciders(_with_jev(cfg_dict), random.Random(0), people)
+    jev = make_deciders(_with_jev(cfg_dict), random.Random(0), people)["jev"]
+    assert isinstance(jev, SystemOneDecider) and jev.people is people and jev.client is None
 
 
-def test_make_deciders_system_one_needs_people(cfg_dict, monkeypatch):
+def test_a_system_one_decider_without_a_key_fails_when_asked_to_decide(
+    cfg_dict, monkeypatch, people, tax_decision
+):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    jev = make_deciders(_with_jev(cfg_dict), random.Random(0), people)["jev"]
+    with pytest.raises(ConfigError, match="'jev'.*TYPESAFE_API_KEY"):
+        jev.decide(tax_decision)
+
+
+def test_a_system_one_decider_with_a_key_calls_typesafe(
+    cfg_dict, monkeypatch, people, tax_decision
+):
+    import townsim.typesafe
+
     monkeypatch.setenv("TYPESAFE_API_KEY", "k")
+    post = FakePost(jev_response({"honest": 1.0}))
+    monkeypatch.setattr(townsim.typesafe, "_urllib_post", post)
+    jev = make_deciders(_with_jev(cfg_dict), random.Random(0), people)["jev"]
+    assert jev.decide(tax_decision).option_id == "honest"
+    assert isinstance(jev.client, TypeSafeClient) and jev.client.model == "jev-1.13.0"
+    assert post.calls[0][2]["model"] == "jev-1.13.0"
+
+
+def test_make_deciders_system_one_needs_people(cfg_dict):
     with pytest.raises(ConfigError, match="people"):
         make_deciders(_with_jev(cfg_dict), random.Random(0))
+
+
+def test_the_engine_does_not_import_the_http_client():
+    code = "import sys, townsim.sim, townsim.cli; print('townsim.typesafe' in sys.modules)"
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "False"
 
 
 @pytest.fixture
@@ -506,3 +595,30 @@ def test_cli_compare_deciders_unknown_name_is_an_error(town_dir):
                                       "--deciders", "rule,nobody", "--probes", str(PROBES_YAML)])
     assert result.exit_code != 0
     assert "nobody" in result.output and "rule" in result.output
+
+
+def test_an_unused_system_one_entry_does_not_break_run_resume_or_fork(town_dir, monkeypatch, tmp_path):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    town, db = str(town_dir / "town.yaml"), str(tmp_path / "runs.sqlite")
+    runner = CliRunner()
+
+    def ok(*args):
+        result = runner.invoke(app, list(args))
+        assert result.exit_code == 0, result.output
+
+    ok("run", town, "--steps", "2", "--run-id", "base", "--db", db)
+    ok("run", town, "--steps", "3", "--run-id", "base", "--db", db, "--resume")
+    ok("fork", "--db", db, "--from", "base", "--at", "2", "--run-id", "f1", "--steps", "1")
+
+
+def test_a_run_that_asks_jev_without_a_key_stops_with_a_clear_message(
+    town_dir, monkeypatch, tmp_path
+):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    town = yaml.safe_load((town_dir / "town.yaml").read_text())
+    town["assignment"]["default"] = "jev"
+    (town_dir / "town.yaml").write_text(yaml.safe_dump(town))
+    result = CliRunner().invoke(app, ["run", str(town_dir / "town.yaml"), "--steps", "2",
+                                      "--db", str(tmp_path / "runs.sqlite")])
+    assert result.exit_code == 1
+    assert "TYPESAFE_API_KEY" in result.output and "--resume" in result.output

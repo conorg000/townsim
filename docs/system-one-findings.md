@@ -6,6 +6,22 @@ with fakes only. No paid model API was called while building them. Nothing below
 measured result. The recommendation stays open until the table is filled in from a real
 run.
 
+> **Unverified vendor details.** I read TypeSafe AI's documentation only through a tool
+> that summarised the pages for me. I never read the raw pages. That means everything
+> below about Jev's API comes from those summaries and has not been checked. This covers:
+> - the endpoint and the auth header
+> - the request fields `model`, `state`, `questions`, `type`, `instructions` and `criteria`
+> - the response fields `answers.<id>.probabilities` and `usage.input_tokens/output_tokens`
+> - the model id `jev-1.13.0` and the `jev-latest` alias
+> - anything about pricing
+>
+> Check all of it against the live documentation before the first live call:
+> - https://docs.typesafe.ai/api
+> - https://docs.typesafe.ai/primitives/choice.md
+> - https://docs.typesafe.ai/introduction/quickstart.md
+>
+> Also check the pricing page in TypeSafe's console.
+
 ## What has been built
 
 - `townsim compare-deciders` (in `src/townsim/compare.py` and `src/townsim/cli.py`) puts
@@ -29,30 +45,29 @@ run.
   chat model gets), its situation and its options to a probability client. It normalises
   the probabilities it gets back, samples one option with its seeded rng and records the
   probabilities in `Choice.meta["probs"]`.
-- `TypeSafeClient` is the real Jev client. It was written from TypeSafe AI's public docs
-  and has **not been tried against the live service**. It sends
+- `TypeSafeClient` (in `src/townsim/typesafe.py`) is the Jev client. It was written from
+  summaries of TypeSafe AI's docs (see the warning above). It has **not been tried against
+  the live service**. The engine loads it only when a `system_one` decider is first asked
+  to decide. As summarised, it sends
   `POST https://api.typesafe.ai/v1/systemone` with `Authorization: Bearer $TYPESAFE_API_KEY`.
   The request carries `model`, `state` (the persona and situation as text) and one `choice`
   question, whose `criteria` map each option id to its label. It reads
   `answers.choice.probabilities` (an object keyed by option id) and `usage.input_tokens`
-  and `usage.output_tokens`. The API takes free text as `state`, so a persona and a
-  situation can be passed to it.
-  Sources:
-  - https://docs.typesafe.ai/api (request and response schema)
-  - https://docs.typesafe.ai/primitives/choice.md (choice questions)
-  - https://docs.typesafe.ai/introduction/quickstart.md (endpoint and auth)
+  and `usage.output_tokens`. According to the summaries, `state` accepts free text, so a
+  persona and a situation can be passed to it. Confirm this too.
 
 ## How to run it
 
 1. Add the deciders to `config/town.yaml` under `deciders:`. Leave `assignment` as it is.
-   The comparison only uses the names you select.
+   The comparison only uses the names you select. A `system_one` entry that no one is
+   assigned to does not affect `townsim run`, `--resume` or `fork`, even with no key set.
 
    ```yaml
    deciders:
      rule: {type: rule}
      weak_a: {type: model, model: "<LiteLLM model id of chat model A>", temperature: 1.0}
      weak_b: {type: model, model: "<LiteLLM model id of chat model B>", temperature: 1.0}
-     jev: {type: system_one, model: jev-1.13.0}   # pin a version; jev-latest is an alias
+     jev: {type: system_one, model: jev-1.13.0}   # model id from the summaries; confirm it in the console
    ```
 
 2. Set the API keys the chat models need for LiteLLM, and set `TYPESAFE_API_KEY` for Jev.
@@ -70,21 +85,23 @@ run.
 |---|---|
 | Directional passes | `directional_passes` / `directional_checks` (out of 4) |
 | Highest single-option share | `max_option_share`. Also look at each probe's `shares`: a top share above 0.95 on every probe means the decider never misbehaves. |
-| Cost per 1,000 decisions | `total_cost_usd / calls × 1000`, counting only calls that have a price (`priced_calls`). LiteLLM prices the chat models. Jev's `cost_usd` is left empty because TypeSafe's API reference publishes no prices, so work it out as `prompt_tokens / calls × 1000 ×` the input price per token from TypeSafe's console. The docs say output tokens are currently free. |
+| Cost per 1,000 decisions | `total_cost_usd / calls × 1000`, counting only calls that have a price (`priced_calls`). LiteLLM prices the chat models. Jev's `cost_usd` is left empty because no verified price is available. Work it out from `prompt_tokens` and `completion_tokens` per call × 1000, using the prices on TypeSafe's console pricing page. A summary said output tokens might be free; that is unconfirmed. |
 | Mean latency | `mean_latency_s`, averaged over the calls that got an answer |
-| Invalid-response rate | `invalid / calls`. Also report `failures / calls`, and look at the per-probe `errors`. |
+| Invalid-response rate | `invalid_rate`. Also report `failure_rate`, and look at the per-probe `errors`. |
 
-A directional check passes when the `expect_more` option's share is strictly higher in
-the high-pressure probe than in the low-pressure one. The options checked are:
+Shares are computed over the calls that got an answer. Failed calls are counted
+separately. A probe on which every call failed has empty shares, and any directional
+check that involves it fails.
 
-- `tax_report`: `hide50_none`
+A directional check passes when the combined share of the pair's `expect_more` options is
+strictly higher in the high-pressure probe than in the low-pressure one. The options of
+the pressured choice in each pair are:
+
+- `tax_report`: all six hiding options (`hide25_none`, `hide25_some`, `hide25_heavy`,
+  `hide50_none`, `hide50_some`, `hide50_heavy`)
 - `tip`: `silent`
 - `bribe_offer`: `accept`
 - `audit_response`: `offer_bribe`
-
-The `tax_report` check follows one hiding option only. A decider that moves from `honest`
-to a different hiding option, such as `hide25_some`, does not pass it, so read the shares
-as well as the pass count.
 
 ## Pass criteria
 

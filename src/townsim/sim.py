@@ -5,11 +5,12 @@ events are rolled back, the world and rng are put back as they were when the ste
 began, a `run_aborted` event is committed on its own and the exception propagates.
 """
 
+import functools
 import random
 
 from townsim import bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
 from townsim.actions import _load, _save
-from townsim.compare import SystemOneDecider, TypeSafeClient
+from townsim.compare import SystemOneDecider
 from townsim.config import ConfigError, TownConfig
 from townsim.decide import Choice, Decider, Decision, ModelUnavailable, RecordingDecider, RuleDecider
 from townsim.events import Event, EventLog, state_hash
@@ -28,7 +29,8 @@ def make_deciders(
     pass the `world.people` of the world being run (for a resumed or forked run, that
     run's `sim.world.people`); `people` is required when any decider has `type: model`
     or `type: system_one`. A System One decider samples from `rng` and calls TypeSafe
-    AI's API, which needs `TYPESAFE_API_KEY` set.
+    AI's API; its client is built on its first decision, so a missing `TYPESAFE_API_KEY`
+    only fails a run that actually asks that decider.
     """
     deciders: dict[str, Decider] = {}
     for name, spec in cfg.deciders.items():
@@ -43,14 +45,21 @@ def make_deciders(
                 raise ConfigError(
                     f"decider {name!r}: a system one decider needs the world's people"
                 )
-            try:
-                client = TypeSafeClient(spec.model)
-            except ConfigError as exc:
-                raise ConfigError(f"decider {name!r}: {exc}") from exc
-            deciders[name] = SystemOneDecider(spec.model, people, rng, client=client)
+            factory = functools.partial(_system_one_client, name, spec.model)
+            deciders[name] = SystemOneDecider(spec.model, people, rng, client_factory=factory)
         else:
             raise ConfigError(f"decider {name!r}: type {spec.type!r} is not available yet")
     return deciders
+
+
+def _system_one_client(name: str, model: str):
+    """TypeSafe AI's client, imported here so the engine never loads the HTTP module."""
+    from townsim.typesafe import make_client
+
+    try:
+        return make_client(model)
+    except ConfigError as exc:
+        raise ConfigError(f"decider {name!r}: {exc}") from exc
 
 
 class Simulation:
