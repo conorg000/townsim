@@ -256,8 +256,9 @@ def test_names_and_families_are_plain_lists():
     assert {k: v["model"] for k, v in config.items()} == {
         "haiku": "anthropic/claude-haiku-5.5", "deepseek": "deepseek/deepseek-v4.1-flash-1017",
         "hunyuan": "tencent/hy4-flash", "minimax": "minimax/minimax-m3.1-flash"}
-    assert all({k: x for k, x in v["params"].items() if k != "reasoning_effort"} == {"max_tokens": 1200, "temperature": 0.8}
-               and v["left_out"] is False for v in config.values())
+    assert all(v["params"]["temperature"] == 0.8 and v["left_out"] is False for v in config.values())
+    assert {k: v["params"]["max_tokens"] for k, v in config.items()} == {
+        "haiku": 1200, "deepseek": 1200, "hunyuan": 1200, "minimax": 2400}   # minimax reasons first
 
 
 def test_draw_lists_are_wide_enough():
