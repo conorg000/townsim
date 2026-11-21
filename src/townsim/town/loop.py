@@ -1,0 +1,119 @@
+"""A day in a fixed order (design 4.1): the routine, then everyone's view built from the
+morning's state, then every reply, and only then the acts, person by person in id order."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Any
+
+import townsim.town.ops_core  # noqa: F401  (registers the operations)
+from townsim.town import obligations
+from townsim.town.acts import Act, Outcome, apply_act, name_of_who
+from townsim.town.clock import dow
+from townsim.town.entities import Notice
+from townsim.town.replies import Keys, Replier
+from townsim.town.store import Store
+from townsim.town.views import mark_seen, person_view, shown_ids
+
+MAX_ACTS = 8
+_ASKED_CUT = 80
+
+
+@dataclass(frozen=True)
+class Turn:
+    pid: str
+    key: str
+    invalid: bool
+    outcomes: list[Outcome]
+
+
+@dataclass(frozen=True)
+class DayReport:
+    day: int
+    turns: list[Turn]
+
+
+def _lapse(store: Store) -> None:
+    for rq in store.all("requests"):
+        if rq.status != "open" or rq.expires >= store.day:
+            continue
+        cause = f"routine:lapse:{rq.id}"
+        store.set("requests", rq.id, cause, status="lapsed")
+        asked = rq.text if len(rq.text) <= _ASKED_CUT else rq.text[:_ASKED_CUT] + "…"
+        text = f"Your request {rq.id} to {name_of_who(store, rq.to)} ({asked}) was not answered and has lapsed."
+        store.add("notices", Notice(store.new_id("n"), store.day, rq.sender, text), cause)
+
+
+def routine(store: Store) -> None:
+    """The morning: hours back on a Monday, old requests lapse, then what is owed is
+    opened, aged and collected."""
+    if dow(store.day) == 0:
+        for p in store.all("people"):
+            if p.hours_left != p.hours_week:
+                store.set("people", p.id, "routine:week", hours_left=p.hours_week)
+    _lapse(store)
+    obligations.open_dues(store)
+    obligations.age_arrears(store)
+    obligations.collect(store)
+
+
+def who_acts(store: Store) -> list[str]:
+    """People with something unseen, an open request to them, or their stock day today."""
+    waiting = {rq.to for rq in store.all("requests") if rq.status == "open"}
+    return [p.id for p in store.all("people")
+            if shown_ids(store, p.id) or p.id in waiting or p.stock_day == dow(store.day)]
+
+
+def parse_acts(text: str | None) -> list | None:
+    """The `acts` list of the first JSON object in `text` that has one, or None. Never raises."""
+    if not isinstance(text, str):
+        return None
+    decoder = json.JSONDecoder()
+    at = text.find("{")
+    while at != -1:
+        try:
+            found = _acts_in(decoder.raw_decode(text, at)[0])
+        except (ValueError, RecursionError):
+            found = None
+        if found is not None:
+            return found
+        at = text.find("{", at + 1)
+    return None
+
+
+def _acts_in(value: Any) -> list | None:
+    if isinstance(value, dict) and isinstance(value.get("acts"), list):
+        return value["acts"]
+    return None
+
+
+def _act(pid: str, element: Any) -> Act:
+    if isinstance(element, dict):
+        return Act(pid, pid, element.get("op"), {k: v for k, v in element.items() if k != "op"})
+    return Act(pid, pid, None, element)
+
+
+def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
+    routine(store)
+    day = store.day
+    shown = [(pid, person_view(store, pid), shown_ids(store, pid)) for pid in who_acts(store)]
+    asked = []
+    for pid, messages, _ in shown:
+        key = keys.next(replier.model, day, pid, "turn")
+        asked.append((key.text(), replier.ask(key, messages)))
+    turns = []
+    n = 0
+    for (pid, _, ids), (key, reply) in zip(shown, asked):
+        elements = parse_acts(reply.text)
+        if elements is None:
+            turns.append(Turn(pid, key, True, []))
+            continue
+        outcomes = []
+        for element in elements[:MAX_ACTS]:
+            outcomes.append(apply_act(store, _act(pid, element), n))
+            n += 1
+        mark_seen(store, pid, ids, f"routine:seen:{pid}")
+        turns.append(Turn(pid, key, False, outcomes))
+    store.advance_day()
+    return DayReport(day, turns)
