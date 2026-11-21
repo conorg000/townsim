@@ -27,6 +27,12 @@ def cut_words(text: str, n: int | None) -> str:
 
 
 MEMO_CHARS = 100
+TOWARD_ITEMS = 3
+
+
+class Counted(str):
+    """A line code writes to count what is not shown (`(<n> more not shown)` and the like).
+    The flag goes with the line, so nothing has to recognise one by how it looks."""
 _COUNTED = re.compile(r" \(counted toward (.*)\)$")
 _DUE = re.compile(r", due \w+ \d+ \w+$")
 
@@ -43,14 +49,16 @@ def _toward(part: str) -> str:
 
 
 def memo(text: str) -> str:
-    """A memo as shown: the part a person wrote cut to a label; what code wrote after it
-    (`, due <date>`, or ` (counted toward <memo> due <date>; …)` with each memo in it cut the
-    same way) kept whole."""
+    """A memo as shown, on one line, its whitespace collapsed: the part a person wrote cut to
+    a label; what code wrote after it (`, due <date>`, or ` (counted toward <memo> due <date>;
+    …)`, at most three of those with each memo cut the same way, then `and <n> more`) kept."""
     text = " ".join(text.split())
     m = _COUNTED.search(text)
     if m:
-        return label(text[:m.start()]) + " (counted toward " + "; ".join(
-            _toward(p) for p in m.group(1).split("; ")) + ")"
+        parts = [_toward(p) for p in m.group(1).split("; ")]
+        if len(parts) > TOWARD_ITEMS:
+            parts = parts[:TOWARD_ITEMS] + [f"and {len(parts) - TOWARD_ITEMS} more"]
+        return label(text[:m.start()]) + " (counted toward " + "; ".join(parts) + ")"
     m = _DUE.search(text)
     if m:
         return label(text[:m.start()]) + m.group(0)
@@ -110,13 +118,13 @@ def _coming(store: Store, ups: list[Upcoming]) -> list[str]:
     rows = []
     for u in ups:
         when = f"overdue since {date_text(u.day)}" if _overdue(store, u) else date_text(u.day)
-        rows.append(f"  {when}  {money(u.cents)}  {name_of(store, u.other)}  {u.memo} ({u.obligation})")
+        rows.append(f"  {when}  {money(u.cents)}  {name_of(store, u.other)}  {memo(u.memo)} ({u.obligation})")
     return rows or ["  nothing"]
 
 
 def line_rows(store: Store, lines: list[Line]) -> list[str]:
     """The rows `statement_text` shows for `lines`, oldest first."""
-    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {l.memo}" for l in lines]
+    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {memo(l.memo)}" for l in lines]
 
 
 def statement_text(store: Store, st: Statement) -> str:

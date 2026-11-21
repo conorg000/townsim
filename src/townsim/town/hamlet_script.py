@@ -14,7 +14,8 @@ _NAME = re.compile(r"^You are (.+?), \d+\.", re.M)
 _AT = re.compile(r"\b(?:at|runs) ((?:[A-Z][A-Za-z']*)(?: [A-Z][A-Za-z']*)*)")
 _ARREARS = re.compile(rf"^  overdue since [^$]+?  ({_MONEY})  (.+?)  (.+) \((ob\d+)\)$")
 _COMING = re.compile(rf"^  [A-Z][a-z]+day \d+ [A-Z][a-z]+  ({_MONEY})  (.+?)  (.+) \((ob\d+)\)$")
-_REQUEST = re.compile(rf"^(rq\d+) from (.+?): .*?(?:They ask you for ({_MONEY})\.)?$")
+_REQUEST = re.compile(r"^(rq\d+) from (.+):$")
+_ASKED = re.compile(rf"^They ask you for ({_MONEY})\.$")
 _OWED_TO_ME = re.compile(r"^(ob\d+): (.+?), (\$[\d,]+\.\d\d) a week from ")
 _STANDING_NOTE = "towards the week"
 _NO_ONE = "Edith Marsh"
@@ -65,8 +66,12 @@ class _Seen:
         self.coming = [(_cents(m.group(1)), m.group(2), m.group(3), m.group(4))
                        for line in out if (m := _COMING.match(line))]
         self.people = [line.split(", ", 1) for line in self.sections.get("PEOPLE YOU KNOW", []) if ", " in line]
-        self.requests = [(m.group(1), m.group(2), _cents(m.group(3)) if m.group(3) else 0)
-                         for line in self.sections.get("WAITING FOR YOUR ANSWER", []) if (m := _REQUEST.match(line))]
+        self.requests = []           # (id, from, cents asked): each request's head, then what it asks for
+        for line in self.sections.get("WAITING FOR YOUR ANSWER", []):
+            if m := _REQUEST.match(line):
+                self.requests.append((m.group(1), m.group(2), 0))
+            elif (m := _ASKED.match(line)) and self.requests:
+                self.requests[-1] = self.requests[-1][:2] + (_cents(m.group(1)),)
         self.owed = self.sections.get("WHAT IS OWED", [])
         business = self.sections.get("YOUR BUSINESS", [])
         self.business = business[0] if business else ""

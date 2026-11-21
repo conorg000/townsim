@@ -11,6 +11,12 @@ notice ranking with the household, then oldest) and counts the rest, which stay 
 requests waiting are shown three at a time in the same order. A view is about 1,200 words on
 an ordinary day and never over 2,000, system and user together (see `layout`). Building a
 view changes nothing.
+
+What a person wrote is always set off from what code wrote: a letter's or a request's text
+stands under its own `From <name>:` or `<id> from <name>:` line with every line of it begun by
+`  > `; their own notes and aims are indented; memos and quoted values are one line, cut to a
+label; a notice is one line. So a line at the left margin that begins with a heading, `From `,
+`<id> from ` or `(` and a digit was written by code.
 """
 
 from __future__ import annotations
@@ -25,7 +31,7 @@ from townsim.town.clock import date_text
 from townsim.town.entities import Message
 from townsim.town.obligations import money
 from townsim.town.facts import cut_words as _cut
-from townsim.town.statement import statement
+from townsim.town.statement import Counted, statement
 from townsim.town.store import Store, id_key
 
 MAX_WORDS = 1200
@@ -96,12 +102,19 @@ def inbox(store: Store, pid: str) -> tuple[list, int, str]:
     return rows[:IN_FULL], len(rows[IN_FULL:]), _counted(rows[IN_FULL:])
 
 
+def _quoted(text: str) -> list[str]:
+    """What a person wrote, each of its lines set off with `  > ` (a blank one as `  >`), so
+    that none of it can stand at the margin where the view's own lines stand."""
+    return [f"  > {line}" if line.strip() else "  >" for line in text.split("\n")]
+
+
 def _item_lines(store: Store, row: Any) -> list[str]:
-    """A notice; or a letter, `From <name>: <text>`, and beneath it a line for each name in
-    it that the reader does not know (at most three, then a line counting the rest)."""
+    """A notice, on one line; or a letter: `From <name>:` on its own, then the letter, each
+    line set off with `  > `, and beneath it a line for each name in it that the reader does
+    not know (at most three, then a line counting the rest)."""
     if not isinstance(row, Message):
-        return [row.text]
-    lines = [f"From {_letter_head(store, row)}: {row.text}"]
+        return [" ".join(row.text.split())]
+    lines = [f"From {_letter_head(store, row)}:"] + _quoted(row.text)
     names = [n for n in row.unknown if re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", row.text)]
     lines += [f"({n} is not someone you know.)" for n in names[:UNKNOWN_LINES]]
     if len(names) > UNKNOWN_LINES:
@@ -168,7 +181,10 @@ def _result_text(r, latest_read: str | None, read_words: int) -> str:
     if _is_read(r) and r.id != latest_read:
         return f"{r.op}: not shown, a later read follows"
     words = read_words if r.id == latest_read else RESULT_WORDS
-    return _fit(f"{r.op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
+    op = r.op if r.op.strip().lower() in acts.REGISTRY or r.op == "(no operation named)" else f"'{r.op}'"
+    if _is_read(r):                                                # a listing code wrote: its lines stay
+        return _fit(f"{op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
+    return _fit(" ".join(f"{op}: {r.text}".split()), words, CHARS_A_WORD * words)
 
 
 def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list:
@@ -178,11 +194,13 @@ def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list
     return [rq for rq in rows if not rq.seen] + [rq for rq in rows if rq.seen]
 
 
-def _request_lines(store: Store, rq, words: int | None) -> list[str]:
-    text = f"{rq.id} from {name_of_who(store, rq.sender)}: {_cut(rq.text, words)}"
+def _request_lines(store: Store, rq) -> list[str]:
+    """`<id> from <name>:` on its own, the request set off as a letter is, then what code
+    writes of it: the sum asked for and the summary."""
+    lines = [f"{rq.id} from {name_of_who(store, rq.sender)}:"] + _quoted(rq.text)
     if rq.cents > 0:
-        text += f" They ask you for {money(rq.cents)}."
-    return [text] + ([f"  {rq.summary}"] if rq.summary else [])
+        lines.append(f"They ask you for {money(rq.cents)}.")
+    return lines + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
 
 
 def _hours(h: float) -> str:
@@ -196,8 +214,8 @@ class _Parts(NamedTuple):
     """Everything a user message is made of, built once."""
 
     results: _Results
-    business: list[str]           # the business with two, one and no till weeks: [full, ..]
-    book: str
+    business: list[list[str]]     # the business's rows with two, one and no till weeks: [full, ..]
+    book: list[str]
     accounts: list[str]
     items: list[Any]              # inbox rows, most pressing first
     waiting: list                 # open requests, in the order they are shown
@@ -214,7 +232,7 @@ class _Choice(NamedTuple):
 
     statement: Any
     people: int
-    business: str
+    business: list[str]
     owed: int
     in_full: int
     requests: int
@@ -260,53 +278,66 @@ def _parts(store: Store, pid: str) -> _Parts:
     person = store.get("people", pid)
     rank = facts.ranks(store, pid)
     weeks = facts.till_weeks(store, pid)
-    business = [facts.business(store, pid, weeks=w) for w in range(weeks, -1, -1)] if weeks else \
-        [facts.business(store, pid)]
-    return _Parts(_results(store, pid), business, facts.bank_book(store, pid), accounts_of(store, pid),
+    business = [facts.business_rows(store, pid, weeks=w) for w in range(weeks, -1, -1)] if weeks else \
+        [facts.business_rows(store, pid)]
+    return _Parts(_results(store, pid), business, facts.bank_book_rows(store, pid), accounts_of(store, pid),
                   _unseen(store, pid, rank), _waiting(store, pid, rank),
                   facts.people_lines(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
                   person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid))
+
+
+COUNTED = "#counted"               # the owner of a line that counts what is not shown
+MARK = "#mark"                     # the owner of the guard's own line
+
+
+def _rows(lines: list[str]) -> list[tuple[str, str | None]]:
+    """Lines of a section, each flagged as counted where code made it so (`Counted`)."""
+    return [(str(x), COUNTED if isinstance(x, Counted) else None) for x in lines]
 
 
 def _plain(text: str) -> list[tuple[str, str | None]]:
     return [(line, None) for line in text.split("\n")] if text else []
 
 
+def _own(text: str) -> list[tuple[str, str | None]]:
+    """The person's own words, every line indented by two spaces."""
+    return [(f"  {line}" if line.strip() else "", None) for line in text.split("\n")]
+
+
 def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     out = [_Sec(None, [(f"TODAY: {date_text(store.day)}.", None)], fixed=True)]
     res = parts.results
     if res.shown:
-        rows = [f"({len(res.passed)} earlier results not shown)"] if res.passed else []
-        rows += [_result_text(r, res.latest_read, c.read_words) for r in res.shown]
-        out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", _plain("\n".join(rows)), fixed=True))
-    out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _plain(facts.statement_lines(store, c.statement))))
+        rows = [(f"({len(res.passed)} earlier results not shown)", COUNTED)] if res.passed else []
+        rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words) for r in res.shown))
+        out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", rows, fixed=True))
+    out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _rows(facts.statement_rows(store, c.statement))))
     if parts.book:
-        out.append(_Sec("THE BANK'S BOOK", _plain(parts.book)))
+        out.append(_Sec("THE BANK'S BOOK", _rows(parts.book)))
     if c.business:
-        out.append(_Sec("YOUR BUSINESS", _plain(c.business)))
+        out.append(_Sec("YOUR BUSINESS", _rows(c.business)))
     owed = _owed(store, parts.accounts, c.owed)
     if owed:
-        out.append(_Sec("WHAT IS OWED", _plain("\n".join(owed))))
+        out.append(_Sec("WHAT IS OWED", _rows(owed)))
     if parts.items:
         rows = [(line, r.id) for i, r in enumerate(parts.items[:c.in_full])
                 for line in _item_lines(store, r)]
         counted = _counted(parts.items[c.in_full:])
-        out.append(_Sec("LETTERS AND NOTICES", rows + ([(counted, None)] if counted else [])))
+        out.append(_Sec("LETTERS AND NOTICES", rows + ([(counted, COUNTED)] if counted else [])))
     if parts.waiting:
-        rows = [(line, rq.id) for i, rq in enumerate(parts.waiting[:c.requests])
-                for line in _request_lines(store, rq, None)]
+        rows = [(line, rq.id) for rq in parts.waiting[:c.requests] for line in _request_lines(store, rq)]
         more = len(parts.waiting) - c.requests
-        keep = len(_request_lines(store, parts.waiting[0], None))
-        out.append(_Sec("WAITING FOR YOUR ANSWER", rows + ([(f"({more} more requests waiting)", None)] if more else []),
-                        keep=keep))
+        keep = len(_request_lines(store, parts.waiting[0]))
+        out.append(_Sec("WAITING FOR YOUR ANSWER",
+                        rows + ([(f"({more} more requests waiting)", COUNTED)] if more else []), keep=keep))
     if parts.people[:c.people]:
         out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(parts.people[:c.people]))))
     if parts.knowhow:
         out.append(_Sec("HOW THINGS WORK", _plain("\n".join(parts.knowhow))))
     if parts.mind:
-        out.append(_Sec("ON YOUR MIND", _plain("\n".join(parts.mind))))
+        out.append(_Sec("ON YOUR MIND", _own("\n".join(parts.mind))))
     if parts.notes:
-        out.append(_Sec("YOUR NOTES", _plain(parts.notes)))
+        out.append(_Sec("YOUR NOTES", _own(parts.notes)))
     out.append(_Sec(None, [(f"You have {parts.hours} hours left this week.", None)], fixed=True))
     out.append(_Sec("OPERATIONS", _plain("\n".join(parts.operations)), fixed=True))
     return out
@@ -314,9 +345,6 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
 
 def _render(secs: list[_Sec]) -> str:
     return "\n\n".join(s.text() for s in secs)
-
-
-_COUNTED_LINE = re.compile(r"^\s*\(\d+ (more|earlier)\b")
 
 
 def _guard(secs: list[_Sec], words: int, chars: int) -> tuple[list[_Sec], set[str], bool]:
@@ -331,8 +359,8 @@ def _guard(secs: list[_Sec], words: int, chars: int) -> tuple[list[_Sec], set[st
 
     def removable(s: _Sec) -> list[int]:
         out = []
-        for k, (text, owner) in enumerate(s.lines):
-            if text == NOT_ALL or k < s.keep or (owner is None and _COUNTED_LINE.match(text)):
+        for k, (_, owner) in enumerate(s.lines):
+            if owner in (MARK, COUNTED) or k < s.keep:
                 continue
             if owner is not None and any(o == owner for _, o in s.lines[:s.keep]):
                 continue
@@ -357,7 +385,7 @@ def _guard(secs: list[_Sec], words: int, chars: int) -> tuple[list[_Sec], set[st
         else:
             lines = [ln for ln in s.lines if ln[1] != owner]
             taken.add(owner)
-        lines = [ln for ln in lines if ln[0] != NOT_ALL] + [(NOT_ALL, None)]
+        lines = [ln for ln in lines if ln[1] != MARK] + [(NOT_ALL, MARK)]
         secs[i] = s._replace(lines=lines)
         fired = True
     return secs, taken, fired

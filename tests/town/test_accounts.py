@@ -160,7 +160,7 @@ def test_a_letter_to_a_shop_reaches_its_owner():
     out = _act(s, "p03", "message", to="marsh's stores", text="Do you sell lamp oil?")
     [m] = s.all("messages")
     assert out.msg == "Sent to Marsh's Stores." and (m.sender, m.to, m.org) == ("p03", "p01", "org3")
-    assert "From Craig Pryce to Marsh's Stores: Do you sell lamp oil?" in person_view(s, "p01")[1]["content"]
+    assert "From Craig Pryce to Marsh's Stores:\n  > Do you sell lamp oil?" in person_view(s, "p01")[1]["content"]
 
 
 def test_a_letter_to_an_organisation_with_no_owner_or_outside_comes_back():

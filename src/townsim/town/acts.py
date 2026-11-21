@@ -184,10 +184,12 @@ def cut(text: str, n: int = 80) -> str:
 
 def clean_text(value: Any) -> str | None:
     """Text a person wrote, without control characters other than newline and tab, and
-    without format characters (zero-width and direction marks); None for a non-string."""
+    without format, private-use or unassigned characters; the line and paragraph separators
+    (U+2028, U+2029) become newlines. None for a non-string."""
     if not isinstance(value, str):
         return None
-    return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf"))
+    value = value.replace("\u2028", "\n").replace("\u2029", "\n")
+    return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf", "Co", "Cn"))
 
 
 LONGEST_WORD = 40
