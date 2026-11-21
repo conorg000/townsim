@@ -254,10 +254,10 @@ def test_names_and_families_are_plain_lists():
     assert names.SHOP_WORDS
     config = yaml.safe_load((Path(__file__).parents[2] / "config" / "families.yaml").read_text())
     assert {k: v["model"] for k, v in config.items()} == {
-        "haiku": "anthropic/claude-haiku-5.5", "deepseek": "deepseek/deepseek-v4.1-flash",
+        "haiku": "anthropic/claude-haiku-5.5", "deepseek": "deepseek/deepseek-v4.1-flash-1017",
         "hunyuan": "tencent/hy4-flash", "minimax": "minimax/minimax-m3.1-flash"}
-    assert all(v["params"] == {"max_tokens": 1200, "temperature": 0.8} and v["left_out"] is False
-               for v in config.values())
+    assert all({k: x for k, x in v["params"].items() if k != "reasoning_effort"} == {"max_tokens": 1200, "temperature": 0.8}
+               and v["left_out"] is False for v in config.values())
 
 
 def test_draw_lists_are_wide_enough():

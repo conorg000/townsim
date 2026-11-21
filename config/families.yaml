@@ -1,18 +1,21 @@
-# Model families that play the people of a generated place. The engine reads only the
-# names; each person is dealt one when the place is made.
+# Model families that play the people of a generated place; each person is dealt one when
+# the place is made. `model` is the OpenRouter id, which must be priced in prices.yaml at no
+# more than $0.20 per million tokens in and $1.00 out; `params` are passed to every call as
+# given. reasoning_effort is what the step 1 trials used: none, except minimax, which
+# answers poorly without some reasoning.
 haiku:
   model: anthropic/claude-haiku-5.5
-  params: {max_tokens: 1200, temperature: 0.8}
+  params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false
 deepseek:
-  model: deepseek/deepseek-v4.1-flash
-  params: {max_tokens: 1200, temperature: 0.8}
+  model: deepseek/deepseek-v4.1-flash-1017
+  params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false
 hunyuan:
   model: tencent/hy4-flash
-  params: {max_tokens: 1200, temperature: 0.8}
+  params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false
 minimax:
   model: minimax/minimax-m3.1-flash
-  params: {max_tokens: 1200, temperature: 0.8}
+  params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "low"}
   left_out: false
