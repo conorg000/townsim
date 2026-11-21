@@ -147,6 +147,11 @@ def to_cents(value: Any) -> int | None:
     return cents if cents > 0 else None
 
 
+def cut(text: str, n: int = 80) -> str:
+    """`text`, or its first `n` characters and `…` when it is longer."""
+    return text if len(text) <= n else text[:n] + "\u2026"
+
+
 def clean_text(value: Any) -> str | None:
     """Text a person wrote, without control characters other than newline and tab; None
     for a non-string."""

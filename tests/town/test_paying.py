@@ -22,6 +22,15 @@ def test_rent_paid_by_hand_is_not_taken_again():
     assert paid.memo == "rent early (counted toward rent due Monday 9 March)" and paid.cause == "op:p1:pay:d5.0"
 
 
+def test_a_payment_that_does_not_match_touches_no_due():
+    s = town(h1=50_000); make_rent(s, cents=17_500, first=7, every=7); run_days(s, 5)
+    dues = [(d.id, d.paid, d.status) for d in s.all("dues")]
+    assert O.pay(s, "h1", "outside:lettings", 17_500, "a gift", "op:p1:pay:d5.0", match=False) == []
+    assert [(d.id, d.paid, d.status) for d in s.all("dues")] == dues and to(s, "outside:lettings")[-1].memo == "a gift"
+    run_days(s, 4)                                   # through day 8: the rent is still taken
+    assert received(s, "outside:lettings") == 35_000
+
+
 def test_part_paid_by_hand_leaves_the_rest_to_the_schedule():
     s = town(h1=50_000); make_rent(s, cents=17_500, first=7, every=7); run_days(s, 5)
     O.pay(s, "h1", "outside:lettings", 5_000, "toward rent", "op:p1:pay:d5.0"); run_days(s, 4)

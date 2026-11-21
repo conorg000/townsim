@@ -55,6 +55,23 @@ def test_mark_seen_marks_only_what_it_is_given():
     assert shown_ids(s, "p03") == ["msg1"]
 
 
+def test_when_the_news_is_too_long_the_rest_waits_for_another_day():
+    s = thin_town()
+    for i in range(6):
+        s.add("messages", Message(f"msg{i + 1}", 0, "p01", "p03", f"letter {i + 1} " + "word " * 298), "routine:t")
+    unseen = [f"msg{i + 1}" for i in range(6)]
+    text = person_view(s, "p03")[1]["content"]
+    shown = shown_ids(s, "p03")
+    assert len(text.split()) <= 1200 and 0 < len(shown) < 6 and shown == unseen[:len(shown)]
+    assert f"({6 - len(shown)} more not shown yet)" in text.split("\n")
+    assert f"letter {len(shown)} " in text and f"letter {len(shown) + 1} " not in text
+    mark_seen(s, "p03", shown, "routine:seen:p03")
+    s.advance_day()
+    later = shown_ids(s, "p03")
+    assert later and later == unseen[len(shown):len(shown) + len(later)]
+    assert f"letter {len(shown) + 1} " in person_view(s, "p03")[1]["content"]
+
+
 def test_a_long_statement_loses_its_oldest_lines_to_stay_within_1200_words():
     s = thin_town()
     for i in range(25):

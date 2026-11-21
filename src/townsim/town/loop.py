@@ -9,15 +9,16 @@ from typing import Any
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import obligations
-from townsim.town.acts import Act, Outcome, apply_act, name_of_who
+from townsim.town.acts import Act, Outcome, apply_act, cut, name_of_who
 from townsim.town.clock import dow
 from townsim.town.entities import Notice
 from townsim.town.replies import Keys, Replier
 from townsim.town.store import Store
-from townsim.town.views import mark_seen, person_view, shown_ids
+from townsim.town.views import has_news, mark_seen, person_view, shown_ids
 
 MAX_ACTS = 8
-_ASKED_CUT = 80
+SCAN_CHARS = 20_000
+SCAN_TRIES = 50
 
 
 @dataclass(frozen=True)
@@ -40,8 +41,7 @@ def _lapse(store: Store) -> None:
             continue
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed")
-        asked = rq.text if len(rq.text) <= _ASKED_CUT else rq.text[:_ASKED_CUT] + "…"
-        text = f"Your request {rq.id} to {name_of_who(store, rq.to)} ({asked}) was not answered and has lapsed."
+        text = f"Your request {rq.id} to {name_of_who(store, rq.to)} ({cut(rq.text)}) was not answered and has lapsed."
         store.add("notices", Notice(store.new_id("n"), store.day, rq.sender, text), cause)
 
 
@@ -62,29 +62,30 @@ def who_acts(store: Store) -> list[str]:
     """People with something unseen, an open request to them, or their stock day today."""
     waiting = {rq.to for rq in store.all("requests") if rq.status == "open"}
     return [p.id for p in store.all("people")
-            if shown_ids(store, p.id) or p.id in waiting or p.stock_day == dow(store.day)]
+            if has_news(store, p.id) or p.id in waiting or p.stock_day == dow(store.day)]
 
 
 def parse_acts(text: str | None) -> list | None:
-    """The `acts` list of the first JSON object in `text` that has one, or None. Never raises."""
+    """The `acts` list of the first top-level JSON object in `text` that has one, or None.
+
+    Only the first `SCAN_CHARS` characters are read and at most `SCAN_TRIES` decodes are
+    tried. An object without an `acts` list is skipped whole. Never raises."""
     if not isinstance(text, str):
         return None
+    text = text[:SCAN_CHARS]
     decoder = json.JSONDecoder()
     at = text.find("{")
-    while at != -1:
+    for _ in range(SCAN_TRIES):
+        if at == -1:
+            return None
         try:
-            found = _acts_in(decoder.raw_decode(text, at)[0])
+            value, end = decoder.raw_decode(text, at)
         except (ValueError, RecursionError):
-            found = None
-        if found is not None:
-            return found
-        at = text.find("{", at + 1)
-    return None
-
-
-def _acts_in(value: Any) -> list | None:
-    if isinstance(value, dict) and isinstance(value.get("acts"), list):
-        return value["acts"]
+            at = text.find("{", at + 1)
+            continue
+        if isinstance(value, dict) and isinstance(value.get("acts"), list):
+            return value["acts"]
+        at = text.find("{", end)
     return None
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from townsim.town import obligations
-from townsim.town.acts import (Act, OpSpec, account_of, clean_text, dollars, name_of_who, register, resolve, shown,
+from townsim.town.acts import (Act, OpSpec, account_of, clean_text, cut, dollars, name_of_who, register, resolve, shown,
                                to_cents)
 from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
@@ -23,7 +23,6 @@ MAX_CHARS = 3000
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
 _READS = ("account", "account in full", "agreements")
-_ASKED_CUT = 80
 
 
 # reading arguments
@@ -302,9 +301,10 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     store.set("requests", rq.id, cause, status="accepted" if accepted else "declined")
     told = "Accepted." if accepted else "Declined."
     if accepted and rq.cents > 0:
-        obligations.pay(store, _own(store, act), account_of(store, rq.sender), rq.cents, f"request {rq.id}", cause)
+        obligations.pay(store, _own(store, act), account_of(store, rq.sender), rq.cents, f"request {rq.id}", cause,
+                        match=False)
         told += f" Paid {money(rq.cents)} to {name_of_who(store, rq.sender)}."
-    asked = rq.text if len(rq.text) <= _ASKED_CUT else rq.text[:_ASKED_CUT] + "\u2026"
+    asked = cut(rq.text)
     text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
             f"your request {rq.id} ({asked}).")
     note = _note(act.args.get("note"))

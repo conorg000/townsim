@@ -3,7 +3,7 @@ import importlib
 import pytest
 
 from townsim.town import acts, ops_core
-from townsim.town.acts import (REGISTRY, Act, OpSpec, account_of, apply_act, clean_text, forms, register, resolve,
+from townsim.town.acts import (REGISTRY, Act, OpSpec, account_of, apply_act, clean_text, cut, forms, register, resolve,
                                to_cents)
 
 from town.helpers import thin
@@ -25,6 +25,10 @@ def test_junk_is_refused_and_changes_nothing(args):
     s = thin(); before = s.hash()
     out = apply_act(s, Act("p01", "p01", "pay", args), 0)
     assert not out.ok and out.msg.startswith("Not done:") and s.hash() == before and s.engine_errors == []
+
+
+def test_cut_shortens_only_what_is_too_long():
+    assert cut("a" * 80) == "a" * 80 and cut("a" * 81) == "a" * 80 + "\u2026" and cut("abcdef", 3) == "abc\u2026"
 
 
 def test_unknown_operation_and_acting_for_another_are_refused():

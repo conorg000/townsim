@@ -1,4 +1,5 @@
 import json
+import time
 from collections import Counter
 
 import pytest
@@ -39,12 +40,21 @@ def turns(reports, pid):
     ('Here it is:\n```json\n{"thoughts": "x", "acts": []}\n```', []),
     ('{"note": 1} then {"acts": [1, "two"]} and {"acts": [3]}', [1, "two"]),
     ('{"acts": "not a list"} {"acts": [4]}', [4]),
-    ('{"outer": {"acts": [5]}}', [5]),
+    ('{"outer": {"acts": [5]}}', None), ('{"a": 1} {"acts": []}', []),
+    ('{"a": {"acts": [6]}} {"acts": [7]}', [7]),
     (None, None), ("", None), ("no braces at all", None), ("{not json", None), ('{"acts": {}}', None),
     ("[" * 5000 + "{" * 5000, None), ('{"acts": [' * 3000, None),
 ])
 def test_parse_acts_finds_the_first_object_with_an_acts_list(text, acts):
     assert parse_acts(text) == acts
+
+
+def test_parse_acts_gives_up_quickly_on_junk():
+    started = time.perf_counter()
+    assert parse_acts("{" * 1_000_000) is None
+    assert parse_acts("{x " * 100_000 + '{"acts": []}') is None              # past the attempts allowed
+    assert parse_acts(" " * 20_000 + '{"acts": []}') is None                 # past the characters scanned
+    assert time.perf_counter() - started < 0.5
 
 
 # who acts, and the routine
@@ -120,8 +130,12 @@ def test_the_script_does_what_the_thin_town_needs(weeks8):
     standing = s.get("obligations", "ob9")
     assert (standing.kind, standing.payer, standing.payee, standing.cents, standing.status) == (
         "standing", "h1", "h2", 2000, "stopped")
-    # three Fridays paid (the $50 Ruth sent on accepting Craig's request counted toward the second)
     assert [(d.day, d.status) for d in s.all("dues") if d.obligation == "ob9"] == [(11, "paid"), (18, "paid"), (25, "paid")]
+    assert [t.t for t in s.ledger.transfers
+            if t.cause.startswith("routine:collect:") and (t.src, t.dst) == ("h1", "h2")] == [11, 18, 25]
+    [loan] = [t for t in s.ledger.transfers if t.cause.startswith("op:p01:answer:")]
+    assert (loan.cents, loan.memo) == (5000, "request rq1")      # the request is what it is for
+    assert not any(c.table == "dues" for c in s.changes if c.cause == loan.cause)
     hand = [t for t in s.ledger.transfers if t.cause.startswith("op:p03:pay:")]
     assert len(hand) == 1 and hand[0].t == 4 and hand[0].dst == "org1"
     rq = s.get("requests", "rq1")

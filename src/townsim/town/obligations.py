@@ -259,10 +259,11 @@ def next_instalment(store: Store, ob: Obligation) -> int | None:
 
 
 def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
-        ref: str | None = None) -> list[Match]:
+        ref: str | None = None, match: bool = True) -> list[Match]:
     """Pay `cents` from `payer` to `payee` in one transfer and count it toward what the payer
     owes the payee: arrears oldest first, then the single next instalment. With `ref`, only
-    that obligation. What is left over is an ordinary payment. Changes nothing if it raises."""
+    that obligation. What is left over is an ordinary payment. With `match=False` it is only
+    the transfer: no due is touched and nothing is returned. Changes nothing if it raises."""
     if not _is_int(cents) or cents <= 0:
         raise ValueError(f"cents must be a positive int, got {cents!r}")
     for account in (payer, payee):
@@ -273,6 +274,9 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
     account = store.ledger.accounts[payer]
     if account.balance < cents and not account.allow_credit:
         raise Overdraft(f"{payer} has {account.balance}, cannot pay {cents} to {payee} ({memo})")
+    if not match:
+        store.transfer(payer, payee, cents, memo, cause)
+        return []
     obs = [o for o in store.all("obligations") if o.payer == payer and o.payee == payee]
     if ref is not None:
         obs = [o for o in obs if o.id == ref]

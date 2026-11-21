@@ -4,6 +4,7 @@ their hours, and the operations. Building a view changes nothing."""
 
 from __future__ import annotations
 
+import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import acts
 from townsim.town.acts import name_of_who
 from townsim.town.clock import date_text
@@ -27,9 +28,9 @@ def _new(store: Store, pid: str) -> list[tuple[str, str]]:
     return [(i, text) for _, _, i, text in sorted(items)]
 
 
-def shown_ids(store: Store, pid: str) -> list[str]:
-    """The ids of the messages and notices `person_view` lists as new."""
-    return [i for i, _ in _new(store, pid)]
+def has_news(store: Store, pid: str) -> bool:
+    """Whether any message or notice to `pid` is unseen."""
+    return any(row.to == pid and not row.seen for table in ("messages", "notices") for row in store.all(table))
 
 
 def _waiting(store: Store, pid: str) -> list[str]:
@@ -47,15 +48,16 @@ def _hours(h: float) -> str:
     return f"{round(h, 2):g}"
 
 
-def _user_text(store: Store, pid: str, max_lines: int) -> tuple[str, int]:
-    """The user message with at most `max_lines` statement lines, and how many lines it had."""
+def _user_text(store: Store, pid: str, max_lines: int, new: list[tuple[str, str]], hidden: int) -> tuple[str, int]:
+    """The user message with at most `max_lines` statement lines, the news `new` and a line
+    counting the `hidden` items held back; and how many statement lines it had."""
     person = store.get("people", pid)
     st = statement(store, person.household, max_lines=max_lines)
     sections = [f"TODAY: {date_text(store.day)}.",
                 "YOUR HOUSEHOLD'S ACCOUNT\n" + statement_text(store, st)]
-    new = [text for _, text in _new(store, pid)]
-    if new:
-        sections.append("NEW\n" + "\n".join(new))
+    if new or hidden:
+        rows = [text for _, text in new] + ([f"({hidden} more not shown yet)"] if hidden else [])
+        sections.append("NEW\n" + "\n".join(rows))
     waiting = _waiting(store, pid)
     if waiting:
         sections.append("WAITING FOR YOUR ANSWER\n" + "\n".join(waiting))
@@ -66,16 +68,34 @@ def _user_text(store: Store, pid: str, max_lines: int) -> tuple[str, int]:
     return "\n\n".join(sections), len(st.lines)
 
 
+def _layout(store: Store, pid: str) -> tuple[str, list[str]]:
+    """The user message within `MAX_WORDS` where it can be, and the ids of the news it shows.
+
+    The oldest statement lines give way first, then the newest news, which waits unseen
+    for another day."""
+    new = _new(store, pid)
+    total = len(new)
+    text, lines = _user_text(store, pid, STATEMENT_LINES, new, 0)
+    while len(text.split()) > MAX_WORDS and lines > 0:
+        text, lines = _user_text(store, pid, lines - 1, new, 0)
+    while len(text.split()) > MAX_WORDS and new:
+        new = new[:-1]
+        text, _ = _user_text(store, pid, 0, new, total - len(new))
+    return text, [i for i, _ in new]
+
+
+def shown_ids(store: Store, pid: str) -> list[str]:
+    """The ids of the messages and notices `person_view` shows as new."""
+    return _layout(store, pid)[1]
+
+
 def person_view(store: Store, pid: str) -> list[dict]:
-    """A system message and a user message for `pid`. At most 1,200 words in the user
-    message where dropping the oldest statement lines can achieve it."""
+    """A system message and a user message for `pid`, the user message at most 1,200 words
+    where dropping statement lines and holding back news can achieve it."""
     person = store.get("people", pid)
     household = store.get("households", person.household)
     system = f"You are {person.name}, of the {household.name} household in {store.place}.\n\n{REPLY_FORM}"
-    text, lines = _user_text(store, pid, STATEMENT_LINES)
-    while len(text.split()) > MAX_WORDS and lines > 0:
-        text, lines = _user_text(store, pid, lines - 1)
-    return [{"role": "system", "content": system}, {"role": "user", "content": text}]
+    return [{"role": "system", "content": system}, {"role": "user", "content": _layout(store, pid)[0]}]
 
 
 def mark_seen(store: Store, pid: str, ids: list[str], cause: str) -> None:

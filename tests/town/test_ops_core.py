@@ -250,6 +250,16 @@ def test_accepting_a_request_for_money_moves_it_once():
     assert (s.balance("h1"), s.balance("h2")) == (56000, 34000)
 
 
+def test_money_sent_on_accepting_a_request_counts_toward_nothing():
+    s = thin()
+    assert do(s, "p01", "standing_payment", to="Megan Pryce", amount=20, day="Friday").ok
+    ask(s); rq = s.all("requests")[-1].id
+    assert do(s, "p01", "answer", 2, request=rq, answer="accept").msg == "Accepted. Paid $40.00 to Craig Pryce."
+    standing = s.all("obligations")[-1]
+    assert standing.kind == "standing" and s.ledger.transfers[-1].memo == f"request {rq}"
+    assert not any(d.obligation == standing.id for d in s.all("dues"))      # Friday's $20 is still to be taken
+
+
 def test_declining_a_request_tells_the_sender():
     s = thin(); ask(s); rq = s.all("requests")[-1].id
     assert do(s, "p01", "answer", 1, request=rq, answer="decline").msg == "Declined."

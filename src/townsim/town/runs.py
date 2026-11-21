@@ -11,7 +11,13 @@ from townsim.town.store import Store
 def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> Store:
     """Run `days` days from `store.day`, keeping each morning's snapshot, each day's
     changes and every reply. On `StopRun`, the day it was raised in is not kept: the
-    store returned is that morning's snapshot, loaded fresh."""
+    store returned is that morning's snapshot, loaded fresh.
+
+    Raises ValueError, writing nothing, if the run already has a snapshot for the day it
+    is about to run and that snapshot's state differs from `store`'s."""
+    kept = db.snapshot_hash(run_id, store.day)
+    if kept is not None and kept != store.hash():
+        raise ValueError(f"run {run_id!r} already has a different state for day {store.day}")
     recording = Recording(replier, db, run_id)
     keys = Keys(run_id)
     for _ in range(days):
@@ -42,11 +48,14 @@ def _model(db: RunDB, run_id: str) -> str:
     return models[0] if models else "scripted"
 
 
-def replay(db: RunDB, run_id: str) -> None:
-    """Run every recorded day again from the earliest snapshot with only stored replies.
+def replay(db: RunDB, run_id: str) -> list[str]:
+    """Run every recorded day again from the earliest snapshot with only stored replies,
+    and return the keys of replies stored for the latest snapshot's day, which a stopped
+    run has not completed (usually none).
 
     Raises `ReplayMismatch` if a morning's state differs from its snapshot, a reply is
-    missing or its prompt changed, or a stored reply is never asked for. Writes nothing."""
+    missing or its prompt changed, or a stored reply for a completed day is never asked
+    for. Writes nothing."""
     days = db.snapshot_days(run_id)
     if not days:
         raise KeyError(run_id)
@@ -58,9 +67,13 @@ def replay(db: RunDB, run_id: str) -> None:
             raise ReplayMismatch(key=f"{run_id}|d{day}", why="state differs")
         if i < len(days) - 1:
             run_day(store, replier, keys)
-    unused = replier.unused()
+    pending_day = f"d{days[-1]}"
+    left = replier.unused()
+    pending = [k for k in left if k.split("|")[2] == pending_day]
+    unused = [k for k in left if k.split("|")[2] != pending_day]
     if unused:
         raise ReplayMismatch(key=unused[0], why="unused")
+    return pending
 
 
 def fork(db: RunDB, parent: str, at_day: int, new_id: str, seed: int | None = None) -> Store:

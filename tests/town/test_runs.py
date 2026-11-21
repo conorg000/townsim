@@ -110,9 +110,22 @@ def test_a_run_stopped_mid_day_resumes_to_the_same_end(tmp_path):
         assert back.day == 11 and back.hash() == db_b.snapshot_hash("b", 11)
         assert db_b.change_days("b") == list(range(11))
         assert "b|scripted|d11|p01|turn:|0" in db_b.reply_keys("b")
+        assert replay(db_b, "b") == ["b|scripted|d11|p01|turn:|0"]       # a stopped run replays; its day is pending
         assert run(db_b, "b", resume(db_b, "b"), stopper, 21 - 11).hash() == straight
-        replay(db_b, "b")
+        assert replay(db_b, "b") == []
         assert sorted(db_b.reply_keys("b")) == sorted("b" + k[1:] for k in db_a.reply_keys("a"))
+
+
+def test_a_run_refuses_to_overwrite_a_different_history(tmp_path):
+    with RunDB(str(tmp_path / "o.sqlite")) as db:
+        db.create_run("o", seed=1)
+        run(db, "o", thin_town(), ScriptedReplier(thin_script), 5)
+        other = thin_town(); other.transfer("outside:employers", "h1", 100, "extra", "routine:t")
+        keys, hash0, changes0 = db.reply_keys("o"), db.snapshot_hash("o", 0), db.changes("o", 0)
+        with pytest.raises(ValueError, match=r"'o'.*day 0"):
+            run(db, "o", other, ScriptedReplier(thin_script), 2)
+        assert (db.reply_keys("o"), db.snapshot_hash("o", 0), db.changes("o", 0)) == (keys, hash0, changes0)
+        assert run(db, "o", resume(db, "o"), ScriptedReplier(thin_script), 1).day == 6   # the same history is fine
 
 
 def test_a_fork_shares_the_past_and_has_its_own_future(eight_week_db, tmp_path):
