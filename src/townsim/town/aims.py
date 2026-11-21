@@ -18,12 +18,12 @@ from townsim.town.store import Store, id_key
 __all__ = ["Aim", "MAX_AIMS", "MAX_WORDS", "SIMILAR", "update", "lines", "held"]
 
 MAX_AIMS = 5
-MAX_WORDS = 30
+MAX_WORDS = 20
 SIMILAR = 0.6
 
 
 def _cleaned(value: Any) -> str:
-    """An aim as kept: cleaned, on one line, at most 30 words; "" for anything else."""
+    """An aim as kept: cleaned, on one line, at most 20 words; "" for anything else."""
     text = clean_text(value)
     return " ".join(text.split()[:MAX_WORDS]) if text else ""
 
@@ -35,12 +35,15 @@ def held(store: Store, pid: str) -> list[Aim]:
 
 
 def update(store: Store, pid: str, aims: Any, cause: str) -> None:
-    """Replace `pid`'s aims with `aims`. A non-list changes nothing; elements that are not
-    text, or are blank, are passed over; past five, the rest are dropped. Each keeps the
-    `since` of the most similar old aim not already taken, if at least 0.6 similar."""
+    """Replace `pid`'s aims with `aims`. A non-list changes nothing, and so does a list with
+    no usable line in it; the empty list `[]` clears them. Elements that are not text, or are
+    blank, are passed over; past five, the rest are dropped. Each keeps the `since` of the
+    most similar old aim not already taken, if at least 0.6 similar."""
     if not isinstance(aims, list):
         return
     new = [t for t in (_cleaned(a) for a in aims) if t][:MAX_AIMS]
+    if aims and not new:
+        return
     old = held(store, pid)
     taken: set[int] = set()
     plan: list[tuple[str, int]] = []

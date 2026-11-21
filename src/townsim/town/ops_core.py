@@ -25,7 +25,10 @@ from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, statement, statement_text
 from townsim.town.store import Store
 
-MAX_WORDS = 300
+MAX_WORDS = 80            # a note on a payment or an answer
+LETTER_WORDS = 150
+REQUEST_WORDS = 80
+NOTES_WORDS = 150
 MAX_CHARS = 3000
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
@@ -38,8 +41,8 @@ def _blank(value: Any) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
 
 
-def _too_long(text: str) -> bool:
-    return len(text) > MAX_CHARS or len(text.split()) > MAX_WORDS
+def _too_long(text: str, words: int = MAX_WORDS) -> bool:
+    return len(text) > MAX_CHARS or len(text.split()) > words
 
 
 def _own(store: Store, act: Act) -> str:
@@ -89,12 +92,12 @@ def _person_to(store: Store, act: Act) -> str | None:
     return who if who is not None and store.has("people", who) else None
 
 
-def _text(value: Any, too_long: str) -> str | None:
+def _text(value: Any, too_long: str, words: int) -> str | None:
     """Why written text cannot be sent, or None. The text checked is the cleaned text."""
     text = clean_text(value)
     if text is None or not text.strip():
         return "there was nothing written."
-    if _too_long(text):
+    if _too_long(text, words):
         return too_long
     return None
 
@@ -252,7 +255,7 @@ def _check_message(store: Store, act: Act) -> str | None:
         return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
     if found[1] and found[0] == act.actor:
         return "that is you."
-    return _text(act.args.get("text"), "that is too long for one letter.")
+    return _text(act.args.get("text"), "that is too long for one letter.", LETTER_WORDS)
 
 
 _PAIR = re.compile(r"(?=\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b)")
@@ -262,8 +265,11 @@ _FIRST = frozenset(FIRST_NAMES)
 def unknown_names(store: Store, reader: str, sender: str, text: str) -> list[str]:
     """The names in `text` that are no one `reader` knows, in the order they first appear:
     every two capitalised words in a row whose first is a first name people here bear and
-    which are not the full name of the reader, the sender or anyone the reader knows."""
-    known = {store.get("people", p).name.casefold() for p in [reader, *knows(store, reader)]}
+    which are not the full name of the reader, the sender, anyone the reader knows or anyone
+    whose request the reader has been shown."""
+    shown = [rq.sender for rq in store.all("requests") if rq.to == reader and rq.seen]
+    known = {store.get("people", p).name.casefold() for p in [reader, *knows(store, reader), *shown]
+             if store.has("people", p)}
     if store.has("people", sender):
         known.add(store.get("people", sender).name.casefold())
     found: list[str] = []
@@ -322,7 +328,7 @@ def _check_request(store: Store, act: Act) -> str | None:
             return f"'{shown(act.args.get('for'))}' is not something {name_of_who(store, who)} owes you."
     elif cents > 0 and account_of(store, who) == _own(store, act):
         return "that is your own household."
-    return _text(act.args.get("text"), "that is too long for one letter.")
+    return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)
 
 
 def _do_request(store: Store, act: Act, cause: str) -> str:
@@ -436,7 +442,7 @@ def _check_notes(store: Store, act: Act) -> str | None:
     text = clean_text(act.args.get("text"))
     if text is None:
         return "there was nothing written."
-    return "that is too long for your notes." if _too_long(text) else None
+    return "that is too long for your notes." if _too_long(text, NOTES_WORDS) else None
 
 
 def _do_notes(store: Store, act: Act, cause: str) -> str:

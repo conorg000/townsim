@@ -46,10 +46,10 @@ def test_aims_survive_junk():
         aims.update(s, "p03", junk, "op:p03:aims:d0.1")
         assert s.hash() == before
     aims.update(s, "p03", [1, 2.5, None, ["x"], {"y": 1}, "   "], "op:p03:aims:d0.2")
-    assert aims.lines(s, "p03") == []
+    assert s.hash() == before                                   # nothing usable: unchanged
     aims.update(s, "p03", [f"aim {i}" for i in range(6)], "op:p03:aims:d0.3")
     assert aims.lines(s, "p03") == [f"for 0 days: aim {i}" for i in range(5)]
     aims.update(s, "p03", ["word " * 500, "a\x00b\x07 c"], "op:p03:aims:d0.4")
     [long, clean] = aims.lines(s, "p03")
-    assert len(long.removeprefix("for 0 days: ").split()) == 30 and clean == "for 0 days: ab c"
+    assert len(long.removeprefix("for 0 days: ").split()) == 20 and clean == "for 0 days: ab c"
     assert len(s.all("aims")) == 5                             # rows are reused, never more than five a person

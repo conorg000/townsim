@@ -11,12 +11,14 @@ nothing here changes the store.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import timedelta
 
+from townsim.econ.firm import Firm
 from townsim.town import firms
-from townsim.town.acts import knows, name_of_who
+from townsim.town.acts import TIE_RANKS, knows, name_of_who
 from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
-from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, money, name_of, upcoming
+from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, money, name_of, owed_dues, upcoming
 from townsim.town.store import Store, id_key
 
 WHO_WORDS = 300
@@ -24,13 +26,13 @@ AHEAD = 6                          # "this week": today and the six days after
 PEOPLE_SHOWN = 12
 
 # The reader's side of a tie, in plain words.
-RELATION = {"partner": "your partner", "parent": "your mother or father", "child": "your son or daughter",
+RELATION = {"partner": "your partner", "parent": "your parent", "child": "your child",
             "sibling": "your brother or sister", "kin": "a relative", "friend": "a friend",
             "coworker": "works with you", "employer": "your employer", "employee": "works for you",
             "landlord": "your landlord", "tenant": "your tenant", "debtor": "owes you money",
             "creditor": "you owe them money", "banker": "the banker"}
-_RANK = {"partner": 1, "parent": 1, "child": 1, "sibling": 1, "kin": 1, "friend": 2, "employer": 3,
-         "employee": 3, "coworker": 3, "landlord": 4, "tenant": 4, "creditor": 4, "debtor": 4, "banker": 4}
+_RANK = TIE_RANKS
+CARRY_PER_100 = round(100 * next(f.default for f in dataclasses.fields(Firm) if f.name == "carry_loss"))
 # How a tie seen only from the other side reads from this one.
 _OTHER_SIDE = {"partner": "partner", "parent": "child", "child": "parent", "sibling": "sibling", "kin": "kin",
                "friend": "friend", "coworker": "coworker", "employer": "employee", "employee": "employer",
@@ -39,9 +41,10 @@ _ONE_SIDED = {"banker": "has a loan from the bank"}
 
 KNOWHOW: dict[str, list[str]] = {
     "owner": [
-        "Stock ordered by Saturday arrives on Monday and is paid for on arrival; with no new order, "
+        "Stock ordered before Monday arrives on Monday and is paid for on arrival; with no new order, "
         "last week's order comes again.",
-        "Food not sold within {shelf_weeks} weeks of arriving is thrown away.",
+        "Of what is left on the shelf at the end of a week, about {carry} in every 100 units go off; anything "
+        "{shelf_weeks} weeks old is thrown away.",
         "One member of staff working a full {staff_week}-hour week can serve about {per_staff} customers.",
         "The till's weekly report counts customers turned away for want of stock and for want of staff.",
         "Suppliers sometimes send less than was ordered, and never more than the shop's account can pay for.",
@@ -177,15 +180,11 @@ def _payday(ob) -> str:
 def _home(store: Store, pid: str) -> list[str]:
     p = store.get("people", pid)
     h = store.get("households", p.household)
-    others = [store.get("people", m).name for m in h.members if m != pid]
     place = ", ".join(x for x in (h.street, store.place) if x)
-    where = (f" at {place}," if h.street else f" in {place}") if place else ""
+    where = (f" at {place}" if h.street else f" in {place}") if place else ""
     hname = h.name if "household" in h.name else f"{h.name} household"
-    if others:
-        line = f"You live{where} with {_and(others)}"
-    else:
-        line = f"You live alone{where}".rstrip(",")
-    lines = [f"{line}; your household is the {hname}."]
+    alone = "" if len(h.members) > 1 else " alone"
+    lines = [f"You live{alone}{where}; your household is the {hname}."]
     rent = [o for o in _active(store, payer=h.id) if o.kind == "rent"]
     mortgage = [o for o in _active(store, payer=h.id) if o.kind == "loan" and o.memo.startswith("mortgage")]
     if rent:
@@ -201,23 +200,54 @@ def _home(store: Store, pid: str) -> list[str]:
     return lines
 
 
+def _does(store: Store, pid: str) -> str:
+    """What someone does, said of them: their `job` line, or where they work, or ""."""
+    p = store.get("people", pid)
+    if p.job.strip():
+        first = p.job.split(" ")[0]
+        return p.job if _verb(first) else f"is {p.job}"
+    jobs = store.where("jobs", person=pid)
+    return f"works at {store.get('orgs', jobs[0].org).name}" if jobs else ""
+
+
+def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> list[str]:
+    """One line for each other member of the household: name, relation, what they do."""
+    household = store.get("people", pid).household
+    lines = []
+    for other, _, words in known:
+        if store.get("people", other).household != household:
+            continue
+        does = _does(store, other)
+        lines.append(f"{store.get('people', other).name}, {words}" + (f", {does}." if does else "."))
+    return lines
+
+
 def _work(store: Store, pid: str) -> list[str]:
     p = store.get("people", pid)
-    lines = [_second_person(p.job) + "."] if p.job.strip() else []
     home = p.household
     jobs = store.where("jobs", person=pid)
     owned = [o for o in store.all("orgs") if o.owner == pid and not o.outside]
+    told = False                                     # whether the job line has been said in a fuller line
+    lines = []
     for j in jobs:
         org = store.get("orgs", j.org)
         ob = store.get("obligations", j.wage_ob) if store.has("obligations", j.wage_ob) else None
         paid = f", paid on {_payday(ob)}" if ob is not None else ""
-        if org.owner == pid:
+        mine = org.owner == pid
+        if not told and p.job.strip() and org.name in p.job:
+            told = True
+            head = _second_person(p.job) + (", which you own" if mine else "")
+            pay = f"drawing {money(j.weekly)} a week" if mine else f"for {money(j.weekly)} a week"
+            lines.append(f"{head}: {j.hours:g} hours a week, {pay}{paid}.")
+        elif mine:
             lines.append(f"You own {org.name} and work there {j.hours:g} hours a week, drawing {money(j.weekly)} "
                          f"a week{paid}.")
         else:
             lines.append(f"You work {j.hours:g} hours a week at {org.name} for {money(j.weekly)} a week{paid}.")
+    if p.job.strip() and not told:
+        lines.insert(0, _second_person(p.job) + ".")
     for org in owned:
-        if not any(j.org == org.id for j in jobs):
+        if not any(j.org == org.id for j in jobs) and org.name not in p.job:
             lines.append(f"You own {org.name}.")
         staff = [store.get("people", j.person).name for j in store.where("jobs", org=org.id) if j.person != pid]
         if staff:
@@ -229,9 +259,8 @@ def _work(store: Store, pid: str) -> list[str]:
             who = "You let" if other.landlord == pid else "Your household lets"
             lines.append(f"{who} {other.street or 'a house'} to {_the(other.name)}{what}.")
     if not jobs:
-        h = store.get("people", pid).household
         wages = {j.wage_ob for j in store.all("jobs")}
-        for o in _active(store, payee=h):
+        for o in _active(store, payee=home):
             if o.kind == "wage" and o.id not in wages and not store.has("households", o.payer):
                 lines.append(f"Your household is paid {o.memo}: {money(o.cents)} a week, on {_payday(o)}.")
     return lines
@@ -262,15 +291,17 @@ def _debts(store: Store, pid: str) -> list[tuple[int, str]]:
 
 def who(store: Store, pid: str) -> str:
     """The person in the second person, from their rows, in at most 300 words where it can
-    be: what gives way is their interests, then their friends, then debts past the three
-    largest."""
+    be: what gives way is their interests, then their friends, then their family in other
+    houses (`PEOPLE YOU KNOW` has both), then debts past the three largest."""
     p = store.get("people", pid)
-    head = [f"You are {p.name}, {p.age}."] + _home(store, pid) + _work(store, pid)
-    debts = [line for _, line in _debts(store, pid)]
     known = people_known(store, pid)
-    close = [f"{store.get('people', o).name}, {w}" for o, r, w in known if r <= 1]
+    head = [f"You are {p.name}, {p.age}."] + _home(store, pid) + _housemates(store, pid, known) + _work(store, pid)
+    debts = [line for _, line in _debts(store, pid)]
+    household = p.household
+    kin = [f"{store.get('people', o).name}, {w}" for o, r, w in known
+           if r == 1 and store.get("people", o).household != household]
     friends = [store.get("people", o).name for o, r, _ in known if r == 2]
-    close_line = [f"Family and household: {'; '.join(close)}."] if close else []
+    kin_line = [f"Family in other houses: {'; '.join(kin)}."] if kin else []
     friends_line = [f"Your friends: {_and(friends)}."] if friends else []
     beliefs = [f"What you think: {' '.join(p.beliefs)}"] if p.beliefs else []
     interests = [f"You are interested in {_and(p.interests)}."] if p.interests else []
@@ -278,18 +309,78 @@ def who(store: Store, pid: str) -> str:
     voice = [_second_person(p.voice) if _verb(p.voice.split(" ")[0].lower()) else p.voice] if p.voice.strip() else []
 
     def text() -> str:
-        return "\n".join(head + debts + close_line + friends_line + beliefs + interests + worries + voice)
+        return "\n".join(head + debts + kin_line + friends_line + beliefs + interests + worries + voice)
 
-    for give in ("interests", "friends", "debts"):
+    for give in ("interests", "friends", "kin", "debts"):
         if _words(text()) <= WHO_WORDS:
             break
         if give == "interests":
             interests = []
         elif give == "friends":
             friends_line = []
+        elif give == "kin":
+            kin_line = []
         else:
             debts = debts[:3]
     return text()
+
+
+# --- what is owed, and the bank's book --------------------------------------------------------
+
+OWED_LINES = 8
+BOOK_LINES = 12
+_OWED_KINDS = ("loan", "agreement", "standing")
+
+
+def _arrears(store: Store, ob_id: str) -> tuple[int, int | None]:
+    """Cents still owed on dues past their day, and the day of the oldest."""
+    dues = owed_dues(store, ob_id)
+    return sum(d.cents - d.paid for d in dues), min((d.day for d in dues), default=None)
+
+
+def owed_lines(store: Store, account: str) -> list[str]:
+    """What `account` owes and is owed that matters week to week: loans, agreements and
+    standing payments in force, and anything at all with arrears; one line each, in id order,
+    at most eight and then a line counting the rest."""
+    rows = []
+    for ob in store.all("obligations"):
+        if account not in (ob.payer, ob.payee):
+            continue
+        late, _ = _arrears(store, ob.id)
+        if not late and not (ob.kind in _OWED_KINDS and ob.status in SCHEDULED):
+            continue
+        party = f"to {name_of(store, ob.payee)}" if ob.payer == account else f"from {name_of(store, ob.payer)}"
+        if ob.every == 0:
+            how = f"once on {when(ob.first)} {party}"
+        else:
+            every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
+            how = f"{every} {party}" + (f", until {when(ob.last)}" if ob.last is not None else "")
+        rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
+    if len(rows) > OWED_LINES:
+        rows = rows[:OWED_LINES] + [f"({len(rows) - OWED_LINES} more not shown)"]
+    return rows
+
+
+def bank_book(store: Store, pid: str) -> str:
+    """For a banker, the bank's book: its name, its account, and each loan owed to it that is
+    in force, in id order (at most twelve, then a line counting the rest). "" for anyone else."""
+    if store.get("people", pid).kind != "banker":
+        return ""
+    banks = [o for o in store.all("orgs") if o.kind == "bank"]
+    bank = next((o for o in banks if o.contact == pid), banks[0] if banks else None)
+    if bank is None:
+        return ""
+    rows = []
+    for ob in store.where("obligations", payee=bank.id):
+        if ob.kind != "loan" or ob.status not in SCHEDULED:
+            continue
+        until = f", until {when(ob.last)}" if ob.last is not None else ""
+        late, since = _arrears(store, ob.id)
+        overdue = f", {money(late)} overdue since {date_text(since)}" if late else ""
+        rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {ob.memo}, {money(ob.cents)} a week{until}{overdue}")
+    if len(rows) > BOOK_LINES:
+        rows = rows[:BOOK_LINES] + [f"({len(rows) - BOOK_LINES} more not shown)"]
+    return "\n".join([bank.name, f"Account: {money(store.balance(bank.id))}"] + rows)
 
 
 # --- an owner's business ------------------------------------------------------------------
@@ -356,7 +447,7 @@ def business(store: Store, pid: str, weeks: int = 2) -> str:
             tills = sorted((t for t in store.all("tills") if t.firm == f.id), key=lambda t: -t.week)
             for label, t in list(zip(("Last week", "The week before"), tills))[:max(0, min(weeks, 2))]:
                 lines.append(_till(label, t))
-        lines.append("Going out this week:")
+        lines.append(f"Going out by {date_text(store.day + AHEAD)}:")
         lines += _coming(store, org.id)
         blocks.append("\n".join(lines))
     return "\n".join(blocks)
@@ -378,7 +469,7 @@ def knowhow(store: Store, pid: str) -> list[str]:
     lines = KNOWHOW.get(p.kind, [])
     shop = next((f for o in store.all("orgs") if o.owner == pid and not o.outside
                  for f in store.where("firms", org=o.id)), None)
-    figures = {"staff_week": f"{firms.HOURS_PER_STAFF:g}"}
+    figures = {"staff_week": f"{firms.HOURS_PER_STAFF:g}", "carry": str(CARRY_PER_100)}
     if shop is not None:
         figures |= {"shelf_weeks": str(shop.shelf_weeks), "per_staff": str(shop.units_per_staff)}
     out = []
@@ -390,5 +481,5 @@ def knowhow(store: Store, pid: str) -> list[str]:
     return out
 
 
-__all__ = ["KNOWHOW", "RELATION", "business", "knowhow", "people_known", "people_lines", "ranks",
-           "till_weeks", "when", "who"]
+__all__ = ["KNOWHOW", "RELATION", "bank_book", "business", "knowhow", "owed_lines", "people_known", "people_lines",
+           "ranks", "till_weeks", "when", "who"]

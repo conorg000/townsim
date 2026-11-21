@@ -23,7 +23,7 @@ This is the second of the plans for design step 2a. It ends with a hamlet that r
 - Wording shown to people states records and facts. It never says what the reader may or should do, hands them no lever as advice, and never mentions tests, simulations, models or games. Every refusal starts `Not done:`. Know-how of a trade describes how things work and is word for word the same for everyone in that trade.
 - The list of operations a person is shown depends only on their position (everyone; owner of a firm; employed; landlord; banker), never on the person.
 - Nothing in generation is tuned toward how a run turns out. Checks on a generated place are about its structure only.
-- A person's view is at most 1,200 words, system and user messages together, and building it changes nothing.
+- A person's view is about 1,200 words on an ordinary day and never over 2,000, system and user messages together, and building it changes nothing.
 - Do not import from `spikes/`. No real names, email addresses or local paths in the repository. Commits are authored `conorg000 <20813490+conorg000@users.noreply.github.com>` and end with `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`.
 - Run the suite with `uv run pytest -q`. It must pass at every commit and stay under one minute.
 

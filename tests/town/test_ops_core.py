@@ -206,9 +206,18 @@ def test_message_with_nothing_or_too_much_written_is_refused():
     s = thin()
     assert refused(s, "p01", "message", to="Craig Pryce", text="  ") == "Not done: there was nothing written."
     assert refused(s, "p01", "message", to="Craig Pryce") == "Not done: there was nothing written."
-    assert refused(s, "p01", "message", to="Craig Pryce", text="word " * 301) == \
+    assert refused(s, "p01", "message", to="Craig Pryce", text="word " * 151) == \
         "Not done: that is too long for one letter."
-    assert do(s, "p01", "message", to="Craig Pryce", text="word " * 300).ok
+    assert do(s, "p01", "message", to="Craig Pryce", text="word " * 150).ok
+
+
+def test_requests_and_notes_on_payments_and_answers_have_their_limits():
+    s = thin()
+    assert refused(s, "p01", "request", to="Craig Pryce", text="word " * 81) == \
+        "Not done: that is too long for one request."
+    assert do(s, "p01", "request", to="Craig Pryce", text="word " * 80).ok
+    assert refused(s, "p01", "pay", to="Craig Pryce", amount=1, note="word " * 81) == "Not done: the note is too long."
+    assert do(s, "p01", "pay", 1, to="Craig Pryce", amount=1, note="word " * 80).ok
 
 
 # request and answer
@@ -327,7 +336,8 @@ def test_write_notes_replaces_the_notes():
     assert do(s, "p01", "write_notes", text="rent is Monday").msg == "Noted."
     assert do(s, "p01", "write_notes", 1, text="energy is Wednesday").ok
     assert s.get("people", "p01").notes == "energy is Wednesday"
-    assert refused(s, "p01", "write_notes", text="word " * 301).startswith("Not done:")
+    assert refused(s, "p01", "write_notes", text="word " * 151) == "Not done: that is too long for your notes."
+    assert do(s, "p01", "write_notes", 2, text="word " * 150).ok
     assert refused(s, "p01", "write_notes", text=["a list"]).startswith("Not done:")
 
 

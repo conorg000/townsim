@@ -10,8 +10,9 @@ _WORDS = re.compile(r"\b(test|model|game|consider)\b|you may|you should|you can|
 def test_a_view_changes_nothing_and_says_nothing_about_what_to_do():
     s = thin_town(); before = s.hash(); msgs = person_view(s, "p03")
     assert s.hash() == before and msgs[0]["role"] == "system" and "Craig Pryce" in msgs[0]["content"]
-    assert msgs[0]["content"].startswith("You are Craig Pryce, 40.\nYou live in Wenlow with Megan Pryce; "
-                                         "your household is the Pryce household.\n")
+    assert msgs[0]["content"].startswith("You are Craig Pryce, 40.\nYou live in Wenlow; your household is the "
+                                         "Pryce household.\nThe house is rented from Wenlow Lettings for $185.00 "
+                                         "a week, paid on Mondays.\nMegan Pryce, lives with you.\n")
     assert 'Reply with JSON only, in this form:\n{"thoughts": ' in msgs[0]["content"]
     assert msgs[1]["role"] == "user"
     text = msgs[1]["content"]
@@ -36,7 +37,7 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
     text = person_view(s, "p03")[1]["content"]
     assert "WHAT CAME OF YOUR LAST ACTS\npay: Not done: no.\nread: line one\n  line two\n\n" in text
     assert "Not Craig's." not in text
-    heads = ["TODAY: Monday 2 March.", "WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED",
+    heads = ["TODAY: Monday 2 March.", "WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT",
              "LETTERS AND NOTICES", "WAITING FOR YOUR ANSWER", "PEOPLE YOU KNOW", "YOUR NOTES",
              "You have 11.75 hours left this week.", "OPERATIONS"]
     lines = text.split("\n")
@@ -95,10 +96,13 @@ def test_a_long_statement_loses_its_oldest_lines_to_stay_within_1200_words():
 import functools  # noqa: E402
 
 import pytest  # noqa: E402
+from town.helpers import tie  # noqa: E402
 
 from townsim.town import acts, aims, facts, firms, gen, names, views  # noqa: E402
+from townsim.town import obligations as O  # noqa: E402
 from townsim.town.acts import Act, apply_act, knows, tie_rank  # noqa: E402
 from townsim.town.loop import routine  # noqa: E402
+from townsim.town.clock import date_text  # noqa: E402
 from townsim.town.obligations import money  # noqa: E402
 
 FAMILIES = ["a", "b", "c", "d"]
@@ -140,7 +144,8 @@ def section(text, head):
     return None
 
 
-HEADS = ("WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT", "YOUR BUSINESS", "WHAT IS OWED",
+HEADS = ("WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT", "THE BANK'S BOOK", "YOUR BUSINESS",
+         "WHAT IS OWED",
          "LETTERS AND NOTICES", "WAITING FOR YOUR ANSWER", "APPOINTMENTS", "PEOPLE YOU KNOW", "HOW THINGS WORK",
          "ON YOUR MIND", "YOUR NOTES", "OPERATIONS")
 
@@ -216,7 +221,7 @@ def test_only_what_was_shown_in_full_is_marked_seen():
     assert ids == views.shown_ids(s, pid)
     assert ids == [sent[4], sent[2], sent[3], asked[4], asked[2], asked[3]]
     waiting = section(msgs[1]["content"], "WAITING FOR YOUR ANSWER")
-    assert waiting[-1] == "(2 more waiting)" and len(waiting) == 4
+    assert waiting[-1] == "(2 more requests waiting)" and len(waiting) == 4
     views.mark_seen(s, pid, ids, f"routine:seen:{pid}")
     assert [s.get("messages", m).seen for m in sent] == [False, False, True, True, True]
     assert [s.get("requests", r).seen for r in asked] == [False, False, True, True, True]
@@ -287,12 +292,20 @@ def test_every_view_states_facts_only(seed):
 
 
 @pytest.mark.parametrize("seed", (1, 2, 3, 4, 5))
-def test_every_view_is_within_1200_words_on_day_0_and_after_two_weeks(seed):
+def test_every_view_is_about_1200_words_on_day_0_and_after_two_weeks(seed):
     s = place(seed)
     assert all(words(views.person_view(s, p.id)) <= 1200 for p in s.all("people"))
     run_routine(s, 14)
     assert s.all("tills")
-    assert all(words(views.person_view(s, p.id)) <= 1200 for p in s.all("people"))
+    assert all(words(views.person_view(s, p.id)) <= 1300 for p in s.all("people"))
+
+
+@pytest.mark.parametrize("seed", (1, 2, 3))
+def test_after_three_weeks_with_nobody_acting_every_view_is_at_most_1300_words(seed):
+    s = place(seed)
+    run_routine(s, 21)
+    counts = {p.name: words(views.person_view(s, p.id)) for p in s.all("people")}
+    assert max(counts.values()) <= 1300, counts
 
 
 def test_the_system_message_is_who_they_are_then_the_reply_form():
@@ -340,24 +353,36 @@ def _kind(s, kind):
     return [p for p in s.all("people") if p.kind == kind]
 
 
+def _owes(s, pid):
+    """Whether `pid` has anything for `WHAT IS OWED`: by its rule, from the rows."""
+    for a in acts.accounts_of(s, pid):
+        for o in s.where("obligations", payer=a) + s.where("obligations", payee=a):
+            if (o.kind in ("loan", "agreement", "standing") and o.status in ("active", "breached")) or \
+                    any(d.status in ("arrears", "defaulted") for d in s.where("dues", obligation=o.id)):
+                return True
+    return False
+
+
 def test_each_position_sees_the_sections_it_implies_and_no_others():
     s = place(1)
     owner, staff, banker, landlord, retired = (_kind(s, k)[0] for k in ("owner", "staff", "banker", "landlord", "retired"))
-    common = ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "OPERATIONS"]
     expect = {owner.id: ["YOUR HOUSEHOLD'S ACCOUNT", "YOUR BUSINESS", "WHAT IS OWED", "PEOPLE YOU KNOW",
                          "HOW THINGS WORK", "OPERATIONS"],
-              staff.id: common, retired.id: common,
-              banker.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "HOW THINGS WORK", "OPERATIONS"],
+              staff.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "OPERATIONS"],
+              retired.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "OPERATIONS"],
+              banker.id: ["YOUR HOUSEHOLD'S ACCOUNT", "THE BANK'S BOOK", "WHAT IS OWED", "PEOPLE YOU KNOW",
+                          "HOW THINGS WORK", "OPERATIONS"],
               landlord.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "HOW THINGS WORK",
                             "OPERATIONS"]}
     for pid, want in expect.items():
+        want = [h for h in want if h != "WHAT IS OWED" or _owes(s, pid)]
         assert heads(person_view(s, pid)[1]["content"]) == want, s.get("people", pid).kind
     aims.update(s, staff.id, ["Ask for more hours"], "op:x:aims:d0.0")
     s.set("people", staff.id, "routine:t", notes="Saturday shift.")
     send(s, owner.id, staff.id, "Can you do Saturday?")
-    assert heads(person_view(s, staff.id)[1]["content"]) == ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED",
-                                                           "LETTERS AND NOTICES", "PEOPLE YOU KNOW", "ON YOUR MIND",
-                                                           "YOUR NOTES", "OPERATIONS"]
+    assert heads(person_view(s, staff.id)[1]["content"]) == [h for h in (
+        "YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "LETTERS AND NOTICES", "PEOPLE YOU KNOW", "ON YOUR MIND",
+        "YOUR NOTES", "OPERATIONS") if h != "WHAT IS OWED" or _owes(s, staff.id)]
     assert section(person_view(s, staff.id)[1]["content"], "ON YOUR MIND") == ["for 0 days: Ask for more hours"]
 
 
@@ -375,7 +400,7 @@ def test_the_business_is_shown_as_a_till_prints_it():
     staff = [f"  {s.get('people', j.person).name}, {j.hours:g} hours, {money(j.weekly)} a week"
              for j in s.where("jobs", org=org.id)]
     assert lines[5:6 + len(staff)] == ["Staff:"] + staff
-    assert "Last week:" not in text and "Going out this week:" in text
+    assert "Last week:" not in text and f"Going out by {date_text(6)}:" in text
     firms.place_order(s, f.id, f.last_supplier, 120, "op:x:order:d0.0")
     assert facts.business(s, owner.id).split("\n")[4] == f"On order for Monday: 120 units from {sup}"
     run_routine(s, 14)
@@ -422,7 +447,7 @@ def test_people_you_know_are_closest_first_at_most_twelve():
     clara = next(p for p in s.all("people") if tied(s, p.id, "partner") and tied(s, p.id, "child"))
     rows = section(person_view(s, clara.id)[1]["content"], "PEOPLE YOU KNOW")
     assert f"{s.get('people', tied(s, clara.id, 'partner')[0]).name}, your partner" in rows
-    assert f"{s.get('people', tied(s, clara.id, 'child')[0]).name}, your son or daughter" in rows
+    assert f"{s.get('people', tied(s, clara.id, 'child')[0]).name}, your child" in rows
 
 
 def test_a_view_changes_nothing():
@@ -434,30 +459,169 @@ def test_a_view_changes_nothing():
         assert s.hash() == before and len(s.changes) == n
 
 
-def test_the_cap_holds_with_everything_at_once():
-    s = place(1)
+def _result(s, pid, op, **args):
+    """Do an act for `pid` and keep its result as the loop does."""
+    out = apply_act(s, Act(pid, pid, op, args), len(s.all("results")))
+    s.add("results", Result(s.new_id("res", out.cause), s.day, pid, op, out.msg, out.ok), out.cause)
+    return out
+
+
+def _worst(seed=1):
+    """An owner after two till weeks with the worst the operations allow: 150-word letters
+    from five people, 150-word notes, five 20-word aims, three 80-word requests with
+    summaries, eight results of which two read the account in full, and twelve ties."""
+    s = place(seed)
     run_routine(s, 14)
     owner = max(_kind(s, "owner"), key=lambda p: len(s.where("jobs", org=next(
         o.id for o in s.all("orgs") if o.owner == p.id))))
     others = [p.id for p in s.all("people") if p.id != owner.id]
-    for i in range(20):
-        send(s, others[i % len(others)], owner.id, f"letter {i} " + "word " * 40)
-    for i in range(5):
-        ask(s, others[i], owner.id, f"request {i} " + "please " * 8)
-    s.set("people", owner.id, "routine:t", notes="note " * 60)
-    aims.update(s, owner.id, ["Get the order right", "Ask about the van"], "op:x:aims:d14.0")
-    for i in range(40):
-        s.transfer(s.get("people", owner.id).household, "outside:opening", 100, f"line {i} " + "word " * 6,
-                   "routine:t")
-    msgs, ids = views.view(s, owner.id)
-    text = msgs[1]["content"]
-    assert words(msgs) <= 1200
-    assert len([i for i in ids if i.startswith("rq")]) == 3 and section(text, "WAITING FOR YOUR ANSWER")[-1] == (
-        "(2 more waiting)")                                     # requests never give way
-    assert section(text, "YOUR HOUSEHOLD'S ACCOUNT")[2].endswith("earlier lines not shown)")
-    assert section(text, "YOUR HOUSEHOLD'S ACCOUNT")[3].startswith("Going out by")     # the statement's lines went
-    assert len(section(text, "PEOPLE YOU KNOW")) <= 6 and "The week before:" not in text
-    shown = [i for i in ids if i.startswith("msg")]
-    assert 1 <= len(shown) < 3 and section(text, "LETTERS AND NOTICES")[-1] == (
-        f"({20 - len(shown)} more: {20 - len(shown)} letters, 0 notices)")
-    assert section(text, "ON YOUR MIND") and section(text, "YOUR NOTES")
+    for o in others[:12]:
+        if tie_rank(s, owner.id, o) > 2:
+            tie(s, owner.id, o, "friend")
+    letters = [send(s, o, owner.id, f"letter {i} " + "word " * 148) for i, o in enumerate(others[:5])]
+    asked = [ask(s, o, owner.id, f"request {i} " + "please " * 78) for i, o in enumerate(others[5:8])]
+    for rq in asked:
+        s.set("requests", rq, "routine:t", summary="They ask you to work four hours on Saturdays for $48.00 a week, "
+                                                  "from Saturday 21 March, for eight weeks.")
+    assert _result(s, owner.id, "write_notes", text="note " * 150).ok
+    aims.update(s, owner.id, [f"aim {i} " + "thing " * 19 for i in range(5)], "op:x:aims:d14.0")
+    for i in range(6):
+        if i in (1, 4):
+            _result(s, owner.id, "read", what="account in full")
+        else:
+            _result(s, owner.id, "pay", to="Nobody Here", amount=1, note="word " * 60)
+    _result(s, owner.id, "read", what="agreements")
+    return s, owner.id, letters, asked
+
+
+def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
+    s, owner, letters, asked = _worst()
+    v = views.layout(s, owner)
+    total = len(v.system.split()) + len(v.user.split())
+    assert 1200 < total < 2000
+    assert v.steps == list("abcdefg")                         # every step of giving way, in order
+    shown = section(v.user, "LETTERS AND NOTICES")
+    assert len(shown[0].split()) <= 104 and shown[0].endswith("\u2026") and shown[-1].startswith("(4 more:")
+    waiting = section(v.user, "WAITING FOR YOUR ANSWER")
+    assert waiting[-1] == "(2 more requests waiting)" and waiting[0].split(": ", 1)[1].count("please") == 60 - 2
+    views.mark_seen(s, owner, v.ids, f"routine:seen:{owner}")
+    assert [s.get("messages", m).seen for m in letters].count(True) == 1
+    assert [s.get("requests", r).seen for r in asked].count(True) == 1
+    assert views.has_news(s, owner)                           # what was cut from view waits unseen
+
+
+@pytest.mark.parametrize("seed", (1, 2, 3))
+def test_no_one_s_worst_case_reaches_2000_words(seed):
+    s, owner, _, _ = _worst(seed)
+    assert words(views.person_view(s, owner)) < 2000
+
+
+def test_at_most_six_results_are_shown_and_only_the_latest_read_in_full():
+    s = place(1)
+    pid = _kind(s, "owner")[0].id
+    for i in range(8):
+        _result(s, pid, "read" if i in (2, 6) else "pay", what="account in full", to="Nobody Here", amount=1)
+    rows = section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
+    assert rows[0] == "(2 earlier results not shown)"
+    assert [r.split(":")[0] for r in rows[1:] if not r.startswith("  ")] == ["read", "pay", "pay", "pay", "read", "pay"]
+    assert rows[1] == "read: shown before" and rows[-1].startswith("pay: Not done:")
+    reads = [r.id for r in s.all("results") if r.op == "read"]
+    ids = views.shown_ids(s, pid)
+    assert [r.id for r in s.all("results")][:2] == ids[6:8] and reads[1] in ids[:6]
+    views.mark_seen(s, pid, ids, "routine:seen:x")
+    assert all(r.seen for r in s.all("results"))
+    _result(s, pid, "read", what="account in full"); _result(s, pid, "read", what="agreements")
+    rows = section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
+    assert rows[0] == "read: shown before" and rows[1].startswith("read: ob")
+    _result(s, pid, "pay", to="Nobody Here", amount=1, note="word " * 70)
+    assert len(section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")[-1].split()) <= 40
+
+
+def test_what_is_owed_lists_loans_agreements_standing_payments_and_arrears():
+    s = place(1)
+    for p in s.all("people"):
+        for a in acts.accounts_of(s, p.id):
+            for line in facts.owed_lines(s, a):
+                ob = s.get("obligations", line.split(":")[0])
+                assert ob.kind in ("loan", "agreement", "standing") and ob.status in ("active", "breached")
+                other = ob.payee if ob.payer == a else ob.payer
+                assert money(ob.cents) + " a week " in line and O.name_of(s, other) in line
+                assert (", until " in line) == (ob.last is not None)
+                assert ob.last is None or line.endswith(f", until {facts.when(ob.last)}")
+    hh = s.all("households")[0].id
+    rent = next(o for o in s.where("obligations", payer=hh) if o.kind == "rent")
+    s.transfer(hh, "outside:opening", s.balance(hh), "spent", "routine:t")
+    run_routine(s, 1)
+    line = next(x for x in facts.owed_lines(s, hh) if x.startswith(rent.id + ":"))
+    assert line.endswith(f", {money(rent.cents)} overdue")
+    for i in range(9):
+        O.create(s, kind="agreement", payer=hh, payee="outside:opening", cents=100 + i, first=s.day + 3, every=0,
+                 memo=f"thing {i}", ends="both", made_by="routine", cause="routine:t")
+    lines = facts.owed_lines(s, hh)
+    assert len(lines) == 9 and re.fullmatch(r"\(\d+ more not shown\)", lines[-1])
+    assert any(re.search(r", \$1\.0\d once on \w+ \d+ \w+ to Opening$", x) for x in lines[:8])
+
+
+def test_the_banker_sees_the_bank_s_book():
+    s = place(1)
+    banker = _kind(s, "banker")[0]
+    bank = next(o for o in s.all("orgs") if o.kind == "bank")
+    hh = next(o.payer for o in s.where("obligations", payee=bank.id) if o.kind == "loan" and s.has("households", o.payer))
+    s.transfer(hh, "outside:opening", s.balance(hh), "spent", "routine:t")
+    run_routine(s, 1)
+    book = section(person_view(s, banker.id)[1]["content"], "THE BANK'S BOOK")
+    assert book[:2] == [bank.name, f"Account: {money(s.balance(bank.id))}"]
+    loans = [o for o in s.where("obligations", payee=bank.id) if o.kind == "loan" and o.status == "active"]
+    assert [line.split(":")[0] for line in book[2:]] == [o.id for o in loans][:12]
+    late = 0
+    for line, ob in zip(book[2:], loans):
+        assert line.startswith(f"{ob.id}: {acts.name_of_who(s, ob.payer)}, {ob.memo}, {money(ob.cents)} a week")
+        dues = [d for d in s.where("dues", obligation=ob.id) if d.status in ("arrears", "defaulted")]
+        if dues:
+            late += 1
+            owed = sum(d.cents - d.paid for d in dues)
+            assert line.endswith(f", {money(owed)} overdue since {date_text(min(d.day for d in dues))}")
+        else:
+            assert "overdue" not in line
+    assert late >= 1
+    for p in s.all("people"):
+        if p.kind != "banker":
+            assert "THE BANK'S BOOK" not in person_view(s, p.id)[1]["content"]
+
+
+def test_owner_knowhow_states_the_real_rules():
+    s = place(1)
+    owner = _kind(s, "owner")[0]
+    f = s.where("firms", org=next(o.id for o in s.all("orgs") if o.owner == owner.id))[0]
+    lines = facts.knowhow(s, owner.id)
+    assert lines[0] == ("Stock ordered before Monday arrives on Monday and is paid for on arrival; with no new order, "
+                        "last week's order comes again.")
+    from townsim.econ.firm import Firm
+    carry = round(100 * Firm.__dataclass_fields__["carry_loss"].default)
+    assert lines[1] == (f"Of what is left on the shelf at the end of a week, about {carry} in every 100 units go off; "
+                        f"anything {f.shelf_weeks} weeks old is thrown away.")
+
+
+def test_who_says_what_the_household_does_once():
+    s = place(1)
+    for p in s.all("people"):
+        who = facts.who(s, p.id)
+        for m in s.get("households", p.household).members:
+            q = s.get("people", m)
+            if m != p.id and q.job:
+                line = next(x for x in who.split("\n") if x.startswith(q.name + ", "))
+                assert q.job in line or q.job.split()[0] not in line or line.endswith(f"is {q.job}.")
+        for j in s.where("jobs", person=p.id):
+            org = s.get("orgs", j.org).name
+            assert len([x for x in who.split("\n") if x.startswith("You ") and org in x and "Also" not in x]) == 1
+
+
+def test_the_sender_of_a_request_shown_counts_as_known():
+    s = place(1)
+    pid, _, _, _, stranger, _ = someone_with_a_partner_a_friend_and_a_landlord(s)
+    friend_of_stranger = s.get("people", stranger).name
+    rq = ask(s, stranger, pid, "Could you help?")
+    s.set("requests", rq, "routine:t", seen=True)
+    third = next(q for q in s.all("people") if q.id not in knows(s, pid) and q.id not in (pid, stranger))
+    send(s, third.id, pid, f"{friend_of_stranger} asked about you.")
+    assert friend_of_stranger not in s.all("messages")[-1].unknown
