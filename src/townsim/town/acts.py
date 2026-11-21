@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
-from townsim.town.store import Store
+from townsim.town.store import Store, id_key
 
 MAX_CENTS = 100_000_000
 _SHOWN = 40
@@ -44,7 +44,10 @@ class Outcome:
 class OpSpec:
     """`check` returns why the act cannot be done (without `Not done:`) or None; it changes
     nothing. `do` makes the change with the cause it is given and returns what the actor is
-    told. `order` places the operation's form in the view: by order, then by name."""
+    told. `order` places the operation's form in the view: by order, then by name. `who`
+    is the position it is shown to (see `positions`). `takes_from` says it draws on an
+    account a `from` names (see `from_account`). `hours_of`, when given, gives the hours
+    an act takes in place of `hours`."""
 
     name: str
     form: str
@@ -53,6 +56,9 @@ class OpSpec:
     check: Callable[[Store, Act], str | None]
     do: Callable[[Store, Act, str], str]
     order: int
+    who: str = "all"
+    takes_from: bool = False
+    hours_of: Callable[[Store, Act], float] | None = None
 
 
 REGISTRY: dict[str, OpSpec] = {}
@@ -60,11 +66,13 @@ REGISTRY: dict[str, OpSpec] = {}
 
 def _same(a: OpSpec, b: OpSpec) -> bool:
     """The same spec, even from a reloaded module: same text and same named functions."""
-    def where(f: Callable) -> tuple:
+    def where(f: Callable | None) -> tuple:
         return getattr(f, "__module__", None), getattr(f, "__qualname__", None)
-    return ((a.name, a.form, a.desc, a.hours, a.order, where(a.check), where(a.do))
-            == (b.name, b.form, b.desc, b.hours, b.order, where(b.check), where(b.do))
-            and "<lambda>" not in (where(a.check)[1] or "") + (where(a.do)[1] or ""))
+    def text(s: OpSpec) -> tuple:
+        return (s.name, s.form, s.desc, s.hours, s.order, s.who, s.takes_from,
+                where(s.check), where(s.do), where(s.hours_of))
+    named = (where(a.check)[1] or "") + (where(a.do)[1] or "") + (where(a.hours_of)[1] or "")
+    return text(a) == text(b) and "<lambda>" not in named
 
 
 def register(spec: OpSpec) -> None:
@@ -115,15 +123,18 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
             reason = authorise(store, act)
             if reason is not None:
                 return _not_done(act, reason, cause)
+        if spec.who not in positions(store, act.actor):
+            return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
         person = store.get("people", act.actor)
-        if person.hours_left < spec.hours:
+        hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
+        if person.hours_left < hours:
             return _not_done(act, "you have no time left this week for that.", cause)
         reason = spec.check(store, act)
         if reason is not None:
             return _not_done(act, reason, cause)
         with store.transaction():
             told = spec.do(store, act, cause)
-            store.set("people", act.actor, cause, hours_left=round(person.hours_left - spec.hours, 2))
+            store.set("people", act.actor, cause, hours_left=round(person.hours_left - hours, 2))
     except Exception as e:  # a bug in an operation: the act is undone and reported, never raised
         if store.mark() != before:
             store.undo_to(before)
@@ -170,8 +181,9 @@ def clean_text(value: Any) -> str | None:
     return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) != "Cc")
 
 
-def resolve(store: Store, name: Any) -> str | None:
-    """The id of the person, household or org called `name`, ignoring case and surrounding spaces."""
+def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
+    """The id of the person, household or org called `name`, ignoring case and surrounding
+    spaces; or, given an `actor`, of the one person they know whose first name it is."""
     if not isinstance(name, str):
         return None
     wanted = name.strip().casefold()
@@ -179,7 +191,61 @@ def resolve(store: Store, name: Any) -> str | None:
         for row in store.all(table):
             if row.name.casefold() == wanted:
                 return row.id
-    return None
+    if actor is None or not wanted or not store.has("people", actor):
+        return None
+    bearers = [p for p in knows(store, actor) if store.get("people", p).name.casefold().split()[:1] == [wanted]]
+    return bearers[0] if len(bearers) == 1 else None
+
+
+def knows(store: Store, pid: str) -> list[str]:
+    """Everyone `pid` knows, in id order: their household, everyone tied to them either way,
+    and everyone they have written to or had a letter from."""
+    found = set(store.get("households", store.get("people", pid).household).members)
+    for t in store.all("ties"):
+        if t.person == pid:
+            found.add(t.other)
+        elif t.other == pid:
+            found.add(t.person)
+    for m in store.all("messages"):
+        if m.sender == pid:
+            found.add(m.to)
+        elif m.to == pid:
+            found.add(m.sender)
+    return sorted((p for p in found if p != pid and store.has("people", p)), key=id_key)
+
+
+_TIE_RANKS = {"kin": 1, "friend": 2, "employer": 3, "employee": 3, "coworker": 3,
+              "landlord": 4, "tenant": 4, "creditor": 4, "debtor": 4, "banker": 4}
+UNKNOWN = 6
+
+
+def _rows(store: Store, table: str) -> list:
+    """Every row of `table`, or none if this store has no such table."""
+    try:
+        return store.all(table)
+    except KeyError:
+        return []
+
+
+def tie_rank(store: Store, pid: str, other: str) -> int:
+    """How close `other` is to `pid`: 0 household, 1 kin, 2 friend, 3 employer, employee or
+    coworker, 4 landlord, tenant, creditor, debtor or banker, 5 anyone else known, 6 unknown.
+    For an organisation: 3 if they work there or own it, 4 if it is their household's
+    landlord or a bank, else 6."""
+    person = store.get("people", pid)
+    if store.has("orgs", other):
+        org = store.get("orgs", other)
+        if org.owner == pid or any(j.person == pid and j.org == other for j in _rows(store, "jobs")):
+            return 3
+        if store.get("households", person.household).landlord == other or org.kind == "bank":
+            return 4
+        return UNKNOWN
+    if store.has("people", other) and store.get("people", other).household == person.household:
+        return 0
+    ranks = [_TIE_RANKS.get(t.kind, 5) for t in store.all("ties") if t.person == pid and t.other == other]
+    if ranks:
+        return min(ranks)
+    return 5 if other in knows(store, pid) else UNKNOWN
 
 
 def name_of_who(store: Store, who: str) -> str:
@@ -197,6 +263,65 @@ def account_of(store: Store, who: str) -> str:
     return who
 
 
+def accounts_of(store: Store, pid: str) -> list[str]:
+    """The accounts `pid` controls: their household's, then every org they own, in id order."""
+    return [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid]
+
+
+def controls(store: Store, pid: str, account: str) -> bool:
+    return account in accounts_of(store, pid)
+
+
+def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
+    """The account the act draws on, or None and why not. No `from`, the word `household`
+    or the household's own name is the principal's household; an org's name, that org if
+    the principal owns it."""
+    value = act.args.get("from") if isinstance(act.args, dict) else None
+    household = store.get("people", act.principal).household
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return household, None
+    if isinstance(value, str):
+        wanted = value.strip().casefold()
+        if wanted in ("household", store.get("households", household).name.casefold()):
+            return household, None
+        for org in store.all("orgs"):
+            if org.name.casefold() == wanted and org.owner == act.principal:
+                return org.id, None
+    return None, f"'{shown(value)}' is not an account of yours."
+
+
+POSITIONS = ("all", "owner", "employed", "landlord", "banker")
+_FROM = ', "from": "household" | "<your business>"'
+
+
+def positions(store: Store, pid: str) -> list[str]:
+    """What `pid` is in the town, in the order of `POSITIONS`: everyone is `all`; `owner` of
+    an org in the town; `employed` in a job; `landlord` to a household, themselves or
+    through their household; `banker`."""
+    person = store.get("people", pid)
+    found = ["all"]
+    if any(o.owner == pid and not o.outside for o in store.all("orgs")):
+        found.append("owner")
+    if any(j.person == pid for j in _rows(store, "jobs")):
+        found.append("employed")
+    if any(h.landlord in (pid, person.household) for h in store.all("households")):
+        found.append("landlord")
+    if person.kind == "banker":
+        found.append("banker")
+    return found
+
+
 def forms(store: Store, actor: str) -> list[str]:
-    """The written form of every operation, by `order` and then name."""
-    return [spec.form for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name))]
+    """The written form of every operation open to the actor's positions, by `order` and
+    then name. For an owner, an operation that takes a `from` shows it."""
+    held = positions(store, actor)
+    owner = "owner" in held
+    shown_forms = []
+    for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name)):
+        if spec.who not in held:
+            continue
+        form = spec.form
+        if owner and spec.takes_from and form.endswith("}"):
+            form = form[:-1] + _FROM + "}"
+        shown_forms.append(form)
+    return shown_forms

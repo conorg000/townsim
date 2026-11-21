@@ -21,9 +21,15 @@ REPLY_FORM = ('Reply with JSON only, in this form:\n'
               '"acts": [<operations from the list, in order>]}')
 
 
+def _letter_head(store: Store, m) -> str:
+    """Who a letter is from, and the org it was addressed to if it was."""
+    head = name_of_who(store, m.sender)
+    return f"{head} to {name_of_who(store, m.org)}" if m.org else head
+
+
 def _new(store: Store, pid: str) -> list[tuple[str, str]]:
     """The unseen messages and notices to `pid`, oldest first, as (id, text shown)."""
-    items = [(m.day, id_key(m.id), m.id, f"From {name_of_who(store, m.sender)}: {m.text}")
+    items = [(m.day, id_key(m.id), m.id, f"From {_letter_head(store, m)}: {m.text}")
              for m in store.where("messages", to=pid, seen=False)]
     items += [(n.day, id_key(n.id), n.id, n.text) for n in store.where("notices", to=pid, seen=False)]
     return [(i, text) for _, _, i, text in sorted(items)]
@@ -53,14 +59,15 @@ def has_news(store: Store, pid: str) -> bool:
     return pid in with_news(store)
 
 
-def _waiting(store: Store, pid: str) -> list[str]:
+def _waiting(store: Store, pid: str) -> list[tuple[str, str]]:
+    """The open requests to `pid`, in id order, as (id, text shown)."""
     rows = []
     for rq in store.where("requests", status="open"):
         if rq.to == pid:
             row = f"{rq.id} from {name_of_who(store, rq.sender)}: {rq.text}"
             if rq.cents > 0:
                 row += f" They ask you for {money(rq.cents)}."
-            rows.append(row)
+            rows.append((rq.id, row))
     return rows
 
 
@@ -82,7 +89,7 @@ def _user_text(store: Store, pid: str, account: str, results: list[tuple[str, st
         sections.append("NEW\n" + "\n".join(rows))
     waiting = _waiting(store, pid)
     if waiting:
-        sections.append("WAITING FOR YOUR ANSWER\n" + "\n".join(waiting))
+        sections.append("WAITING FOR YOUR ANSWER\n" + "\n".join(text for _, text in waiting))
     if person.notes.strip():
         sections.append("YOUR NOTES\n" + person.notes)
     sections.append(f"You have {_hours(person.hours_left)} hours left this week.")
@@ -122,7 +129,7 @@ def _layout(store: Store, pid: str) -> tuple[str, list[str]]:
         while _words(text) > MAX_WORDS and new:
             new = new[:-1]
             text = _user_text(store, pid, account, results, new, total - len(new))
-    return text, [i for i, _ in results] + [i for i, _ in new]
+    return text, [i for i, _ in results] + [i for i, _ in new] + [i for i, _ in _waiting(store, pid)]
 
 
 def _system(store: Store, pid: str) -> str:
@@ -138,7 +145,7 @@ def view(store: Store, pid: str) -> tuple[list[dict], list[str]]:
 
 
 def shown_ids(store: Store, pid: str) -> list[str]:
-    """The ids of the results, messages and notices `person_view` shows."""
+    """The ids of the results, messages, notices and requests `person_view` shows."""
     return _layout(store, pid)[1]
 
 
@@ -149,10 +156,10 @@ def person_view(store: Store, pid: str) -> list[dict]:
 
 
 def mark_seen(store: Store, pid: str, ids: list[str], cause: str) -> None:
-    """Mark as seen the messages and notices to `pid`, and the results of `pid`'s acts,
-    among `ids` that are still unseen."""
+    """Mark as seen the messages, notices and requests to `pid`, and the results of `pid`'s
+    acts, among `ids` that are still unseen."""
     for i in ids:
-        for table, owner in (("messages", "to"), ("notices", "to"), ("results", "actor")):
+        for table, owner in (("messages", "to"), ("notices", "to"), ("requests", "to"), ("results", "actor")):
             if store.has(table, i):
                 row = store.get(table, i)
                 if getattr(row, owner) == pid and not row.seen:

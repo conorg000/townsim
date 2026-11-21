@@ -4,9 +4,10 @@ their answers, reading the account, and notes. Registered when this module is im
 Each `check` refuses anything its arguments do not support, so each `do` only acts.
 Arguments come from a reply and may be any JSON value.
 
-An act is carried out for its principal: money moves from the principal's household
-account, and requests answered are those made to the principal. Letters and requests
-are sent by the actor, and notes are the actor's own.
+An act is carried out for its principal: money moves from an account the principal
+controls (their household's unless a `from` names a business they own), and requests
+answered are those made to the principal. Letters and requests are sent by the actor,
+and notes are the actor's own. Names are resolved as the actor knows people.
 """
 
 from __future__ import annotations
@@ -14,8 +15,8 @@ from __future__ import annotations
 from typing import Any
 
 from townsim.town import obligations
-from townsim.town.acts import (Act, OpSpec, account_of, clean_text, cut, dollars, name_of_who, register, resolve, shown,
-                               to_cents)
+from townsim.town.acts import (Act, OpSpec, account_of, clean_text, controls, cut, dollars, from_account,
+                               name_of_who, register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
 from townsim.town.obligations import money, name_of
@@ -40,18 +41,25 @@ def _too_long(text: str) -> bool:
 
 
 def _own(store: Store, act: Act) -> str:
-    """The account the act uses: the principal's."""
+    """The principal's household account."""
     return account_of(store, act.principal)
 
 
+def _source(store: Store, act: Act) -> str:
+    """The account the act draws on; its check has made sure there is one."""
+    return from_account(store, act)[0]
+
+
 def _payee(store: Store, act: Act) -> tuple[str | None, str]:
-    """The account `to` names, or None and why not."""
+    """The account `to` names, or None and why not. The act's `from` must already read."""
     to = act.args.get("to")
-    who = resolve(store, to)
+    who = resolve(store, to, act.actor)
     if who is None:
         return None, f"no one called '{shown(to)}' is known in the town."
-    if account_of(store, who) == _own(store, act):
-        return None, "that is your own household."
+    if account_of(store, who) == _source(store, act):
+        if _source(store, act) == _own(store, act):
+            return None, "that is your own household."
+        return None, "that is the account it would be paid from."
     return account_of(store, who), name_of_who(store, who)
 
 
@@ -75,7 +83,7 @@ def _short_of(store: Store, account: str, cents: int) -> str | None:
 
 
 def _person_to(store: Store, act: Act) -> str | None:
-    who = resolve(store, act.args.get("to"))
+    who = resolve(store, act.args.get("to"), act.actor)
     return who if who is not None and store.has("people", who) else None
 
 
@@ -97,6 +105,9 @@ def _pay_ref(act: Act) -> Any:
 
 
 def _check_pay(store: Store, act: Act) -> str | None:
+    source, why = from_account(store, act)
+    if source is None:
+        return why
     payee, name = _payee(store, act)
     if payee is None:
         return name
@@ -107,18 +118,17 @@ def _check_pay(store: Store, act: Act) -> str | None:
         return "the note is too long."
     ref = _pay_ref(act)
     if ref is not None:
-        own = _own(store, act)
         if not (isinstance(ref, str) and store.has("obligations", ref)
-                and store.get("obligations", ref).payer == own and store.get("obligations", ref).payee == payee):
+                and store.get("obligations", ref).payer == source and store.get("obligations", ref).payee == payee):
             return f"you have nothing with the id '{shown(ref)}' that is owed to {name}."
-    return _short_of(store, _own(store, act), cents)
+    return _short_of(store, source, cents)
 
 
 def _do_pay(store: Store, act: Act, cause: str) -> str:
     payee, name = _payee(store, act)
     cents = to_cents(act.args.get("amount"))
     memo = _note(act.args.get("note")) or f"payment to {name}"
-    matches = obligations.pay(store, _own(store, act), payee, cents, memo, cause, ref=_pay_ref(act))
+    matches = obligations.pay(store, _source(store, act), payee, cents, memo, cause, ref=_pay_ref(act))
     told = f"Paid {money(cents)} to {name}."
     if matches:
         counted = []
@@ -151,6 +161,9 @@ def _start(store: Store, act: Act) -> tuple[int | None, bool]:
 
 
 def _check_standing(store: Store, act: Act) -> str | None:
+    source, why = from_account(store, act)
+    if source is None:
+        return why
     payee, why = _payee(store, act)
     if payee is None:
         return why
@@ -169,7 +182,7 @@ def _check_standing(store: Store, act: Act) -> str | None:
 
 
 def _do_standing(store: Store, act: Act, cause: str) -> str:
-    own = _own(store, act)
+    own = _source(store, act)
     payee, name = _payee(store, act)
     cents = to_cents(act.args.get("amount"))
     wd = weekday(act.args["day"])
@@ -202,7 +215,7 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
 def _check_stop(store: Store, act: Act) -> str | None:
     ob_id = act.args.get("id")
     if (isinstance(ob_id, str) and store.has("obligations", ob_id)
-            and store.get("obligations", ob_id).payer == _own(store, act)
+            and controls(store, act.principal, store.get("obligations", ob_id).payer)
             and store.get("obligations", ob_id).status == "active"):
         return None
     return f"you have nothing with the id '{shown(ob_id)}'."
@@ -210,7 +223,7 @@ def _check_stop(store: Store, act: Act) -> str | None:
 
 def _do_stop(store: Store, act: Act, cause: str) -> str:
     ob = store.get("obligations", act.args["id"])
-    result = obligations.stop(store, ob.id, _own(store, act), cause)
+    result = obligations.stop(store, ob.id, ob.payer, cause)
     if result == "breach":
         return f"That was an agreement with {name_of(store, ob.payee)}. Stopping it is recorded as a breach."
     return "Stopped." if result == "stopped" else "You have left; the fee ends."
@@ -218,17 +231,30 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
 
 # message
 
+def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
+    """Who a letter reaches and the org it was addressed to (or ""): a person, or the owner
+    of an org in the town. None if it comes back."""
+    who = resolve(store, act.args.get("to"), act.actor)
+    if who is not None and store.has("people", who):
+        return who, ""
+    if who is not None and store.has("orgs", who):
+        org = store.get("orgs", who)
+        if org.owner and not org.outside:
+            return org.owner, org.id
+    return None
+
+
 def _check_message(store: Store, act: Act) -> str | None:
-    if _person_to(store, act) is None:
+    if _addressee(store, act) is None:
         return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
     return _text(act.args.get("text"), "that is too long for one letter.")
 
 
 def _do_message(store: Store, act: Act, cause: str) -> str:
-    to = _person_to(store, act)
-    message = Message(store.new_id("msg", cause), store.day, act.actor, to, clean_text(act.args["text"]))
+    to, org = _addressee(store, act)
+    message = Message(store.new_id("msg", cause), store.day, act.actor, to, clean_text(act.args["text"]), org=org)
     store.add("messages", message, cause)
-    return f"Sent to {name_of_who(store, to)}."
+    return f"Sent to {name_of_who(store, org or to)}."
 
 
 # request
@@ -241,9 +267,21 @@ def _asked_cents(value: Any) -> int | None:
     return to_cents(value)
 
 
+def _owed_on(store: Store, act: Act, who: str) -> str | None:
+    """The obligation `for` names, if it is active, paid by an account `who` controls and owed
+    to one the requester controls; else None."""
+    ob_id = act.args.get("for")
+    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
+        return None
+    ob = store.get("obligations", ob_id)
+    if ob.status != "active" or not controls(store, who, ob.payer) or not controls(store, act.actor, ob.payee):
+        return None
+    return ob.id
+
+
 def _check_request(store: Store, act: Act) -> str | None:
     to = act.args.get("to")
-    who = resolve(store, to)
+    who = resolve(store, to, act.actor)
     if who is None:
         return f"no one called '{shown(to)}' is known in the town."
     if not store.has("people", who):
@@ -253,15 +291,19 @@ def _check_request(store: Store, act: Act) -> str | None:
     cents = _asked_cents(act.args.get("amount"))
     if cents is None:
         return f"'{shown(act.args.get('amount'))}' is not an amount of money that can be paid."
-    if cents > 0 and account_of(store, who) == _own(store, act):
+    if not _blank(act.args.get("for")):
+        if _owed_on(store, act, who) is None:
+            return f"'{shown(act.args.get('for'))}' is not something {name_of_who(store, who)} owes you."
+    elif cents > 0 and account_of(store, who) == _own(store, act):
         return "that is your own household."
     return _text(act.args.get("text"), "that is too long for one letter.")
 
 
 def _do_request(store: Store, act: Act, cause: str) -> str:
     to = _person_to(store, act)
+    ob = "" if _blank(act.args.get("for")) else _owed_on(store, act, to)
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, clean_text(act.args["text"]),
-                 _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS)
+                 _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS, ob=ob)
     store.add("requests", rq, cause)
     return f"Sent to {name_of_who(store, to)} ({rq.id}). It stays open until {date_text(rq.expires)}."
 
@@ -295,10 +337,22 @@ def _check_answer(store: Store, act: Act) -> str | None:
     if _too_long(_note(act.args.get("note"))):
         return "the note is too long."
     if answer == "accept" and rq.cents > 0:
-        if account_of(store, rq.sender) == _own(store, act):
+        payer, payee = _request_accounts(store, rq)
+        if rq.ob and not controls(store, act.principal, payer):
+            return f"{rq.id} asks for money owed by an account that is not yours."
+        if payee == payer:
             return "that is your own household."
-        return _short_of(store, _own(store, act), rq.cents)
+        return _short_of(store, payer, rq.cents)
     return None
+
+
+def _request_accounts(store: Store, rq: Request) -> tuple[str, str]:
+    """Who pays and who is paid when a request for money is accepted: the obligation's payer
+    and payee when it names one, else the two people's households."""
+    if rq.ob:
+        ob = store.get("obligations", rq.ob)
+        return ob.payer, ob.payee
+    return account_of(store, rq.to), account_of(store, rq.sender)
 
 
 def _do_answer(store: Store, act: Act, cause: str) -> str:
@@ -307,8 +361,11 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     store.set("requests", rq.id, cause, status="accepted" if accepted else "declined")
     told = "Accepted." if accepted else "Declined."
     if accepted and rq.cents > 0:
-        obligations.pay(store, _own(store, act), account_of(store, rq.sender), rq.cents, f"request {rq.id}", cause,
-                        match=False)
+        payer, payee = _request_accounts(store, rq)
+        if rq.ob:
+            obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
+        else:
+            obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
         told += f" Paid {money(rq.cents)} to {name_of_who(store, rq.sender)}."
     asked = cut(rq.text)
     text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
@@ -330,11 +387,14 @@ def _what(act: Act) -> str | None:
 
 
 def _check_read(store: Store, act: Act) -> str | None:
+    source, why = from_account(store, act)
+    if source is None:
+        return why
     return None if _what(act) is not None else f"'{shown(act.args.get('what'))}' is not something that can be read."
 
 
 def _do_read(store: Store, act: Act, cause: str) -> str:
-    own = _own(store, act)
+    own = _source(store, act)
     what = _what(act)
     if what == "agreements":
         return agreements_text(store, own)
@@ -360,24 +420,24 @@ def _do_notes(store: Store, act: Act, cause: str) -> str:
 for _spec in (
     OpSpec("pay", '{"op": "pay", "to": "<name>", "amount": <dollars>, "note": "<what for>", '
                   '"for": "<id of what it is owed on, if any>"}',
-           "Pay someone now from your household's account.", 0.25, _check_pay, _do_pay, 10),
+           "Pay someone now from your household's account.", 0.25, _check_pay, _do_pay, 10, takes_from=True),
     OpSpec("standing_payment", '{"op": "standing_payment", "to": "<name>", "amount": <dollars>, '
                                '"day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", '
                                '"weeks": <number, or 0 for until stopped>, "note": "<what for>"}',
            "Pay someone the same sum every week from your household's account.", 0.25,
-           _check_standing, _do_standing, 20),
+           _check_standing, _do_standing, 20, takes_from=True),
     OpSpec("stop", '{"op": "stop", "id": "<id of the payment or agreement>"}',
            "End a payment your household makes on a schedule.", 0.1, _check_stop, _do_stop, 30),
     OpSpec("message", '{"op": "message", "to": "<name>", "text": "<what you write>"}',
            "Write a letter to a person in the town.", 0.25, _check_message, _do_message, 40),
     OpSpec("request", '{"op": "request", "to": "<name>", "text": "<what you ask for>", '
-                      '"amount": <dollars they would pay you, or 0>}',
+                      '"amount": <dollars they would pay you, or 0>, "for": "<id of what they owe you, if any>"}',
            "Ask a person for something, with or without money.", 0.25, _check_request, _do_request, 50),
     OpSpec("answer", '{"op": "answer", "request": "<id>", "answer": "accept" | "decline", '
                      '"note": "<optional words>"}',
            "Accept or decline a request made to you.", 0.1, _check_answer, _do_answer, 60),
     OpSpec("read", '{"op": "read", "what": "account" | "account in full" | "agreements"}',
-           "Read your household's account or its agreements.", 0.1, _check_read, _do_read, 70),
+           "Read your household's account or its agreements.", 0.1, _check_read, _do_read, 70, takes_from=True),
     OpSpec("write_notes", '{"op": "write_notes", "text": "<for yourself>"}',
            "Replace your own notes.", 0.1, _check_notes, _do_notes, 80),
 ):

@@ -2,7 +2,7 @@
 
 from townsim.econ.ledger import Transfer
 from townsim.town import obligations as O
-from townsim.town.entities import Household, Person
+from townsim.town.entities import Household, Org, Person, Tie
 from townsim.town.store import Store
 from townsim.town.thin import thin_town
 
@@ -57,3 +57,47 @@ def received(s: Store, account: str) -> int:
 def thin() -> Store:
     """The thin town, Wenlow (see `townsim.town.thin.thin_town`)."""
     return thin_town()
+
+
+def add_person(s: Store, pid: str, name: str, household: str | None = None) -> str:
+    """Add a person called `name` to `household`, or to a new household of their own named
+    for their surname, holding nothing. Returns the household's id."""
+    if household is None:
+        household = f"h{len(s.all('households')) + 1}"
+        s.open_account(household, "routine:setup")
+        s.add("households", Household(household, name.split()[-1], [pid]), "routine:setup")
+    else:
+        members = s.get("households", household).members
+        s.set("households", household, "routine:setup", members=[*members, pid])
+    s.add("people", Person(pid, name, household, 12.0, 12.0, 6), "routine:setup")
+    return household
+
+
+def tie(s: Store, person: str, other: str, kind: str) -> str:
+    """A tie by which `person` sees `other` as `kind`."""
+    tid = s.new_id("ti", "routine:setup")
+    s.add("ties", Tie(tid, person, other, kind), "routine:setup")
+    return tid
+
+
+def add_shop(s: Store, org: str, name: str, owner: str, cents: int) -> None:
+    s.open_account(org, "routine:setup")
+    s.add("orgs", Org(org, name, "shop", owner=owner), "routine:setup")
+    s.transfer("outside:employers", org, cents, "opening", "routine:setup")
+
+
+def town_with_shop() -> Store:
+    """The thin town with org3, Marsh's Stores, owned by Ruth Ashby (p01) and holding $2,000."""
+    s = thin_town()
+    add_shop(s, "org3", "Marsh's Stores", "p01", 200_000)
+    return s
+
+
+def town_with_two_shops() -> Store:
+    """`town_with_shop` and a second shop, org4, Lowe's Grocer, owned by Ann Lowe (p05) of her
+    own household; Tom Ashby (p02) works for Ruth."""
+    s = town_with_shop()
+    add_person(s, "p05", "Ann Lowe")
+    add_shop(s, "org4", "Lowe's Grocer", "p05", 100_000)
+    tie(s, "p02", "p01", "employer"); tie(s, "p01", "p02", "employee")
+    return s

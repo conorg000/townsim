@@ -9,7 +9,7 @@ import sqlite3
 from townsim.town.replies import Reply, decode_reply, encode_reply
 from townsim.town.store import Store
 
-SCHEMA = 1   # how a run's snapshots and rows are kept; a run kept under another is refused
+SCHEMA = 2   # how a run's snapshots and rows are kept; a run kept under another is refused
 
 _TABLES = """
 create table if not exists runs (

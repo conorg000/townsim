@@ -59,8 +59,9 @@ def routine(store: Store) -> None:
 
 
 def who_acts(store: Store) -> list[str]:
-    """People with something unseen, an open request to them, or their stock day today."""
-    waiting = {rq.to for rq in store.where("requests", status="open")}
+    """People with something unseen, an open request to them they have not seen or that is
+    on its last day, or their stock day today."""
+    waiting = {rq.to for rq in store.where("requests", status="open") if not rq.seen or rq.expires == store.day}
     news = with_news(store)
     return [p.id for p in store.all("people") if p.id in news or p.id in waiting or p.stock_day == dow(store.day)]
 

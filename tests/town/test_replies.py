@@ -178,7 +178,7 @@ def test_replies_are_kept_per_run(db):
 def test_runs_are_created_once_and_read_back(db):
     db.create_run("r2", seed=7, parent="r1", parent_day=3)
     assert db.get_run("r1") == {"id": "r1", "seed": 1, "parent": None, "parent_day": None, "schema": SCHEMA}
-    assert db.get_run("r2") == {"id": "r2", "seed": 7, "parent": "r1", "parent_day": 3, "schema": 1}
+    assert db.get_run("r2") == {"id": "r2", "seed": 7, "parent": "r1", "parent_day": 3, "schema": 2}
     with pytest.raises(ValueError):
         db.create_run("r1", seed=9)
     with pytest.raises(KeyError):
@@ -354,7 +354,7 @@ def test_rundb_closes_when_used_as_a_context_manager(tmp_path):
 def test_a_snapshot_kept_under_another_schema_is_refused(db, tmp_path):
     db.save_snapshot("r1", 1, _town())
     db._db.execute("update runs set schema = 0 where id = 'r1'"); db._db.commit()
-    with pytest.raises(ValueError, match=r"schema 0.*schema 1"):
+    with pytest.raises(ValueError, match=r"schema 0.*schema 2"):
         db.load_snapshot("r1", 1)
 
 

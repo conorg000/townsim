@@ -15,7 +15,7 @@ day, climbs the same ladder, and can be paid by hand.
 
 from __future__ import annotations
 
-from typing import Iterator, NamedTuple
+from typing import Iterator, Literal, NamedTuple
 
 from townsim.econ.ledger import Overdraft
 
@@ -136,9 +136,11 @@ def open_dues(store: Store) -> None:
 
 
 def people_of(store: Store, account: str) -> list[str]:
-    """A household's members; `[]` for anything else."""
+    """A household's members; an org's owner, if it has one; `[]` for anything else."""
     if store.has("households", account):
         return list(store.get("households", account).members)
+    if store.has("orgs", account) and store.get("orgs", account).owner:
+        return [store.get("orgs", account).owner]
     return []
 
 
@@ -278,14 +280,17 @@ def next_instalment(store: Store, ob: Obligation) -> int | None:
 
 
 def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
-        ref: str | None = None, match: bool = True) -> list[Match]:
+        ref: str | None = None, match: bool | Literal["arrears"] = True) -> list[Match]:
     """Pay `cents` from `payer` to `payee` in one transfer and count it toward what the payer
     owes the payee: arrears oldest first, then the single next instalment. With `ref`, only
-    that obligation. What is left over is an ordinary payment. With `match=False` it is only
-    the transfer: no due is touched and nothing is returned, and `ref` may not be given.
-    Changes nothing if it raises."""
-    if ref is not None and not match:
-        raise ValueError(f"ref {ref!r} names what to count toward, but match is False")
+    that obligation. What is left over is an ordinary payment. With `match="arrears"` it
+    counts toward arrears only, never toward an instalment not yet owed. With `match=False`
+    it is only the transfer: no due is touched and nothing is returned. `ref` may only be
+    given with `match=True`. Changes nothing if it raises."""
+    if match not in (True, False, "arrears"):
+        raise ValueError(f"match must be True, False or 'arrears', got {match!r}")
+    if ref is not None and match is not True:
+        raise ValueError(f"ref {ref!r} names what to count toward, but match is {match!r}")
     if not _is_int(cents) or cents <= 0:
         raise ValueError(f"cents must be a positive int, got {cents!r}")
     for account in (payer, payee):
@@ -315,7 +320,7 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
         if take > 0:
             plan.append((by_id[due.obligation], due.day, take))
             left -= take
-    if left > 0:
+    if left > 0 and match is True:
         nexts = [(day, KIND_ORDER.index(o.kind), id_key(o.id), o) for o in obs
                  if (day := next_instalment(store, o)) is not None]
         if nexts:

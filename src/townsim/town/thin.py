@@ -19,11 +19,12 @@ def thin_town() -> Store:
     spending on weekly schedules. The Pryces spend $133 a week more than comes in."""
     s = Store()
     s.place = "Wenlow"
+    s.seed = 0
     s.open_account("outside:employers", _SETUP, allow_credit=True)
     s.open_account("outside:shops", _SETUP)
     for org, name, kind in (("org1", "Wenlow Lettings", "landlord"), ("org2", "Northgrid Energy", "utility")):
         s.open_account(org, _SETUP)
-        s.add("orgs", Org(org, name, kind), _SETUP)
+        s.add("orgs", Org(org, name, kind, owner=""), _SETUP)
     people = {"h1": ("Ashby", [("p01", "Ruth", 4), ("p02", "Tom", 3)]),
               "h2": ("Pryce", [("p03", "Craig", 4), ("p04", "Megan", 5)])}
     for h, (surname, members) in people.items():

@@ -42,7 +42,7 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
     assert "From Ruth Ashby: Hello Craig.\nA notice." in text and "Not for Craig." not in text
     assert "rq1 from Ruth Ashby: Lend me a ladder\nrq2 from Tom Ashby: Could you spare some? They ask you for $50.00." in text
     assert "YOUR NOTES\nRing the landlord." in text and "Balance: $300.00" in text
-    assert shown_ids(s, "p03") == ["res1", "res2", "msg1", "n1"]
+    assert shown_ids(s, "p03") == ["res1", "res2", "msg1", "n1", "rq1", "rq2"]
     mark_seen(s, "p03", shown_ids(s, "p03"), "routine:seen:p03")
     assert [r.seen for r in s.all("results")] == [True, True, False]
 

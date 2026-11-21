@@ -20,7 +20,7 @@ from typing import Any, Iterator, NamedTuple
 
 from townsim.econ.ledger import Ledger
 
-TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results")
+TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results", "ties")
 
 # Fields looked up often enough to be indexed, each a sorted tuple of field names.
 INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -84,6 +84,7 @@ class Store:
     def __init__(self) -> None:
         self.day: int = 0
         self.place: str = ""
+        self.seed: int = 0   # what the place was generated from, and what its draws are seeded with
         self.ledger = Ledger()
         self.changes: list[Change] = []
         self.engine_errors: list[str] = []  # not state, never undone
@@ -287,6 +288,7 @@ class Store:
         return _plain({
             "day": self.day,
             "place": self.place,
+            "seed": self.seed,
             "counters": dict(self._counters),
             "accounts": {a.id: [a.balance, a.allow_credit] for a in self.ledger.accounts.values()},
             "transfers": [list(t) for t in self.ledger.transfers],
