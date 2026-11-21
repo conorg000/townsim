@@ -19,7 +19,7 @@ from typing import Any, Iterator, NamedTuple
 
 from townsim.econ.ledger import Ledger
 
-TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records")
+TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results")
 
 _ID = re.compile(r"([A-Za-z:]+)(\d+)", re.ASCII)
 _FLOAT_PLACES = 6
@@ -81,11 +81,12 @@ class Store:
 
     # ids
 
-    def new_id(self, prefix: str) -> str:
+    def new_id(self, prefix: str, cause: str = "routine:new_id") -> str:
         """The next id for `prefix`: ob1, ob2, ... The counter is state and is undone."""
+        _need_cause(cause)
         old = self._counters.get(prefix, 0)
         self._counters[prefix] = old + 1
-        self.changes.append(Change(self.day, "counter", prefix, "n", old, old + 1, "routine:new_id"))
+        self.changes.append(Change(self.day, "counter", prefix, "n", old, old + 1, cause))
         return f"{prefix}{old + 1}"
 
     # rows

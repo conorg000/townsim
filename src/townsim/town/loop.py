@@ -9,9 +9,9 @@ from typing import Any
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import obligations
-from townsim.town.acts import Act, Outcome, apply_act, cut, name_of_who
+from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
-from townsim.town.entities import Notice
+from townsim.town.entities import Notice, Result
 from townsim.town.replies import Keys, Replier
 from townsim.town.store import Store
 from townsim.town.views import has_news, mark_seen, person_view, shown_ids
@@ -95,6 +95,18 @@ def _act(pid: str, element: Any) -> Act:
     return Act(pid, pid, None, element)
 
 
+def _op_written(op: Any) -> str:
+    """An act's operation name as its actor wrote it, cut to 40 characters, on one line."""
+    return " ".join((clean_text(shown(op)) or "").split())
+
+
+def _tell_result(store: Store, outcome: Outcome) -> None:
+    act = outcome.act
+    result = Result(store.new_id("res", outcome.cause), store.day, act.actor, _op_written(act.op), outcome.msg,
+                    outcome.ok)
+    store.add("results", result, outcome.cause)
+
+
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     routine(store)
     day = store.day
@@ -112,7 +124,9 @@ def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
             continue
         outcomes = []
         for element in elements[:MAX_ACTS]:
-            outcomes.append(apply_act(store, _act(pid, element), n))
+            outcome = apply_act(store, _act(pid, element), n)
+            _tell_result(store, outcome)
+            outcomes.append(outcome)
             n += 1
         mark_seen(store, pid, ids, f"routine:seen:{pid}")
         turns.append(Turn(pid, key, False, outcomes))

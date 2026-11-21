@@ -191,7 +191,8 @@ def test_random_play_does_things():
     done = Counter()
     for seed in range(5):
         s = _play(seed)
-        done.update(c.cause.split(":")[2] for c in s.changes if c.cause.startswith("op:"))
+        done.update(c.cause.split(":")[2] for c in s.changes
+                    if c.cause.startswith("op:") and c.table not in ("results", "counter"))   # what was done, not told
     for op in ("pay", "standing_payment", "stop", "message", "request", "answer", "write_notes"):
         assert done[op] > 0, op
 

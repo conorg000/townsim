@@ -32,9 +32,12 @@ class Act:
 
 @dataclass(frozen=True)
 class Outcome:
+    """`cause` is the act's own cause tag, which every change it made carries."""
+
     ok: bool
     msg: str
     act: Act
+    cause: str = ""
 
 
 @dataclass(frozen=True)
@@ -87,30 +90,33 @@ def shown(value: Any) -> str:
     return text[:_SHOWN]
 
 
-def _not_done(act: Act, reason: str) -> Outcome:
-    return Outcome(False, f"Not done: {reason}", act)
+def _not_done(act: Act, reason: str, cause: str) -> Outcome:
+    return Outcome(False, f"Not done: {reason}", act, cause)
 
 
 def apply_act(store: Store, act: Act, n: int) -> Outcome:
-    """Apply one act in full or not at all. `n` numbers the act within the day's acts."""
-    if not isinstance(act.args, dict):
-        return _not_done(act, "that operation was not written in a form that can be read.")
+    """Apply one act in full or not at all. `n` numbers the act within the day's acts.
+
+    The outcome carries the act's cause tag; for an act naming no operation, the tag
+    has `?` in place of the operation's name."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
+    cause = f"op:{act.actor}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
+    if not isinstance(act.args, dict):
+        return _not_done(act, "that operation was not written in a form that can be read.", cause)
     if spec is None:
-        return _not_done(act, f"there is no operation called '{shown(act.op)}'.")
-    cause = f"op:{act.actor}:{spec.name}:d{store.day}.{n}"
+        return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
     before = store.mark()
     try:
         for authorise in AUTHORISERS:
             reason = authorise(store, act)
             if reason is not None:
-                return _not_done(act, reason)
+                return _not_done(act, reason, cause)
         person = store.get("people", act.actor)
         if person.hours_left < spec.hours:
-            return _not_done(act, "you have no time left this week for that.")
+            return _not_done(act, "you have no time left this week for that.", cause)
         reason = spec.check(store, act)
         if reason is not None:
-            return _not_done(act, reason)
+            return _not_done(act, reason, cause)
         with store.transaction():
             told = spec.do(store, act, cause)
             store.set("people", act.actor, cause, hours_left=round(person.hours_left - spec.hours, 2))
@@ -118,8 +124,8 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         if store.mark() != before:
             store.undo_to(before)
         store.engine_errors.append(f"{cause}: {type(e).__name__}: {str(e)[:200]}")
-        return _not_done(act, "that could not be carried out.")
-    return Outcome(True, told, act)
+        return _not_done(act, "that could not be carried out.", cause)
+    return Outcome(True, told, act, cause)
 
 
 def dollars(value: Any) -> Decimal | None:

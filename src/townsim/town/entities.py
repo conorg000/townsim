@@ -115,3 +115,17 @@ class Due:
     status: str = "due"
     fee_charged: bool = False
     notice_sent: bool = False
+
+
+@dataclass
+class Result:
+    """What came of one act, told to the person who did it. `op` is the operation's name
+    as they wrote it, cut and cleaned; `text` is what they are told."""
+
+    id: str
+    day: int
+    actor: str
+    op: str
+    text: str
+    ok: bool
+    seen: bool = False

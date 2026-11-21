@@ -100,17 +100,29 @@ def test_replay_refuses_replies_from_more_than_one_model(eight_week_db, tmp_path
             replay(db, "r1")
 
 
+def test_each_day_keeps_its_turns(eight_week_db):
+    with RunDB(eight_week_db[0]) as db:
+        assert db.turn_days("r1") == list(range(56))
+        [tom] = [t for t in db.turns("r1", 3) if t.pid == "p02"]
+        assert tom.key == "r1|scripted|d3|p02|turn:|0" and not tom.invalid
+        assert [o.msg for o in tom.outcomes] == ["Not done: your letter to 'Edith Marsh' came back undelivered."]
+        assert db.turns("r1", 0) == []
+        with pytest.raises(KeyError):
+            db.turns("r1", 56)
+
+
 def test_a_run_stopped_mid_day_resumes_to_the_same_end(tmp_path):
     with RunDB(str(tmp_path / "a.sqlite")) as db_a, RunDB(str(tmp_path / "b.sqlite")) as db_b:
         db_a.create_run("a", seed=1); db_b.create_run("b", seed=1)
         straight = run(db_a, "a", thin_town(), ScriptedReplier(thin_script), 21).hash()
-        # Friday 13 March: Ruth (p01) is asked and her reply stored before Craig's ask stops the run
+        # Friday 13 March: Ruth (p01) and Tom (p02, told his payment was refused) are asked and
+        # their replies stored before Craig's ask stops the run
         stopper = ScriptedReplier(stop_on(day=11, actor="p03"))
         back = run(db_b, "b", thin_town(), stopper, 21)
         assert back.day == 11 and back.hash() == db_b.snapshot_hash("b", 11)
-        assert db_b.change_days("b") == list(range(11))
+        assert db_b.change_days("b") == db_b.turn_days("b") == list(range(11))
         assert "b|scripted|d11|p01|turn:|0" in db_b.reply_keys("b")
-        assert replay(db_b, "b") == ["b|scripted|d11|p01|turn:|0"]       # a stopped run replays; its day is pending
+        assert replay(db_b, "b") == ["b|scripted|d11|p01|turn:|0", "b|scripted|d11|p02|turn:|0"]  # its day is pending
         assert run(db_b, "b", resume(db_b, "b"), stopper, 21 - 11).hash() == straight
         assert replay(db_b, "b") == []
         assert sorted(db_b.reply_keys("b")) == sorted("b" + k[1:] for k in db_a.reply_keys("a"))

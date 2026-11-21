@@ -1,6 +1,6 @@
 import re
 
-from townsim.town.entities import Message, Notice, Request
+from townsim.town.entities import Message, Notice, Request, Result
 from townsim.town.thin import thin_town
 from townsim.town.views import mark_seen, person_view, shown_ids
 
@@ -29,15 +29,22 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
     s.add("requests", Request("rq1", 0, "p01", "p03", "Lend me a ladder", 0, 14), "routine:t")
     s.add("requests", Request("rq2", 0, "p02", "p03", "Could you spare some?", 5000, 14), "routine:t")
     s.set("people", "p03", "routine:t", notes="Ring the landlord.", hours_left=11.75)
+    s.add("results", Result("res2", 0, "p03", "read", "line one\nline two", True), "routine:t")
+    s.add("results", Result("res1", 0, "p03", "pay", "Not done: no.", False), "routine:t")
+    s.add("results", Result("res3", 0, "p04", "pay", "Not Craig's.", False), "routine:t")
     text = person_view(s, "p03")[1]["content"]
-    heads = ["TODAY: Monday 2 March.", "YOUR HOUSEHOLD'S ACCOUNT", "NEW", "WAITING FOR YOUR ANSWER", "YOUR NOTES",
+    assert "WHAT CAME OF YOUR LAST ACTS\npay: Not done: no.\nread: line one\n  line two\n\n" in text
+    assert "Not Craig's." not in text
+    heads = ["TODAY: Monday 2 March.", "WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT", "NEW", "WAITING FOR YOUR ANSWER", "YOUR NOTES",
              "You have 11.75 hours left this week.", "OPERATIONS"]
     lines = text.split("\n")
     assert [lines.index(h) for h in heads] == sorted(lines.index(h) for h in heads)
     assert "From Ruth Ashby: Hello Craig.\nA notice." in text and "Not for Craig." not in text
     assert "rq1 from Ruth Ashby: Lend me a ladder\nrq2 from Tom Ashby: Could you spare some? They ask you for $50.00." in text
     assert "YOUR NOTES\nRing the landlord." in text and "Balance: $300.00" in text
-    assert shown_ids(s, "p03") == ["msg1", "n1"]
+    assert shown_ids(s, "p03") == ["res1", "res2", "msg1", "n1"]
+    mark_seen(s, "p03", shown_ids(s, "p03"), "routine:seen:p03")
+    assert [r.seen for r in s.all("results")] == [True, True, False]
 
 
 def test_whole_hours_are_shown_without_a_fraction():

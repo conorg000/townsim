@@ -26,6 +26,10 @@ create table if not exists changes (
     run text not null, day integer not null, blob blob not null,
     primary key (run, day)
 );
+create table if not exists turns (
+    run text not null, day integer not null, blob blob not null,
+    primary key (run, day)
+);
 """
 
 
@@ -129,3 +133,17 @@ class RunDB:
 
     def change_days(self, run_id: str) -> list[int]:
         return [r[0] for r in self._db.execute("select day from changes where run = ? order by day", (run_id,))]
+
+    def put_turns(self, run_id: str, day: int, turns: list) -> None:
+        """Keep a day's turns (each person's reply key and what came of their acts),
+        replacing any already kept for that day."""
+        self._write("insert or replace into turns values (?, ?, ?)", (run_id, day, pickle.dumps(list(turns))))
+
+    def turns(self, run_id: str, day: int) -> list:
+        row = self._db.execute("select blob from turns where run = ? and day = ?", (run_id, day)).fetchone()
+        if row is None:
+            raise KeyError((run_id, day))
+        return pickle.loads(row[0])
+
+    def turn_days(self, run_id: str) -> list[int]:
+        return [r[0] for r in self._db.execute("select day from turns where run = ? order by day", (run_id,))]

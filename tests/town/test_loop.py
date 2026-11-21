@@ -100,7 +100,7 @@ def test_everyone_sees_the_morning_and_acts_apply_in_id_order():
 
     s, reports = run_thin(5, capture)
     friday = reports[4]
-    assert [t.pid for t in friday.turns] == ["p01", "p03"]
+    assert [t.pid for t in friday.turns] == ["p01", "p02", "p03"]   # Tom hears his letter came back
     assert all(o.ok for t in friday.turns for o in t.outcomes)
     assert "Balance: $397.00" in seen[(4, "p03")]           # before Ruth's $25, which is applied first
     ruth = next(i for i, t in enumerate(s.ledger.transfers) if t.cause == "op:p01:pay:d4.0")
@@ -164,3 +164,86 @@ def test_elements_that_are_not_objects_are_refused_one_by_one():
     report = run_day(s, ScriptedReplier(lambda key, messages: reply), Keys("x"))
     assert [o.ok for o in report.turns[0].outcomes] == [False, False, False, True]
     assert s.get("people", "p04").notes == "kept" and s.engine_errors == []
+
+
+# what came of their acts
+
+def _reply(*acts):
+    return json.dumps({"thoughts": "", "acts": list(acts)})
+
+
+def scripted(by_turn):
+    """A script from {(day, actor): reply}; everyone else does nothing."""
+    return lambda key, messages: by_turn.get((key.day, key.actor), EMPTY)
+
+
+def test_each_act_leaves_a_result_with_its_own_cause():
+    s = thin_town()
+    long_op = "Pay\x07" + "x" * 60
+    script = scripted({(4, "p01"): _reply({"op": "pay", "to": "Megan Pryce", "amount": 5},
+                                          {"op": long_op, "to": "Megan Pryce"}, 7)})
+    s, reports = run_thin(5, script)
+    [paid, unknown, junk] = [r for r in s.all("results") if r.actor == "p01"]
+    assert (paid.day, paid.op, paid.ok, paid.seen) == (4, "pay", True, False)
+    assert paid.text == "Paid $5.00 to Megan Pryce."
+    assert unknown.op == ("Pay" + "x" * 60)[:39] and not unknown.ok and unknown.text.startswith("Not done:")
+    assert junk.op == "None" and not junk.ok
+    causes = [c.cause for c in s.changes if c.table == "results" and c.field == "+"]
+    assert causes == ["op:p01:pay:d4.0", "op:p01:?:d4.1", "op:p01:?:d4.2"]
+    assert [i.id for i in s.all("results")] == ["res1", "res2", "res3"]
+
+
+def test_a_refusal_wakes_its_actor_and_is_shown_after_today():
+    seen = {}
+
+    def capture(key, messages):
+        seen[(key.day, key.actor)] = messages[1]["content"]
+        return thin_script(key, messages)
+
+    s, reports = run_thin(5, capture)
+    assert "p02" in [t.pid for t in reports[4].turns]        # Tom's letter came back on Thursday; he acts on Friday
+    text = seen[(4, "p02")]
+    assert text.startswith("TODAY: Friday 6 March.\n\nWHAT CAME OF YOUR LAST ACTS\n"
+                           "message: Not done: your letter to 'Edith Marsh' came back undelivered.\n\n"
+                           "YOUR HOUSEHOLD'S ACCOUNT\n")
+    [result] = [r for r in s.all("results") if r.actor == "p02"]
+    assert result.seen and any(c.cause == "routine:seen:p02" and c.table == "results" for c in s.changes)
+
+
+def test_a_success_waits_for_another_turn_and_a_read_does_not():
+    script = scripted({(0, "p01"): _reply({"op": "write_notes", "text": "x"}),
+                       (0, "p03"): _reply({"op": "read", "what": "agreements"})})
+    s = thin_town(); keys = Keys("x"); replier = ScriptedReplier(script)
+    s.set("people", "p01", "routine:t", stock_day=0); s.set("people", "p03", "routine:t", stock_day=0)
+    run_day(s, replier, keys)
+    assert who_acts(s) == ["p03"]                             # the read's result wakes Craig; Ruth's notes do not
+    text = person_view(s, "p03")[1]["content"]
+    assert ("WHAT CAME OF YOUR LAST ACTS\nread: ob5: wages, $330.00 every week from Employers, "
+            "first Friday 6 March, active\n  ob6: rent") in text
+    run_day(s, replier, keys)
+    assert all(r.seen for r in s.all("results") if r.actor == "p03")
+    assert not s.get("results", "res1").seen                  # Ruth has not had a turn since
+    assert "write_notes: Noted." in person_view(s, "p01")[1]["content"]
+
+
+def test_an_invalid_reply_leaves_results_unseen():
+    s = thin_town(); keys = Keys("x")
+    run_day(s, ScriptedReplier(lambda key, messages: EMPTY), keys)
+    s.set("people", "p01", "routine:t", stock_day=1)
+    run_day(s, ScriptedReplier(lambda key, messages: _reply({"op": "fly"})), keys)
+    run_day(s, ScriptedReplier(lambda key, messages: "not json"), keys)
+    assert [r.seen for r in s.all("results")] == [False]
+    run_day(s, ScriptedReplier(lambda key, messages: EMPTY), keys)
+    assert [r.seen for r in s.all("results")] == [True]
+
+
+def test_results_are_never_held_back_by_the_word_cap():
+    s = thin_town()
+    for i in range(10):
+        s.add("messages", Message(f"msg{i + 1}", 0, "p01", "p03", f"letter {i + 1} " + "word " * 298), "routine:t")
+    s.set("people", "p03", "routine:t", stock_day=0)
+    reply = _reply({"op": "fly"}, {"op": "read", "what": "account in full"})
+    run_day(s, ScriptedReplier(lambda key, messages: reply if key.actor == "p03" and key.day == 0 else "x"), Keys("x"))
+    text = person_view(s, "p03")[1]["content"]
+    assert "fly: Not done: there is no operation called 'fly'.\nread: Balance: " in text
+    assert "more not shown yet)" in text
