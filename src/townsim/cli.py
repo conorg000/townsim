@@ -297,3 +297,35 @@ def town_replay_cmd(
         if not rdb.snapshot_days(run_id):
             _fail(f"run {run_id!r} in {db} has no days kept")
         _replay(rdb, run_id)
+
+
+@app.command("town-story")
+def town_story_cmd(
+    run_id: Annotated[str, typer.Argument(help="Name of the run.")],
+    db: Db,
+    out: Annotated[str | None, typer.Option("--out", help="Markdown file the account is written to.",
+                                            show_default="runs/<run-id>-story.md")] = None,
+) -> None:
+    """Write a kept run as a plain account a person can read: the run, week by week, counts by
+    family, things to look at and balances. No model is called. Prints the file written."""
+    from townsim.town import story
+    from townsim.town.rundb import RunDB
+
+    if not Path(db).is_file():
+        _fail(f"no database file {db}")
+    if out is None:
+        if not run_id or any(c in run_id for c in "/\\") or run_id.startswith("."):
+            _fail(f"run id {run_id!r} cannot name a file; give --out")
+        out = str(Path("runs") / f"{run_id}-story.md")
+    with _plainly(db), RunDB(db) as rdb:
+        try:
+            rdb.get_run(run_id)
+        except KeyError:
+            _fail(f"{db} has no run called {run_id!r}")
+        text = story.account(rdb, run_id)
+    try:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    except OSError as e:
+        _fail(f"cannot write {out}: {e.strerror or e}")
+    typer.echo(os.path.relpath(out))

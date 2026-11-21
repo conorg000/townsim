@@ -31,6 +31,7 @@ NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
 LETTER_WORDS = 150
 REQUEST_WORDS = 80
 NOTES_WORDS = 150
+NOT_COUNTED = "It was not counted toward anything owed."   # a hand payment that met nothing owed
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
 _READS = ("account", "account in full", "agreements")
@@ -191,7 +192,7 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     source, ref = _source(store, act), _pay_ref(act)
     if _toward_nothing(act):                       # a gift or a bonus: counted toward nothing
         obligations.pay(store, source, payee, cents, memo, cause, match=False)
-        return f"Paid {money(cents)} to {name}. It was not counted toward anything owed."
+        return f"Paid {money(cents)} to {name}. {NOT_COUNTED}"
     if ref is not None and store.get("obligations", ref).payer != source:     # their business's wage, by hand
         wage, ref = ref, None
     else:
@@ -201,9 +202,9 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     told = f"Paid {money(cents)} to {name}."
     named = ref or (wage if _pay_ref(act) is not None else None)
     if named and not matches:
-        told += _nothing_counted(store, named) or " It was not counted toward anything owed."
+        told += _nothing_counted(store, named) or " " + NOT_COUNTED
     elif not matches:
-        told += " It was not counted toward anything owed."
+        told += " " + NOT_COUNTED
     if matches:
         counted = []
         for m in matches:

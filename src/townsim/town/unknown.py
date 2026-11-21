@@ -71,6 +71,7 @@ NOT_BODIES_AFTER = frozenset({"Holiday", "Holidays"})        # `Bank Holiday` is
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'’-]*|\S")
 _MASK = "\x00"
+NOT_KNOWN = "not anyone you know."   # how the writer is told of names they do not know
 MOST = 3                            # names told of a piece of writing at most
 
 
@@ -267,7 +268,7 @@ def writer_text(names: list[str]) -> str:
         return ""
     head = names[:MOST]
     text = " " + (f"{head[0]} is" if len(head) == 1 else ", ".join(head[:-1]) + f" and {head[-1]} are")
-    text += " not anyone you know."
+    text += " " + NOT_KNOWN
     if len(names) > MOST:
         text += f" Nor are {len(names) - MOST} more names in it."
     return text
