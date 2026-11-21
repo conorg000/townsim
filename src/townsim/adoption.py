@@ -97,7 +97,8 @@ class CancelAssistant(Action):
 
 
 def fee_phase(world: World) -> list[Event]:
-    """Add the week to each open firm's quarter, then each client's firm pays the fee.
+    """Add the week to each open firm's quarter (customers, takings, wages), then each
+    client's firm pays the fee.
 
     Runs after payroll. The fee is a business expense (it lowers `profit_qtd`); a firm
     without the cash to pay it loses the system, with reason "could not pay".
@@ -113,6 +114,8 @@ def fee_phase(world: World) -> list[Event]:
         row[1] += f.revenue_last_step
         row[2] += 1
         row[3] += world.people[f.owner_id].assistant is not None
+        if f.books and f.books[-1][0] == world.step:  # the wage bill payroll paid this week
+            prov.wages_qtd[fid] = prov.wages_qtd.get(fid, 0) + f.books[-1][4]
     events: list[Event] = []
     if prov.fee <= 0:
         return events
@@ -339,6 +342,8 @@ def quarter_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Ev
     prov.quarter = {}
     prov.quarter_start = {fid: firm_figures(world, fid) for fid in sorted(world.firms)}
     prov.fees_qtd = {}
+    prov.wages_qtd = {}
+    prov.to_owner_qtd = {}
     prov.quarter_began = world.step + 1
     return events
 

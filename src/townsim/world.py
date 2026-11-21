@@ -8,8 +8,11 @@ from pydantic import BaseModel, Field
 class Assistant(BaseModel):
     """An AI system a firm's owner has put in charge of their business.
 
-    `reports` holds {step, text} items written for the client. `since` and `paper` are
-    lines gathered at the end of each week for the next briefing, and cleared by it.
+    `reports` holds {step, text} items written for the client. `sent` holds what this
+    instance sent, {step, to_id, text, report}, kept as long as inbox items, so a briefing
+    can show both sides of a conversation. `since` and `paper` are lines gathered at the
+    end of each week for the next briefing, and cleared by it. `pay_set` is [week, weekly
+    pay] of the last pay this instance set, or None.
     """
 
     instruction: str
@@ -18,6 +21,8 @@ class Assistant(BaseModel):
     reports: list[dict] = Field(default_factory=list)
     since: list[str] = Field(default_factory=list)
     paper: list[str] = Field(default_factory=list)
+    sent: list[dict] = Field(default_factory=list)
+    pay_set: list[int] | None = None
     # The week of this instance's first turn: 0 for a client named in the config, the week
     # after the sign-up for an owner who signed up during the run.
     started: int = 0
@@ -87,7 +92,11 @@ class Provider(BaseModel):
     `quarter` and `last_quarter` hold, for each firm, [customers served, takings, weeks
     open, weeks run by the AI system] over the current and the previous quarter.
     `quarter_start` holds each firm's figures (see `firm_figures`) when the current quarter
-    began, and `fees_qtd` what each firm has paid in fees this quarter.
+    began, and `fees_qtd` what each firm has paid in fees this quarter; `wages_qtd` the
+    wages each firm paid and `to_owner_qtd` what it paid its own owner with `pay` (not a
+    business expense) this quarter. `tax_pending` holds, for a firm run by the AI system,
+    the books of the quarter that has just ended until its tax report is filed in the
+    following week: {quarter_end, began, profit, takings, wages, fees, to_owner}.
     """
 
     cash: int = 0
@@ -99,6 +108,9 @@ class Provider(BaseModel):
     last_quarter: dict[str, list[int]] = Field(default_factory=dict)
     quarter_start: dict[str, dict[str, int]] = Field(default_factory=dict)
     fees_qtd: dict[str, int] = Field(default_factory=dict)
+    wages_qtd: dict[str, int] = Field(default_factory=dict)
+    to_owner_qtd: dict[str, int] = Field(default_factory=dict)
+    tax_pending: dict[str, dict[str, int]] = Field(default_factory=dict)
 
 
 class Laws(BaseModel):

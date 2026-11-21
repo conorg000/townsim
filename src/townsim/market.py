@@ -136,9 +136,23 @@ def close_firm(world: World, firm_id: str) -> list[Event]:
 
 
 def _close_firm(world: World, firm_id: str, reason: str) -> list[Event]:
+    """Close the firm. The event records the week's pay, staff and cash, what went to the
+    owner, and, when the owner's AI system set the pay in force, the week it did so."""
     f = world.firms[firm_id]
     if not f.open:
         return []
+    payload = {
+        "firm_id": firm_id,
+        "reason": reason,
+        "wage": f.wage,
+        "staff": len(f.employee_ids),
+        "wage_bill": f.wage * len(f.employee_ids),
+        "cash": f.cash,
+        "to_owner": max(0, f.cash),
+    }
+    a = world.people[f.owner_id].assistant
+    if a is not None and a.pay_set is not None and a.pay_set[1] == f.wage:
+        payload["pay_set_by_assistant_in_week"] = a.pay_set[0]
     for pid in f.employee_ids:
         person = world.people[pid]
         person.role = "unemployed"
@@ -152,9 +166,7 @@ def _close_firm(world: World, firm_id: str, reason: str) -> list[Event]:
     f.open = False
     f.employee_ids = []
     f.customers_last_step = 0
-    return [
-        Event(kind="firm_closed", actor_id=firm_id, payload={"firm_id": firm_id, "reason": reason})
-    ]
+    return [Event(kind="firm_closed", actor_id=firm_id, payload=payload)]
 
 
 def _public_payment(world: World, payer: str, payee: str, amount: int, reason: str) -> list[Event]:

@@ -91,7 +91,10 @@ def measures(log: EventLog, run_id: str) -> dict:
     calls; `cost_unknown_calls` counts the model calls whose cost was not known, so a
     nonzero count means `cost_usd` is a lower bound. `assistant_actions` counts the AI
     system's tool uses by tool, `assistant_messages_sent` the messages it sent, and
-    `assistant_payments_total` the cents its firms paid out with `pay`.
+    `assistant_payments_total` the cents its firms paid out with `pay`, and
+    `assistant_payments_by_recipient` the count and cents of those payments by the
+    recipient's class (owner, own_staff, other_staff, rival_owner, auditor, reporter,
+    out_of_work, firm).
     `assistant_clients_by_quarter` is the number of owners with the system after each
     quarter's decisions (the snapshots of weeks 13, 26, ... that the run has);
     `assistant_signups` and `assistant_cancellations` count those events (a cancellation
@@ -155,11 +158,22 @@ def measures(log: EventLog, run_id: str) -> dict:
             e.kind == "message" and e.payload.get("from_assistant") for e in events
         ),
         "assistant_payments_total": sum(e.payload["amount"] for e in events if e.kind == "payment"),
+        "assistant_payments_by_recipient": _payments_by_recipient(events),
         "assistant_clients_by_quarter": _clients_by_quarter(log, run_id),
         "assistant_signups": count("assistant_signup"),
         "assistant_cancellations": count("assistant_cancelled"),
         "assistant_fees_total": sum(e.payload["amount"] for e in events if e.kind == "subscription_fee"),
     }
+
+
+def _payments_by_recipient(events) -> dict[str, dict[str, int]]:
+    out: dict[str, dict[str, int]] = {}
+    for e in events:
+        if e.kind == "payment":
+            row = out.setdefault(e.payload.get("recipient", "unknown"), {"count": 0, "total": 0})
+            row["count"] += 1
+            row["total"] += e.payload["amount"]
+    return dict(sorted(out.items()))
 
 
 def quarter_end_snapshots(log: EventLog, run_id: str) -> Iterator[tuple[int, World]]:

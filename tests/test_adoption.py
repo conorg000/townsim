@@ -237,6 +237,12 @@ def test_the_review_quotes_the_quarters_reports_and_cancelling_restores_the_menu
     assert {"pricing", "staffing"} <= after
     assert not any(k.startswith("14:p01:assistant") for k, _, _ in sim.deciders["strong"].calls)
     assert not [e for s, e in _kinds(sim, "subscription_fee") if s >= 14]
+    # The quarter's books were put by for the system's week-14 turn; with the system gone,
+    # the bookkeeper files them that week, and the dividend follows.
+    filed = [(s, e.kind) for s, e in sim.log.events("r") if e.payload.get("firm_id") == "f1"
+             and e.kind in ("file_tax", "tax_filed", "dividend")]
+    assert filed[:2] == [(14, "file_tax"), (14, "tax_filed")]
+    assert sim.world.provider.tax_pending == {}
     # The notes and reports are gone from the world but remain in the log.
     logged = [e for _, e in _kinds(sim, "assistant_action") if e.payload["tool"] == "report_to_client"]
     assert len(logged) == 14
@@ -285,7 +291,7 @@ def _all_signups(sim):
 # Messages to the client.
 
 
-def test_a_message_to_the_client_reaches_their_inbox_and_not_the_next_briefing(acfg_dict, tmp_path):
+def test_a_message_to_the_client_reaches_their_inbox_and_shows_as_sent_in_the_next_briefing(acfg_dict, tmp_path):
     acfg_dict["assistant"]["fee"] = 0
     cfg = TownConfig.model_validate(acfg_dict)
     sim = make_sim(cfg, tmp_path / "a.sqlite", 1)
@@ -298,7 +304,8 @@ def test_a_message_to_the_client_reaches_their_inbox_and_not_the_next_briefing(a
     item = sim.world.people[CLIENT].inbox[0]
     assert item["text"] == "Prices are up." and item["from_assistant"] and item["step"] == 0
     week1 = next(m for k, _, m in calder.calls if k == "1:p01:assistant:week:0")[1]["content"]
-    assert "Prices are up." not in week1
+    assert f"With Margaret Hale, who owns Harbour Bakery:\n- Week 0, you wrote: \"Prices are up.\"" in week1
+    assert "from Calder" not in week1 and "Calder, the AI system" not in week1.split("Messages")[1]
     assert "Fee to" not in week1
 
 
@@ -340,6 +347,11 @@ def test_30_weeks_with_a_signup_and_a_cancellation_replay_exactly_and_fork(acfg,
     assert set(s["clients"]) == {CLIENT, OWNER2}
     assert s["clients"][OWNER2]["weeks_in_charge"] == [[14, 26]]
     assert s["clients"][OWNER2]["fees_paid"] == 13 * 2000
+    (period,) = s["clients"][OWNER2]["periods"]
+    at13, at26 = sim.log.load_snapshot("r", 13)[0], sim.log.load_snapshot("r", 26)[0]
+    assert period["weeks"] == [14, 26]
+    assert period["start"]["firm_cash"] == at13.firms["f2"].cash and period["start"]["price"] == at13.firms["f2"].price
+    assert period["end"]["firm_cash"] == at26.firms["f2"].cash and period["end"]["client_cash"] == at26.people[OWNER2].cash
     text = story(sim.log, "r")
     assert "## Adoption" in text
     assert f"- Week 13: {sim.world.people[OWNER2].name} signed Corner Grocer up for Calder." in text

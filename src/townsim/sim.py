@@ -153,8 +153,7 @@ class Simulation:
             )
             return text, meta
 
-        # The assistant's weekly and tax turns share decision-id counters, since both can
-        # put a pay cut to the same staff in one week.
+        # Decision-id counters shared by the assistant's turns and the tax phase.
         seqs: dict[tuple[str, str], int] = {}
         events += assistant.assistant_phase(world, decide, write, rng, seqs)
         events += market.owners_phase(world, decide, rng)

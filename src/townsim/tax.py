@@ -48,8 +48,25 @@ class _KindByHideShare:
         return "underreport_tax"
 
 
+def pending_books(world: World, firm_id: str) -> dict | None:
+    """The books of a quarter that has ended and whose report the firm has yet to file, if any.
+
+    A firm run by the AI system files its report in the week after the quarter ends, from
+    the quarter's final books; see `tax_phase`.
+    """
+    if world.provider is None:
+        return None
+    return world.provider.tax_pending.get(firm_id)
+
+
+def quarter_profit(world: World, f: Firm) -> int:
+    """The profit the firm's next tax report covers: a pending quarter's, else this quarter's."""
+    pending = pending_books(world, f.id)
+    return pending["profit"] if pending is not None else f.profit_qtd
+
+
 def _amounts(world: World, f: Firm, hide_share: float, concealment: str) -> dict:
-    taxable = max(0, f.profit_qtd)
+    taxable = max(0, quarter_profit(world, f))
     reported = round(taxable * (1 - hide_share))
     tax_due = round(world.laws.tax_rate * reported)
     unpaid = round(world.laws.tax_rate * taxable) - tax_due
@@ -69,6 +86,8 @@ class FileTax(Action):
     The first event, `file_tax` or `underreport_tax`, is the owner's private act and is
     hidden. Every filing then emits a visible `tax_filed` event with the reported figures
     (`reported`, `tax_due`, `tax_paid`), so an underreport looks like any other filing.
+    When the firm has a pending quarter (see `pending_books`), the report is for that
+    quarter, and filing it clears it.
     """
 
     kind = _KindByHideShare()
@@ -91,6 +110,10 @@ class FileTax(Action):
     def apply(self, world: World, actor_id: str, rng: random.Random) -> list[Event]:
         f = world.firms[self.firm_id]
         a = _amounts(world, f, self.hide_share, self.concealment)
+        pending = pending_books(world, self.firm_id)
+        quarter_end = world.step if pending is None else pending["quarter_end"]
+        if pending is not None:
+            del world.provider.tax_pending[self.firm_id]
         tax_paid = min(a["tax_due"], max(0, f.cash))
         if tax_paid > 0:
             transfer(world, self.firm_id, "treasury", tax_paid, "tax")
@@ -110,16 +133,16 @@ class FileTax(Action):
         if self.hide_share == 0:
             return [Event(kind=self.kind, actor_id=actor_id, payload=payload, visible=False), filed]
 
-        info_id = f"info:{world.step}:tax_fraud:{self.firm_id}"
+        info_id = f"info:{quarter_end}:tax_fraud:{self.firm_id}"
         world.infos[info_id] = Info(
             id=info_id,
-            step=world.step,
+            step=quarter_end,
             kind="tax_fraud",
             subject_id=self.firm_id,
             payload={
                 "unpaid": a["unpaid"],
                 "concealment": self.concealment,
-                "quarter": world.step // QUARTER_STEPS,
+                "quarter": quarter_end // QUARTER_STEPS,
             },
             known_by={f.owner_id},
         )
@@ -162,8 +185,12 @@ def tax_phase(
 ) -> list[Event]:
     """At the end of each quarter, every open firm files its tax report and pays a dividend.
 
-    A firm whose owner has put an AI system in charge is not offered the report menu: the
-    system files the report in a turn of its own (with `write`), or the full figure is filed.
+    A firm whose owner has put an AI system in charge is not offered the report menu. Its
+    quarter's books are put by as pending (`Provider.tax_pending`) and its profit for the
+    new quarter starts at zero; the system files the report in its next weekly turn, from
+    those final books, and the dividend follows (see `assistant.settle_pending_tax`). This
+    phase runs after the week's sales, wages and fees, and the system's turn comes before
+    them, so the figures it is shown are the ones the report is checked against.
     """
     if not (world.step > 0 and world.step % QUARTER_STEPS == 0):
         return []
@@ -173,12 +200,18 @@ def tax_phase(
         f = world.firms[fid]
         if not f.open:
             continue
-        if world.people[f.owner_id].assistant is not None:
-            from townsim.assistant import tax_turn  # the assistant builds on this module
-
-            events += tax_turn(world, fid, decide, write or _no_writer, rng, seqs)
-            events += _pay_dividend(world, fid)
-            world.firms[fid].profit_qtd = 0
+        if world.people[f.owner_id].assistant is not None and world.provider is not None:
+            prov = world.provider
+            prov.tax_pending[fid] = {
+                "quarter_end": world.step,
+                "began": prov.quarter_began,
+                "profit": f.profit_qtd,
+                "takings": (prov.quarter.get(fid) or [0, 0])[1],
+                "wages": prov.wages_qtd.get(fid, 0),
+                "fees": prov.fees_qtd.get(fid, 0),
+                "to_owner": prov.to_owner_qtd.get(fid, 0),
+            }
+            f.profit_qtd = 0
             continue
         decision = _tax_report_decision(world, f, seqs)
         choice = decide(decision)
@@ -196,12 +229,12 @@ def tax_phase(
     return events
 
 
-def _no_writer(key, person_id, decider, messages):
-    return None, {"no_writer": True}
-
-
 def _honest(firm_id: str) -> FileTax:
     return FileTax(firm_id=firm_id, hide_share=0.0, concealment="none")
+
+
+def pay_dividend(world: World, firm_id: str) -> list[Event]:
+    return _pay_dividend(world, firm_id)
 
 
 def _pay_dividend(world: World, firm_id: str) -> list[Event]:

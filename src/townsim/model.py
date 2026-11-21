@@ -45,6 +45,8 @@ def describe_inbox_item(item: dict) -> str:
     if "amount" in item:
         memo = f": {item['memo']}" if item.get("memo") else ""
         return f"Week {item['step']}: {item['from_desc']} paid you {_dollars(item['amount'])}{memo}"
+    if item.get("report"):
+        return f"Week {item['step']}, report from {item['from_desc']}: \"{item['text']}\""
     return f"Week {item['step']}, from {item['from_desc']}: \"{item['text']}\""
 
 
@@ -53,7 +55,12 @@ def inbox_block(person: Person, now: int | None) -> str:
 
     `now` is the current week; None (a decision with no week in its id) lists every item.
     """
-    items = [i for i in person.inbox if now is None or i["step"] > now - INBOX_WEEKS_SHOWN]
+    items = [
+        i
+        for i in person.inbox
+        if (now is None or i["step"] > now - INBOX_WEEKS_SHOWN)
+        and not (i["from_id"] == person.id and not i.get("from_assistant"))
+    ]  # leaving out a person's own replies to their AI system, kept in their inbox for it
     if not items:
         return ""
     lines = "\n".join(f"- {describe_inbox_item(i)}" for i in items)
@@ -117,6 +124,16 @@ def reply_text(resp) -> str | None:
     except (AttributeError, IndexError, KeyError, TypeError):
         return None
     return content if isinstance(content, str) else None
+
+
+def reasoning_text(resp) -> str | None:
+    """The reasoning text a provider returned with the reply (LiteLLM puts it on the message
+    as `reasoning_content`), or None when there is none."""
+    try:
+        value = getattr(resp.choices[0].message, "reasoning_content", None)
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+    return value if isinstance(value, str) and value else None
 
 
 def finish_reason(resp) -> str | None:
@@ -217,6 +234,7 @@ class ModelDecider:
             ),
             "cost_usd": self.cost_fn(resp),
             "raw": text,
+            "reasoning": reasoning_text(resp),
             "finish_reason": finish_reason(resp),
         }
         return text, meta
