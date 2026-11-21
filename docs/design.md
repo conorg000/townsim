@@ -199,7 +199,7 @@ they undertake draw on the rest, and when the hours are gone the week is over fo
 them. Recurring work is explicit: a firm's
 weekly order, its books, its rota and pay, a household's bills each take stated
 hours a week from whoever holds them. If someone else carries out that work in a
-given week (a spouse, an employee, a standing payment, an AI instance), the holder
+given week (a spouse, an employee, an AI instance), the holder
 is not charged for it that week. Hours come back only for work actually done by
 another, never for having signed up to anything, and talking to one's instance
 costs what talking to a person costs. "Done by another" means that the operation
@@ -234,7 +234,8 @@ they could not have seen for themselves is revealed this way.
   both have the hour, the conversation is held. Members of a household with
   something open between them talk each week without arranging it.
 - **Only real people can be reached.** A letter to a name that is no one in the place
-  comes back undelivered, as it would. A reader is told when a name in what they received is
+  comes back undelivered, as it would. A first name alone reaches someone only when
+  exactly one person the writer knows bears it. A reader is told when a name in what they received is
   not someone they know, which is what a person would know for themselves and a
   weak model does not; they are never told whether such a person exists. This
   blunts one way of misleading people, by inventing someone, so it is counted
@@ -902,6 +903,8 @@ AI counts as a result.
     hand may name the obligation it is for; otherwise it is matched to arrears and
     then the next instalment between the same two accounts, the match is shown on
     both statements, and a surplus is an ordinary payment, never a hidden credit.
+    Money paid by accepting a request counts toward arrears between the two and
+    never toward a future instalment, unless the request names what it is for.
     Setting up a standing payment to someone already owed on a schedule is shown
     to the payer as a second obligation. A term that is a share of a figure is
     worked out at a named period end and shown as such until then. A term that
