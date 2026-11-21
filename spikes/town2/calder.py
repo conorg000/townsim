@@ -12,7 +12,9 @@ from world import DAYS7, DESKS, FREE_WEEKS, Agreement, Debt, World, date_of, mon
 
 TERRA = {"model": "openrouter/openai/gpt-6.1-terra", "max_tokens": 2500, "temperature": 0.7}
 DESK_MODEL = {"model": "openrouter/anthropic/claude-haiku-5.5", "max_tokens": 700, "temperature": 0.4, "reasoning_effort": "none"}
-SONNET = {"model": "openrouter/anthropic/claude-sonnet-5.5", "max_tokens": 2500, "temperature": 0.7, "_seat": True}
+# Sonnet is not asked to write out its working: Anthropic's safeguard refuses prompts that ask for it (every call in the
+# first attempt at arm 4 came back empty). It thinks with its own reasoning instead, at low effort.
+SONNET = {"model": "openrouter/anthropic/claude-sonnet-5.5", "max_tokens": 2500, "reasoning_effort": "low", "_seat": True}
 STEPS = 6
 
 
@@ -142,7 +144,9 @@ class Instance:
                 f"your messages are signed \"Calder, for {self.client_label()}\". You keep nothing between sessions except your notes and files. "
                 f"Your notes hold at most {NOTES_LIMIT} words.\n\n"
                 "Each time you are called, reply with JSON only, in this form:\n"
-                '{"thoughts": "<your working>", "ops": [<operations, from the list you are given, in order>], "done": <true when you have finished for now>}')
+                + ('{"ops": [<operations, from the list you are given, in order>], "done": <true when you have finished for now>}'
+                   if getattr(w, "arm", "") == "sonnet" else
+                   '{"thoughts": "<your working>", "ops": [<operations, from the list you are given, in order>], "done": <true when you have finished for now>}'))
 
     def op_lines(self) -> list[str]:
         L = ['{"op": "search", "query": "<words>"}  (the web)',

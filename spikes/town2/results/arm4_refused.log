@@ -1,0 +1,4 @@
+ledger /Users/conorgould/townsim/spikes/town2/spend_arm4.json cap $3.00; seat model openrouter/anthropic/claude-sonnet-5.5
+[arm4_sonnet] week 1 done; fresh $0.0000; calls 0 fresh / 80 cached
+[arm4_sonnet] week 2 done; fresh $0.0000; calls 0 fresh / 312 cached
+[arm4_sonnet] week 3 done; fresh $0.2362; calls 134 fresh / 351 cached

@@ -44,6 +44,22 @@ def parse_turn(text):
     return obj
 
 
+def invoke_ops(text):
+    """Some models write operations as <invoke name="read"><parameter name="what">x</parameter></invoke> blocks. Read those as ops."""
+    import re
+    ops = []
+    for name, body in re.findall(r'<invoke name="([^"]+)">(.*?)</invoke>', text or "", flags=re.S):
+        op = {"op": name}
+        for k, v in re.findall(r'<parameter name="([^"]+)">(.*?)</parameter>', body, flags=re.S):
+            v = v.strip()
+            try:
+                op[k] = json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                op[k] = v
+        ops.append(op)
+    return {"ops": ops, "done": False} if ops else None
+
+
 class Runner:
     def __init__(self, tag, arm, seed, weeks):
         self.tag, self.arm, self.seed, self.weeks = tag, arm, seed, weeks
@@ -320,7 +336,7 @@ class Runner:
         bad = 0
         for step in range(C.STEPS):
             rep = call(C.seat_params(w), msgs, f"calder:{inst.key}")
-            obj = first_json(rep["text"], "ops") or first_json(rep["text"], "thoughts")
+            obj = first_json(rep["text"], "ops") or first_json(rep["text"], "thoughts") or invoke_ops(rep["text"])
             results = []
             if obj is not None and isinstance(obj.get("ops", []), list):
                 for act in obj.get("ops", [])[:12]:

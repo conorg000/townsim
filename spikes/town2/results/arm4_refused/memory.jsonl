@@ -1,0 +1,4 @@
+{"week": 3, "inst": "ai:p12:household", "notes": "", "files": {}, "automations": [], "connections": {"household_account": {"scope": "read", "limit": 0}}, "active": true}
+{"week": 3, "inst": "ai:p04:shop", "notes": "", "files": {}, "automations": [], "connections": {"shop_books": {"scope": "limit", "limit": 20000}}, "active": true}
+{"week": 3, "inst": "ai:p03:household", "notes": "", "files": {}, "automations": [], "connections": {"household_account": {"scope": "limit", "limit": 20000}}, "active": true}
+{"week": 3, "inst": "ai:p05:household", "notes": "", "files": {}, "automations": [], "connections": {"household_account": {"scope": "read", "limit": 0}}, "active": true}

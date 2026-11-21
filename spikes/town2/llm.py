@@ -37,6 +37,10 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class ProviderRefused(BudgetExceeded):
+    """The provider's own safeguard refused a prompt. Treated like the cap: the run stops cleanly."""
+
+
 def _load_spend() -> float:
     for _ in range(50):  # another run may be rewriting the file at this moment
         try:
@@ -104,6 +108,9 @@ def call(params: dict, messages: list[dict], tag: str = "") -> dict:
         cost = None
     if not cost:
         cost = price_of(model, pin, pout)
+    if getattr(resp.choices[0], "finish_reason", None) == "content_filter" and not reply_text(resp):
+        # the provider refused the prompt; stop the run rather than pay for more empty replies
+        raise ProviderRefused(f"{model} refused ({tag}): {str(getattr(resp.choices[0].message, 'refusal', None))[:200]}")
     rec = {
         "text": reply_text(resp),
         "cost_usd": cost,
