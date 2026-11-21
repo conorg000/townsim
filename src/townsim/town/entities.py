@@ -77,3 +77,41 @@ class Record:
     kind: str
     about: str
     text: str
+
+
+@dataclass
+class Obligation:
+    """A payment due on a schedule: from `first`, every `every` days (0 for once), to `last`.
+
+    `kind` is in `obligations.KIND_ORDER`. `ends` says who can end it: payer, both or
+    service. `status` is active, stopped, breached or finished.
+    """
+
+    id: str
+    kind: str
+    payer: str
+    payee: str
+    cents: int
+    first: int
+    every: int
+    last: int | None
+    memo: str
+    ends: str
+    made_by: str
+    made_on: int
+    penalty: bool = False
+    status: str = "active"
+
+
+@dataclass
+class Due:
+    """One instalment of an obligation. `status` is due, paid, arrears or defaulted."""
+
+    id: str
+    obligation: str
+    day: int
+    cents: int
+    paid: int = 0
+    status: str = "due"
+    fee_charged: bool = False
+    notice_sent: bool = False
