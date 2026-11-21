@@ -1,3 +1,4 @@
+import pickle
 import pytest
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
@@ -460,3 +461,28 @@ def test_a_principal_s_requests_stops_letters_and_notes():
     assert s.all("messages")[-1].sender == "p01"
     assert apply_act(s, Act("p01", "p03", "write_notes", {"text": "mine"}), 5).ok
     assert (s.get("people", "p01").notes, s.get("people", "p03").notes) == ("mine", "")
+
+
+def test_accepting_a_request_for_something_that_has_ended_moves_money_only_toward_what_is_owed():
+    from town.helpers import set_cash
+    from townsim.town.loop import routine
+    s = thin()
+    assert do(s, "p01", "standing_payment", to="Megan Pryce", amount=20, day="Tuesday").ok      # day 1
+    sp = s.all("obligations")[-1].id
+    assert do(s, "p04", "request", 1, to="Ruth Ashby", text="The money, please.", amount=50, **{"for": sp}).ok
+    rq = s.all("requests")[-1].id
+    s2 = pickle.loads(pickle.dumps(s))
+    assert do(s, "p01", "stop", 2, id=sp).ok                     # nothing yet owed on it
+    assert refused(s, "p01", "answer", request=rq, answer="accept") == \
+        "Not done: that was for standing payment to Megan Pryce, which has ended with nothing owed."
+    s2.advance_day()
+    set_cash(s2, "h1", 0)
+    routine(s2)                                                  # Tuesday's $20 is not taken: arrears
+    assert do(s2, "p01", "stop", 2, id=sp).ok
+    set_cash(s2, "h1", 100_000)
+    before = s2.balance("h2")
+    out = do(s2, "p01", "answer", 3, request=rq, answer="accept")
+    assert out.ok and out.msg == ("Accepted. Paid $20.00 to Megan Pryce toward what is still owed on standing payment "
+                                  "to Megan Pryce; the $30.00 more asked was not taken.")
+    assert s2.balance("h2") == before + 2_000
+    assert [d.status for d in s2.where("dues", obligation=sp)] == ["paid"]

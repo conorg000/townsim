@@ -968,13 +968,25 @@ def test_three_pay_changes_across_a_week_pay_what_was_last_announced_for_each_fr
     _check_run(s)
 
 
-def test_a_request_for_a_wage_answered_after_it_ends_counts_toward_nothing():
+def test_a_request_for_a_wage_answered_after_it_ends_with_nothing_owed_is_refused():
     s = _hamlet(); live(s, 10); routine(s)
     assert do(s, "p9", "request", to="Martin Lumb", text="my wage", amount=50, **{"for": "ob3"}).ok
     rq = s.all("requests")[-1].id
     close(s); live(s, 1); routine(s)                # Saturday: Gail Whiteley is dismissed; her last pay was Friday
     assert do(s, "p16", "dismiss", 1, who="Gail Whiteley").ok
+    before = s.hash()
     out = do(s, "p16", "answer", 2, request=rq, answer="accept")
-    assert out.msg == ("Accepted. Paid $50.00 to Gail Whiteley. Nothing was counted toward wages from "
-                       "Lumb's Grocer: it has ended.")
-    assert s.ledger.transfers[-1].memo == f"request {rq}"
+    assert out.msg == "Not done: that was for wages from Lumb's Grocer, which has ended with nothing owed."
+    assert s.hash() == before
+
+
+def test_extra_shifts_are_paid_at_the_rate_in_force_on_the_day_they_are_offered():
+    s = work_town()
+    out = do(s, "p01", "set_staff_pay", who="Craig Pryce", weekly_pay=760)        # from a Friday ahead
+    assert out.ok and "$760.00 a week from Friday 13 March" in out.msg, out.msg
+    out = do(s, "p01", "offer_shifts", 1, to="Craig Pryce", hours=8)
+    assert out.ok
+    assert s.all("requests")[-1].pay == round(8 * 44_000 / 38)                    # $440 a week for 38 hours
+    to_day(s, 13)
+    do(s, "p01", "offer_shifts", 2, to="Craig Pryce", hours=8)
+    assert s.all("requests")[-1].pay == round(8 * 76_000 / 38)

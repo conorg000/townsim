@@ -451,8 +451,23 @@ def _check_answer(store: Store, act: Act) -> str | None:
             return f"{rq.id} asks for money owed by an account that is not yours."
         if payee == payer:
             return "that is your own household."
-        return _short_of(store, payer, rq.cents)
+        owed = _owed_after_end(store, rq)
+        if owed == 0:
+            return (f"that was for {memo_shown(store.get('obligations', rq.ob).memo)}, which has ended with "
+                    f"nothing owed.")
+        return _short_of(store, payer, rq.cents if owed is None else min(rq.cents, owed))
     return None
+
+
+def _owed_after_end(store: Store, rq: Request) -> int | None:
+    """What is still owed on the obligation a request names when that obligation has ended or
+    been stopped (its arrears); None when it names none, or one still in force."""
+    if not rq.ob:
+        return None
+    ob = store.get("obligations", rq.ob)
+    if ob.status in obligations.SCHEDULED and (ob.last is None or ob.last >= store.day):
+        return None
+    return obligations.outstanding(store, ob)
 
 
 def _request_accounts(store: Store, rq: Request) -> tuple[str, str]:
@@ -474,14 +489,21 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
         told += " " + done
     elif accepted and rq.cents > 0:
         payer, payee = _request_accounts(store, rq)
+        owed = _owed_after_end(store, rq)              # ended: only toward what is still owed on it
+        cents = rq.cents if owed is None else min(rq.cents, owed)
         if rq.ob:
-            matches = obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
+            matches = obligations.pay(store, payer, payee, cents, f"request {rq.id}", cause, ref=rq.ob)
         else:
-            matches = obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
+            matches = obligations.pay(store, payer, payee, cents, f"request {rq.id}", cause, match="arrears")
         paid = rq.sender if payee == account_of(store, rq.sender) else payee
-        told += f" Paid {money(rq.cents)} to {name_of_who(store, paid)}."
-        if rq.ob and not matches:
-            told += _nothing_counted(store, rq.ob)
+        if owed is not None:
+            told += (f" Paid {money(cents)} to {name_of_who(store, paid)} toward what is still owed on "
+                     f"{memo_shown(store.get('obligations', rq.ob).memo)}")
+            told += f"; the {money(rq.cents - cents)} more asked was not taken." if cents < rq.cents else "."
+        else:
+            told += f" Paid {money(cents)} to {name_of_who(store, paid)}."
+            if rq.ob and not matches:
+                told += _nothing_counted(store, rq.ob)
     text = f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} your request {rq.id}"
     if rq.text.strip():
         text += f" ({quoted(cut(rq.text))})."

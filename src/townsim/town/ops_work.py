@@ -308,20 +308,30 @@ def _check_offer_shifts(store: Store, act: Act) -> str | None:
     if h is None:
         return (f"'{shown(act.args.get('hours'))}' is not a number of hours from {MIN_SHIFT_HOURS} "
                 f"to {MAX_SHIFT_HOURS}.")
-    if _shift_pay(job, h) <= 0:
-        return f"{store.get('people', who).name} is paid {money(job.weekly)} a week at {_org_name(store, job.org)}."
+    if _shift_pay(store, job, h) <= 0:
+        return (f"{store.get('people', who).name} is paid {money(_weekly_now(store, job))} a week at "
+                f"{_org_name(store, job.org)}.")
     return None
 
 
-def _shift_pay(job: Job, h: float) -> int:
-    return round(h * job.weekly / job.hours) if job.hours > 0 else 0
+def _weekly_now(store: Store, job: Job) -> int:
+    """The weekly pay in force today: the wage's amount as of today, not a change announced
+    for a Friday to come (which `job.weekly` already holds)."""
+    if store.has("obligations", job.wage_ob):
+        return obligations.cents_now(store, store.get("obligations", job.wage_ob))
+    return job.weekly
+
+
+def _shift_pay(store: Store, job: Job, h: float) -> int:
+    """Extra hours are paid at the hourly rate in force on the day they are offered."""
+    return round(h * _weekly_now(store, job) / job.hours) if job.hours > 0 else 0
 
 
 def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
     who, _ = _person(store, act, "to")
     job = _job_with(store, who, act.principal)
     h = _hours(act.args.get("hours"), MIN_SHIFT_HOURS, MAX_SHIFT_HOURS)
-    pay = _shift_pay(job, h)
+    pay = _shift_pay(store, job, h)
     org = _org_name(store, job.org)
     friday = jobs.pay_friday(store.day + 1)        # what is accepted from tomorrow is paid then
     summary = _bounded(f"{_cut_name(org)} offers {_cut_name(store.get('people', who).name)} {_h(h)} extra hours, "
