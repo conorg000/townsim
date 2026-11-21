@@ -346,7 +346,7 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
     if 29 <= day < 36 and num % 8 == 5:
         return _reply(None, [{"op": "write_notes", "text": f"Things to do, list {i}"} for i in range(1, 13)])
     acts: list = []
-    close = me.known("partner", "child", "parent", "brother", "sister", "family", "friend")
+    close = me.known("partner", "child", "parent", "brother", "sister", "sibling", "family", "friend")
     friends = me.known("friend")
     for rq, sender, cents in me.requests:
         summary = me.summaries.get(rq, "")

@@ -178,7 +178,8 @@ def ask(s, sender, to, text):
 
 
 def tied(s, pid, kind):
-    return [t.other for t in s.all("ties") if t.person == pid and t.kind == kind]
+    from townsim.town import ties
+    return [o for o, found in ties.kinds(s, pid).items() if kind in found]
 
 
 def someone_with_a_partner_a_friend_and_a_landlord(s):

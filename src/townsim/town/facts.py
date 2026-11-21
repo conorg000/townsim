@@ -13,12 +13,11 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from datetime import timedelta
 
 from townsim.econ.firm import Firm
-from townsim.town import firms, jobs
+from townsim.town import firms, jobs, names, ties
 from townsim.town.acts import TIE_RANKS, knows, name_of_who
-from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
+from townsim.town.clock import DAYS, date_in, date_text, dow, week
 from townsim.town.obligations import (LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, last_instalment, money, name_of,
                                       cents_now, owed_dues, pending_change, upcoming)
 from townsim.town.store import Store, id_key
@@ -29,10 +28,10 @@ PEOPLE_SHOWN = 12
 
 # The reader's side of a tie, in plain words.
 RELATION = {"partner": "your partner", "parent": "your parent", "child": "your child",
-            "sibling": "your brother or sister", "kin": "a relative", "friend": "a friend",
+            "sibling": "your sibling", "kin": "a relative", "friend": "a friend",
             "coworker": "works with you", "employer": "your employer", "employee": "works for you",
             "landlord": "your landlord", "tenant": "your tenant", "debtor": "owes you money",
-            "creditor": "you owe them money", "banker": "the banker"}
+            "creditor": "you owe them money", "banker": "the banker", "borrower": "has a loan from the bank"}
 _RANK = TIE_RANKS
 CARRY_PER_100 = round(100 * next(f.default for f in dataclasses.fields(Firm) if f.name == "carry_loss"))
 # How a tie seen only from the other side reads from this one.
@@ -40,6 +39,20 @@ _OTHER_SIDE = {"partner": "partner", "parent": "child", "child": "parent", "sibl
                "friend": "friend", "coworker": "coworker", "employer": "employee", "employee": "employer",
                "landlord": "tenant", "tenant": "landlord", "creditor": "debtor", "debtor": "creditor"}
 _ONE_SIDED = {"banker": "has a loan from the bank"}
+
+
+def relation(store: Store, other: str, kind: str) -> str:
+    """The words for a tie of `kind` to `other`: a sibling as a brother or a sister when their
+    first name tells which; a former tie with the last day worked."""
+    k = ties.base(kind)
+    if k == "sibling":
+        first = store.get("people", other).name.split()[0] if store.has("people", other) else ""
+        return "your sister" if first in names.WOMEN else "your brother" if first in names.MEN else "your sibling"
+    if k in ("former_employee", "former_employer"):
+        day = when(int(kind.split(":", 1)[1]), store.day)
+        return (f"used to work for you until {day}" if k == "former_employee"
+                else f"you used to work for them until {day}")
+    return RELATION.get(k, k)
 
 KNOWHOW: dict[str, list[str]] = {
     "owner": [
@@ -79,10 +92,9 @@ def _and(items: list[str]) -> str:
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def when(day: int) -> str:
-    """A day as written, with its year when it is not 2026."""
-    year = (DAY_ZERO + timedelta(days=day)).year
-    return date_text(day) + ("" if year == DAY_ZERO.year else f" {year}")
+def when(day: int, today: int = 0) -> str:
+    """A day as written, with its year when it is not the year of `today` (`clock.date_in`)."""
+    return date_in(day, today)
 
 
 def _verb(word: str) -> str | None:
@@ -115,15 +127,9 @@ def _second_person(line: str) -> str:
 
 
 def _tie_kinds(store: Store, pid: str) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    """The kinds of the ties `pid` holds to each person, and of those others hold to `pid`."""
-    mine: dict[str, list[str]] = {}
-    theirs: dict[str, list[str]] = {}
-    for t in store.all("ties"):
-        if t.person == pid:
-            mine.setdefault(t.other, []).append(t.kind)
-        elif t.other == pid:
-            theirs.setdefault(t.person, []).append(t.kind)
-    return mine, theirs
+    """The kinds of the ties `pid` has to each person today, and of the family and friendship
+    rows others hold to `pid` (`ties`)."""
+    return ties.kinds(store, pid), ties.theirs(store, pid)
 
 
 def ranks(store: Store, pid: str) -> dict[str, int]:
@@ -135,7 +141,7 @@ def ranks(store: Store, pid: str) -> dict[str, int]:
         if store.get("people", other).household == household:
             out[other] = 0
         elif other in mine:
-            out[other] = min(_RANK.get(k, 5) for k in mine[other])
+            out[other] = min(_RANK.get(ties.base(k), 5) for k in mine[other])
         else:
             out[other] = 5
     return out
@@ -149,11 +155,12 @@ def people_known(store: Store, pid: str) -> list[tuple[str, int, str]]:
     wrote = {m.sender for m in store.all("messages") if m.to == pid}
     rows = []
     for other, r in sorted(rank.items(), key=lambda kv: (kv[1], id_key(kv[0]))):
-        kinds = sorted(set(mine.get(other, [])), key=lambda k: (_RANK.get(k, 5), k))
-        said = [RELATION.get(k, k) for k in kinds]
+        kinds = sorted(set(mine.get(other, [])), key=lambda k: (_RANK.get(ties.base(k), 5), k))
+        said = [relation(store, other, k) for k in kinds]
         if not said:
             for k in sorted(set(theirs.get(other, [])), key=lambda k: (_RANK.get(k, 5), k)):
-                said.append(_ONE_SIDED[k] if k in _ONE_SIDED else RELATION.get(_OTHER_SIDE.get(k, ""), "knows you"))
+                said.append(_ONE_SIDED[k] if k in _ONE_SIDED else
+                            relation(store, other, _OTHER_SIDE[k]) if k in _OTHER_SIDE else "knows you")
         if not said:
             if store.get("people", other).household == household:
                 said = ["lives with you"]
@@ -284,6 +291,17 @@ def _live(store: Store, **where: str) -> list:
     return [o for o in store.where("obligations", **where) if o.status in SCHEDULED]
 
 
+def _side(store: Store, household: str, ob) -> str:
+    """Who one household's side of an agreement is, in a sentence: the person who made it if
+    they live there, else its one adult, else `the <name> household`."""
+    h = store.get("households", household)
+    if ob.made_by in h.members:
+        return store.get("people", ob.made_by).name.split()[0]
+    grown = [p for p in h.members if store.get("people", p).age >= ties.ADULT]
+    return store.get("people", grown[0]).name.split()[0] if len(grown) == 1 else \
+        f"the {h.name.split(' household')[0]} household"
+
+
 def worries(store: Store, pid: str, n: int) -> list[str]:
     """The first `n` of what is on `pid`'s mind about money and work, each true of the rows
     today: more going out than coming in; debts between people and when they end; the
@@ -299,17 +317,15 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
     inn, out = gen.weekly_in(store, home), gen.weekly_out(store, home)
     if inn < out:
         found.append(f"More goes out each week ({money(out)}) than comes in ({money(inn)}).")
-    for t in store.all("ties"):
-        if t.person == pid and t.kind in ("creditor", "debtor") and store.has("people", t.other):
-            other = store.get("people", t.other)
-            payer, payee = (home, other.household) if t.kind == "creditor" else (other.household, home)
-            owed = [o for o in _live(store, payer=payer) if o.payee == payee and o.kind == "agreement"]
-            if owed:
-                o, first = owed[0], other.name.split()[0]
-                found.append(f"Paying back {first}: {money(o.cents)} a week until {ends_on(o)}."
-                             if t.kind == "creditor" else
-                             f"Whether {first} keeps up the {money(o.cents)} a week owed to you.")
     mine = _relation_counts(store, pid)
+    for o in _live(store, payer=home):
+        if o.kind == "agreement" and store.has("households", o.payee) and p.age >= ties.ADULT:
+            back = o.memo.removeprefix("paying back ").split()[0] if o.memo.startswith("paying back ") else ""
+            found.append(f"Paying back {back}: {money(o.cents)} a week until {ends_on(o)}." if back else
+                         f"Paying {_side(store, o.payee, o)} {money(o.cents)} a week until {ends_on(o)}.")
+    for o in _live(store, payee=home):
+        if o.kind == "agreement" and store.has("households", o.payer) and p.age >= ties.ADULT:
+            found.append(f"Whether {_side(store, o.payer, o)} keeps up the {money(o.cents)} a week owed to you.")
     for o in _live(store, payer=home):
         if o.kind == "loan" and not o.memo.startswith("mortgage") and mine:
             found.append(f"The {o.memo} costs {money(o.cents)} a week until {ends_on(o)}.")

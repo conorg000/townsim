@@ -12,6 +12,16 @@ FIRST_NAMES = [
     "Victor", "Vera", "Walter", "Wendy", "Wilfred", "Yvonne",
 ]
 
+# Which of `FIRST_NAMES` are borne by women and which by men, so that a brother is told from a sister.
+WOMEN = frozenset({
+    "Ada", "Alice", "Anna", "Beth", "Brenda", "Carol", "Clara", "Dawn", "Dora", "Edna", "Elsie", "Faye", "Gail",
+    "Grace", "Hazel", "Ida", "Jean", "Joan", "Karen", "Lena", "Lily", "Mabel", "Maud", "Nora", "Olive", "Pauline",
+    "Queenie", "Rita", "Rosa", "Sally", "Sylvia", "Thea", "Vera", "Wendy", "Yvonne"})
+MEN = frozenset({
+    "Alan", "Amos", "Arthur", "Bill", "Carl", "Colin", "Dennis", "Edgar", "Ernest", "Frank", "Gordon", "Harold",
+    "Henry", "Ivan", "Jonah", "Keith", "Leonard", "Lionel", "Martin", "Neil", "Oscar", "Percy", "Ralph", "Ronald",
+    "Stanley", "Terence", "Victor", "Walter", "Wilfred"})
+
 SURNAMES = [
     "Ashworth", "Bairstow", "Birch", "Brindle", "Calder", "Catterall", "Coldwell", "Dunmore", "Eccles",
     "Fairclough", "Farrow", "Garside", "Gledhill", "Haworth", "Heald", "Hindle", "Holroyd", "Inskip",

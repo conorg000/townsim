@@ -33,7 +33,7 @@ from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, controls, fits, from_account, name_of_who,
                                register, shown, to_cents)
 from townsim.town.clock import date_text, date_year, parse_date
-from townsim.town.entities import Notice, Org, Record, Request, Tie
+from townsim.town.entities import Notice, Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
 from townsim.town.store import Store, id_key
@@ -463,10 +463,6 @@ def _do_loan(store: Store, act: Act, rq: Request, cause: str) -> str:
     ob = obligations.create(store, kind="loan", payer=rq.payer, payee=rq.payee, cents=weekly, first=rq.first,
                             every=7, last=last, memo=f"loan for {purpose}", ends="both",
                             made_by=rq.sender, cause=cause, final_cents=final if final != weekly else 0)
-    banker = act.principal
-    if store.has("people", rq.sender) and not any(t.person == rq.sender and t.other == banker and t.kind == "banker"
-                                                   for t in store.where("ties", person=rq.sender)):
-        store.add("ties", Tie(store.new_id("ti", cause), rq.sender, banker, "banker"), cause)
     head = (f"{name_of(store, rq.payee)} lends {_side_name(store, rq.payer, rq.sender)} {money(rq.pay)} ({ob}): "
             f"{money(weekly)} a week from {date_year(rq.first)}")
     if final != weekly:

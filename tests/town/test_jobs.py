@@ -693,7 +693,7 @@ def test_someone_who_takes_a_job_is_no_longer_out_of_work_in_any_view():
     who = _who(s, "p18")
     assert "out of work" not in who and "Finding work" not in who and "benefit" not in who
     assert "You work at Lumb's Grocer: 38 hours a week, for $440.00 a week, paid on Fridays." in who
-    assert "Wendy Lumb, your child, works at Lumb's Grocer." in _who(s, "p16")
+    assert "Wendy Lumb, your child, works for you, works at Lumb's Grocer." in _who(s, "p16")
 
 
 def test_someone_who_loses_a_job_is_not_told_they_keep_it():

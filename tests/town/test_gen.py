@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from townsim.town import acts, firms, gen, hours, names
+from townsim.town import acts, firms, gen, hours, names, ties
 from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "3724a382ffabcb73d7c12a29eb6ae5baf10b98ba0bc2c3197a95110976cff979"
+SEED_1_HASH = "0006739c74f8760b3542718c70e4715e30c0351d8d00b39c508197b625350d74"
 
 
 @functools.lru_cache(maxsize=None)
@@ -257,10 +257,10 @@ def test_recurring_work_and_bank_borrowers(seed):
         assert all(w.holder == o.owner for w in s.all("work") if w.account == o.id)
         assert [j.person for j in s.where("jobs", org=o.id)].count(o.owner) == 1
     bank = next(o for o in s.all("orgs") if o.kind == "bank")
-    banked = {t.person for t in s.all("ties") if t.kind == "banker"}
+    banked = {p.id for p in s.all("people") if "banker" in ties.kinds(s, p.id).get(bank.contact, [])}
     for o in s.where("obligations", payee=bank.id):
         payers = s.get("households", o.payer).members if s.has("households", o.payer) else [s.get("orgs", o.payer).owner]
-        assert set(payers) <= banked
+        assert {p for p in payers if s.get("people", p).age >= 18} <= banked
     for p in s.all("people"):
         assert p.hours_week == p.hours_left == hours.free_hours(s, p.id) > 0
 

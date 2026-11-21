@@ -313,7 +313,8 @@ def test_a_loan_of_1000_over_26_weeks_repays_4077_a_week_and_1060_in_all():
             f"($1,060.00 in all), the last, on Friday 4 September 2026, $40.75.")
     assert out.msg == f"Accepted. {done}"
     assert told(s, "p03")[-1].endswith(done)
-    assert any(t.person == "p03" and t.other == "p05" and t.kind == "banker" for t in s.all("ties"))
+    from townsim.town import ties
+    assert "banker" in ties.kinds(s, "p03")["p05"] and "borrower" in ties.kinds(s, "p05")["p03"]
     line = (f'{ob.id}: Pryce, loan for "a van", $40.77 a week, the last, on Friday 4 September, $40.75')
     assert line in bank_book(s, "p05").split("\n")
     assert f'{ob.id}: loan for "a van", $40.77 a week to Wenlow Bank, the last, on Friday 4 September, $40.75' \
@@ -896,10 +897,8 @@ def test_random_sequences_of_agreements_keep_their_sums(seed):
 def test_an_agreement_until_ended_between_debtor_and_creditor_is_told_without_an_end():
     from townsim.town.facts import worries
     s = deals_town()
-    tie(s, "p01", "p04", "creditor")
-    tie(s, "p04", "p01", "debtor")
-    agreed(s, weeks=0)
-    assert "Paying back Megan: $20.00 a week until either side ends it." in worries(s, "p01", 20)
+    agreed(s, weeks=0)                       # the tie is read from the agreement: no row is needed
+    assert "Paying the Pryce household $20.00 a week until either side ends it." in worries(s, "p01", 20)
     assert "Whether Ruth keeps up the $20.00 a week owed to you." in worries(s, "p04", 20)
     for pid in ("p01", "p04"):
         who(s, pid)

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
-from townsim.town import jobs
+from townsim.town import jobs, ties
 from townsim.town.store import TABLES, Store, id_key
 
 MAX_CENTS = 100_000_000
@@ -229,14 +229,10 @@ def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
 
 
 def knows(store: Store, pid: str) -> list[str]:
-    """Everyone `pid` knows, in id order: their household, everyone tied to them either way,
-    and everyone they have written to or had a letter from."""
+    """Everyone `pid` knows, in id order: their household, everyone tied to them either way
+    today (`ties`), and everyone they have written to or had a letter from."""
     found = set(store.get("households", store.get("people", pid).household).members)
-    for t in store.all("ties"):
-        if t.person == pid:
-            found.add(t.other)
-        elif t.other == pid:
-            found.add(t.person)
+    found |= ties.tied(store, pid)
     for m in store.all("messages"):
         if m.sender == pid:
             found.add(m.to)
@@ -247,7 +243,7 @@ def knows(store: Store, pid: str) -> list[str]:
 
 _TIE_RANKS = {"kin": 1, "partner": 1, "parent": 1, "child": 1, "sibling": 1, "friend": 2,
               "employer": 3, "employee": 3, "coworker": 3,
-              "landlord": 4, "tenant": 4, "creditor": 4, "debtor": 4, "banker": 4}
+              "landlord": 4, "tenant": 4, "creditor": 4, "debtor": 4, "banker": 4, "borrower": 4}
 UNKNOWN = 6
 TIE_RANKS = _TIE_RANKS     # how close each kind of tie is, for those who rank many at once
 
@@ -273,7 +269,7 @@ def tie_rank(store: Store, pid: str, other: str) -> int:
         return UNKNOWN
     if store.has("people", other) and store.get("people", other).household == person.household:
         return 0
-    ranks = [_TIE_RANKS.get(t.kind, 5) for t in store.all("ties") if t.person == pid and t.other == other]
+    ranks = [_TIE_RANKS.get(ties.base(k), 5) for k in ties.kinds(store, pid).get(other, [])]
     if ranks:
         return min(ranks)
     return 5 if other in knows(store, pid) else UNKNOWN

@@ -24,7 +24,7 @@ from datetime import timedelta
 from townsim.econ.demand import NEEDS, DemandRule, Offering, true_choice_probabilities
 from townsim.econ.demand import Household as EconHousehold
 from townsim.econ.suppliers import default_suppliers
-from townsim.town import acts, facts, firms, hours, jobs, names
+from townsim.town import acts, facts, firms, hours, jobs, names, ties
 from townsim.town import obligations as O
 from townsim.town.clock import DAY_ZERO, date_text
 from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie
@@ -644,7 +644,7 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
     for h in hs:
         hours.give(s, rng.choice(h.members).id, h.id, "household paperwork", SETUP)
 
-    # ties: households, kin, work, landlord and tenant, then friends
+    # ties: households, kin, then friends (work, lets and debts are read from the records: `ties`)
     for h in hs:
         head = h.members[0]
         for p in h.members[1:]:
@@ -663,22 +663,6 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
                     _tie(s, a.id, b.id, "sibling", "sibling")
     for a, b, _ in kin:
         _tie(s, a.id, b.id, "kin", "kin")
-    for i, shop in enumerate(shops):
-        for p in crews[i]:
-            _tie(s, p.id, owners[i].id, "employer", "employee")
-        for a in crews[i]:
-            for b in crews[i]:
-                if id_key(a.id) < id_key(b.id):
-                    _tie(s, a.id, b.id, "coworker", "coworker")
-    _tie(s, soft_worker.id, soft_owner.id, "employer", "employee")
-    outs = by_kind["outside_worker"]
-    for a in outs:
-        for b in outs:
-            if id_key(a.id) < id_key(b.id):
-                _tie(s, a.id, b.id, "coworker", "coworker")
-    for h in tenants:
-        for p in h.members:
-            _tie(s, p.id, landlord.id, "landlord", "tenant")
     friends: dict[str, list[str]] = {p.id: [] for p in people}
     kin_of: dict[str, list[str]] = {p.id: [] for p in people}
     for a, b, _ in kin:
@@ -700,15 +684,6 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
     if any(not f for f in friends.values()):
         raise _Redraw
 
-    # each borrower from the bank sees the banker as their banker
-    borrowers: list[str] = []
-    for o in s.where("obligations", payee=bank):
-        if o.kind == "loan":
-            who = s.get("households", o.payer).members if s.has("households", o.payer) else [s.get("orgs", o.payer).owner]
-            borrowers += [m for m in who if m not in borrowers]
-    for pid in borrowers:
-        _tie(s, pid, banker.id, "banker", None)
-
     # one or two private debts between residents who know each other
     pairs = []
     for t in s.all("ties"):
@@ -727,9 +702,9 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
         weeks = rng.randint(4, 20)
         cents = rng.randrange(1000, 4001, 500)
         first = rng.choice((MONDAY, FRIDAY, SATURDAY))
-        _weekly(s, "agreement", dh, ch, cents, first, f"paying back {s.get('people', creditor).name}", "both",
-                last=first + 7 * (weeks - 1))
-        _tie(s, debtor, creditor, "creditor", "debtor")
+        O.create(s, kind="agreement", payer=dh, payee=ch, cents=cents, first=first, every=7,
+                 last=first + 7 * (weeks - 1), memo=f"paying back {s.get('people', creditor).name}", ends="both",
+                 made_by=debtor, cause=SETUP)
         in_debt |= {dh, ch}
         made += 1
 
@@ -928,7 +903,7 @@ def check(s: Store) -> list[str]:
     needs = Counter(f.need for f in s.all("firms"))
     if not needs or max(needs.values()) < 2:
         bad.append("no two shops serve the same need")
-    kinds = {t.kind for t in s.all("ties") if s.has("people", t.person) and s.has("people", t.other)}
+    kinds = {k for p in people for k in ties.kinds(s, p.id).values() for k in k}
     if not {"tenant", "landlord"} <= kinds or not {"creditor", "debtor"} <= kinds:
         bad.append("there is no tenant and landlord pair, or no creditor and debtor pair, among residents")
     for p in people:
@@ -1073,9 +1048,9 @@ def describe(s: Store) -> str:
     L += ["People", "------", ""]
     for p in people:
         known: dict[str, list[str]] = {}
-        for t in s.all("ties"):
-            if t.person == p.id:
-                known.setdefault(_TIE_WORD.get(t.kind, t.kind), []).append(s.get("people", t.other).name)
+        for other, found in ties.kinds(s, p.id).items():
+            for kind in found:
+                known.setdefault(_TIE_WORD.get(ties.base(kind), kind), []).append(s.get("people", other).name)
         L.append(f"{p.name}, {p.age}. {p.voice} Thinks: {' '.join(p.beliefs)} Likes {_and(p.interests)}.")
         L.append(f"  Worries: {' '.join(p.worries)}")
         L.append("  Knows: " + "; ".join(f"{k} {_and(v)}" for k, v in known.items()) + ".")
@@ -1090,10 +1065,11 @@ _HOUSEHOLD_TIES = ("partner", "parent", "child", "sibling")
 _KIND_WORD = {"shop": "food shop", "bank": "bank", "firm": "software firm", "employer": "employer",
               "supplier": "food wholesaler", "agency": "letting agent", "utility": "energy supplier",
               "region": "pensions and benefits", "investor": "investor", "market": "shops and services"}
-_TIE_WORD = {"partner": "partner", "parent": "parent", "child": "child", "sibling": "brother or sister",
+_TIE_WORD = {"partner": "partner", "parent": "parent", "child": "child", "sibling": "sibling of",
              "kin": "family in another house", "friend": "friends with", "coworker": "works with",
              "employer": "works for", "employee": "employs", "landlord": "rents from", "tenant": "lets to",
-             "creditor": "owes money to", "debtor": "is owed money by", "banker": "banks with"}
+             "creditor": "owes money to", "debtor": "is owed money by", "banker": "banks with",
+             "borrower": "lends to", "former_employee": "once employed", "former_employer": "once worked for"}
 
 
 def _names_of(orgs) -> str:
