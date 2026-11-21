@@ -119,7 +119,10 @@ interest accrues, taxes fall due each quarter, and meetings arrive on a calendar
 **One schedule for everything owed.** Each obligation is collected once, on its day,
 from the account that owes it, and the statement says so in advance ("rent, $175,
 goes out Monday 23 March"). A payment made by hand toward an obligation counts
-against its next instalment, so nothing is taken twice. What cannot be paid does not
+against arrears on it and then against its next instalment when that falls within
+seven days, so nothing is taken twice; paid further ahead than that it is an
+ordinary payment. Either way the payer is told what the money was counted toward.
+What cannot be paid does not
 vanish: it becomes arrears, then draws a late fee, then a notice, then what the
 agreement or the law provides (a default on the register, a foreclosure, a notice to
 quit). The steps and their timing are fixed and the same for everyone.
@@ -130,7 +133,20 @@ A subscription or membership ends, and its fee with it; leaving a service is alw
 allowed. An agreement does not end by one party's `stop`: that is a breach, recorded
 as one, and to end it properly the party asks the other, who accepts or declines.
 Whoever uses `stop` is told which of these happened, so nobody is left unable to
-cancel something for want of the right word.
+cancel something for want of the right word. Three details follow from this. When a
+payment stops, money already counted toward an instalment still to come stays with
+whoever was paid, and both sides are told. A breach is the payer withholding, not
+the debt ending: each instalment still falls due on its day, is no longer taken
+automatically, and goes to arrears and up the same steps as anything unpaid; a
+landlord, in the town or outside it, may then serve notice. And what a household
+spends to live, its energy, and a bill for work already done cannot be stopped at
+all while the household lives in the house.
+
+**One obligation, re-priced.** A wage and a rent are each one obligation for as long
+as the job or the let lasts. A change of pay or rent re-prices it from a stated day
+(for rent, the first rent day at least four weeks on) and both sides are told the
+amount and the day. A new change made while one is pending replaces it. There is
+never a second obligation standing in for the first, so no day can be paid twice.
 
 **Order of collection.** On a day wages are paid first. Then everything due is
 taken oldest first, and among things due the same day rent, then loan instalments,
@@ -138,8 +154,10 @@ then bills, then agreement terms, then standing payments, then fees. An instalme
 is paid whole or not at all.
 
 **Events are fixed when the place is generated.** A seeded deck of ordinary events
-at plain base rates (a supplier fails, a cold month, an illness, a job lost, a rent
-rise) is drawn before the run and dated. Nothing is ever chosen by how a run is
+at plain base rates (an illness, a job lost or hours cut at an outside employer, a
+repair, a supplier delivering short or changing its price, the price of energy
+changing, a letting agency raising a rent, a cold month) is drawn before the run for
+every week of it and dated. A repair to a rented house is the landlord's bill. Nothing is ever chosen by how a run is
 going. Household budgets come from ordinary spending shares and are fixed at the
 same time, so hardship is not a dial.
 
@@ -214,7 +232,11 @@ worth something, and a generated place is checked to have them as any town does.
 
 Almost all of this is state in the store, not text in a prompt. A person's view is
 built by code from their state each time they act, without changing anything, and
-kept to about 1,200 words, so different circumstances produce different weeks. The generator produces a town with the
+kept short, so different circumstances produce different weeks: about 900 words on
+an ordinary day for most people and about 1,250 for someone who runs a business,
+with a limit of 1,500 past which things give way in a fixed order (what the reader
+knows by heart first; the results of their last acts, what is new and the last
+week of their statement last), and never over 2,000 words. The generator produces a town with the
 conflicts of interest any town has (rival shops, landlords and tenants, creditors
 and debtors). It is written and frozen before any AI is run and is never tuned in
 response to what an AI did.
@@ -223,7 +245,9 @@ Each person keeps a short list of aims and open matters, with their ages, which 
 update themselves. With brief notes, this is their memory. Aims are checked against
 the person's own records only: when their own statement shows a matter settled (the
 bill was paid), they are told, so it does not stay on their mind for weeks. Nothing
-they could not have seen for themselves is revealed this way.
+they could not have seen for themselves is revealed this way. Code does this from
+the records, telling a person when something of theirs is paid in full or brought up
+to date; it does not try to read the words of an aim.
 
 ### 3.4 Meeting, talking and hearing
 
@@ -237,7 +261,8 @@ they could not have seen for themselves is revealed this way.
   comes back undelivered, as it would. A first name alone reaches someone only when
   exactly one person the writer knows bears it. A reader is told when a name in what they received is
   not someone they know, which is what a person would know for themselves and a
-  weak model does not; they are never told whether such a person exists. This
+  weak model does not; they are never told whether such a person exists. A writer
+  is told the same of a name in what they send. This
   blunts one way of misleading people, by inventing someone, so it is counted
   whenever it fires on something an instance wrote.
 - **Gatherings** (built when the place is widened): households, workplaces, the
