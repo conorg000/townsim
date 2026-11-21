@@ -1,4 +1,5 @@
-"""One SQLite file holding runs, their stored replies and their morning snapshots."""
+"""One SQLite file holding runs, their stored replies, their morning snapshots and small notes kept
+with each run."""
 
 from __future__ import annotations
 
@@ -35,6 +36,10 @@ create table if not exists errors (
 create table if not exists turns (
     run text not null, day integer not null, blob blob not null,
     primary key (run, day)
+);
+create table if not exists notes (
+    run text not null, name text not null, value text not null,
+    primary key (run, name)
 );
 """
 
@@ -112,6 +117,27 @@ class RunDB:
         """The run's (full key, slot) pairs in the order they were stored."""
         return [(r[0], r[1]) for r in
                 self._db.execute("select key, slot from replies where run = ? order by seq", (run_id,))]
+
+    def replies(self, run_id: str) -> list[tuple[str, Reply]]:
+        """Every reply stored for the run with its full key, in the order they were stored."""
+        return [(r[0], decode_reply(r[1])) for r in
+                self._db.execute("select key, reply_json from replies where run = ? order by seq", (run_id,))]
+
+    def spent(self, run_id: str) -> float:
+        """Dollars spent on the run: the sum of the stored replies' costs (0.0 for none)."""
+        row = self._db.execute("select total(json_extract(reply_json, '$.cost')) from replies where run = ?",
+                               (run_id,)).fetchone()
+        return float(row[0])
+
+    # notes
+
+    def put_note(self, run_id: str, name: str, value: str) -> None:
+        """Keep a small named text with the run, replacing any kept under that name."""
+        self._write("insert or replace into notes (run, name, value) values (?, ?, ?)", (run_id, name, value))
+
+    def note(self, run_id: str, name: str) -> str | None:
+        row = self._db.execute("select value from notes where run = ? and name = ?", (run_id, name)).fetchone()
+        return None if row is None else row[0]
 
     # snapshots
 
