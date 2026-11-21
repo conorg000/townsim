@@ -76,10 +76,10 @@ def test_agreements_text_lists_everything_paid_or_received():
     before = s.hash(), len(s.changes)
     assert agreements_text(s, "h1") == "\n".join([
         "ob1: rent, $175.00 every week to Lettings, first Monday 2 March, breached",
-        "ob2: wages, $486.00 every 14 days from Employers, first Friday 6 March, active",
         "ob3: key, $10.00 once on Wednesday 4 March to Lettings, active",
         "ob4: loan, $20.00 every week to Brook, first Thursday 5 March, until Thursday 2 April, active",
-    ])
+        "ob2: wages, $486.00 every 14 days from Employers, first Friday 6 March, active",
+    ])                                    # what it pays in force, then what it receives, then the rest
     assert agreements_text(s, "p1") == "nothing"
     assert (s.hash(), len(s.changes)) == before
 
@@ -96,3 +96,18 @@ def test_a_defaulted_due_stays_on_the_statement():
     run_days(s, 30)
     assert s.all("dues")[0].status == "defaulted"
     assert "  overdue since Monday 2 March  $48.00  Northgrid  energy (ob1)" in statement_text(s, statement(s, "h1"))
+
+
+def test_agreements_text_is_bounded_and_ordered_for_its_reader():
+    s = town(h1=50_000)
+    for i in range(45):
+        O.create(s, kind="standing", payer="h2" if i % 3 == 0 else "h1", payee="h1" if i % 3 == 0 else "h2",
+                 cents=100 + i, first=1, every=7, memo=f"thing {i} " + "word " * 20, ends="payer", **SETUP)
+    ended = O.create(s, kind="standing", payer="h1", payee="h2", cents=99, first=1, every=7, memo="old", ends="payer",
+                     **SETUP)
+    s.set("obligations", ended, "routine:t", status="stopped")
+    rows = agreements_text(s, "h1").split("\n")
+    assert len(rows) == 41 and rows[-1] == "(6 more not shown)"
+    payers = [s.get("obligations", r.split(":")[0]).payer for r in rows[:-1]]
+    assert payers == sorted(payers, key=lambda p: p != "h1")            # what it pays first
+    assert all(r.count("word") <= 10 for r in rows[:-1]) and all("\u2026" in r for r in rows[:-1])

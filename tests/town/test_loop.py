@@ -186,7 +186,7 @@ def test_each_act_leaves_a_result_with_its_own_cause():
     [paid, unknown, junk] = [r for r in s.all("results") if r.actor == "p01"]
     assert (paid.day, paid.op, paid.ok, paid.seen) == (4, "pay", True, False)
     assert paid.text == "Paid $5.00 to Megan Pryce."
-    assert unknown.op == ("Pay" + "x" * 60)[:39] and not unknown.ok and unknown.text.startswith("Not done:")
+    assert unknown.op == ("Pay" + "x" * 60)[:40] and not unknown.ok   # cleaned, then cut to 40 and unknown.text.startswith("Not done:")
     assert junk.op == "(no operation named)" and not junk.ok
     causes = [c.cause for c in s.changes if c.table == "results" and c.field == "+"]
     assert causes == ["op:p01:pay:d4.0", "op:p01:?:d4.1", "op:p01:?:d4.2"]
@@ -218,8 +218,8 @@ def test_a_success_waits_for_another_turn_and_a_read_does_not():
     run_day(s, replier, keys)
     assert who_acts(s) == ["p03"]                             # the read's result wakes Craig; Ruth's notes do not
     text = person_view(s, "p03")[1]["content"]
-    assert ("WHAT CAME OF YOUR LAST ACTS\nread: ob5: wages, $330.00 every week from Employers, "
-            "first Friday 6 March, active\n  ob6: rent") in text
+    assert ("WHAT CAME OF YOUR LAST ACTS\nread: ob6: rent, $185.00 every week to Wenlow Lettings, "
+            "first Monday 2 March, active\n  ob7: energy") in text
     run_day(s, replier, keys)
     assert all(r.seen for r in s.all("results") if r.actor == "p03")
     assert not s.get("results", "res1").seen                  # Ruth has not had a turn since

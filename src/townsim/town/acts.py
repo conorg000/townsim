@@ -96,8 +96,11 @@ AUTHORISERS: list[Callable[[Store, Act], str | None]] = [_acting_for_themselves]
 
 def shown(value: Any) -> str:
     """A value from a reply as it is quoted back: a string as written, anything else as
-    its repr, cut to 40 characters either way."""
+    its repr, cleaned of control and format characters with line breaks as spaces, and cut
+    to 40 characters either way."""
     text = value if isinstance(value, str) else repr(value)
+    text = "".join(" " if c in "\n\r\t" else c for c in text[:4 * _SHOWN]
+                   if c in "\n\r\t" or unicodedata.category(c) not in ("Cc", "Cf"))
     return text[:_SHOWN]
 
 
@@ -180,11 +183,11 @@ def cut(text: str, n: int = 80) -> str:
 
 
 def clean_text(value: Any) -> str | None:
-    """Text a person wrote, without control characters other than newline and tab; None
-    for a non-string."""
+    """Text a person wrote, without control characters other than newline and tab, and
+    without format characters (zero-width and direction marks); None for a non-string."""
     if not isinstance(value, str):
         return None
-    return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) != "Cc")
+    return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf"))
 
 
 LONGEST_WORD = 40

@@ -150,36 +150,25 @@ def _results(store: Store, pid: str) -> _Results:
     return _Results(shown, passed, reads[-1] if reads else None)
 
 
-_CODE_ID = re.compile(r"\([a-z]+\d+\)")
-
-
 def _fit(text: str, words: int, chars: int) -> str:
-    """`text` cut to `words` words and then to `chars` characters, with `…` where it was cut."""
+    """`text` cut to `words` words and then to `chars` characters on a word boundary, with
+    `…` where it was cut."""
     text = _cut(text, words)
-    return text if len(text) <= chars else text[:chars].rstrip() + "\u2026"
-
-
-def _keeping_ids(full: str, words: int) -> str:
-    """`full` cut to `words` words and eight characters a word, keeping every id in
-    parentheses that it holds: the text before them is cut shorter to make room."""
-    text = _fit(full, words, CHARS_A_WORD * words)
-    ids = list(dict.fromkeys(_CODE_ID.findall(full)))
-    if all(i in text for i in ids):
+    if len(text) <= chars:
         return text
-    room = " " + " ".join(ids)
-    text = _fit(full, max(1, words - len(ids)), max(1, CHARS_A_WORD * words - len(room)))
-    missing = [i for i in ids if i not in text]
-    return text + " " + " ".join(missing) if missing else text
+    head = text[:chars]
+    space = max(head.rfind(" "), head.rfind("\n"))
+    return (head[:space] if space > 0 else head).rstrip() + "\u2026"
 
 
 def _result_text(r, latest_read: str | None, read_words: int) -> str:
-    """`<op>: <text>`, each line after the first indented. The latest read is cut to
-    `read_words`; an older read in the same batch is not shown; anything else is cut to 30
-    words. Every id in parentheses that code wrote is kept through any cut."""
+    """`<op>: <text>`, each line after the first indented: cut to 30 words and 240
+    characters; the latest read to `read_words` words and eight characters a word; an
+    older read in the same batch is not shown."""
     if _is_read(r) and r.id != latest_read:
         return f"{r.op}: not shown, a later read follows"
     words = read_words if r.id == latest_read else RESULT_WORDS
-    return _keeping_ids(f"{r.op}: {r.text}", words).replace("\n", "\n  ")
+    return _fit(f"{r.op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
 
 
 def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list:
@@ -249,7 +238,7 @@ class _Sec(NamedTuple):
 class Layout(NamedTuple):
     """A view laid out: its two messages, the ids shown in full (and results passed over),
     and the steps of giving way that were taken, in order: `statement`, `people`, `till`,
-    `owed`, `inbox`, `requests`, `cut`, `read`, and `guard` for the last guard."""
+    `owed`, `inbox`, `requests`, `read`, and `guard` for the last guard."""
 
     system: str
     user: str
@@ -379,10 +368,11 @@ def layout(store: Store, pid: str) -> Layout:
 
     What anyone writes is limited where it is written, in words and in characters
     (`acts.fits`: a letter 150 words, a request 80, notes 150, an answer's note 80, a
-    payment's note 12; an aim 20 words and 160 characters), and everything a view shows from the store is
-    bounded: what people wrote in memos is cut to labels of 12 words and 100 characters,
-    results to 30 words and eight characters a word, upcoming payments are counted past ten going out and six
-    coming in, results past nine, what is owed past eight a line, names not known past three
+    payment's note 12; an aim 20 words and 160 characters), and everything a view shows from
+    the store is bounded: what people wrote in memos is cut to labels of 12 words and 100
+    characters; results are cut to 30 words and 240 characters (the latest read to 250 words
+    and 2,000 characters), and counted past nine; upcoming payments are counted past ten
+    going out and six coming in; what is owed past eight lines an account; names not known past three
     a letter. Everything is built once, then laid out again only as each step of giving way
     needs. While the whole is over 1,200 words, and each only as far as needed: the household
     statement's in-and-out lines, oldest first, down to none (`statement`); the people known,

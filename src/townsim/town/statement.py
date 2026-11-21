@@ -3,12 +3,61 @@ coming, and the balance after what goes out (design 3.2). Nothing here changes t
 
 from __future__ import annotations
 
+import re
 from bisect import bisect_left
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
-from townsim.town.obligations import OWED, Upcoming, money, name_of, upcoming
+from townsim.town.obligations import OWED, SCHEDULED, Upcoming, money, name_of, upcoming
 from townsim.town.store import Store
+
+
+MEMO_WORDS = 12
+
+
+def cut_words(text: str, n: int | None) -> str:
+    """`text` up to its `n`th word, with `…` after it if anything was left out; whitespace
+    and line breaks kept as they were."""
+    if n is None:
+        return text
+    found = list(re.finditer(r"\S+", text))
+    if len(found) <= n:
+        return text
+    return text[:found[n - 1].end()] + "\u2026" if n > 0 else "\u2026"
+
+
+MEMO_CHARS = 100
+_COUNTED = re.compile(r" \(counted toward (.*)\)$")
+_DUE = re.compile(r", due \w+ \d+ \w+$")
+
+
+def label(text: str) -> str:
+    """What a person wrote, as a label: at most twelve words and 100 characters, on one line."""
+    text = cut_words(" ".join(text.split()), MEMO_WORDS)
+    return text if len(text) <= MEMO_CHARS else text[:MEMO_CHARS].rstrip() + "\u2026"
+
+
+def _toward(part: str) -> str:
+    what, sep, day = part.rpartition(" due ")
+    return label(what) + sep + day if sep else label(part)
+
+
+def memo(text: str) -> str:
+    """A memo as shown: the part a person wrote cut to a label; what code wrote after it
+    (`, due <date>`, or ` (counted toward <memo> due <date>; …)` with each memo in it cut the
+    same way) kept whole."""
+    text = " ".join(text.split())
+    m = _COUNTED.search(text)
+    if m:
+        return label(text[:m.start()]) + " (counted toward " + "; ".join(
+            _toward(p) for p in m.group(1).split("; ")) + ")"
+    m = _DUE.search(text)
+    if m:
+        return label(text[:m.start()]) + m.group(0)
+    return label(text)
+
+
+AGREEMENT_LINES = 40
 
 
 class Line(NamedTuple):
@@ -86,16 +135,25 @@ def statement_text(store: Store, st: Statement) -> str:
 
 
 def agreements_text(store: Store, account: str) -> str:
-    """Every obligation `account` pays or receives, any status, in id order."""
+    """Every obligation `account` pays or receives, ordered for its reader: those in force
+    (active or breached) that it pays, then those in force that it receives, each by id, then
+    the rest by id; at most forty lines, then a line counting the rest. Each memo is cut to a
+    label as views show it."""
+    mine = [ob for ob in store.all("obligations") if account in (ob.payer, ob.payee)]
+    live = [ob for ob in mine if ob.status in SCHEDULED]
+    order = ([ob for ob in live if ob.payer == account] + [ob for ob in live if ob.payer != account]
+             + [ob for ob in mine if ob.status not in SCHEDULED])
     rows = []
-    for ob in store.all("obligations"):
-        if account not in (ob.payer, ob.payee):
-            continue
+    for ob in order:
         party = f"to {name_of(store, ob.payee)}" if ob.payer == account else f"from {name_of(store, ob.payer)}"
         if ob.every == 0:
-            rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} once on {date_text(ob.first)} {party}, {ob.status}")
+            rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} once on {date_text(ob.first)} {party}, "
+                        f"{ob.status}")
             continue
         how = {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
         until = f", until {date_text(ob.last)}" if ob.last is not None else ""
-        rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, {ob.status}")
+        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, "
+                    f"{ob.status}")
+    if len(rows) > AGREEMENT_LINES:
+        rows = rows[:AGREEMENT_LINES] + [f"({len(rows) - AGREEMENT_LINES} more not shown)"]
     return "\n".join(rows) or "nothing"

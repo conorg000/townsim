@@ -549,14 +549,15 @@ def test_at_most_nine_results_are_shown_and_only_the_latest_read_in_full():
     assert len(rows) == 8 and not rows[0].startswith("(")
 
 
-def test_a_result_is_cut_to_30_words_but_keeps_the_ids_code_wrote():
+def test_a_result_is_cut_plainly_to_30_words_and_240_characters():
     s = thin_town()
-    s.add("results", Result("res1", 0, "p03", "standing_payment", "Set up " + "word " * 40 + "(ob12) and (rq3).", True),
-          "routine:t")
-    s.add("results", Result("res2", 0, "p03", "pay", "Paid " + "word " * 50, True), "routine:t")
+    s.add("results", Result("res1", 0, "p03", "pay", "Paid " + "word " * 50, True), "routine:t")
+    s.add("results", Result("res2", 0, "p03", "pay", "Paid " + " ".join(["x" * 40] * 20), True), "routine:t")
+    s.add("results", Result("res3", 0, "p03", "pay", "Paid (aa0) " + "(ab1) " * 60, True), "routine:t")
     rows = section(person_view(s, "p03")[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
-    assert rows[0].endswith("\u2026 (ob12) (rq3)") and len(rows[0].split()) <= 32
-    assert rows[1].endswith("\u2026") and len(rows[1].split()) == 30
+    assert rows[0].endswith("\u2026") and len(rows[0].split()) == 30
+    assert all(len(r) <= 241 for r in rows) and rows[1].endswith("\u2026")
+    assert len(rows[2].split()) == 30                            # nothing is appended to a cut
 
 
 def test_what_is_owed_lists_loans_agreements_standing_payments_and_arrears():
@@ -774,7 +775,7 @@ def _hostile(rng, words, tag=""):
     """Text at, or just past, a limit of `words`: plain words, one token of 3,000 characters,
     words filling the characters allowed, or words of 40 and 41 characters."""
     head = [tag] if tag else []
-    kind = rng.choice(["plain", "token", "chars", "long", "longest"])
+    kind = rng.choice(["plain", "token", "chars", "long", "longest", "ids", "real"])
     if kind == "plain":
         body = ["word"] * (words - len(head))
     elif kind == "token":
@@ -783,6 +784,10 @@ def _hostile(rng, words, tag=""):
         body = ["abcdefg"] * (words - len(head))
     elif kind == "long":
         body = ["y" * 40] * max(1, (8 * words) // 41 - len(head))
+    elif kind == "ids":                                            # parenthesised tokens, packed to the limit
+        body = [f"(a{chr(97 + i % 26)}{i})" for i in range(words)]
+    elif kind == "real":                                           # what look like other people's ids
+        body = [f"(ob{rng.randint(1, 80)})" for _ in range(words)]
     else:
         body = ["z" * 41] * 2
     return " ".join(head + body)
@@ -800,6 +805,13 @@ def _pile_on(s, rng, targets):
     run_routine(s, rng.randint(1, 3))
     ready(s, *people)
     k = 0
+    for t in targets:                                              # forty standing payments from several
+        name = s.get("people", t).name
+        for o in rng.sample([p for p in people if p != t], 3):
+            for _ in range(40):
+                ready(s, o)
+                apply_act(s, Act(o, o, "standing_payment", {"to": name, "amount": 0.01, "day": "Tuesday",
+                                                             "note": _hostile(rng, 12)}), 0)
     for t in targets:
         name = s.get("people", t).name
         shop = next((o.name for o in s.all("orgs") if o.owner == t and not o.outside), None)
@@ -832,7 +844,7 @@ def _pile_on(s, rng, targets):
         ready(s, t)
         for _ in range(8):
             op = rng.choice(["pay", "standing_payment", "stop", "message", "request", "answer", "read", "read",
-                             "write_notes", "fly"])
+                             "read", "write_notes", "fly"])
             other = s.get("people", rng.choice([p for p in people if p != t])).name
             if rng.random() < 0.15:
                 other = "Q" * 3000
@@ -842,12 +854,15 @@ def _pile_on(s, rng, targets):
                             if obs else None},
                     "standing_payment": {"to": other, "amount": 1, "day": rng.choice(["Friday", "D" * 3000]),
                                          "start": rng.choice(["", "S" * 3000]), "note": _hostile(rng, 12)},
-                    "stop": {"id": rng.choice(obs) if obs else "ob1"},
+                    "stop": {"id": rng.choice((obs or ["ob1"]) + ["I" * 3000, 7, None, ["ob1"], "(ob1)"])},
                     "message": {"to": other, "text": _hostile(rng, 150)},
                     "request": {"to": other, "text": _hostile(rng, 80)},
-                    "answer": {"request": rng.choice(rqs) if rqs else "rq1", "answer": rng.choice(["accept", "decline"]),
+                    "answer": {"request": rng.choice((rqs or ["rq1"]) + ["R" * 3000, 3.5, {"x": 1}]),
+                               "answer": rng.choice(["accept", "decline", "A" * 3000, None]),
                                "note": _hostile(rng, 80)},
-                    "read": {"what": rng.choice(["account", "account in full", "agreements"])},
+                    "read": {"what": rng.choice(["account", "account in full", "agreements", "agreements",
+                                                 "W" * 3000, 12]),
+                             "from": rng.choice([None, "household", "F" * 3000, "\u202eevil\u200b", 9])},
                     "write_notes": {"text": _hostile(rng, 150)}, "fly": {}}[op]
             _result(s, t, op, **args)
 
@@ -949,15 +964,20 @@ def test_the_last_guard_holds_the_character_ceiling_and_keeps_counted_lines():
     assert "(2 more: 2 letters, 0 notices)" in v.user and "(not everything is shown today)" in v.user
 
 
-def test_every_id_code_wrote_survives_the_cut():
-    r = Result("resX", 1, "p1", "pay", " ".join(f"w{i}" for i in range(27)) + " (ob1) " +
-               " ".join(f"v{i}" for i in range(10)) + " (ob2) (ob3)", True)
-    text = views._result_text(r, None, 250)
-    assert all(i in text for i in ("(ob1)", "(ob2)", "(ob3)")) and len(text.split()) <= 32
-    r = Result("resY", 1, "p1", "read", "Paid (ob1) " + "x " * 300 + "(ob2) (ob3) (ob4)", True)
-    for words_ in (250, 120):
-        text = views._result_text(r, "resY", words_)
-        assert all(i in text for i in ("(ob1)", "(ob2)", "(ob3)", "(ob4)"))
+def test_every_confirmation_carries_its_id_within_twelve_words():
+    from townsim.town.acts import REGISTRY
+    s = thin_town()
+    ready(s, "p01")
+    made = {"standing_payment": ("obligations", apply_act(s, Act("p01", "p01", "standing_payment", {
+                "to": "Megan Pryce", "amount": 20, "day": "Friday", "note": "towards the shopping"}), 0)),
+            "request": ("requests", apply_act(s, Act("p01", "p01", "request", {
+                "to": "Craig Pryce", "text": "Could you help on Saturday?"}), 1))}
+    for op, (table, out) in made.items():
+        new = s.all(table)[-1].id
+        assert out.ok and f"({new})" in out.msg.split()[:12] or any(f"({new})" in w for w in out.msg.split()[:12]), op
+    # the operations that make something people refer to by id; a letter's id is never shown to anyone
+    mine = {n for n, spec in REGISTRY.items() if spec.do.__module__ == "townsim.town.ops_core"}
+    assert mine == {"pay", "standing_payment", "stop", "message", "request", "answer", "read", "write_notes"}
 
 
 def test_unknown_names_are_matched_as_whole_words():
@@ -1003,3 +1023,67 @@ def test_a_job_that_has_ended_is_no_longer_shown():
     s.advance_day()
     name = s.get("people", staff.person).name
     assert f"  {name}, " not in facts.business(s, owner) and name not in facts.who(s, owner).split("Also working")[-1]
+
+
+def _packed_ids(counter):
+    """Twelve parenthesised tokens within a 12-word note's 96 characters."""
+    out = []
+    while len(out) < 12:
+        w = f"(a{chr(97 + next(counter) % 26)}{next(counter)})"
+        if len(" ".join(out + [w])) > 96:
+            break
+        out.append(w)
+    return " ".join(out)
+
+
+@pytest.mark.parametrize("what", ("agreements", "account in full"))
+def test_notes_of_fake_ids_cannot_swell_what_a_victim_reads(what):
+    import itertools
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    victim = s.get("people", owner)
+    counter = itertools.count()
+    payers = [p.id for p in s.all("people") if p.household != victim.household]
+    made = 0
+    for payer in payers:
+        for _ in range(40):
+            ready(s, payer)
+            note = _packed_ids(counter)
+            assert acts.fits(note, 12)
+            args = {"to": victim.name, "amount": 0.01, "note": note}
+            if what == "agreements":
+                args.update(day="Tuesday", weeks=3)
+            made += apply_act(s, Act(payer, payer, "standing_payment" if what == "agreements" else "pay", args), 0).ok
+    assert made > 400
+    out = _result(s, owner, "read", what=what)
+    assert out.ok
+    v = views.layout(s, owner)
+    assert len(v.system.split()) + len(v.user.split()) < 2000 and len(v.system) + len(v.user) <= 16000
+    results = "\n".join(section(v.user, "WHAT CAME OF YOUR LAST ACTS"))
+    assert len(results.split()) <= 250 and len(results) <= 2000
+
+
+def test_one_attacker_in_their_own_hours_cannot_swell_a_view():
+    import itertools
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    victim = s.get("people", owner)
+    payer = next(p.id for p in s.all("people") if p.household != victim.household)
+    counter = itertools.count()
+    for _ in range(14):
+        for _ in range(8):
+            apply_act(s, Act(payer, payer, "standing_payment", {"to": victim.name, "amount": 0.01, "day": "Tuesday",
+                                                                 "note": _packed_ids(counter)}), 0)
+        run_routine(s, 1)
+    _result(s, owner, "read", what="agreements")
+    v = views.layout(s, owner)
+    assert len(v.system.split()) + len(v.user.split()) < 2000 and len(v.system) + len(v.user) <= 16000
+
+
+def test_invisible_characters_are_cleaned_at_the_door():
+    from townsim.town.acts import clean_text, shown
+    assert clean_text("a\u200bb\u202ec\u2066d\ufeff") == "abcd"
+    assert shown("x\u200by\nz\x07") == "xy z" and shown("a\n" * 50) == ("a " * 20)
+    s = thin_town()
+    send(s, "p01", "p03", "Hel\u200blo \u202eCraig")
+    assert s.all("messages")[-1].text == "Hello Craig"

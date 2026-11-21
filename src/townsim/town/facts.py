@@ -353,49 +353,7 @@ OWED_KEPT = 4                      # what is owed when it gives way
 BOOK_LINES = 12
 GOING_OUT = 10
 COMING_IN = 6
-MEMO_WORDS = 12
-
-
-def cut_words(text: str, n: int | None) -> str:
-    """`text` up to its `n`th word, with `…` after it if anything was left out; whitespace
-    and line breaks kept as they were."""
-    if n is None:
-        return text
-    found = list(re.finditer(r"\S+", text))
-    if len(found) <= n:
-        return text
-    return text[:found[n - 1].end()] + "\u2026" if n > 0 else "\u2026"
-
-
-MEMO_CHARS = 100
-_COUNTED = re.compile(r" \(counted toward (.*)\)$")
-_DUE = re.compile(r", due \w+ \d+ \w+$")
-
-
-def label(text: str) -> str:
-    """What a person wrote, as a label: at most twelve words and 100 characters, on one line."""
-    text = cut_words(" ".join(text.split()), MEMO_WORDS)
-    return text if len(text) <= MEMO_CHARS else text[:MEMO_CHARS].rstrip() + "\u2026"
-
-
-def _toward(part: str) -> str:
-    what, sep, day = part.rpartition(" due ")
-    return label(what) + sep + day if sep else label(part)
-
-
-def memo(text: str) -> str:
-    """A memo as shown: the part a person wrote cut to a label; what code wrote after it
-    (`, due <date>`, or ` (counted toward <memo> due <date>; …)` with each memo in it cut the
-    same way) kept whole."""
-    text = " ".join(text.split())
-    m = _COUNTED.search(text)
-    if m:
-        return label(text[:m.start()]) + " (counted toward " + "; ".join(
-            _toward(p) for p in m.group(1).split("; ")) + ")"
-    m = _DUE.search(text)
-    if m:
-        return label(text[:m.start()]) + m.group(0)
-    return label(text)
+from townsim.town.statement import MEMO_CHARS, MEMO_WORDS, cut_words, label, memo  # noqa: E402,F401
 _OWED_KINDS = ("loan", "agreement", "standing")
 
 
