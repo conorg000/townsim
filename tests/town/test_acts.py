@@ -48,7 +48,7 @@ def test_an_operation_that_breaks_is_undone_and_reported():
     s = thin(); before = s.hash()
     def boom(store, act, cause):
         store.set("people", act.actor, cause, notes="half done"); raise RuntimeError("bug")
-    register(OpSpec("boom", "{}", "", 0.0, lambda s, a: None, boom))
+    register(OpSpec("boom", "{}", "", 0.0, lambda s, a: None, boom, 90))
     out = apply_act(s, Act("p01", "p01", "boom", {}), 0)
     assert not out.ok and out.msg == "Not done: that could not be carried out."
     assert s.hash() == before and len(s.engine_errors) == 1
@@ -56,7 +56,7 @@ def test_an_operation_that_breaks_is_undone_and_reported():
 
 def test_a_check_that_breaks_is_reported_not_raised():
     s = thin(); before = s.hash()
-    register(OpSpec("bad_check", "{}", "", 0.0, lambda s, a: 1 / 0, lambda s, a, c: "done"))
+    register(OpSpec("bad_check", "{}", "", 0.0, lambda s, a: 1 / 0, lambda s, a, c: "done", 90))
     out = apply_act(s, Act("p01", "p01", "bad_check", {}), 0)
     assert out.msg == "Not done: that could not be carried out." and s.hash() == before
     assert len(s.engine_errors) == 1
@@ -78,7 +78,7 @@ def test_a_done_act_carries_its_cause_and_takes_its_hours():
     s = thin(); seen = []
     def note(store, act, cause):
         seen.append(cause); store.set("people", act.actor, cause, notes="x"); return "Done it."
-    register(OpSpec("note", "{}", "", 1.5, lambda s, a: None, note))
+    register(OpSpec("note", "{}", "", 1.5, lambda s, a: None, note, 90))
     s.advance_day()
     out = apply_act(s, Act("p02", "p02", "note", {}), 3)
     assert out.ok and out.msg == "Done it." and seen == ["op:p02:note:d1.3"]
@@ -137,5 +137,19 @@ def test_registering_twice_is_harmless_but_a_different_spec_is_refused():
                                   "read", "write_notes"]
     register(REGISTRY["pay"])
     with pytest.raises(ValueError):
-        register(OpSpec("pay", "{}", "", 0.0, lambda s, a: None, lambda s, a, c: ""))
+        register(OpSpec("pay", "{}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 10))
     assert acts.REGISTRY["pay"].hours == 0.25
+
+
+def test_forms_go_by_order_whatever_the_order_of_registering():
+    s = thin()
+    before = forms(s, "p01")
+    specs = list(REGISTRY.values())
+    REGISTRY.clear()
+    for spec in reversed(specs):
+        register(spec)
+    assert forms(s, "p01") == before
+    register(OpSpec("borrow", "{borrow}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
+    register(OpSpec("aardvark", "{aardvark}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
+    assert forms(s, "p01")[:4] == [before[0], "{aardvark}", "{borrow}", before[1]]   # ties go by name
+    assert [REGISTRY[n].order for n in ("pay", "standing_payment", "write_notes")] == [10, 20, 80]

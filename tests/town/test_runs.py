@@ -206,7 +206,7 @@ def _breaks(store, act, cause):
 
 
 def test_engine_errors_are_kept_with_their_day(tmp_path):
-    register(OpSpec("break", "{}", "", 0.0, lambda s, a: None, _breaks))
+    register(OpSpec("break", "{}", "", 0.0, lambda s, a: None, _breaks, 90))
 
     def script(key, messages):
         if (key.day, key.actor) in ((3, "p02"), (5, "p04")):

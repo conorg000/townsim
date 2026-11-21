@@ -43,7 +43,8 @@ class Outcome:
 @dataclass(frozen=True)
 class OpSpec:
     """`check` returns why the act cannot be done (without `Not done:`) or None; it changes
-    nothing. `do` makes the change with the cause it is given and returns what the actor is told."""
+    nothing. `do` makes the change with the cause it is given and returns what the actor is
+    told. `order` places the operation's form in the view: by order, then by name."""
 
     name: str
     form: str
@@ -51,6 +52,7 @@ class OpSpec:
     hours: float
     check: Callable[[Store, Act], str | None]
     do: Callable[[Store, Act, str], str]
+    order: int
 
 
 REGISTRY: dict[str, OpSpec] = {}
@@ -60,8 +62,8 @@ def _same(a: OpSpec, b: OpSpec) -> bool:
     """The same spec, even from a reloaded module: same text and same named functions."""
     def where(f: Callable) -> tuple:
         return getattr(f, "__module__", None), getattr(f, "__qualname__", None)
-    return ((a.name, a.form, a.desc, a.hours, where(a.check), where(a.do))
-            == (b.name, b.form, b.desc, b.hours, where(b.check), where(b.do))
+    return ((a.name, a.form, a.desc, a.hours, a.order, where(a.check), where(a.do))
+            == (b.name, b.form, b.desc, b.hours, b.order, where(b.check), where(b.do))
             and "<lambda>" not in (where(a.check)[1] or "") + (where(a.do)[1] or ""))
 
 
@@ -196,5 +198,5 @@ def account_of(store: Store, who: str) -> str:
 
 
 def forms(store: Store, actor: str) -> list[str]:
-    """The written form of every operation, in the order they were registered."""
-    return [spec.form for spec in REGISTRY.values()]
+    """The written form of every operation, by `order` and then name."""
+    return [spec.form for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name))]

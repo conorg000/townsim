@@ -86,7 +86,7 @@ def test_town_thin_fails_when_the_engine_reports_errors(tmp_path, monkeypatch):
     def breaks(store, act, cause):
         raise RuntimeError("a bug")
 
-    monkeypatch.setitem(acts.REGISTRY, "break", acts.OpSpec("break", "{}", "", 0.0, lambda s, a: None, breaks))
+    monkeypatch.setitem(acts.REGISTRY, "break", acts.OpSpec("break", "{}", "", 0.0, lambda s, a: None, breaks, 90))
     monkeypatch.setattr(thin, "thin_script", lambda key, messages: '{"acts": [{"op": "break"}]}')
     result = _run("town-thin", "--weeks", "1", "--db", str(tmp_path / "e.sqlite"))
     assert result.exit_code == 1

@@ -359,25 +359,25 @@ def _do_notes(store: Store, act: Act, cause: str) -> str:
 for _spec in (
     OpSpec("pay", '{"op": "pay", "to": "<name>", "amount": <dollars>, "note": "<what for>", '
                   '"for": "<id of what it is owed on, if any>"}',
-           "Pay someone now from your household's account.", 0.25, _check_pay, _do_pay),
+           "Pay someone now from your household's account.", 0.25, _check_pay, _do_pay, 10),
     OpSpec("standing_payment", '{"op": "standing_payment", "to": "<name>", "amount": <dollars>, '
                                '"day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", '
                                '"weeks": <number, or 0 for until stopped>, "note": "<what for>"}',
            "Pay someone the same sum every week from your household's account.", 0.25,
-           _check_standing, _do_standing),
+           _check_standing, _do_standing, 20),
     OpSpec("stop", '{"op": "stop", "id": "<id of the payment or agreement>"}',
-           "End a payment your household makes on a schedule.", 0.1, _check_stop, _do_stop),
+           "End a payment your household makes on a schedule.", 0.1, _check_stop, _do_stop, 30),
     OpSpec("message", '{"op": "message", "to": "<name>", "text": "<what you write>"}',
-           "Write a letter to a person in the town.", 0.25, _check_message, _do_message),
+           "Write a letter to a person in the town.", 0.25, _check_message, _do_message, 40),
     OpSpec("request", '{"op": "request", "to": "<name>", "text": "<what you ask for>", '
                       '"amount": <dollars they would pay you, or 0>}',
-           "Ask a person for something, with or without money.", 0.25, _check_request, _do_request),
+           "Ask a person for something, with or without money.", 0.25, _check_request, _do_request, 50),
     OpSpec("answer", '{"op": "answer", "request": "<id>", "answer": "accept" | "decline", '
                      '"note": "<optional words>"}',
-           "Accept or decline a request made to you.", 0.1, _check_answer, _do_answer),
+           "Accept or decline a request made to you.", 0.1, _check_answer, _do_answer, 60),
     OpSpec("read", '{"op": "read", "what": "account" | "account in full" | "agreements"}',
-           "Read your household's account or its agreements.", 0.1, _check_read, _do_read),
+           "Read your household's account or its agreements.", 0.1, _check_read, _do_read, 70),
     OpSpec("write_notes", '{"op": "write_notes", "text": "<for yourself>"}',
-           "Replace your own notes.", 0.1, _check_notes, _do_notes),
+           "Replace your own notes.", 0.1, _check_notes, _do_notes, 80),
 ):
     register(_spec)
