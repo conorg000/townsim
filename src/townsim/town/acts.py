@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
@@ -18,7 +19,7 @@ from townsim.town.store import Store
 
 MAX_CENTS = 100_000_000
 _SHOWN = 40
-_DOLLARS = re.compile(r"\d+(\.\d+)?|\.\d+", re.ASCII)
+_DOLLARS = re.compile(r"\d{1,3}(,\d{3})+(\.\d*)?|\d+(\.\d*)?|\.\d+", re.ASCII)
 
 
 @dataclass(frozen=True)
@@ -94,7 +95,7 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     """Apply one act in full or not at all. `n` numbers the act within the day's acts."""
     if not isinstance(act.args, dict):
         return _not_done(act, "that operation was not written in a form that can be read.")
-    spec = REGISTRY.get(act.op) if isinstance(act.op, str) else None
+    spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
     if spec is None:
         return _not_done(act, f"there is no operation called '{shown(act.op)}'.")
     cause = f"op:{act.actor}:{spec.name}:d{store.day}.{n}"
@@ -121,28 +122,37 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     return Outcome(True, told, act)
 
 
-def to_cents(value: Any) -> int | None:
-    """Dollars as written in a reply, in cents: `12.5` and `"$1,308.50"` both read. None for
-    a bool, a non-number, zero, a negative, or more than 100,000,000 cents."""
+def dollars(value: Any) -> Decimal | None:
+    """A sum of dollars as written in a reply, exactly: an int, a finite float, or a string
+    such as `"$1,308.50"` or `"5."` whose commas only separate thousands. None otherwise."""
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
-        dollars = Decimal(value)
-    elif isinstance(value, float):
-        if not math.isfinite(value):
-            return None
-        dollars = Decimal(str(value))
-    elif isinstance(value, str):
-        text = value.strip().removeprefix("$").strip().replace(",", "")
-        if not _DOLLARS.fullmatch(text):
-            return None
-        dollars = Decimal(text)
-    else:
+        return Decimal(value)
+    if isinstance(value, float):
+        return Decimal(str(value)) if math.isfinite(value) else None
+    if isinstance(value, str):
+        text = value.strip().removeprefix("$").strip()
+        return Decimal(text.replace(",", "")) if _DOLLARS.fullmatch(text) else None
+    return None
+
+
+def to_cents(value: Any) -> int | None:
+    """Dollars as written in a reply, in cents, rounded half up: `12.5` and `"$1,308.50"` both
+    read. None for a bool, a non-number, zero, a negative, or more than 100,000,000 cents."""
+    sum_ = dollars(value)
+    if sum_ is None or sum_ <= 0 or sum_ > Decimal(MAX_CENTS) / 100:
         return None
-    if dollars <= 0 or dollars > Decimal(MAX_CENTS) / 100:
-        return None
-    cents = int((dollars * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    cents = int((sum_ * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
     return cents if cents > 0 else None
+
+
+def clean_text(value: Any) -> str | None:
+    """Text a person wrote, without control characters other than newline and tab; None
+    for a non-string."""
+    if not isinstance(value, str):
+        return None
+    return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) != "Cc")
 
 
 def resolve(store: Store, name: Any) -> str | None:

@@ -10,8 +10,9 @@ from __future__ import annotations
 from typing import Any
 
 from townsim.town import obligations
-from townsim.town.acts import Act, OpSpec, account_of, name_of_who, register, resolve, shown, to_cents
-from townsim.town.clock import DAYS, date_text, dow, parse_date
+from townsim.town.acts import (Act, OpSpec, account_of, clean_text, dollars, name_of_who, register, resolve, shown,
+                               to_cents)
+from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, statement, statement_text
@@ -21,8 +22,8 @@ MAX_WORDS = 300
 MAX_CHARS = 3000
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
-_WEEKDAYS = {w: i for i, name in enumerate(DAYS) for w in (name.lower(), name[:3].lower())}
 _READS = ("account", "account in full", "agreements")
+_ASKED_CUT = 80
 
 
 # reading arguments
@@ -58,8 +59,8 @@ def _amount(value: Any) -> tuple[int | None, str]:
 
 
 def _note(value: Any) -> str:
-    """An optional note: any non-string counts as none."""
-    return value.strip() if isinstance(value, str) else ""
+    """An optional note, cleaned: any non-string counts as none."""
+    return (clean_text(value) or "").strip()
 
 
 def _short_of(store: Store, account: str, cents: int) -> str | None:
@@ -75,9 +76,11 @@ def _person_to(store: Store, act: Act) -> str | None:
 
 
 def _text(value: Any, too_long: str) -> str | None:
-    if not isinstance(value, str) or not value.strip():
+    """Why written text cannot be sent, or None. The text checked is the cleaned text."""
+    text = clean_text(value)
+    if text is None or not text.strip():
         return "there was nothing written."
-    if _too_long(value):
+    if _too_long(text):
         return too_long
     return None
 
@@ -150,9 +153,8 @@ def _check_standing(store: Store, act: Act) -> str | None:
     cents, why = _amount(act.args.get("amount"))
     if cents is None:
         return why
-    day = act.args.get("day")
-    if not isinstance(day, str) or day.strip().lower() not in _WEEKDAYS:
-        return f"'{shown(day)}' is not a day of the week."
+    if weekday(act.args.get("day")) is None:
+        return f"'{shown(act.args.get('day'))}' is not a day of the week."
     if not _start(store, act)[1]:
         return f"'{shown(act.args.get('start'))}' is not a date that can be read."
     if _weeks(act.args.get("weeks")) is None:
@@ -166,24 +168,24 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
     own = _own(store, act)
     payee, name = _payee(store, act)
     cents = to_cents(act.args.get("amount"))
-    weekday = _WEEKDAYS[act.args["day"].strip().lower()]
+    wd = weekday(act.args["day"])
     start, _ = _start(store, act)
     if start is None:
-        first = store.day + (weekday - dow(store.day) - 1) % 7 + 1
+        first = store.day + (wd - dow(store.day) - 1) % 7 + 1
     else:
-        first = start + (weekday - dow(start)) % 7
+        first = start + (wd - dow(start)) % 7
     weeks = _weeks(act.args.get("weeks"))
     last = first + 7 * (weeks - 1) if weeks > 0 else None
     already = [o for o in store.all("obligations") if o.payer == own and o.payee == payee and o.status == "active"]
     memo = _note(act.args.get("note")) or f"standing payment to {name}"
     ob = obligations.create(store, kind="standing", payer=own, payee=payee, cents=cents, first=first, every=7,
                             last=last, memo=memo, ends="payer", made_by=act.actor, cause=cause)
-    told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[weekday]}, first on {date_text(first)}"
+    told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[wd]}, first on {date_text(first)}"
     if last is not None:
         told += f", last on {date_text(last)}"
     told += "."
     for other in already:
-        when = obligations._next_instalment(store, other)
+        when = obligations.next_instalment(store, other)
         if when is not None:
             told += (f" This is in addition to {other.memo} ({other.id}), which already goes to them "
                      f"on {date_text(when)}.")
@@ -220,16 +222,16 @@ def _check_message(store: Store, act: Act) -> str | None:
 
 def _do_message(store: Store, act: Act, cause: str) -> str:
     to = _person_to(store, act)
-    store.add("messages", Message(store.new_id("msg"), store.day, act.actor, to, act.args["text"]), cause)
+    store.add("messages", Message(store.new_id("msg"), store.day, act.actor, to, clean_text(act.args["text"])), cause)
     return f"Sent to {name_of_who(store, to)}."
 
 
 # request
 
 def _asked_cents(value: Any) -> int | None:
-    """No money asked is 0; otherwise the amount, or None if it cannot be read."""
-    if value is None or value == "0" or (isinstance(value, (int, float)) and not isinstance(value, bool)
-                                         and value == 0):
+    """Nothing, or any amount that reads as zero, asks no money: 0. Otherwise the amount in
+    cents, or None if it cannot be read."""
+    if value is None or dollars(value) == 0:
         return 0
     return to_cents(value)
 
@@ -253,7 +255,7 @@ def _check_request(store: Store, act: Act) -> str | None:
 
 def _do_request(store: Store, act: Act, cause: str) -> str:
     to = _person_to(store, act)
-    rq = Request(store.new_id("rq"), store.day, act.actor, to, act.args["text"],
+    rq = Request(store.new_id("rq"), store.day, act.actor, to, clean_text(act.args["text"]),
                  _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS)
     store.add("requests", rq, cause)
     return f"Sent to {name_of_who(store, to)} ({rq.id}). It stays open until {date_text(rq.expires)}."
@@ -284,7 +286,7 @@ def _check_answer(store: Store, act: Act) -> str | None:
         return f"you have no open request with the id '{shown(act.args.get('request'))}'."
     answer = _answer(act)
     if answer is None:
-        return "the answer must be accept or decline."
+        return f"'{shown(act.args.get('answer'))}' is not an answer to a request."
     if _too_long(_note(act.args.get("note"))):
         return "the note is too long."
     if answer == "accept" and rq.cents > 0:
@@ -302,10 +304,12 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     if accepted and rq.cents > 0:
         obligations.pay(store, _own(store, act), account_of(store, rq.sender), rq.cents, f"request {rq.id}", cause)
         told += f" Paid {money(rq.cents)} to {name_of_who(store, rq.sender)}."
-    text = f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} your request {rq.id}."
+    asked = rq.text if len(rq.text) <= _ASKED_CUT else rq.text[:_ASKED_CUT] + "\u2026"
+    text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
+            f"your request {rq.id} ({asked}).")
     note = _note(act.args.get("note"))
     if note:
-        text += f' They wrote: "{note}"'
+        text += f" They wrote: {note}"
     store.add("notices", Notice(store.new_id("n"), store.day, rq.sender, text), cause)
     return told
 
@@ -320,7 +324,7 @@ def _what(act: Act) -> str | None:
 
 
 def _check_read(store: Store, act: Act) -> str | None:
-    return None if _what(act) is not None else "you can read: account, account in full, agreements."
+    return None if _what(act) is not None else f"'{shown(act.args.get('what'))}' is not something that can be read."
 
 
 def _do_read(store: Store, act: Act, cause: str) -> str:
@@ -336,14 +340,14 @@ def _do_read(store: Store, act: Act, cause: str) -> str:
 # write_notes
 
 def _check_notes(store: Store, act: Act) -> str | None:
-    text = act.args.get("text")
-    if not isinstance(text, str):
+    text = clean_text(act.args.get("text"))
+    if text is None:
         return "there was nothing written."
     return "that is too long for your notes." if _too_long(text) else None
 
 
 def _do_notes(store: Store, act: Act, cause: str) -> str:
-    store.set("people", act.actor, cause, notes=act.args["text"])
+    store.set("people", act.actor, cause, notes=clean_text(act.args["text"]))
     return "Noted."
 
 

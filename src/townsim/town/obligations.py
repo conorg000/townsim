@@ -244,7 +244,7 @@ def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
         day += ob.every
 
 
-def _next_instalment(store: Store, ob: Obligation) -> int | None:
+def next_instalment(store: Store, ob: Obligation) -> int | None:
     """The earliest instalment of `ob` from today on not yet fully paid: an open due, or
     else the first day it falls with no due opened yet."""
     open_days = [d.day for d in store.all("dues")
@@ -291,7 +291,7 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
             left -= take
     if left > 0:
         nexts = [(day, KIND_ORDER.index(o.kind), id_key(o.id), o) for o in obs
-                 if (day := _next_instalment(store, o)) is not None]
+                 if (day := next_instalment(store, o)) is not None]
         if nexts:
             day, _, _, ob = min(nexts, key=lambda n: n[:3])
             due = _find_due(store, ob.id, day)

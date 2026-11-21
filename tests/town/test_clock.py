@@ -58,6 +58,12 @@ def test_parse_date_reads_a_trailing_year():
     assert clock.parse_date("2026", today=3) is None
 
 
+def test_weekday_reads_a_day_name():
+    assert [clock.weekday(w) for w in ("Monday", " thu ", "SUN.", "wednesday.", "Tues")] == [0, 3, 6, 2, None]
+    for junk in (None, 3, [], "", ".", "Funday", "Thursday 12 March", "mo"):
+        assert clock.weekday(junk) is None
+
+
 def test_parse_date_reads_short_weekdays_and_months():
     assert clock.parse_date("Thu 12 Mar", today=3) == 10
     assert clock.parse_date("thu", today=3) == 10

@@ -34,6 +34,14 @@ def week(day: int) -> int:
     return day // 7 + 1
 
 
+def weekday(word: object) -> int | None:
+    """The day of the week a word names, 0 for Monday: a full name or its first three
+    letters, in any case, with surrounding spaces and a full stop allowed. Never raises."""
+    if not isinstance(word, str):
+        return None
+    return _WEEKDAY_WORDS.get(word.strip().lower().removesuffix("."))
+
+
 def date_text(day: int) -> str:
     d = DAY_ZERO + timedelta(days=day)
     return f"{DAYS[d.weekday()]} {d.day} {MONTHS[d.month - 1]}"

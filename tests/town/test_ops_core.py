@@ -85,7 +85,7 @@ def test_standing_payment_starts_on_the_weekday_on_or_after_start():
     ob = s.all("obligations")[-1]
     assert (ob.first, ob.last, ob.memo) == (10, None, "garden")
     assert out.msg == f"Set up ({ob.id}): $5.00 to Craig Pryce every Thursday, first on Thursday 12 March."
-    do(s, "p01", "standing_payment", 1, to="Craig Pryce", amount=5, day="Sunday", start="10 March")
+    do(s, "p01", "standing_payment", 1, to="Craig Pryce", amount=5, day=" sun. ", start="10 March")
     assert s.all("obligations")[-1].first == 13
 
 
@@ -175,6 +175,17 @@ def test_a_letter_to_no_one_comes_back():
         "Not done: your letter to 'Wenlow Lettings' came back undelivered."
 
 
+def test_control_characters_are_taken_out_of_what_people_write():
+    s = thin()
+    do(s, "p01", "message", to="Craig Pryce", text="line one\nline\ttwo\x00\x1b[31m\x7f")
+    assert s.all("messages")[-1].text == "line one\nline\ttwo[31m"
+    do(s, "p01", "write_notes", 1, text="keep\x08 this")
+    assert s.get("people", "p01").notes == "keep this"
+    do(s, "p01", "pay", 2, to="Megan Pryce", amount=1, note="\x0c\x0c")
+    assert s.ledger.transfers[-1].memo == "payment to Megan Pryce"
+    assert refused(s, "p01", "message", to="Craig Pryce", text="\x00\x01") == "Not done: there was nothing written."
+
+
 def test_message_with_nothing_or_too_much_written_is_refused():
     s = thin()
     assert refused(s, "p01", "message", to="Craig Pryce", text="  ") == "Not done: there was nothing written."
@@ -200,9 +211,14 @@ def test_request_is_sent_and_stays_open_two_weeks():
 
 def test_request_without_money():
     s = thin()
-    for n, amount in enumerate((0, "0", None)):
+    for n, amount in enumerate((0, "0", None, "0.00", "$0", 0.0, " $0.0 ")):
         assert ask(s, amount, n).ok and s.all("requests")[-1].cents == 0
     assert do(s, "p03", "request", 9, to="Ruth Ashby", text="Come for tea?").ok
+
+
+def test_request_without_an_amount():
+    s = thin()
+    assert do(s, "p03", "request", to="Ruth Ashby", text="Come for tea?").ok and s.all("requests")[-1].cents == 0
 
 
 def test_request_refusals():
@@ -215,6 +231,9 @@ def test_request_refusals():
     assert refused(s, "p03", "request", to="Megan Pryce", text="lend", amount=5) == \
         "Not done: that is your own household."
     assert refused(s, "p03", "request", to="Ruth Ashby", text="") == "Not done: there was nothing written."
+    assert refused(s, "p03", "request", to="Ruth Ashby", text="\x00\x1b") == "Not done: there was nothing written."
+    for amount in (-1, "-0", True, "0,0"):
+        assert refused(s, "p03", "request", to="Ruth Ashby", text="lend", amount=amount).startswith("Not done:")
 
 
 def test_accepting_a_request_for_money_moves_it_once():
@@ -224,7 +243,8 @@ def test_accepting_a_request_for_money_moves_it_once():
     assert (s.balance("h1"), s.balance("h2")) == (56000, 34000)
     assert s.get("requests", rq).status == "accepted"
     notice = s.all("notices")[-1]
-    assert (notice.to, notice.text) == ("p03", f'Ruth Ashby accepted your request {rq}. They wrote: "glad to"')
+    assert (notice.to, notice.text) == \
+        ("p03", f"Ruth Ashby accepted your request {rq} (Could you lend us $40 for the meter?). They wrote: glad to")
     assert refused(s, "p01", "answer", request=rq, answer="accept") == \
         f"Not done: you have no open request with the id '{rq}'."
     assert (s.balance("h1"), s.balance("h2")) == (56000, 34000)
@@ -234,7 +254,15 @@ def test_declining_a_request_tells_the_sender():
     s = thin(); ask(s); rq = s.all("requests")[-1].id
     assert do(s, "p01", "answer", 1, request=rq, answer="decline").msg == "Declined."
     assert s.get("requests", rq).status == "declined" and s.balance("h1") == 60000
-    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq}."
+    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} (Could you lend us $40 for the meter?)."
+
+
+def test_the_notice_cuts_a_long_request_and_cleans_the_note():
+    s = thin()
+    do(s, "p03", "request", to="Ruth Ashby", text="a" * 100)
+    rq = s.all("requests")[-1].id
+    do(s, "p01", "answer", 1, request=rq, answer="decline", note="no\x07 thanks\x00")
+    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} ({'a' * 80}\u2026). They wrote: no thanks"
 
 
 def test_answer_refusals():
@@ -244,7 +272,9 @@ def test_answer_refusals():
     assert refused(s, "p01", "answer", request="rq999", answer="accept") == \
         "Not done: you have no open request with the id 'rq999'."
     assert refused(s, "p01", "answer", request=rq, answer="maybe") == \
-        "Not done: the answer must be accept or decline."
+        "Not done: 'maybe' is not an answer to a request."
+    assert refused(s, "p01", "answer", request=rq, answer=["accept"] * 30) == \
+        "Not done: '['accept', 'accept', 'accept', 'accept',' is not an answer to a request."
     ask(s, 700, 1); big = s.all("requests")[-1].id
     assert refused(s, "p01", "answer", request=big, answer="accept") == \
         "Not done: the account holds $600.00 and this needs $700.00."
@@ -262,7 +292,8 @@ def test_read_shows_the_account_and_agreements():
         statement_text(s, statement(s, "h1", back=28, max_lines=60))
     assert do(s, "p01", "read", what="agreements").msg == agreements_text(s, "h1")
     assert refused(s, "p01", "read", what="everything") == \
-        "Not done: you can read: account, account in full, agreements."
+        "Not done: 'everything' is not something that can be read."
+    assert do(s, "p01", "read", 1, what="AGREEMENTS").ok
 
 
 def test_write_notes_replaces_the_notes():

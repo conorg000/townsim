@@ -3,7 +3,8 @@ import importlib
 import pytest
 
 from townsim.town import acts, ops_core
-from townsim.town.acts import REGISTRY, Act, OpSpec, account_of, apply_act, forms, register, resolve, to_cents
+from townsim.town.acts import (REGISTRY, Act, OpSpec, account_of, apply_act, clean_text, forms, register, resolve,
+                               to_cents)
 
 from town.helpers import thin
 
@@ -66,6 +67,18 @@ def test_a_check_that_breaks_is_reported_not_raised():
     assert len(s.engine_errors) == 1
 
 
+def test_operation_names_ignore_case_and_spaces():
+    s = thin()
+    out = apply_act(s, Act("p01", "p01", " Pay ", {"to": "Megan Pryce", "amount": 1}), 4)
+    assert out.ok and s.ledger.transfers[-1].cause == "op:p01:pay:d0.4"
+    assert apply_act(s, Act("p01", "p01", "WRITE_NOTES", {"text": "x"}), 5).ok
+
+
+def test_clean_text_keeps_newlines_and_tabs_only():
+    assert clean_text("a\nb\tc\x00d\re\x1bf\x85g\u200bh") == "a\nb\tcdef" + "g\u200bh"
+    assert clean_text(5) is None and clean_text(None) is None and clean_text("") == ""
+
+
 def test_a_done_act_carries_its_cause_and_takes_its_hours():
     s = thin(); seen = []
     def note(store, act, cause):
@@ -95,6 +108,13 @@ def test_to_cents_is_exact_and_rounds_half_up():
     assert to_cents(0.29) == 29 and to_cents(1.005) == 101 and to_cents("0.125") == 13
     assert to_cents(1_000_000) == 100_000_000 and to_cents(1_000_000.01) is None
     assert to_cents("$ 5") == 500 and to_cents(".5") == 50
+
+
+def test_to_cents_reads_commas_only_as_thousands():
+    assert [to_cents(x) for x in ("12,50", "1,2,3", "1,00", "1,000", "1,000.50", "5.")] == \
+        [None, None, None, 100000, 100050, 500]
+    assert [to_cents(x) for x in ("$12,345.6", ",100", "100,", "1,0000", "1,000,000", "1,000.", "1.000,50")] == \
+        [1234560, None, None, None, 100_000_000, 100000, None]
     for junk in (float("nan"), float("inf"), "1e3", "5$", "-5", "1.2.3", "", "$", "9" * 5000, 0.004, {}, b"5"):
         assert to_cents(junk) is None
 
