@@ -812,3 +812,15 @@ def test_random_sequences_of_agreements_keep_their_sums(seed):
             live(s, rng.choice([1, 1, 2, 3]))
         _check_agreements(s, made, ended)
     assert made
+
+
+def test_an_agreement_until_ended_between_debtor_and_creditor_is_told_without_an_end():
+    from townsim.town.facts import worries
+    s = deals_town()
+    tie(s, "p01", "p04", "creditor")
+    tie(s, "p04", "p01", "debtor")
+    agreed(s, weeks=0)
+    assert "Paying back Megan: $20.00 a week until either side ends it." in worries(s, "p01", 20)
+    assert "Whether Ruth keeps up the $20.00 a week owed to you." in worries(s, "p04", 20)
+    for pid in ("p01", "p04"):
+        who(s, pid)

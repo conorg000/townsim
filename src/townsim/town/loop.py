@@ -167,14 +167,32 @@ def _tell_more(store: Store, pid: str, k: int, cause: str) -> None:
     store.add("results", Result(store.new_id("res", cause), store.day, pid, MORE, text, False), cause)
 
 
+def guarded_view(store: Store, pid: str, build: Any) -> Any:
+    """What `build()` returns; or, if it raises, None, with the store left as it was and an
+    engine error kept (`view:<pid>:d<day>: <type>: <message>`): one person's view that cannot
+    be built never stops the day."""
+    mark = store.mark()
+    try:
+        return build()
+    except Exception as e:          # noqa: BLE001  (any fault in building a view)
+        store.undo_to(mark)
+        store.engine_errors.append(f"view:{pid}:d{store.day}: {type(e).__name__}: {e}")
+        return None
+
+
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     """The routine, then everyone's view, every reply, and each person's aims and acts in
     id order; then the day's talks (`talk.todays`, each held in turn, its acts numbered on
     from everyone's); then the close. A reply's `aims`, when it has them, are taken before
-    its acts. Acts past the eighth are not carried out, and the person is told how many."""
+    its acts. Acts past the eighth are not carried out, and the person is told how many. A
+person whose view cannot be built is not asked that day (`guarded_view`)."""
     routine(store)
     day = store.day
-    shown = [(pid, *views.view(store, pid)) for pid in who_acts(store)]
+    shown = []
+    for pid in who_acts(store):
+        built = guarded_view(store, pid, lambda: views.view(store, pid))
+        if built is not None:
+            shown.append((pid, *built))
     asked = []
     for pid, messages, _ in shown:
         key = keys.next(replier.model_for(pid), day, pid, "turn")

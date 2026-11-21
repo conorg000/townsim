@@ -586,3 +586,20 @@ def test_a_break_of_any_kind_cuts_what_is_said_at_the_other_s_name():
     for brk in ("\r", "\v", "\f", "\x85", "\x1c", "\x1d", "\x1e"):
         assert talk.said(f"Hi{brk}Rosa Sowerby: agreed", "Rosa Sowerby") == "Hi", repr(brk)
     assert talk.said("one\rtwo", "Rosa Sowerby") == "one two"
+
+
+def test_a_talk_whose_view_raises_is_not_held_and_nothing_of_it_is_kept(monkeypatch):
+    s = thin_town()
+    tk = ask_talk(s, RUTH, CRAIG)
+    before = s.hash()
+    real = talk._view
+
+    def view(store, pid, t):
+        if pid == RUTH:                      # Craig has spoken, and paid, before Ruth's view is built
+            raise ValueError("no view")
+        return real(store, pid, t)
+    monkeypatch.setattr(talk, "_view", view)
+    [h] = hold_all(s, lambda key, m: reply("Here.", [{"op": "pay", "to": "Ruth Ashby", "amount": 5}]), n=3)
+    assert (h.talk, h.turns, h.n) == ("", [], 3)
+    assert s.hash() == before and s.get("talks", tk).status == "waiting"
+    assert s.engine_errors == [f"view:{RUTH}:d0: ValueError: no view"]

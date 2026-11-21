@@ -223,3 +223,32 @@ def test_engine_errors_are_kept_with_their_day(tmp_path):
         assert [day for day, _ in errors] == [3, 3, 5, 5]
         assert errors[0][1].startswith("op:p02:break:d3.0: RuntimeError: a bug")
         assert 11 not in db.change_days("e")
+
+
+def test_a_view_that_raises_skips_that_person_that_day_and_the_run_goes_on(tmp_path, monkeypatch):
+    """A view that raises for one person on one day leaves the store as it was, is kept as an
+    engine error, and that person is not asked that day; the run goes on and replays exactly."""
+    from townsim.town import views
+    from townsim.town.entities import Notice
+    real = views.view
+
+    def view(store, pid):
+        if (store.day, pid) == (4, "p03"):
+            store.add("notices", Notice(store.new_id("n", "routine:test"), store.day, pid, "half made"), "routine:test")
+            raise TypeError("a view went wrong")
+        return real(store, pid)
+    monkeypatch.setattr(views, "view", view)
+    asked = []
+
+    def script(key, messages):
+        asked.append((key.day, key.actor))
+        return thin_script(key, messages)
+    path = str(tmp_path / "v.sqlite")
+    with RunDB(path) as db:
+        db.create_run("v", seed=1)
+        final = run(db, "v", thin_town(), ScriptedReplier(script), 8)
+        assert db.errors("v") == [(4, "view:p03:d4: TypeError: a view went wrong")]
+        assert (4, "p03") not in asked and (4, "p01") in asked and final.day == 8
+        assert not any(n.text == "half made" for n in final.all("notices"))
+        assert not any(c.cause == "routine:test" for c in final.changes)
+        assert replay(db, "v") == []

@@ -212,7 +212,22 @@ class Held:
 def hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int = 0) -> Held:
     """Hold what `ref` names (an appointment, an asked talk or a household) if both people can
     talk; else record why not. `n` is the day's running count of acts, which the talk's acts
-    continue."""
+    continue. If a speaker's view cannot be built, the talk is not held today and nothing of
+    it is kept: the store is as it was before, and an engine error is kept."""
+    mark = store.mark()
+    try:
+        return _hold(store, replier, keys, ref, n)
+    except _NoView as e:
+        store.undo_to(mark)
+        store.engine_errors.append(e.args[0])
+        return Held("", [], n)
+
+
+class _NoView(Exception):
+    """A speaker's view in a talk could not be built: the error as kept."""
+
+
+def _hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int) -> Held:
     cause = f"routine:talk:{ref}"
     if store.has("appointments", ref):
         ap = store.get("appointments", ref)
@@ -274,7 +289,10 @@ def _converse(store: Store, replier: Replier, keys: Keys, tk: str, n: int) -> He
     held = Held(tk, [], n)
     while spoken[speaker] < TURNS:
         other = t.b if speaker == t.a else t.a
-        messages, ids = _view(store, speaker, tk)
+        try:
+            messages, ids = _view(store, speaker, tk)
+        except Exception as e:      # noqa: BLE001  (any fault in building a view)
+            raise _NoView(f"view:{speaker}:d{day}: {type(e).__name__}: {e}") from e
         key = keys.next(replier.model_for(speaker), day, speaker, "talk", tk)
         reply = replier.ask(key, messages)
         parsed = parse_say(reply.text)

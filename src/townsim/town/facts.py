@@ -179,9 +179,14 @@ def _payday(ob) -> str:
     return DAYS[dow(ob.first)] + "s"
 
 
+UNTIL_ENDED = "either side ends it"
+
+
 def ends_on(ob) -> str:
-    """The day the last instalment of `ob` falls, as written: never its raw `last` day."""
-    return when(last_instalment(ob))
+    """The day the last instalment of `ob` falls, as written: never its raw `last` day; for
+    one that runs until ended, `either side ends it` (read after `until`)."""
+    day = last_instalment(ob)
+    return UNTIL_ENDED if day is None else when(day)
 
 
 def rents(store: Store, payer: str, payee: str | None = None) -> tuple[list, list]:
