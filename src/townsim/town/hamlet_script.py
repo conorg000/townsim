@@ -20,12 +20,12 @@ _OWED_TO_ME = re.compile(r"^(ob\d+): (.+?), (\$[\d,]+\.\d\d) a week from ")
 _STANDING_NOTE = "towards the week"
 _NO_ONE = "Edith Marsh"
 _FULL = r"[A-Z][\w'-]+ [A-Z][\w'-]+"
-_IDLE = re.compile(rf"^({_FULL}), [^.]*?(?:is out of work|has no work at present)\.$", re.M)
+_IDLE = re.compile(rf"^({_FULL}), [^.]*?(?:is out of work|has no work at present)[.,]", re.M)
 _WORKS = re.compile(rf"^({_FULL}), [^,\n]+, works ", re.M)
 _MY_PAY = re.compile(rf"^You work [^\n]*?, for ({_MONEY}) a week", re.M)
 _HOURS_LEFT = re.compile(r"^You have ([\d.]+) hours left this week\.$", re.M)
 _PRICE = re.compile(rf"^Price: ({_MONEY}) a basket$")
-_ORDER = re.compile(r"(\d+) units from (.+)$")
+_ORDER = re.compile(r"(\d+) baskets from (.+)$")
 _STAFF = re.compile(rf"^  ({_FULL}), [\d.]+ hours, ({_MONEY}) a week$")
 _OFFERED = re.compile(rf" offers .+ a job: ({_MONEY}) a week")
 _EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours, paid ")
@@ -75,7 +75,7 @@ class _Seen:
         self.balance = next((_cents(m.group(1)) for line in account
                              if (m := re.match(rf"Balance: ({_MONEY})", line))), 0)
         self.after = next((_cents(m.group(1)) for line in account
-                           if (m := re.match(rf"After what goes out: ({_MONEY})", line))), 0)
+                           if (m := re.match(rf"Lowest point before [^:]+: ({_MONEY})", line))), 0)
         out = []                     # the lines under "Going out by"
         for line in account:
             if line.startswith("Going out by"):
@@ -96,7 +96,7 @@ class _Seen:
                 self.requests.append((m.group(1), m.group(2), 0))
             elif (m := _ASKED.match(line)) and self.requests:
                 self.requests[-1] = self.requests[-1][:2] + (_cents(m.group(1)),)
-            elif self.requests and not line.startswith(("  ", "(")):
+            elif self.requests and not line.startswith(("  ", "(")) and self.requests[-1][0] not in self.summaries:
                 self.summaries[self.requests[-1][0]] = line
         self.owed = self.sections.get("WHAT IS OWED", [])
         business = self.sections.get("YOUR BUSINESS", [])
@@ -105,6 +105,8 @@ class _Seen:
         self.order = next(((int(m.group(1)), m.group(2)) for line in business
                            if line.startswith(("On order", "Nothing ordered")) and (m := _ORDER.search(line))), None)
         self.staff = [(m.group(1), _cents(m.group(2))) for line in business if (m := _STAFF.match(line))]
+        self.wages_out = [(_cents(m.group(1)), m.group(4)) for line in business
+                          if (m := _COMING.match(line)) and m.group(3).startswith("wages from")]
         self.idle = _IDLE.findall(system)
         self.house_workers = _WORKS.findall(system)
         found = _MY_PAY.search(system)
@@ -161,9 +163,9 @@ def _work(me: _Seen, day: int, num: int) -> list[dict]:
                 acts.append({"op": "set_price", "price": 0.5})
         if me.order is not None:
             units, supplier = me.order
-            acts.append({"op": "order_stock", "supplier": supplier, "units": units})
+            acts.append({"op": "order_stock", "supplier": supplier, "baskets": units})
             if num % 4 == 0:
-                acts.append({"op": "order_stock", "supplier": supplier, "units": 6000})
+                acts.append({"op": "order_stock", "supplier": supplier, "baskets": 6000})
     elif week == 3:
         if staff:
             acts.append({"op": "offer_shifts", "to": staff[0][0], "hours": 6})
@@ -177,8 +179,10 @@ def _work(me: _Seen, day: int, num: int) -> list[dict]:
             if num % 2 == 0:
                 acts.append({"op": "set_staff_pay", "who": name, "weekly_pay": 50})
             acts.append({"op": "set_staff_pay", "who": name, "weekly_pay": _dollars(pay + 1000)})
-            if wd <= 3 and me.balance > 2 * staff[-1][1]:          # this week's wage, by hand, before Friday
-                acts.append({"op": "pay", "to": staff[-1][0], "amount": _dollars(staff[-1][1]), "note": "wages"})
+            if wd <= 3 and me.balance > staff[-1][1]:              # this week's wage, by hand, before Friday
+                wage = [ob for cents, ob in me.wages_out if cents == staff[-1][1]][:1]
+                acts.append({"op": "pay", "to": staff[-1][0], "amount": _dollars(staff[-1][1]), "note": "wages",
+                             **({"for": wage[0]} if wage and num % 2 else {})})
     elif week == 5:
         if me.price is not None:
             acts.append({"op": "work_extra_hours", "hours": 40 if num % 2 == 1 else 6})
@@ -197,7 +201,7 @@ def _work(me: _Seen, day: int, num: int) -> list[dict]:
     elif week == 7 and me.balance > 30_000:
         acts.append({"op": "move_money", "from": "household", "to": me.business, "amount": 100})
     elif week == 8 and num % 7 == 0 and me.order is not None:
-        acts.append({"op": "order_stock", "supplier": me.order[1], "units": 0})
+        acts.append({"op": "order_stock", "supplier": me.order[1], "baskets": 0})
     return acts
 
 

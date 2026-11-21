@@ -408,21 +408,21 @@ def test_the_business_is_shown_as_a_till_prints_it():
     text = facts.business(s, owner.id)
     lines = text.split("\n")
     assert lines[:3] == [org.name, f"Account: {money(s.balance(org.id))}", f"Price: {money(f.price)} a basket"]
-    assert lines[3] == f"On the shelf: {sum(f.stock_units)} units ({sum(f.stock_units)} from this week, 0 from last week)"
+    assert lines[3] == f"On the shelf: {sum(f.stock_units)} baskets ({sum(f.stock_units)} from this week, 0 from last week)"
     sup = s.get("orgs", s.get("suppliers", f.last_supplier).org).name
-    assert lines[4] == f"Nothing ordered; last week's order was {f.last_units} units from {sup}"
+    assert lines[4] == f"Nothing ordered; last week's order was {f.last_units} baskets from {sup}"
     staff = [f"  {s.get('people', j.person).name}, {j.hours:g} hours, {money(j.weekly)} a week"
              for j in s.where("jobs", org=org.id)]
     assert lines[5:6 + len(staff)] == ["Staff:"] + staff
     assert "Last week:" not in text and f"Going out by {date_text(6)}:" in text
     firms.place_order(s, f.id, f.last_supplier, 120, "op:x:order:d0.0")
-    assert facts.business(s, owner.id).split("\n")[4] == f"On order for Monday: 120 units from {sup}"
+    assert facts.business(s, owner.id).split("\n")[4] == f"On order for Monday: 120 baskets from {sup}"
     run_routine(s, 14)
     text = facts.business(s, owner.id)
     [last, before] = sorted((t for t in s.all("tills") if t.firm == f.id), key=lambda t: -t.week)[:2]
-    assert (f"Last week: sold {last.sold}, turned away {last.turned_stock} for want of stock and "
+    assert (f"Last week: sold {last.sold} baskets, could not sell {last.turned_stock} for want of stock and "
             f"{last.turned_capacity} for want of staff, threw away {last.spoiled}, took {money(last.takings)}") in text
-    assert f"The week before: sold {before.sold}," in text
+    assert f"The week before: sold {before.sold} baskets," in text
 
 
 def _no_figures(lines):
@@ -627,7 +627,7 @@ def test_owner_knowhow_states_the_real_rules():
                         "last week's order comes again.")
     from townsim.econ.firm import Firm
     carry = round(100 * Firm.__dataclass_fields__["carry_loss"].default)
-    assert lines[1] == (f"Of what is left on the shelf at the end of a week, about {carry} in every 100 units go off; "
+    assert lines[1] == (f"Of what is left on the shelf at the end of a week, about {carry} in every 100 baskets go off; "
                         f"anything {f.shelf_weeks} weeks old is thrown away.")
 
 
@@ -1058,7 +1058,8 @@ def test_a_job_that_has_ended_is_no_longer_shown():
     for m in s.get("households", s.get("people", pid).household).members:
         if m != pid:
             line = next(x for x in facts.who(s, m).split("\n") if x.startswith(s.get("people", pid).name + ", "))
-            assert employer not in line and line.endswith("has no work at present.")
+            assert employer not in line and ("has no work at present." in line
+                                             or "has no work at present, paid jobseeker's benefit" in line)
     # a shop's staff list counts only those still working there
     owner = _owner_of_most(s)
     org = next(o for o in s.all("orgs") if o.owner == owner)

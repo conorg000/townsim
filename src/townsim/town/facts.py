@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
+from bisect import bisect_left
 
 from townsim.econ.firm import Firm
 from townsim.town import firms, jobs, names, ties
@@ -58,12 +59,11 @@ KNOWHOW: dict[str, list[str]] = {
     "owner": [
         "Stock ordered before Monday arrives on Monday and is paid for on arrival; with no new order, "
         "last week's order comes again.",
-        "Of what is left on the shelf at the end of a week, about {carry} in every 100 units go off; anything "
+        "Of what is left on the shelf at the end of a week, about {carry} in every 100 baskets go off; anything "
         "{shelf_weeks} weeks old is thrown away.",
-        "One member of staff working a full {staff_week}-hour week can serve about {per_staff} customers.",
-        "The till's weekly report counts customers turned away for want of stock and for want of staff.",
+        "One member of staff working a full {staff_week}-hour week can serve about {per_staff} baskets.",
+        "The till's weekly report counts the baskets that could not be sold for want of stock and for want of staff.",
         "Suppliers sometimes send less than was ordered, and never more than the shop's account can pay for.",
-        "A price can be changed at any time.",
     ],
     "banker": [
         "A loan from the bank is repaid in weekly instalments, taken from the borrower's account on their day.",
@@ -237,6 +237,9 @@ def _home(store: Store, pid: str) -> list[str]:
                      f"{name_of(store, m.payee)}{last}.")
     elif h.street:
         lines.append("The house is yours outright.")
+    day = next((b.shop_day for b in store.all("buyers") if b.account == h.id), None)
+    if day is not None:
+        lines.append(f"Your household buys its food on {DAYS[day]}s.")
     return lines
 
 
@@ -361,7 +364,7 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
         mine_ob = pensions[pensioners.index(pid)]
         all_cents = sorted(o.cents for o in store.all("obligations") if o.memo == "state pension" and o.status in SCHEDULED)
         if mine_ob.status in SCHEDULED and mine_ob.cents <= all_cents[len(all_cents) // 2]:
-            found.append(f"Getting by on your pension of {money(mine_ob.cents)} a week.")
+            found.append(f"Getting by on your state pension of {money(mine_ob.cents)} a week.")
     if store.has("people", h.landlord) and h.landlord != pid:
         rent = rents(store, home)
         if rent:
@@ -408,9 +411,39 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
     for other, _, words in known:
         if store.get("people", other).household != household:
             continue
-        does = _does(store, other)
+        does = ", ".join(x for x in (_does(store, other), _paid(store, other)) if x)
         lines.append(f"{store.get('people', other).name}, {words}" + (f", {does}." if does else "."))
     return lines
+
+
+def _paid(store: Store, pid: str) -> str:
+    """What someone is paid and by whom, from their jobs and their household's regular income:
+    `paid $x a week by <employer>`, their benefit, their state pension; "" if nothing."""
+    out = []
+    for j in jobs.held(store, person=pid):
+        ob = store.get("obligations", j.wage_ob) if store.has("obligations", j.wage_ob) else None
+        if ob is not None and ob.status in SCHEDULED and store.has("orgs", j.org):
+            out.append(f"paid {money(cents_now(store, ob))} a week by {store.get('orgs', j.org).name}")
+    benefit = jobs.benefit_held(store, pid)
+    if benefit:
+        ob = store.get("obligations", benefit)
+        out.append(f"paid jobseeker's benefit of {money(ob.cents)} a week by {name_of(store, ob.payer)}")
+    pension = _pension_of(store, pid)
+    if pension is not None:
+        out.append(f"paid a state pension of {money(pension.cents)} a week by {name_of(store, pension.payer)}")
+    return " and ".join(out)
+
+
+def _pension_of(store: Store, pid: str):
+    """The state pension paid into `pid`'s household that is theirs: the household's pensions in
+    id order, one to each of its pensioners in turn; None if they have none."""
+    h = store.get("households", store.get("people", pid).household)
+    pensioners = [q for q in h.members if store.get("people", q).kind == "retired"
+                  or (store.get("people", q).kind == "landlord" and store.get("people", q).age >= jobs.PENSION_AGE)]
+    pensions = [o for o in store.where("obligations", payee=h.id) if o.memo == "state pension" and o.status in SCHEDULED]
+    if pid not in pensioners or pensioners.index(pid) >= len(pensions):
+        return None
+    return pensions[pensioners.index(pid)]
 
 
 def _work(store: Store, pid: str) -> list[str]:
@@ -547,7 +580,7 @@ OWED_KEPT = 4                      # what is owed when it gives way
 BOOK_LINES = 12
 GOING_OUT = 10
 COMING_IN = 6
-from townsim.town.statement import MEMO_CHARS, MEMO_WORDS, Counted, cut_words, label, memo  # noqa: E402,F401
+from townsim.town.statement import MEMO_CHARS, MEMO_WORDS, Counted, cut_words, label, lowest_line, memo  # noqa: E402,F401
 _OWED_KINDS = ("loan", "agreement", "standing")
 
 
@@ -683,13 +716,13 @@ def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = C
     rows += coming(store, st.out, out_most)
     rows.append(f"Expected in by {date_text(st.until)}:")
     rows += coming(store, st.coming_in, in_most)
-    rows.append(f"After what goes out: {money(st.after_out)}")
+    rows.append(lowest_line(st))
     return rows
 
 
 def _till(label: str, t) -> str:
-    return (f"{label}: sold {t.sold}, turned away {t.turned_stock} for want of stock and {t.turned_capacity} "
-            f"for want of staff, threw away {t.spoiled}, took {money(t.takings)}")
+    return (f"{label}: sold {t.sold} baskets, could not sell {t.turned_stock} for want of stock and "
+            f"{t.turned_capacity} for want of staff, threw away {t.spoiled}, took {money(t.takings)}")
 
 
 def _shelf(store: Store, f) -> str:
@@ -698,7 +731,7 @@ def _shelf(store: Store, f) -> str:
     last = sum(u for u, w in zip(f.stock_units, f.stock_weeks) if w == now - 1)
     older = sum(f.stock_units) - this - last
     more = f", {older} older" if older else ""
-    return f"On the shelf: {sum(f.stock_units)} units ({this} from this week, {last} from last week{more})"
+    return f"On the shelf: {sum(f.stock_units)} baskets ({this} from this week, {last} from last week{more})"
 
 
 def _supplier_name(store: Store, sid: str) -> str:
@@ -726,10 +759,10 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
             lines.append(f"Price: {money(f.price)} a basket")
             lines.append(_shelf(store, f))
             if f.order_units > 0:
-                lines.append(f"On order for Monday: {f.order_units} units from "
+                lines.append(f"On order for Monday: {f.order_units} baskets from "
                              f"{_supplier_name(store, f.order_supplier)}")
             elif f.last_units > 0 and f.last_supplier:
-                lines.append(f"Nothing ordered; last week's order was {f.last_units} units from "
+                lines.append(f"Nothing ordered; last week's order was {f.last_units} baskets from "
                              f"{_supplier_name(store, f.last_supplier)}")
             else:
                 lines.append("Nothing ordered")
@@ -742,10 +775,72 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
             tills = sorted((t for t in store.all("tills") if t.firm == f.id), key=lambda t: -t.week)
             for label, t in list(zip(("Last week", "The week before"), tills))[:max(0, min(weeks, 2))]:
                 lines.append(_till(label, t))
+            if extras:
+                lines += _shop_extras(store, org, f)
         lines.append(f"Going out by {date_text(store.day + AHEAD)}:")
         lines += _coming(store, org.id, out_most)
         blocks += lines
     return blocks
+
+
+def _last_delivery(store: Store, f) -> str:
+    cause = f"routine:delivery:{f.id}"
+    for x in reversed(store.ledger.transfers):
+        if x.cause == cause:
+            got = int(x.memo.split()[0]) if x.memo.split()[0].isdigit() else 0
+            each = f" at {money(x.cents // got)} a basket" if got else ""
+            return f"Last delivery: {date_text(x.t)}, {got} baskets{each} from {name_of(store, x.dst)}"
+    return ""
+
+
+def _week_money(store: Store, org) -> str:
+    """What the shop's account took and paid out last week (Monday to Sunday), from its own
+    account: takings, and wages, stock, rent, loans and anything else paid out."""
+    monday = store.day - dow(store.day) - 7
+    if monday < 0:
+        return ""
+    took = other_in = 0
+    out = {"wages": 0, "stock": 0, "rent": 0, "loans": 0, "other": 0}
+    for x in store.ledger.transfers[bisect_left(store.ledger.transfers, monday, key=lambda x: x.t):]:
+        if x.t > monday + 6:
+            break
+        if x.dst == org.id:
+            if x.cause == firms.SHOPPING:
+                took += x.cents
+            else:
+                other_in += x.cents
+        elif x.src == org.id:
+            out[_spent_on(store, x)] += x.cents
+    paid = ", ".join(f"{k} {money(v)}" for k, v in out.items() if v)
+    line = f"Last week's money: took {money(took)}"
+    if other_in:
+        line += f", and {money(other_in)} more came in"
+    return line + (f"; paid out {paid}" if paid else "; paid out nothing")
+
+
+def _spent_on(store: Store, x) -> str:
+    if x.cause.startswith("routine:delivery:"):
+        return "stock"
+    if x.cause.startswith("routine:collect:"):
+        due = x.cause.removeprefix("routine:collect:")
+        if store.has("dues", due):
+            kind = store.get("obligations", store.get("dues", due).obligation).kind
+            return {"wage": "wages", "rent": "rent", "loan": "loans"}.get(kind, "other")
+    return "other"
+
+
+def _shop_extras(store: Store, org, f) -> list[str]:
+    """What else an owner plainly knows of their shop: the last delivery, the suppliers' prices,
+    last week's money, and the prices in the other shops' windows."""
+    lines = [x for x in (_last_delivery(store, f), _week_money(store, org)) if x]
+    prices = [f"{name_of_who(store, sp.org)} {money(sp.unit_cents)}" for sp in store.all("suppliers")]
+    if prices:
+        lines.append(f"Suppliers' prices a basket today: {'; '.join(prices)}")
+    rivals = [f"{store.get('orgs', g.org).name} {money(g.price)}" for g in store.all("firms")
+              if g.need == f.need and g.org != org.id and store.has("orgs", g.org)]
+    if rivals:
+        lines.append(f"Prices a basket in the other shops: {'; '.join(rivals)}")
+    return lines
 
 
 def till_weeks(store: Store, pid: str) -> int:

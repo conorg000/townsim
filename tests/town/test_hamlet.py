@@ -206,7 +206,7 @@ def test_the_script_lives_a_full_life():
     assert any(j.ended != -1 and s.has("orgs", j.org) and not s.get("orgs", j.org).outside for j in s.all("jobs"))
     assert any(o.memo == "jobseeker's benefit" and o.ends == "both" for o in s.all("obligations"))   # paid on its own
     assert any(c.table == "firms" and c.field == "price" and c.cause.startswith("op:") for c in s.changes)
-    ordered = [o.act.args.get("units") for o in acted if o.ok and o.act.op == "order_stock"]
+    ordered = [o.act.args.get("baskets") for o in acted if o.ok and o.act.op == "order_stock"]
     assert 0 in ordered and any(u for u in ordered)
     moved = [o.act.args.get("from") for o in acted if o.ok and o.act.op == "move_money"]
     assert "household" in moved and any(m != "household" for m in moved)

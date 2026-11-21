@@ -205,11 +205,32 @@ def _request_lines(store: Store, rq) -> list[str]:
     head = f"{rq.id} from {name_of_who(store, rq.sender)}:"
     summary = [" ".join(rq.summary.split())] if rq.summary.strip() else []
     if not rq.text.strip():
-        return [head] + summary + unknown.flags(store, rq.to, rq.sender, request_words(rq))
+        return [head] + summary + unknown.flags(store, rq.to, rq.sender, request_words(rq)) + _borrower(store, rq)
     lines = [head] + _quoted(rq.text)
     if rq.cents > 0:
         lines.append(f"They ask you for {money(rq.cents)}.")
     return lines + unknown.flags(store, rq.to, rq.sender, rq.text) + summary
+
+
+LOAN_DAYS = 28
+
+
+def _borrower(store: Store, rq) -> list[str]:
+    """For the banker asked for a loan, what a bank sees of the account it would be lent to: what
+    it holds, and what came into it and went out of it over the last four weeks."""
+    if rq.kind != "loan" or not store.ledger.has(rq.payer):
+        return []
+    since = store.day - LOAN_DAYS + 1
+    inn = out = 0
+    for x in reversed(store.ledger.transfers):
+        if x.t < since:
+            break
+        if x.dst == rq.payer:
+            inn += x.cents
+        elif x.src == rq.payer:
+            out += x.cents
+    return [f"The {name_of_who(store, rq.payer)} account holds {money(store.balance(rq.payer))}. Since "
+            f"{date_text(max(0, since))}, {money(inn)} has come into it and {money(out)} has gone out."]
 
 
 def request_words(rq) -> str:

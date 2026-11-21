@@ -56,7 +56,8 @@ HOURLY = {"owner": (1200, 1600), "staff": (1150, 1400), "banker": (1700, 2400), 
 JOB_HOURS = {"owner": (38, 48), "staff": (16, 38), "banker": (35, 40), "software_owner": (38, 45),
              "software": (35, 40), "outside_worker": (30, 40)}
 PENSION = (28_000, 42_000)
-BENEFIT = (23_000, 32_000)
+BENEFIT = (23_000, 32_000)       # drawn and not used: benefit is one rate (`jobs.BENEFIT_WEEKLY`); the draw
+                                 # is kept so that the rest of each place is what it was
 HOUSING, FOOD, ENERGY = (0.25, 0.35), (0.12, 0.18), (0.04, 0.07)
 MORTGAGE_END_AGE = 75
 LANDLORD_JOB_CHANCE = 0.5
@@ -151,8 +152,13 @@ def when(day: int) -> str:
 
 
 def weekly_in(store: Store, account: str) -> int:
-    """Cents a week paid into `account` by its weekly obligations."""
-    return sum(o.cents for o in store.where("obligations", payee=account) if o.every == 7 and o.status == "active")
+    """Cents a week paid into `account` by its weekly obligations that are paid this week: one
+    first paid in a later week (a job not yet begun) counts from that week, and one whose last
+    payment has gone counts no more."""
+    sunday = store.day + 6 - store.day % 7
+    return sum(O.cents_now(store, o) for o in store.where("obligations", payee=account)
+               if o.every == 7 and o.status == "active" and o.first <= sunday
+               and (o.last is None or o.last >= store.day))
 
 
 def expected_food(size: int, price: float) -> int:
@@ -574,7 +580,8 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
         elif p.kind == "landlord" and rng.random() < LANDLORD_JOB_CHANCE:
             job(p, employer, "outside_worker", LANDLORD_JOB_HOURS)
         elif p.kind == "unemployed":
-            benefit = _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*BENEFIT, 100), FRIDAY,
+            rng.randrange(*BENEFIT, 100)
+            benefit = _weekly(s, "wage", region, home_of[p.id].id, jobs.BENEFIT_WEEKLY, FRIDAY,
                               jobs.BENEFIT_MEMO, "service")
             s.set("people", p.id, SETUP, benefit=benefit)
 

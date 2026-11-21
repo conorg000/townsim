@@ -172,8 +172,26 @@ def statement_text(store: Store, st: Statement) -> str:
     rows += _coming(store, st.out)
     rows.append(f"Expected in by {date_text(st.until)}:")
     rows += _coming(store, st.coming_in)
-    rows.append(f"After what goes out: {money(st.after_out)}")
+    rows.append(lowest_line(st))
     return "\n".join(rows)
+
+
+def lowest(st: Statement) -> int:
+    """The lowest the balance comes to by the statement's last day, taking what is due in and out
+    day by day in order (on a day, what comes in first, as wages are paid first; anything
+    overdue going out as today; anything overdue coming in not counted)."""
+    moves = [(max(u.day, st.day), 1, -u.cents) for u in st.out]
+    moves += [(u.day, 0, u.cents) for u in st.coming_in if u.day >= st.day]
+    balance = low = st.balance
+    for _, _, cents in sorted(moves):
+        balance += cents
+        low = min(low, balance)
+    return low
+
+
+def lowest_line(st: Statement) -> str:
+    """`Lowest point before <the day after its last>: <$x>`."""
+    return f"Lowest point before {date_text(st.until + 1)}: {money(lowest(st))}"
 
 
 def agreements_text(store: Store, account: str) -> str:

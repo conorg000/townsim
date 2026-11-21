@@ -573,27 +573,34 @@ def _supplier(store: Store, value: Any) -> str | None:
     return None
 
 
+def _baskets(act: Act) -> Any:
+    """The baskets an order names (`units`, the older name, means the same)."""
+    return act.args.get("baskets", act.args.get("units"))
+
+
 def _check_order(store: Store, act: Act) -> str | None:
     fid, why = _own_shop(store, act)
     if fid is None:
         return why
     if _supplier(store, act.args.get("supplier")) is None:
-        return f"'{shown(act.args.get('supplier'))}' is not a supplier."
-    if _whole(act.args.get("units"), 0, firms.MAX_ORDER) is None:
-        return f"'{shown(act.args.get('units'))}' is not a whole number of units from 0 to {firms.MAX_ORDER:,}."
+        names = _names(sorted(_org_name(store, sp.org) for sp in store.all("suppliers") if store.has("orgs", sp.org)))
+        yours = f" Yours are {names}." if store.all("suppliers") else ""
+        return f"'{shown(act.args.get('supplier'))}' is not a supplier.{yours}"
+    if _whole(_baskets(act), 0, firms.MAX_ORDER) is None:
+        return f"'{shown(_baskets(act))}' is not a whole number of baskets from 0 to {firms.MAX_ORDER:,}."
     return None
 
 
 def _do_order(store: Store, act: Act, cause: str) -> str:
     fid, _ = _own_shop(store, act)
     sid = _supplier(store, act.args.get("supplier"))
-    units = _whole(act.args.get("units"), 0, firms.MAX_ORDER)
+    units = _whole(_baskets(act), 0, firms.MAX_ORDER)
     firms.place_order(store, fid, sid, units, cause)
     monday = jobs.next_monday(store.day)
     if units == 0:
         return f"Nothing is ordered for {date_text(monday)}, and nothing is repeated after it."
     sp = store.get("suppliers", sid)
-    return (f"Ordered {units:,} units from {_org_name(store, sp.org)} at {money(sp.unit_cents)} a unit, "
+    return (f"Ordered {units:,} baskets from {_org_name(store, sp.org)} at {money(sp.unit_cents)} a basket, "
             f"for {date_text(monday)}.")
 
 
@@ -684,7 +691,7 @@ for _spec in (
            _do_staff_pay, 120, who="owner"),
     OpSpec("set_price", '{"op": "set_price", "price": <dollars>}',
            "Change your shop's price.", 0.1, _check_price, _do_price, 130, who="owner"),
-    OpSpec("order_stock", '{"op": "order_stock", "supplier": "<name>", "units": <number; 0 for no delivery>}',
+    OpSpec("order_stock", '{"op": "order_stock", "supplier": "<name>", "baskets": <baskets a week; 0 to end the order>}',
            "Order stock for Monday.", 0.5, _check_order, _do_order, 140, who="owner"),
     OpSpec("work_extra_hours", '{"op": "work_extra_hours", "hours": <number>}',
            "Work extra hours in your shop this week.", 0.0, _check_extra, _do_extra, 150, who="owner",

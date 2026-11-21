@@ -193,7 +193,7 @@ def test_a_delivery_pays_the_supplier_and_adds_a_cohort():
     f = s.get("firms", "fm1")
     assert f.stock_units == [240] and f.stock_weeks == [1]
     [t] = [t for t in s.ledger.transfers if t.cause == "routine:delivery:fm1"]
-    assert (t.src, t.dst, t.cents, t.memo) == ("org3", "org6", 240 * 700, "240 units from Vale Wholesale")
+    assert (t.src, t.dst, t.cents, t.memo) == ("org3", "org6", 240 * 700, "240 baskets from Vale Wholesale")
     assert s.ledger.total() == 0
 
 

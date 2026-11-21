@@ -12,7 +12,7 @@ def test_statement_shows_dates_what_goes_out_and_what_is_left():
     hash_before_calling_statement, logged = s.hash(), len(s.changes)
     text = statement_text(s, statement(s, "h1"))
     assert "$556.92" in text and "Monday 2 March" in text and "Monday 9 March" in text and "Friday 6 March" in text
-    assert "$381.92" in text          # after the next rent goes out; the wage is not netted in
+    assert "Lowest point before Thursday 12 March: $556.92" in text     # Friday's wage comes before Monday's rent
     assert s.hash() == hash_before_calling_statement   # building a statement changes nothing
     assert len(s.changes) == logged
     assert text == "\n".join([
@@ -24,7 +24,7 @@ def test_statement_shows_dates_what_goes_out_and_what_is_left():
         "  Monday 9 March  $175.00  Lettings  rent (ob1)",
         "Expected in by Wednesday 11 March:",
         "  Friday 6 March  $486.00  Employers  wages (ob2)",
-        "After what goes out: $381.92",
+        "Lowest point before Thursday 12 March: $556.92",
     ])
 
 
@@ -63,8 +63,25 @@ def test_arrears_show_as_overdue_and_empty_sections_say_nothing():
         "  overdue since Monday 2 March  $48.00  Northgrid  energy (ob1)",
         "Expected in by Thursday 12 March:",
         "  nothing",
-        "After what goes out: -$48.00",
+        "Lowest point before Friday 13 March: -$48.00",
     ])
+
+
+def test_the_lowest_point_takes_what_comes_in_and_goes_out_in_the_order_of_their_days():
+    from townsim.town.statement import lowest
+    s = town(h1=10_000)
+    O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=17_500, first=1, every=7, memo="rent",
+             ends="both", **SETUP)
+    make_wage(s, "h1", cents=48_600, first=4)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=4, every=7, memo="energy",
+             ends="service", **SETUP)
+    st = statement(s, "h1", ahead=6)
+    assert lowest(st) == 10_000 - 17_500                    # the rent on Tuesday, before Friday's wage
+    s2 = town(h1=10_000)
+    make_wage(s2, "h1", cents=48_600, first=1)
+    O.create(s2, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=1, every=7, memo="energy",
+             ends="service", **SETUP)
+    assert lowest(statement(s2, "h1", ahead=6)) == 10_000    # the wage comes first on the day they both fall
 
 
 def test_agreements_text_lists_everything_paid_or_received():

@@ -417,16 +417,16 @@ def test_benefit_starts_the_week_after_and_ends_with_a_job():
     do(s, "p03", "quit")
     to_day(s, 8)
     [ob] = [o for o in s.all("obligations") if o.memo == "jobseeker's benefit"]
-    assert (ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.ends) == ("org8", "h2", 14_000, 11, 7, "both")
+    assert (ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.ends) == ("org8", "h2", 23_000, 11, 7, "both")
     assert s.get("people", "p03").benefit == ob.id
-    assert told(s, "p03")[-1] == "Jobseeker's benefit of $140.00 a week starts on Friday 13 March."
+    assert told(s, "p03")[-1] == "Jobseeker's benefit of $230.00 a week starts on Friday 13 March."
     live(s, 7)                                      # Tuesday 17 March
     rq = offer(s, "p05", "Craig Pryce", 500, 38)
     live(s, 1)
     assert accept(s, "p03", rq).ok
     assert told(s, "p03")[-1] == "Jobseeker's benefit is not paid after Friday 20 March."
     to_day(s, 36)
-    assert paid(s, "org8", "h2") == [(11, 14_000), (18, 14_000)]
+    assert paid(s, "org8", "h2") == [(11, 23_000), (18, 23_000)]
     assert len([o for o in s.all("obligations") if o.memo == "jobseeker's benefit"]) == 1
 
 
@@ -445,10 +445,10 @@ def test_an_order_placed_by_saturday_arrives_monday_and_replaces_an_earlier_one(
     s = work_town()
     live(s, 1)
     out = do(s, "p01", "order_stock", supplier="Cheap Van Foods", units=100)
-    assert out.msg == "Ordered 100 units from Cheap Van Foods at $6.65 a unit, for Monday 9 March."
+    assert out.msg == "Ordered 100 baskets from Cheap Van Foods at $6.65 a basket, for Monday 9 March."
     live(s, 4)                                      # Saturday
     out = do(s, "p01", "order_stock", supplier="vale wholesale", units="50")
-    assert out.msg == "Ordered 50 units from Vale Wholesale at $7.00 a unit, for Monday 9 March."
+    assert out.msg == "Ordered 50 baskets from Vale Wholesale at $7.00 a basket, for Monday 9 March."
     to_day(s, 8)
     assert delivered(s, "fm1") == [50] and paid(s, "org3", "org6") == [(7, 35_000)]
     out = do(s, "p01", "order_stock", supplier="Vale Wholesale", units=0)
@@ -456,9 +456,9 @@ def test_an_order_placed_by_saturday_arrives_monday_and_replaces_an_earlier_one(
     to_day(s, 22)
     assert delivered(s, "fm1") == [50]
     assert refused(s, "p01", "order_stock", supplier="Edith Marsh", units=5) == \
-        "Not done: 'Edith Marsh' is not a supplier."
+        "Not done: 'Edith Marsh' is not a supplier. Yours are Cheap Van Foods and Vale Wholesale."
     assert refused(s, "p01", "order_stock", supplier="Vale Wholesale", units=5001) == \
-        "Not done: '5001' is not a whole number of units from 0 to 5,000."
+        "Not done: '5001' is not a whole number of baskets from 0 to 5,000."
 
 
 def test_a_price_takes_effect_at_once():
@@ -693,7 +693,8 @@ def test_someone_who_takes_a_job_is_no_longer_out_of_work_in_any_view():
     who = _who(s, "p18")
     assert "out of work" not in who and "Finding work" not in who and "benefit" not in who
     assert "You work at Lumb's Grocer: 38 hours a week, for $440.00 a week, paid on Fridays." in who
-    assert "Wendy Lumb, your child, works for you, works at Lumb's Grocer." in _who(s, "p16")
+    assert "Wendy Lumb, your child, works for you, works at Lumb's Grocer, paid $440.00 a week by Lumb's Grocer." \
+        in _who(s, "p16")
 
 
 def test_someone_who_loses_a_job_is_not_told_they_keep_it():
@@ -822,8 +823,8 @@ def test_benefit_after_a_pay_change_and_a_dismissal_at_a_weekend_starts_after_th
     close(s); live(s, 10)
     assert [d for d, src, c in _wages_in(s, 12) if src == "org10"] == []
     benefit = [(t.t, t.cents) for t in s.ledger.transfers if t.dst == "h5" and "benefit" in t.memo]
-    assert benefit == [(18, 14_000)]
-    assert told(s, "p9")[-1] == "Jobseeker's benefit of $140.00 a week starts on Friday 20 March."
+    assert benefit == [(18, 23_000)]
+    assert told(s, "p9")[-1] == "Jobseeker's benefit of $230.00 a week starts on Friday 20 March."
 
 
 def test_a_stopped_wage_is_not_replaced_and_the_job_left_takes_no_wage_after_the_last_pay():

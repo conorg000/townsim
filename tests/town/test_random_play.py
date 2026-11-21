@@ -89,7 +89,7 @@ def view_names(messages: list[dict]) -> list[str]:
     return list(dict.fromkeys(found))
 
 
-_SUPPLIER = re.compile(r"\d+ units from (.+)$")
+_SUPPLIER = re.compile(r"\d+ baskets from (.+)$")
 
 
 def view_suppliers(messages: list[dict]) -> list[str]:

@@ -20,7 +20,7 @@ from townsim.town.obligations import SCHEDULED, money
 from townsim.town.store import Store, id_key
 
 MIN_HOURLY = 1100            # cents an hour: the least a job may pay anyone but its owner
-BENEFIT_WEEKLY = 14_000      # cents a week of jobseeker's benefit
+BENEFIT_WEEKLY = 23_000      # cents a week of jobseeker's benefit, one rate for everyone
 BENEFIT_MEMO = "jobseeker's benefit"
 PENSION_AGE = 66
 FRIDAY = 4
