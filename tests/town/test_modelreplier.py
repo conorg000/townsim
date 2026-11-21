@@ -9,7 +9,7 @@ import pytest
 from townsim.estimate import Price
 from townsim.town.families import Family, worst_case
 from townsim.town.modelreplier import ModelReplier
-from townsim.town.replies import Reply, ReplyKey, StopRun
+from townsim.town.replies import Reply, ReplyKey, StopRun, encode_reply
 
 FAMILIES = {
     "a": Family("a", "maker/alpha", {"max_tokens": 100, "temperature": 0.8, "reasoning_effort": "none"}),
@@ -87,7 +87,7 @@ def _raises(resp):
 
 
 @pytest.mark.parametrize("cost_fn", [_raises, lambda resp: 0, lambda resp: -1.0, lambda resp: "0.1",
-                                     lambda resp: float("nan"), lambda resp: True, None])
+                                     lambda resp: float("nan"), lambda resp: True, None, lambda resp: 1e-9])
 def test_cost_falls_back_to_prices(cost_fn):
     fake = Fake(lambda m, msgs: response("hi", usage=(1000, 200)))
     reply = replier(fake, cost_fn=cost_fn).ask(key("p02"), MESSAGES)     # family a: 0.10 / 0.50
@@ -123,9 +123,13 @@ def test_cap_stops_before_sending():
 def test_exactly_at_the_cap_is_allowed():
     fake = Fake()
     worst = worst_case(FAMILIES["a"], PRICES["maker/alpha"], MESSAGES)
-    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + worst, spent=lambda: 0.5)
+    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + 3 * worst, spent=lambda: 0.5)
     r.ask(key("p02"), MESSAGES)
     assert len(fake.calls) == 1 and r.stopped is None
+    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + 3 * worst - 1e-12, spent=lambda: 0.5)
+    with pytest.raises(StopRun):                    # every attempt's worst case counts, not one
+        r.ask(key("p02"), MESSAGES)
+    assert len(fake.calls) == 1
 
 
 def test_unavailable_stops_and_returns_nothing():
@@ -184,7 +188,7 @@ def test_ask_many_keeps_order_and_isolates_failures():
     others = [g for i, g in enumerate(got) if i not in (4, 10)]
     assert [g.text for g in others] == [f"reply for {p}" for i, p in enumerate(PEOPLE) if i not in (4, 10)]
     assert all(g.error is None and g.cost > 0 for g in others)
-    assert r.stopped.startswith("unavailable:") or r.stopped.startswith("refused:")
+    assert r.stopped == str(got[4]) and r.stopped.startswith("unavailable: maker/beta: ")   # the first in order
     assert len(fake.calls) == 17 + 3
 
 
@@ -198,19 +202,15 @@ def test_ask_many_runs_calls_side_by_side():
     assert all(isinstance(g, Reply) for g in got)
 
 
-def test_a_hung_call_does_not_hold_the_others():
-    release = threading.Event()
-
+def test_a_call_that_raises_does_not_lose_the_others():
     def answer(model, messages):
         if messages[-1]["content"] == "p03":
-            release.wait(10)
+            raise ConnectionError("reset")
+        time.sleep(0.01)
         return response(messages[-1]["content"])
-    r = replier(Fake(answer), deadline=0.3)
-    try:
-        got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in PEOPLE])
-    finally:
-        release.set()
-    assert isinstance(got[2], StopRun) and r.stopped.startswith("unavailable: ")
+    r = replier(Fake(answer))
+    got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in PEOPLE])
+    assert isinstance(got[2], StopRun)
     assert [g.text for i, g in enumerate(got) if i != 2] == [p for i, p in enumerate(PEOPLE) if i != 2]
 
 
@@ -218,10 +218,10 @@ def test_ask_many_checks_the_cap_for_the_whole_batch():
     fake = Fake()
     pairs = [(key(p), MESSAGES) for p in PEOPLE[:4]]
     worsts = [worst_case(FAMILIES[FAMILY_OF[p]], PRICES[FAMILIES[FAMILY_OF[p]].model], MESSAGES) for p in PEOPLE[:4]]
-    r = replier(fake, cap=1.0, spent=1.0 - sum(worsts) + 1e-9)   # each call fits alone; the four do not
+    r = replier(fake, cap=1.0, spent=1.0 - 3 * sum(worsts) + 1e-9)   # each call fits alone; the four do not
     got = r.ask_many(pairs)
     assert all(isinstance(g, StopRun) for g in got) and fake.calls == [] and r.stopped.startswith("cap:")
-    r = replier(fake, cap=1.0, spent=1.0 - sum(worsts))
+    r = replier(fake, cap=1.0, spent=1.0 - 3 * sum(worsts))
     assert all(isinstance(g, Reply) for g in r.ask_many(pairs)) and len(fake.calls) == 4
 
 
@@ -272,7 +272,61 @@ def test_a_refusal_later_in_a_batch_than_a_failure_still_stops_everything():
     assert len(fake.calls) == calls
 
 
-def test_the_replier_reads_no_key_and_imports_no_client():
-    import townsim.town.modelreplier as mod
-    source = open(mod.__file__, encoding="utf-8").read()
-    assert "environ" not in source and "getenv" not in source and "import litellm" not in source
+def test_a_key_in_the_environment_never_reaches_a_call_or_a_reply(monkeypatch):
+    marker = "sk-or-MARKER-7f3a9c"
+    for name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.setenv(name, marker)
+    fake = Fake(lambda m, msgs: response("fine"))
+    r = replier(fake, cost_fn=lambda resp: 0.001)
+    replies = [r.ask(key("p01"), MESSAGES)] + r.ask_many([(key(p), MESSAGES) for p in PEOPLE[:4]])
+    assert fake.calls and marker not in repr(fake.calls)
+    assert all(marker not in encode_reply(x) for x in replies)
+    assert marker not in repr(vars(r))
+
+
+@pytest.mark.parametrize("extra", [{"n": 5}, {"fallbacks": ["x/y"]}, {"api_base": "http://x"}, {"model": "x/y"},
+                                   {"extra_body": {"models": ["x/y"]}}, {"timeout": 900}])
+def test_the_replier_refuses_a_hand_built_family_with_other_params(extra):
+    bad = dict(FAMILIES, a=Family("a", "maker/alpha", {"max_tokens": 100, **extra}))
+    with pytest.raises(ValueError, match=f"'a'.*{next(iter(extra))}"):
+        ModelReplier(bad, PRICES, FAMILY_OF, Fake(), cap=1.0, spent=lambda: 0.0)
+
+
+def test_a_person_dealt_a_family_not_loaded_fails_at_construction():
+    with pytest.raises(ValueError, match=r"'p07'.*'minimax'"):
+        ModelReplier(FAMILIES, PRICES, dict(FAMILY_OF, p07="minimax"), Fake(), cap=1.0, spent=lambda: 0.0)
+
+
+def test_a_cost_function_that_under_reports_cannot_hide_spend():
+    fake = Fake(lambda m, msgs: response("hi", usage=(1000, 200)))
+    listed = (1000 * 0.10 + 200 * 0.50) / 1e6
+    assert replier(fake, cost_fn=lambda resp: 1e-9).ask(key("p02"), MESSAGES).cost == pytest.approx(listed)
+    assert replier(fake, cost_fn=lambda resp: 0.5).ask(key("p02"), MESSAGES).cost == 0.5
+
+
+def test_each_attempt_that_raised_is_told_to_lost_in_order_after_the_batch():
+    tries = {}
+    lock = threading.Lock()
+    caller = threading.get_ident()
+    told = []
+
+    def answer(model, messages):
+        who = messages[-1]["content"]
+        with lock:
+            tries[who] = tries.get(who, 0) + 1
+            n = tries[who]
+        if who == "p02" and n == 1:
+            raise TimeoutError("once")
+        if who == "p04":
+            raise TimeoutError("always")
+        return response(who)
+
+    def lost(dollars):
+        told.append((dollars, threading.get_ident()))
+    pairs = [(key(p), [{"role": "user", "content": p}]) for p in PEOPLE[:5]]
+    r = replier(Fake(answer), lost=lost)
+    got = r.ask_many(pairs)
+    assert isinstance(got[3], StopRun) and all(isinstance(g, Reply) for i, g in enumerate(got) if i != 3)
+    w = [worst_case(FAMILIES[FAMILY_OF[k.actor]], PRICES[FAMILIES[FAMILY_OF[k.actor]].model], m) for k, m in pairs]
+    assert [d for d, _ in told] == [w[1], w[3], w[3], w[3]]          # p02 once, p04 three times, in order
+    assert {t for _, t in told} == {caller}

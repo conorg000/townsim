@@ -14,18 +14,16 @@ imports a provider's client or reads a key.
 from __future__ import annotations
 
 import math
-import threading
 import time
 from collections.abc import Callable
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 
 from townsim.estimate import Price
-from townsim.model import ModelUnavailable, complete, finish_reason, reasoning_text, reply_text, token_count
-from townsim.town.families import Family, check_price, input_tokens, worst_case
+from townsim.model import RETRY_SLEEPS, ModelUnavailable, complete, finish_reason, reasoning_text, reply_text, token_count
+from townsim.town.families import Family, check_family, input_tokens, worst_case
 from townsim.town.replies import Reply, ReplyKey, StopRun
 
-DEADLINE = 300.0   # seconds a call may take, retries included, before it counts as no answer
-_POLL = 0.05
+ATTEMPTS = len(RETRY_SLEEPS) + 1   # the attempts `model.complete` makes at one call
 
 
 def _usage_count(resp, name: str) -> int | None:
@@ -51,20 +49,30 @@ def _refusal(resp) -> str | None:
 class ModelReplier:
     """Asks each person's family's model through `completion_fn`.
 
-    `family_of` maps a person's id to a family name; `spent()` gives the dollars already
-    stored for the run; `cost_fn(response)` gives a call's dollars (LiteLLM's
-    `completion_cost(completion_response=...)` in live use), the listed prices standing in
-    when it raises or gives no positive number. `stopped` says why this replier last
-    stopped a run: `cap: ...`, `refused: <model>: ...` or `unavailable: <model>: ...`.
+    `family_of` maps a person's id to a family name; `cost_fn(response)` gives a call's
+    dollars (LiteLLM's `completion_cost(completion_response=...)` in live use). A reply's
+    recorded cost is the larger of that and the listed price of its tokens, so a cost
+    function that under-reports cannot hide spend. `lost(dollars)` is told the worst case of
+    every attempt that raised (a provider may bill an attempt the client gave up on), once
+    per attempt, on the calling thread after a batch's calls have all finished, in the pairs'
+    order. `spent()` gives the dollars already spent on the run: what its stored replies cost
+    plus everything `lost` was given. `stopped` says why this replier last stopped a run:
+    `cap: ...`, `refused: <model>: ...` or `unavailable: <model>: ...`.
+
+    Raises ValueError if a family sets a parameter `families.check_params` does not allow,
+    names an unpriced model or one above the price ceiling, or if `family_of` deals a person
+    a family that is not among `families`.
     """
 
     def __init__(self, families: dict[str, Family], prices: dict[str, Price], family_of: dict[str, str],
                  completion_fn: Callable, cap: float, spent: Callable[[], float], cost_fn: Callable | None = None,
-                 workers: int = 8, sleep_fn: Callable[[float], None] = time.sleep, deadline: float = DEADLINE) -> None:
-        for name, family in families.items():
-            if family.model not in prices:
-                raise ValueError(f"family {name!r}: {family.model} has no price")
-            check_price(name, family.model, prices[family.model])
+                 workers: int = 8, sleep_fn: Callable[[float], None] = time.sleep,
+                 lost: Callable[[float], None] | None = None) -> None:
+        for family in families.values():
+            check_family(family, prices)
+        for person, name in family_of.items():
+            if name not in families:
+                raise ValueError(f"person {person!r} is dealt family {name!r}, which is not among the families loaded")
         self.families = families
         self.prices = prices
         self.family_of = family_of
@@ -74,7 +82,7 @@ class ModelReplier:
         self.cost_fn = cost_fn
         self.workers = max(1, int(workers))
         self.sleep_fn = sleep_fn
-        self.deadline = deadline
+        self.lost = lost
         self.stopped: str | None = None
         self._refused = False
 
@@ -92,19 +100,48 @@ class ModelReplier:
 
     def ask_many(self, pairs: list[tuple[ReplyKey, list[dict]]]) -> list[Reply | StopRun]:
         """One element per pair, in order: a `Reply`, or a `StopRun` for a call that was not
-        made or gave no answer. Never raises for one call's failure."""
+        made or gave no answer. Never raises for one call's failure.
+
+        Before anything is sent, the spend so far plus the worst case of every attempt that
+        may be made (`ATTEMPTS` per call) must not pass the cap, or nothing is sent. The
+        batch waits for all its calls (each bounded by `model.complete`'s timeout and
+        retries). Replies are stored by the caller only once the batch returns, so a process
+        killed mid-batch may lose up to one batch of replies that were paid for; they are
+        asked again on resume."""
         fams = [self._family(key.actor) for key, _ in pairs]
         if self._refused:
             return [StopRun(self.stopped) for _ in pairs]
         if not pairs:
             return []
+        worsts = [worst_case(f, self.prices[f.model], m) for f, (_, m) in zip(fams, pairs)]
         already = float(self.spent())
-        worst = sum(worst_case(f, self.prices[f.model], m) for f, (_, m) in zip(fams, pairs))
+        worst = ATTEMPTS * sum(worsts)
         if not already + worst <= self.cap:
             self.stopped = (f"cap: ${already:.4f} spent and up to ${worst:.4f} more for {len(pairs)} "
                             f"call{'s' if len(pairs) != 1 else ''} would pass the cap of ${self.cap:.4f}")
             return [StopRun(self.stopped) for _ in pairs]
-        results = self._send([(f, m) for f, (_, m) in zip(fams, pairs)])
+        failed = [0] * len(pairs)
+
+        def one(i: int) -> Reply | StopRun:
+            family, messages = fams[i], pairs[i][1]
+
+            def counted(**kwargs):
+                try:
+                    return self.completion_fn(**kwargs)
+                except BaseException:
+                    failed[i] += 1
+                    raise
+            try:
+                return self._call(counted, family, messages)
+            except Exception as e:      # noqa: BLE001  (a fault reading one reply)
+                return StopRun(f"unavailable: {family.model}: {type(e).__name__}: {e}")
+
+        with ThreadPoolExecutor(max_workers=min(self.workers, len(pairs))) as pool:
+            results = list(pool.map(one, range(len(pairs))))
+        if self.lost is not None:
+            for n, w in zip(failed, worsts):
+                for _ in range(n):
+                    self.lost(w)
         why = []
         for got in results:
             if isinstance(got, Reply) and got.error and got.error.startswith("refused:"):
@@ -116,40 +153,9 @@ class ModelReplier:
             self.stopped = why[0]
         return results
 
-    def _send(self, calls: list[tuple[Family, list[dict]]]) -> list[Reply | StopRun]:
-        results: list[Reply | StopRun | None] = [None] * len(calls)
-        started: dict[int, float] = {}
-
-        def one(i: int) -> Reply | StopRun:
-            started[i] = time.monotonic()
-            family, messages = calls[i]
-            return self._call(family, messages)
-
-        pool = ThreadPoolExecutor(max_workers=min(self.workers, len(calls)))
+    def _call(self, completion_fn: Callable, family: Family, messages: list[dict]) -> Reply | StopRun:
         try:
-            futures = {pool.submit(one, i): i for i in range(len(calls))}
-            pending = set(futures)
-            while pending:
-                done, pending = wait(pending, timeout=_POLL, return_when=FIRST_COMPLETED)
-                for f in done:
-                    i = futures[f]
-                    try:
-                        results[i] = f.result()
-                    except Exception as e:      # noqa: BLE001  (a fault reading one reply)
-                        results[i] = StopRun(f"unavailable: {calls[i][0].model}: {type(e).__name__}: {e}")
-                now = time.monotonic()
-                for f in list(pending):
-                    i = futures[f]
-                    if i in started and now - started[i] > self.deadline:
-                        pending.discard(f)
-                        results[i] = StopRun(f"unavailable: {calls[i][0].model}: no answer in {self.deadline:g}s")
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
-        return results   # type: ignore[return-value]
-
-    def _call(self, family: Family, messages: list[dict]) -> Reply | StopRun:
-        try:
-            resp = complete(self.completion_fn, model="openrouter/" + family.model, messages=messages,
+            resp = complete(completion_fn, model="openrouter/" + family.model, messages=messages,
                             sleep_fn=self.sleep_fn, **family.params)
         except ModelUnavailable as e:
             return StopRun(f"unavailable: {family.model}: {e}")
@@ -170,8 +176,8 @@ class ModelReplier:
                 c = self.cost_fn(resp)
             except Exception:       # noqa: BLE001  (no price known to the cost function)
                 c = None
-            if isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c) and c > 0:
-                cost = float(c)
+            if isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c):
+                cost = max(cost, float(c))
         error = None
         refusal = _refusal(resp)
         if refusal is not None:

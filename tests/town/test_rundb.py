@@ -87,25 +87,23 @@ def _families(names):
     return {n: Family(n, ("cheap/a", "cheap/b")[i % 2], {"max_tokens": 300}) for i, n in enumerate(names)}
 
 
-def _fake(refuse_on=None):
-    """A completion function answering every prompt with an empty turn; it refuses the first
-    prompt that contains `refuse_on`."""
+def _fake():
+    """A completion function answering every prompt with an empty turn. Set `refuse_next` and
+    the next call it answers is refused."""
     lock = threading.Lock()
-    calls = []
 
     def completion(**kw):
         text = kw["messages"][-1]["content"]
         message = SimpleNamespace(content='{"acts": []}', reasoning_content=None, refusal=None)
-        finish = "stop"
         with lock:
-            calls.append(kw)
-            if refuse_on is not None and refuse_on in text and not completion.refused:
-                completion.refused = True
-                message.content, finish = None, "content_filter"
+            completion.calls.append(kw)
+            if completion.refuse_next:
+                completion.refuse_next = False
+                message.content, message.refusal = None, "I can't help with that."
         usage = SimpleNamespace(prompt_tokens=len(text) // 4, completion_tokens=6)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason=finish)], usage=usage)
-    completion.calls = calls
-    completion.refused = False
+        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")], usage=usage)
+    completion.calls = []
+    completion.refuse_next = False
     return completion
 
 
@@ -157,12 +155,10 @@ def test_a_refusal_in_a_batch_keeps_the_whole_batch_and_stops_the_run(tmp_path):
             _model_run(other, "f", 3, straight_completion)
             day2 = [k for k, _ in other.replies("f") if k.split("|")[2] == "d2" and "|turn:|" in k]
         assert len(day2) >= 2
-        # refuse the first prompt on day 2 (its date line is in every view that day)
-        completion = _fake(refuse_on="")
-        completion.refused = True                        # not yet: armed below for day 2 only
+        completion = _fake()
         end, replier = _model_run(db, "f", 2, completion)
         assert end.day == 2
-        completion.refused = False
+        completion.refuse_next = True                   # the first call on day 2 is refused
         end, replier = _model_run(db, "f", 1, completion, store=resume(db, "f"))
         assert end.day == 2 and replier.stopped.startswith("refused:")
         kept2 = [(k, r) for k, r in db.replies("f") if k.split("|")[2] == "d2"]
@@ -178,3 +174,87 @@ def test_the_scripted_replier_is_unaffected_by_notes(tmp_path):
         db.put_note("n", "families", "scripted")
         run(db, "n", gen.generate(1, fam.names("config/families.yaml")), ScriptedReplier(hamlet_script.script), 3)
         assert replay(db, "n") == [] and db.spent("n") == 0.0
+
+
+# providers that overspend
+
+MAXT = 300
+
+
+class _Billing:
+    """A provider that bills every attempt it is sent, answered or not, at the listed prices for
+    the tokens it says it used: `out_mult` times `max_tokens` out, and the characters / 3 in.
+    It raises `fail_first` times for each prompt before answering. `report` is the cost
+    function the replier is given (by default the true bill)."""
+
+    def __init__(self, out_mult=1.0, fail_first=0, report=None):
+        self.out_mult, self.fail_first = out_mult, fail_first
+        self.report = report or (lambda resp: resp._cost)
+        self.billed = 0.0
+        self.tries = {}
+        self.lock = threading.Lock()
+
+    def __call__(self, **kw):
+        price = PRICES[kw["model"].split("/", 1)[1]]
+        chars = sum(len(m["content"]) for m in kw["messages"])
+        tin, tout = -(-chars // 3), int(MAXT * self.out_mult)
+        cost = (tin * price.input_per_mtok + tout * price.output_per_mtok) / 1e6
+        with self.lock:
+            self.billed += cost
+            n = self.tries[id(kw["messages"])] = self.tries.get(id(kw["messages"]), 0) + 1
+        if n <= self.fail_first:
+            raise TimeoutError("the client gave up; the provider still bills")
+        message = SimpleNamespace(content='{"acts": []}', reasoning_content=None, refusal=None)
+        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")],
+                               usage=SimpleNamespace(prompt_tokens=tin, completion_tokens=tout), _cost=cost)
+
+
+class _Watched(ModelReplier):
+    """Records, for every batch sent, what the check allowed for it (`ATTEMPTS` x its worst
+    case) and what the provider billed while it ran."""
+
+    def __init__(self, provider, *args, **kw):
+        super().__init__(*args, **kw)
+        self.provider, self.batches = provider, []
+
+    def ask_many(self, pairs):
+        from townsim.town.modelreplier import ATTEMPTS
+        before = self.provider.billed
+        got = super().ask_many(pairs)
+        if self.provider.billed > before:
+            fams = [self.families[self.family_of[k.actor]] for k, _ in pairs]
+            allowed = ATTEMPTS * sum(fam.worst_case(f, PRICES[f.model], m) for f, (_, m) in zip(fams, pairs))
+            self.batches.append((self.provider.billed - before, allowed))
+        return got
+
+
+@pytest.mark.parametrize("name,provider", [
+    ("ten times max_tokens out", lambda: _Billing(out_mult=10)),
+    ("cost function reports 1e-9", lambda: _Billing(report=lambda resp: 1e-9)),
+    ("raises twice before each answer", lambda: _Billing(fail_first=2)),
+    ("all three", lambda: _Billing(out_mult=10, fail_first=2, report=lambda resp: 1e-9)),
+])
+def test_a_provider_that_overspends_is_held_to_the_cap(tmp_path, name, provider):
+    """The bound: a batch is sent only when spend so far (stored costs plus lost attempts) plus
+    `ATTEMPTS` x the batch's worst case is within the cap C, so after any batch
+        stored + lost <= C + (what that batch billed - ATTEMPTS x its worst case),
+    and the spend recorded never passes C by more than the largest such excess of one batch.
+    The run stops at the cap."""
+    cap = 0.05
+    p = provider()
+    lost = []
+    with RunDB(str(tmp_path / "o.sqlite")) as db:
+        db.create_run("o", seed=1)
+        names = fam.names("config/families.yaml")
+        s = gen.generate(1, names)
+        families = {n: Family(n, ("cheap/a", "cheap/b")[i % 2], {"max_tokens": MAXT}) for i, n in enumerate(names)}
+        r = _Watched(p, families, PRICES, {q.id: q.family for q in s.all("people")}, p, cap=cap,
+                     spent=lambda: db.spent("o") + sum(lost), cost_fn=p.report, sleep_fn=lambda t: None,
+                     lost=lost.append)
+        end = run(db, "o", s, r, 120)
+        recorded = db.spent("o") + sum(lost)
+        assert end.day < 120 and r.stopped.startswith("cap:")
+        assert len(r.batches) >= 3                                   # several batches were sent
+        excess = max(0.0, max(billed - allowed for billed, allowed in r.batches))
+        assert recorded <= cap + excess + 1e-12
+        print(f"{name}: billed {p.billed / cap:.2f} x the cap, recorded {recorded / cap:.2f} x")
