@@ -134,6 +134,10 @@ def _tie_kinds(store: Store, pid: str) -> tuple[dict[str, list[str]], dict[str, 
 
 def ranks(store: Store, pid: str) -> dict[str, int]:
     """`acts.tie_rank` for every person `pid` knows, worked out in one pass."""
+    return ties.kept(store, ("ranks", pid), lambda: _ranks(store, pid))
+
+
+def _ranks(store: Store, pid: str) -> dict[str, int]:
     household = store.get("people", pid).household
     mine, _ = _tie_kinds(store, pid)
     out = {}
@@ -149,6 +153,10 @@ def ranks(store: Store, pid: str) -> dict[str, int]:
 
 def people_known(store: Store, pid: str) -> list[tuple[str, int, str]]:
     """Everyone `pid` knows as (id, rank, relation words), closest first, then by id."""
+    return ties.kept(store, ("people_known", pid), lambda: _people_known(store, pid))
+
+
+def _people_known(store: Store, pid: str) -> list[tuple[str, int, str]]:
     household = store.get("people", pid).household
     mine, theirs = _tie_kinds(store, pid)
     rank = ranks(store, pid)
@@ -638,13 +646,20 @@ def coming(store: Store, ups: list, most: int) -> list[str]:
     return out or ["  nothing"]
 
 
-def _coming(store: Store, account: str) -> list[str]:
-    return coming(store, [u for u in upcoming(store, account, AHEAD) if u.out], GOING_OUT)
+def _coming(store: Store, account: str, most: int = GOING_OUT) -> list[str]:
+    return coming(store, [u for u in upcoming(store, account, AHEAD) if u.out], most)
 
 
 def transfer_rows(store: Store, lines: list) -> list[str]:
     """The rows `statement_lines` shows for a statement's in-and-out `lines`, oldest first."""
-    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  {memo(x.memo)}" for x in lines]
+    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  {_same_day(memo(x.memo), x.day)}"
+            for x in lines]
+
+
+def _same_day(text: str, day: int) -> str:
+    """A memo on a line dated `day` without its `, due <day>`, which the line's date already says."""
+    tail = f", due {date_text(day)}"
+    return text[:-len(tail)] if text.endswith(tail) else text
 
 
 def statement_lines(store: Store, st) -> str:
@@ -652,19 +667,22 @@ def statement_lines(store: Store, st) -> str:
     return "\n".join(statement_rows(store, st))
 
 
-def statement_rows(store: Store, st) -> list[str]:
+def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = COMING_IN) -> list[str]:
     """A statement as `statement.statement_text` lays it out, with every memo cut to a label
     and at most ten payments going out and six coming in."""
     rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
-    if st.earlier:
+    if st.earlier and st.lines:
         rows.append(Counted(f"  ({st.earlier} earlier lines not shown)"))
+    elif st.earlier:                                  # a count with nothing beneath it would say nothing
+        week = max(st.since, st.day - 6)
+        rows += [Counted(f"  ({st.earlier} lines before {date_text(week)} not shown)"), "  nothing since"]
     rows += transfer_rows(store, st.lines)
     if not st.lines and not st.earlier:
         rows.append("  nothing")
     rows.append(f"Going out by {date_text(st.until)}:")
-    rows += coming(store, st.out, GOING_OUT)
+    rows += coming(store, st.out, out_most)
     rows.append(f"Expected in by {date_text(st.until)}:")
-    rows += coming(store, st.coming_in, COMING_IN)
+    rows += coming(store, st.coming_in, in_most)
     rows.append(f"After what goes out: {money(st.after_out)}")
     return rows
 
@@ -694,7 +712,7 @@ def business(store: Store, pid: str, weeks: int = 2) -> str:
     return "\n".join(business_rows(store, pid, weeks))
 
 
-def business_rows(store: Store, pid: str, weeks: int = 2) -> list[str]:
+def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_OUT, extras: bool = True) -> list[str]:
     """Each organisation in the town that `pid` owns, as its books and till show it: for a
     shop its account, price, shelf, order, staff, its last `weeks` till weeks (at most two)
     and what goes out from its account this week. "" if they own none."""
@@ -725,7 +743,7 @@ def business_rows(store: Store, pid: str, weeks: int = 2) -> list[str]:
             for label, t in list(zip(("Last week", "The week before"), tills))[:max(0, min(weeks, 2))]:
                 lines.append(_till(label, t))
         lines.append(f"Going out by {date_text(store.day + AHEAD)}:")
-        lines += _coming(store, org.id)
+        lines += _coming(store, org.id, out_most)
         blocks += lines
     return blocks
 

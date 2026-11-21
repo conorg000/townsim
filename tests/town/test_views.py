@@ -89,8 +89,8 @@ def test_a_long_statement_shows_its_newest_lines_and_memos_as_labels():
     for i in range(30):
         s.transfer("outside:employers", "h2", 100, f"line {i} " + "word " * 60, "routine:t")
     text = person_view(s, "p03")[1]["content"]
-    assert len(text.split()) <= 1200 and "(6 earlier lines not shown)" in text
-    assert "line 29 " in text and "line 4 " not in text
+    assert "(6 earlier lines not shown)" in text                     # the newest 25; this week's never give way
+    assert "line 29 " in text and "line 5 " in text and "line 4 " not in text
     assert "  Monday 2 March  $1.00  Employers  line 29 " + "word " * 9 + "word\u2026" in text
 
 
@@ -514,7 +514,8 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
     assert 1200 < total < 2000
-    order = ["statement", "people", "till", "owed", "inbox", "requests", "read", "guard"]
+    order = ["knowhow", "people", "statement", "business", "till", "owed", "talks", "inbox", "requests", "read",
+             "closest", "coming", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut
@@ -757,7 +758,7 @@ def test_what_is_owed_gives_way_to_four_lines_an_account():
     for i in range(9):
         s.add("results", Result(f"res{i + 1}", 0, "p03", "pay", "word " * 40, True), "routine:t")
     v = views.layout(s, "p03")
-    assert v.steps[:2] == ["statement", "owed"]
+    assert "owed" in v.steps and "statement" not in v.steps              # the week's lines are kept
     assert section(v.user, "WHAT IS OWED") == [x for x in section(v.user, "WHAT IS OWED")[:4]] + ["(5 more not shown)"]
 
 
@@ -1387,3 +1388,44 @@ def test_nothing_said_in_a_talk_can_pass_for_a_record():
         _check_talk_margin(s, v.system, a, victim, bank)
         views.mark_seen(s, victim, v.ids, "routine:seen:x")
     assert victim not in s.get("talks", tk).unseen
+
+
+# --- what gives way first ------------------------------------------------------------------
+
+def _owner_after(seed, days):
+    s = place(seed)
+    run_routine(s, days)
+    return s, _owner_of_most(s)
+
+
+def test_know_how_and_far_people_give_way_before_the_statement_s_last_week():
+    s, owner = _owner_after(1, 21)
+    for i in range(40):                                         # this week: never cut before the last guard
+        s.transfer("outside:households", s.get("people", owner).household, 100, f"recent {i} " + "word " * 8,
+                   "routine:t")
+    v = views.layout(s, owner)
+    assert v.steps[:1] == ["knowhow"] and "HOW THINGS WORK" not in v.user
+    shown = [x for x in section(v.user, "YOUR HOUSEHOLD'S ACCOUNT") if "recent " in x]
+    assert len(shown) >= 24
+
+
+def test_the_statement_never_counts_lines_with_nothing_beneath():
+    s = thin_town()
+    for i in range(5):
+        s.transfer("outside:employers", "h2", 100, f"old line {i}", "routine:t")
+    for _ in range(9):
+        s.advance_day()
+    from townsim.town.statement import statement
+    st = statement(s, "h2", ahead=6, max_lines=25)
+    gone = st._replace(lines=[], earlier=st.earlier + len(st.lines))
+    rows = [str(r) for r in facts.statement_rows(s, gone)]
+    assert not any(re.fullmatch(r"  \(\d+ earlier lines not shown\)", r) for r in rows)
+    at = next(i for i, r in enumerate(rows) if "not shown" in r)
+    assert rows[at + 1] == "  nothing since"
+
+
+def test_a_line_dated_its_due_day_does_not_say_the_day_twice():
+    s = thin_town()
+    run_routine(s, 5)
+    rows = section(person_view(s, "p03")[1]["content"], "YOUR HOUSEHOLD'S ACCOUNT")
+    assert any(r.startswith("  Monday 2 March") and r.endswith("rent") for r in rows), rows

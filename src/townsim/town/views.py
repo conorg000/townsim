@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Any, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import acts, aims, facts, talk, unknown
+from townsim.town import acts, aims, facts, talk, ties, unknown
 from townsim.town.acts import CHARS_A_WORD, accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
@@ -39,6 +39,9 @@ MAX_WORDS = 1200
 CEILING = 2000
 CHAR_CEILING = 16000
 STATEMENT_LINES = 25
+COMING_KEPT = (5, 3, 4)            # payments going out and coming in, and the business's going out, when they give way
+RECENT_DAYS = 7                    # the statement's lines of the last seven days give way only to the last guard
+DEALT_DAYS = 28                    # people dealt with this recently, or lived or worked with, are kept
 IN_FULL = 3
 TALKS_SHOWN = 2
 TALK_WORDS = 40
@@ -249,34 +252,38 @@ class _Parts(NamedTuple):
     """Everything a user message is made of, built once."""
 
     results: _Results
-    business: list[list[str]]     # the business's rows with two, one and no till weeks: [full, ..]
+    business: Any                 # (till weeks, lines going out, extras) -> the business's rows
     book: list[str]
     accounts: list[str]
     items: list[Any]              # inbox rows, most pressing first
     talks: list                   # talks held since they were last shown them, oldest first
     waiting: list                 # open requests, in the order they are shown
     appointments: list[str]
-    people: list[str]
+    people: list[tuple[str, str]]      # (id, line), closest first
     knowhow: list[str]
     mind: list[str]
     notes: str
     hours: str
     operations: list[str]
     pid: str = ""
+    built: dict | None = None          # lines already laid out, by what they depend on
 
 
 class _Choice(NamedTuple):
     """How far each part has given way."""
 
     statement: Any
-    people: int
-    business: list[str]
+    people: tuple[str, ...]            # the people known who are shown
+    business: tuple[int, int, bool]    # till weeks, lines going out, and whether the extras are shown
     owed: int
     in_full: int
     requests: int
     read_words: int = READ_WORDS
     talks: int = TALKS_SHOWN
     talk_words: int = TALK_WORDS
+    knowhow: bool = True
+    going_out: int = facts.GOING_OUT
+    coming_in: int = facts.COMING_IN
 
 
 class _Sec(NamedTuple):
@@ -318,13 +325,18 @@ def _parts(store: Store, pid: str) -> _Parts:
     person = store.get("people", pid)
     rank = facts.ranks(store, pid)
     weeks = facts.till_weeks(store, pid)
-    business = [facts.business_rows(store, pid, weeks=w) for w in range(weeks, -1, -1)] if weeks else \
-        [facts.business_rows(store, pid)]
-    return _Parts(_results(store, pid), business, facts.bank_book_rows(store, pid), accounts_of(store, pid),
+    built: dict[tuple, list[str]] = {}
+
+    def business(weeks: int, out: int, extras: bool) -> list[str]:
+        if (weeks, out, extras) not in built:
+            built[(weeks, out, extras)] = facts.business_rows(store, pid, weeks, out, extras)
+        return built[(weeks, out, extras)]
+    return _Parts(_results(store, pid), (business, weeks), facts.bank_book_rows(store, pid), accounts_of(store, pid),
                   _unseen(store, pid, rank), talk.unseen_talks(store, pid), _waiting(store, pid, rank),
                   _appointments(store, pid),
-                  facts.people_lines(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
-                  person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid), pid)
+                  _people(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
+                  person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid), pid,
+                  {})
 
 
 COUNTED = "#counted"               # the owner of a line that counts what is not shown
@@ -345,6 +357,15 @@ def _own(text: str) -> list[tuple[str, str | None]]:
     return [(f"  {line}" if line.strip() else "", None) for line in text.split("\n")]
 
 
+def _once(parts: _Parts, key: tuple, build: Any) -> Any:
+    """What `build()` gives, laid out once for this view."""
+    if parts.built is None:
+        return build()
+    if key not in parts.built:
+        parts.built[key] = build()
+    return parts.built[key]
+
+
 def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     out = [_Sec(None, [(f"TODAY: {date_text(store.day)}.", None)], fixed=True)]
     res = parts.results
@@ -352,34 +373,43 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
         rows = [(f"({len(res.passed)} earlier results not shown)", COUNTED)] if res.passed else []
         rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words) for r in res.shown))
         out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", rows, fixed=True))
-    out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _rows(facts.statement_rows(store, c.statement))))
+    st = c.statement
+    out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _once(parts, ("statement", st.earlier, len(st.lines), c.going_out,
+                                                              c.coming_in),
+                                                     lambda: _rows(facts.statement_rows(store, st, c.going_out,
+                                                                                        c.coming_in)))))
     if parts.book:
         out.append(_Sec("THE BANK'S BOOK", _rows(parts.book)))
-    if c.business:
-        out.append(_Sec("YOUR BUSINESS", _rows(c.business)))
-    owed = _owed(store, parts.accounts, c.owed)
+    business = parts.business[0](*c.business)
+    if business:
+        out.append(_Sec("YOUR BUSINESS", _rows(business)))
+    owed = _once(parts, ("owed", c.owed), lambda: _owed(store, parts.accounts, c.owed))
     if owed:
         out.append(_Sec("WHAT IS OWED", _rows(owed)))
     if parts.items:
         rows = [(line, r.id) for i, r in enumerate(parts.items[:c.in_full])
-                for line in _item_lines(store, r)]
+                for line in _once(parts, ("item", r.id), lambda r=r: _item_lines(store, r))]
         counted = _counted(parts.items[c.in_full:])
         out.append(_Sec("LETTERS AND NOTICES", rows + ([(counted, COUNTED)] if counted else [])))
     if parts.talks:
-        rows = [(line, t.id) for t in parts.talks[:c.talks] for line in talk.summary_lines(store, parts.pid, t, c.talk_words)]
+        rows = [(line, t.id) for t in parts.talks[:c.talks]
+                for line in _once(parts, ("talk", t.id, c.talk_words),
+                                  lambda t=t: talk.summary_lines(store, parts.pid, t, c.talk_words))]
         more = len(parts.talks) - c.talks
         out.append(_Sec("TALKS", rows + ([(_talks_counted(more), COUNTED)] if more > 0 else [])))
     if parts.waiting:
-        rows = [(line, rq.id) for rq in parts.waiting[:c.requests] for line in _request_lines(store, rq)]
+        rows = [(line, rq.id) for rq in parts.waiting[:c.requests]
+                for line in _once(parts, ("request", rq.id), lambda rq=rq: _request_lines(store, rq))]
         more = len(parts.waiting) - c.requests
-        keep = len(_request_lines(store, parts.waiting[0]))
+        keep = len(_once(parts, ("request", parts.waiting[0].id), lambda: _request_lines(store, parts.waiting[0])))
         out.append(_Sec("WAITING FOR YOUR ANSWER",
                         rows + ([(f"({more} more requests waiting)", COUNTED)] if more else []), keep=keep))
     if parts.appointments:
         out.append(_Sec("APPOINTMENTS", _rows(parts.appointments)))
-    if parts.people[:c.people]:
-        out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(parts.people[:c.people]))))
-    if parts.knowhow:
+    people = [line for who, line in parts.people if who in c.people]
+    if people:
+        out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(people))))
+    if parts.knowhow and c.knowhow:
         out.append(_Sec("HOW THINGS WORK", _plain("\n".join(parts.knowhow))))
     if parts.mind:
         out.append(_Sec("ON YOUR MIND", _own("\n".join(parts.mind))))
@@ -449,14 +479,18 @@ def layout(store: Store, pid: str) -> Layout:
     and 2,000 characters), and counted past nine; upcoming payments are counted past ten
     going out and six coming in; what is owed past eight lines an account; names not known past three
     a letter. Everything is built once, then laid out again only as each step of giving way
-    needs. While the whole is over 1,200 words, and each only as far as needed: the household
-    statement's in-and-out lines, oldest first, down to none (`statement`); the people known,
-    down to the six closest (`people`); the business's second till week (`till`); what is
-    owed, down to four lines an account (`owed`); the second talk, which moves to the counted
-    line and waits unseen, and then each turn of the first cut to 20 words in place of 40
-    (`talks`); the third and second letters or notices,
-    which move to the counted line and wait unseen (`inbox`); the third and second requests,
-    likewise (`requests`); the latest read result cut to 120 words (`read`). Letters and
+    needs. While the whole is over 1,200 words, and each only as far as needed: how the trade
+    works (`knowhow`); the people known who are not among those the reader lives or works with or
+    has dealt with in the last four weeks, furthest first (`people`); the household statement's
+    in-and-out lines older than seven days, oldest first (`statement`: the last seven days give
+    way only to the last guard); the business's own figures beyond its account, price, shelf,
+    order, staff and till (`business`); its second till week (`till`); what is owed, down to four
+    lines an account (`owed`); the second talk, which moves to the counted line and waits unseen,
+    and then each turn of the first cut to 20 words in place of 40 (`talks`); the third and second
+    letters or notices, which move to the counted line and wait unseen (`inbox`); the third and
+    second requests, likewise (`requests`); the latest read result cut to 120 words (`read`); the
+    people known, down to the six closest (`closest`); and the payments going out and coming in,
+    down to five and three, and the business's going out to four (`coming`). Letters and
     requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
     more, or more than 16,000 characters, the last guard (`guard`) takes whole lines from the
     end of the longest section that may lose them until it is under both, and ends that
@@ -466,8 +500,9 @@ def layout(store: Store, pid: str) -> Layout:
     system = _system(store, pid)
     parts = _parts(store, pid)
     st = statement(store, store.get("people", pid).household, ahead=facts.AHEAD, max_lines=STATEMENT_LINES)
-    c = _Choice(st, len(parts.people), parts.business[0], facts.OWED_LINES, min(IN_FULL, len(parts.items)),
-                min(IN_FULL, len(parts.waiting)))
+    till = parts.business[1]
+    c = _Choice(st, tuple(who for who, _ in parts.people), (till, facts.GOING_OUT, True), facts.OWED_LINES,
+                min(IN_FULL, len(parts.items)), min(IN_FULL, len(parts.waiting)))
     base = _words(system)
     steps: list[str] = []
 
@@ -475,23 +510,34 @@ def layout(store: Store, pid: str) -> Layout:
         return base + _words(_render(_sections(store, parts, choice))) - MAX_WORDS
 
     left = over(c)
-    if left > 0 and st.lines:
-        sizes = [_words(row) for row in facts.transfer_rows(store, st.lines)]
-        note = _words(f"({st.earlier + 1} earlier lines not shown)") if st.earlier == 0 else 0
-        drop, saved = 0, -note
+    if left > 0 and parts.knowhow:
+        c = c._replace(knowhow=False)
+        steps.append("knowhow")
+        left = over(c)
+    dealt = _dealt_with(store, pid)
+    far = [who for who, _ in reversed(parts.people) if who not in dealt]
+    if left > 0 and far:
+        steps.append("people")
+        while left > 0 and far:
+            gone = far.pop(0)
+            c = c._replace(people=tuple(who for who in c.people if who != gone))
+            left = over(c)
+    old = [x for x in st.lines if x.day < store.day - RECENT_DAYS + 1]
+    if left > 0 and old:
+        steps.append("statement")
+        sizes = [_words(row) for row in facts.transfer_rows(store, old)]
+        drop, saved = 0, 0 if st.earlier else -_words("(1 earlier lines not shown)")
         while drop < len(sizes) and saved < left:
             saved += sizes[drop]
             drop += 1
-        if saved > 0:
-            c = c._replace(statement=st._replace(lines=st.lines[drop:], earlier=st.earlier + drop))
-            steps.append("statement")
-            left = over(c)
-    if left > 0 and c.people > PEOPLE_KEPT:
-        c = c._replace(people=c.people - _needed([_words(p) for p in reversed(parts.people[PEOPLE_KEPT:])], left))
-        steps.append("people")
+        c = c._replace(statement=st._replace(lines=st.lines[drop:], earlier=st.earlier + drop))
         left = over(c)
-    if left > 0 and len(parts.business) > 2:
-        c = c._replace(business=parts.business[1])
+    if left > 0 and parts.business[0](*c.business) != parts.business[0](till, facts.GOING_OUT, False):
+        c = c._replace(business=(till, facts.GOING_OUT, False))
+        steps.append("business")
+        left = over(c)
+    if left > 0 and till > 1:
+        c = c._replace(business=(1,) + c.business[1:])
         steps.append("till")
         left = over(c)
     if left > 0 and _owed(store, parts.accounts, facts.OWED_KEPT) != _owed(store, parts.accounts, c.owed):
@@ -517,6 +563,18 @@ def layout(store: Store, pid: str) -> Layout:
         c = c._replace(read_words=READ_CUT)
         steps.append("read")
         left = over(c)
+    if left > 0 and len(c.people) > PEOPLE_KEPT:
+        steps.append("closest")
+        while left > 0 and len(c.people) > PEOPLE_KEPT:
+            c = c._replace(people=c.people[:-1])
+            left = over(c)
+    if left > 0:
+        shorter = c._replace(going_out=COMING_KEPT[0], coming_in=COMING_KEPT[1],
+                             business=c.business[:1] + (COMING_KEPT[2],) + c.business[2:])
+        if _render(_sections(store, parts, shorter)) != _render(_sections(store, parts, c)):
+            c = shorter
+            steps.append("coming")
+            left = over(c)
     secs = _sections(store, parts, c)
     secs, taken, fired = _guard(secs, CEILING - base, CHAR_CEILING - len(system) - 0)
     if fired:
@@ -537,6 +595,42 @@ def _needed(sizes: list[int], over: int) -> int:
         if saved >= over:
             return n
     return len(sizes)
+
+
+def _people(store: Store, pid: str) -> list[tuple[str, str]]:
+    """The people `pid` knows, closest first, each with their line."""
+    return [(o, f"{store.get('people', o).name}, {words}") for o, _, words in
+            facts.people_known(store, pid)[:facts.PEOPLE_SHOWN]]
+
+
+def _dealt_with(store: Store, pid: str) -> set[str]:
+    """Those `pid` lives or works with, and those they have had a letter, a request, a talk or
+    money from or to in the last four weeks. (A set for membership only: never iterated.)"""
+    since = store.day - DEALT_DAYS
+    found = set(store.get("households", store.get("people", pid).household).members)
+    kinds = ties.kinds(store, pid)
+    found |= {o for o, k in kinds.items() if {"employer", "employee", "coworker"} & set(k)}
+    for m in store.all("messages"):
+        if m.day >= since and pid in (m.sender, m.to):
+            found |= {m.sender, m.to}
+    for rq in store.all("requests"):
+        if rq.day >= since and pid in (rq.sender, rq.to):
+            found |= {rq.sender, rq.to}
+    for t in store.all("talks"):
+        if t.day >= since and pid in (t.a, t.b) and t.status == "held":
+            found |= {t.a, t.b}
+    mine = set(accounts_of(store, pid))
+    others = {}
+    for p in store.all("people"):
+        others.setdefault(p.household, []).append(p.id)
+    for x in reversed(store.ledger.transfers):
+        if x.t < since:
+            break
+        if x.src in mine and x.dst in others:
+            found |= set(others[x.dst])
+        elif x.dst in mine and x.src in others:
+            found |= set(others[x.src])
+    return found
 
 
 def _system(store: Store, pid: str) -> str:

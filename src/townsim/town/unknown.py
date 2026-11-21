@@ -24,13 +24,13 @@ anyone so named exists.
 from __future__ import annotations
 
 import re
-import weakref
 from pathlib import Path
 from typing import NamedTuple
 
 from townsim.town.acts import knows
 from townsim.town.clock import DAYS, MONTHS
 from townsim.town.store import Store
+from townsim.town.ties import kept
 
 GIVEN = frozenset((Path(__file__).with_name("given_names.txt")).read_text().split())
 TITLES = frozenset({"Mr", "Mrs", "Ms", "Miss", "Dr"})
@@ -213,19 +213,9 @@ def with_person(k: Known, name: str) -> Known:
                  k.surnames | ({parts[-1].casefold()} if len(parts) > 1 else set()), names)
 
 
-_CACHE: "weakref.WeakKeyDictionary[Store, dict]" = weakref.WeakKeyDictionary()
-
-
 def _known_now(store: Store, reader: str) -> Known:
     """`known`, kept while the store is unchanged (a view is built without changing it)."""
-    mine = _CACHE.setdefault(store, {})
-    last = store.changes[-1] if store.changes else None
-    key = (store.mark(), id(last), last and (last.cause, last.table, last.id, last.field), reader)
-    if key not in mine:
-        if len(mine) > 64:
-            mine.clear()
-        mine[key] = known(store, reader)
-    return mine[key]
+    return kept(store, ("known", reader), lambda: known(store, reader))
 
 
 def unknown_names(store: Store, reader: str, writer: str, text: str) -> list[str]:

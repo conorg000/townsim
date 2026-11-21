@@ -18,6 +18,9 @@ Nothing here changes the store.
 
 from __future__ import annotations
 
+import weakref
+from typing import Any, Callable
+
 from townsim.town import jobs
 from townsim.town.obligations import SCHEDULED, owed_dues
 from townsim.town.store import Store
@@ -41,9 +44,30 @@ def _in_force(store: Store, ob) -> bool:
     return ob.status in SCHEDULED or bool(owed_dues(store, ob.id))
 
 
+_KEPT: "weakref.WeakKeyDictionary[Store, dict]" = weakref.WeakKeyDictionary()
+
+
+def kept(store: Store, key: tuple, build: Callable[[], Any]) -> Any:
+    """What `build()` gives, kept while the store does not change (reading changes nothing,
+    so a view built many times over reads the same records). Callers do not change it."""
+    last = store.changes[-1] if store.changes else None
+    state = (store.mark(), id(last), last and (last.cause, last.table, last.id, last.field))
+    mine = _KEPT.get(store)
+    if mine is None or mine[0] != state:
+        mine = (state, {})
+        _KEPT[store] = mine
+    if key not in mine[1]:
+        mine[1][key] = build()
+    return mine[1][key]
+
+
 def kinds(store: Store, pid: str) -> dict[str, list[str]]:
     """How `pid` sees each person tied to them today: their own family and friendship rows,
     then the ties read from the records, each kind once, in the order found."""
+    return kept(store, ("kinds", pid), lambda: _kinds(store, pid))
+
+
+def _kinds(store: Store, pid: str) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
 
     def add(other: str, kind: str) -> None:
@@ -115,6 +139,10 @@ def kinds(store: Store, pid: str) -> dict[str, list[str]]:
 
 def theirs(store: Store, pid: str) -> dict[str, list[str]]:
     """The family and friendship rows others hold toward `pid`, by who holds them."""
+    return kept(store, ("theirs", pid), lambda: _theirs(store, pid))
+
+
+def _theirs(store: Store, pid: str) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for t in store.all("ties"):
         if t.other == pid and t.kind in PERSONAL and t.person != pid:
