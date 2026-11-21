@@ -6,6 +6,7 @@ import pickle
 
 import pytest
 
+import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import gen, names, unknown
 from townsim.town.acts import Act, apply_act, knows
 from townsim.town.views import person_view

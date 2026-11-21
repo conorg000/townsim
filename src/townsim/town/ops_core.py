@@ -19,7 +19,7 @@ from typing import Any, Callable
 from townsim.town import jobs, obligations
 from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
                                from_account, knows, name_of_who, register, resolve, shown, to_cents)
-from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, weekday
+from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
 from townsim.town.entities import Message, Notice, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
@@ -74,7 +74,7 @@ def _payee(store: Store, act: Act) -> tuple[str | None, str]:
     to = act.args.get("to")
     who = _resolve(store, to, act.actor)
     if who is None:
-        return None, f"no one called '{shown(to)}' is known in the town."
+        return None, f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
     if account_of(store, who) == _source(store, act):
         if _source(store, act) == _own(store, act):
             return None, "that is your own household."
@@ -118,9 +118,17 @@ def _text(value: Any, too_long: str, words: int) -> str | None:
 
 # pay
 
+NOT_TOWARD = ("none", "nothing")          # `for` a payment that is not toward anything owed
+
+
 def _pay_ref(act: Act) -> Any:
     ref = act.args.get("for")
-    return None if _blank(ref) else ref
+    return None if _blank(ref) or _toward_nothing(act) else ref
+
+
+def _toward_nothing(act: Act) -> bool:
+    ref = act.args.get("for")
+    return isinstance(ref, str) and ref.strip().lower() in NOT_TOWARD
 
 
 def _check_pay(store: Store, act: Act) -> str | None:
@@ -181,6 +189,9 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     memo = quoted(note) if note else f"payment to {name}"
     source, ref = _source(store, act), _pay_ref(act)
+    if _toward_nothing(act):                       # a gift or a bonus: counted toward nothing
+        obligations.pay(store, source, payee, cents, memo, cause, match=False)
+        return f"Paid {money(cents)} to {name}. It was not counted toward anything owed."
     if ref is not None and store.get("obligations", ref).payer != source:     # their business's wage, by hand
         wage, ref = ref, None
     else:
@@ -190,7 +201,9 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     told = f"Paid {money(cents)} to {name}."
     named = ref or (wage if _pay_ref(act) is not None else None)
     if named and not matches:
-        told += _nothing_counted(store, named)
+        told += _nothing_counted(store, named) or " It was not counted toward anything owed."
+    elif not matches:
+        told += " It was not counted toward anything owed."
     if matches:
         counted = []
         for m in matches:
@@ -205,6 +218,8 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
 def _weeks(value: Any) -> int | None:
     if value is None:
         return 0
+    if isinstance(value, str) and value.strip().isascii() and value.strip().isdigit():
+        value = int(value.strip())
     if isinstance(value, float) and value.is_integer():
         value = int(value)
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_WEEKS:
@@ -234,7 +249,7 @@ def _check_standing(store: Store, act: Act) -> str | None:
     if weekday(act.args.get("day")) is None:
         return f"'{shown(act.args.get('day'))}' is not a day of the week."
     if not _start(store, act)[1]:
-        return f"'{shown(act.args.get('start'))}' is not a date that can be read."
+        return unreadable(act.args.get('start'))
     if _weeks(act.args.get("weeks")) is None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
@@ -378,7 +393,7 @@ def _check_request(store: Store, act: Act) -> str | None:
     to = act.args.get("to")
     who = _resolve(store, to, act.actor)
     if who is None:
-        return f"no one called '{shown(to)}' is known in the town."
+        return f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
         return f"{name_of_who(store, who)} is not a person."
     if who == act.actor:
@@ -556,7 +571,7 @@ def _do_notes(store: Store, act: Act, cause: str) -> str:
 
 for _spec in (
     OpSpec("pay", '{"op": "pay", "to": "<name>", "amount": <dollars>, "note": "<what for>", '
-                  '"for": "<id of what it is owed on, if any>"}',
+                  '"for": "<id of what it is owed on, if any; none for a payment that is not toward anything owed>"}',
            "Pay money once.", 0.25, _check_pay, _do_pay, 10, takes_from=True),
     OpSpec("standing_payment", '{"op": "standing_payment", "to": "<name>", "amount": <dollars>, '
                                '"day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", '

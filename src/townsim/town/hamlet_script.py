@@ -408,7 +408,7 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
                      "amount": _dollars(_cents(amount)), "for": ob})
     staff = me.known("works for you")
     if me.business and staff and rng.random() < 0.12:
-        acts.append({"op": "pay", "to": rng.choice(staff), "amount": 20, "note": "a thank-you for the extra effort",
+        acts.append({"op": "pay", "to": rng.choice(staff), "amount": 20, "note": "a thank-you for the extra effort", "for": "none",
                      "from": me.business})
     work = _work(me, day, num)
     acts += work

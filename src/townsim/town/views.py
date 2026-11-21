@@ -53,6 +53,7 @@ RESULT_WORDS = 80                  # room for a proposal's result, which repeats
 NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
 READ_CUT = 120
+READ_LAST = 40                     # the latest read, when all else has given way
 
 REPLY_FORM = ('Reply with JSON only, in this form:\n'
               '{"thoughts": "<what goes through your mind; no one else sees this>", '
@@ -511,7 +512,8 @@ def layout(store: Store, pid: str) -> Layout:
     letters or notices, which move to the counted line and wait unseen (`inbox`); the third and
     second requests, likewise (`requests`); the latest read result cut to 120 words (`read`); the
     people known, down to the six closest (`closest`); and the payments going out and coming in,
-    down to five and three, and the business's going out to four (`coming`). Letters and
+    down to five and three, and the business's going out to four (`coming`); the latest read
+    result cut again, to 40 words (`read again`). Letters and
     requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
     more, or more than 16,000 characters, the last guard (`guard`) takes whole lines from the
     end of the longest section that may lose them until it is under both, and ends that
@@ -596,6 +598,10 @@ def layout(store: Store, pid: str) -> Layout:
             c = shorter
             steps.append("coming")
             left = over(c)
+    if left > 0 and parts.results.latest_read is not None:
+        c = c._replace(read_words=READ_LAST)
+        steps.append("read again")
+        left = over(c)
     secs = _sections(store, parts, c)
     secs, taken, fired = _guard(secs, CEILING - base, CHAR_CEILING - len(system) - 0)
     if fired:

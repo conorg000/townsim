@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 DAY_ZERO = date(2026, 3, 2)
@@ -58,10 +59,22 @@ def date_in(day: int, today: int) -> str:
     return date_text(day) + ("" if year == (DAY_ZERO + timedelta(days=today)).year else f" {year}")
 
 
+DATE_FORM = "Write it like Monday 16 March."
+_ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+
+
+def unreadable(value: object) -> str:
+    """The refusal for a date that cannot be read, with the form one is written in."""
+    from townsim.town.acts import shown           # acts reads the calendar
+    return f"'{shown(value)}' is not a date that can be read. {DATE_FORM}"
+
+
 def parse_date(text: str, today: int) -> int | None:
     """The day a written date names, or None if it names none on or after `today`.
 
-    A bare weekday is the next such day strictly after `today`. A day and month is that
+    `today` and `tomorrow` are those days; an ISO date (`2026-03-16`) is that day. A date
+    written with slashes is never read, being ambiguous. A bare weekday is the next such day
+    strictly after `today`. A day and month is that
     date in 2026, in either order, and wins over any weekday written beside it. Commas,
     ordinals ("12th"), the words "the" and "of", three-letter weekdays and months ("Thu",
     "Mar", and "Sept"), full stops after words, and a trailing year 2026 after a day and
@@ -69,6 +82,16 @@ def parse_date(text: str, today: int) -> int | None:
     """
     if not isinstance(text, str):
         return None
+    plain = text.strip().lower().rstrip(".")
+    if plain in ("today", "tomorrow"):
+        return today + (plain == "tomorrow")
+    iso = _ISO.fullmatch(plain)
+    if iso:
+        try:
+            day = (date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3))) - DAY_ZERO).days
+        except ValueError:
+            return None
+        return day if day >= today else None
     words = [_drop_ordinal(w.rstrip(".")) for w in text.strip().lower().replace(",", " ").split()
              if w.rstrip(".") not in _FILLER]
     year = bool(words) and words[-1] == _YEAR

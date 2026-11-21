@@ -185,7 +185,7 @@ def test_each_act_leaves_a_result_with_its_own_cause():
     s, reports = run_thin(5, script)
     [paid, unknown, junk] = [r for r in s.all("results") if r.actor == "p01"]
     assert (paid.day, paid.op, paid.ok, paid.seen) == (4, "pay", True, False)
-    assert paid.text == "Paid $5.00 to Megan Pryce."
+    assert paid.text == "Paid $5.00 to Megan Pryce. It was not counted toward anything owed."
     assert unknown.op == ("Pay" + "x" * 60)[:40] and not unknown.ok   # cleaned, then cut to 40 and unknown.text.startswith("Not done:")
     assert junk.op == "(no operation named)" and not junk.ok
     causes = [c.cause for c in s.changes if c.table == "results" and c.field == "+"]

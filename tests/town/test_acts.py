@@ -127,7 +127,7 @@ def test_forms_are_the_eight_in_order():
     names = list(REGISTRY)
     assert names[:8] == ["pay", "standing_payment", "stop", "message", "request", "answer", "read", "write_notes"]
     assert forms(thin(), "p01")[0] == ('{"op": "pay", "to": "<name>", "amount": <dollars>, '
-                                       '"note": "<what for>", "for": "<id of what it is owed on, if any>"}')
+                                       '"note": "<what for>", "for": "<id of what it is owed on, if any; none for a payment that is not toward anything owed>"}')
     everyone = [s.name for s in sorted(REGISTRY.values(), key=lambda s: s.order) if s.who == "all"]
     assert everyone == names[:8] + ["propose_agreement", "propose_end", "borrow", "repay", "converse", "book_appointment"]
     assert len(forms(thin(), "p01")) == len(everyone)

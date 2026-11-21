@@ -28,7 +28,7 @@ def test_an_owner_pays_from_the_shop():
 def test_from_an_account_that_is_not_theirs_is_refused():
     s = town_with_shop(); before = s.hash()
     out = apply_act(s, Act("p02", "p02", "pay", {"to": "Wenlow Lettings", "amount": 50, "from": "Marsh's Stores"}), 0)
-    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours." and s.hash() == before
+    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours. Yours are: household." and s.hash() == before
 
 
 def test_the_household_is_the_account_when_none_or_household_is_named():
@@ -41,7 +41,7 @@ def test_the_household_is_the_account_when_none_or_household_is_named():
         assert _act(s, "p01", "pay", **args).ok and s.balance("h1") == before - 100
     for source in ("Pryce", "Northgrid Energy", 7, ["household"]):
         out = _act(s, "p01", "pay", to="Wenlow Lettings", amount=1, **{"from": source})
-        assert out.msg.startswith("Not done: '") and out.msg.endswith("' is not an account of yours.")
+        assert out.msg.startswith("Not done: '") and "' is not an account of yours. Yours are: household" in out.msg
 
 
 def test_an_owner_stops_and_reads_what_the_shop_pays():
@@ -296,7 +296,7 @@ def test_an_outside_organisation_is_not_an_account_of_its_owner():
     s = town_with_shop(); s.set("orgs", "org3", T, outside=True)
     assert accounts_of(s, "p01") == ["h1"] and not controls(s, "p01", "org3")
     out = _act(s, "p01", "pay", to="Wenlow Lettings", amount=1, **{"from": "Marsh's Stores"})
-    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours."
+    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours. Yours are: household."
 
 
 def test_an_operation_out_of_position_is_the_same_as_an_unknown_one():

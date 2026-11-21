@@ -4,6 +4,7 @@ import functools
 import pickle
 import re
 
+import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import gen, jobs, views
 from townsim.town import obligations as O
 from townsim.town.acts import Act, apply_act

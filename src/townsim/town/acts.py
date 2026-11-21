@@ -225,7 +225,52 @@ def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
     if actor is None or not wanted or not store.has("people", actor):
         return None
     bearers = [p for p in knows(store, actor) if store.get("people", p).name.casefold().split()[:1] == [wanted]]
-    return bearers[0] if len(bearers) == 1 else None
+    if len(bearers) == 1:
+        return bearers[0]
+    found = _by_title(store, wanted, actor) if not bearers else []
+    found = found or ([] if bearers else _by_role(store, wanted, actor))
+    return found[0] if len(found) == 1 else None
+
+
+_TITLE = re.compile(r"(?:mr|mrs|ms|miss|dr)\.?\s+([^\s]+)")
+_ROLES = {"landlord": ("landlord", "the landlord", "my landlord", "landlady", "the landlady", "my landlady"),
+          "employer": ("employer", "my employer", "the employer", "my boss", "the boss"),
+          "bank": ("bank", "the bank", "my bank"),
+          "banker": ("banker", "the banker", "my banker")}
+
+
+def _by_title(store: Store, wanted: str, actor: str) -> list[str]:
+    """The people `actor` knows whose surname a title and a surname (`Mrs Varley`) names."""
+    m = _TITLE.fullmatch(wanted)
+    if not m:
+        return []
+    return [p for p in knows(store, actor) if store.get("people", p).name.casefold().split()[-1:] == [m.group(1)]]
+
+
+def _by_role(store: Store, wanted: str, actor: str) -> list[str]:
+    """Who a role names for `actor` (`the landlord`, `my employer`, `the bank`, `the banker`):
+    every one they have that tie with, so that it resolves only when there is one."""
+    role = next((r for r, words in _ROLES.items() if wanted in words), None)
+    person = store.get("people", actor)
+    if role == "landlord":
+        lord = store.get("households", person.household).landlord
+        return [lord] if lord else []
+    if role == "employer":
+        found = []
+        for j in jobs.held(store, person=actor):
+            if store.has("orgs", j.org):
+                org = store.get("orgs", j.org)
+                if org.owner != actor:
+                    who = org.owner if org.owner and store.has("people", org.owner) else org.id
+                    if who not in found:
+                        found.append(who)
+        return found
+    banks = [o for o in store.all("orgs") if o.kind == "bank" and not o.outside]
+    if role == "bank":
+        return [o.id for o in banks]
+    if role == "banker":
+        return [o.contact for o in banks if o.contact and store.has("people", o.contact)]
+    return []
 
 
 def knows(store: Store, pid: str) -> list[str]:
@@ -300,22 +345,38 @@ def controls(store: Store, pid: str, account: str) -> bool:
     return account in accounts_of(store, pid)
 
 
+HOUSEHOLD_WORDS = ("household", "my household", "the household", "home")
+BUSINESS_WORDS = ("business", "shop", "my shop", "the shop", "my business", "the business")
+
+
+def account_named(store: Store, principal: str, value: Any) -> tuple[str | None, str]:
+    """The account of `principal`'s that `value` names, and how it is called; or None and why
+    not. `household` (or the household's name) is their household; a business they own in the
+    town by its name, or by `business`, `shop` and the like when they own exactly one."""
+    household = store.get("people", principal).household
+    owned = [o for o in store.all("orgs") if o.owner == principal and not o.outside]
+    if isinstance(value, str) and len(value) <= LONGEST_NAME:
+        wanted = value.strip().casefold()
+        if wanted in HOUSEHOLD_WORDS or wanted == store.get("households", household).name.casefold():
+            return household, "your household"
+        for org in owned:
+            if org.name.casefold() == wanted:
+                return org.id, org.name
+        if wanted in BUSINESS_WORDS and len(owned) == 1:
+            return owned[0].id, owned[0].name
+    yours = ", ".join(["household"] + [o.name for o in owned])
+    return None, f"'{shown(value)}' is not an account of yours. Yours are: {yours}."
+
+
 def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
-    """The account the act draws on, or None and why not. No `from`, the word `household`
-    or the household's own name is the principal's household; an org's name, that org if
-    the principal owns it and it is in the town."""
+    """The account the act draws on, or None and why not: no `from` is the principal's
+    household; otherwise the account it names (`account_named`)."""
     value = act.args.get("from") if isinstance(act.args, dict) else None
     household = store.get("people", act.principal).household
     if value is None or (isinstance(value, str) and not value.strip()):
         return household, None
-    if isinstance(value, str):
-        wanted = value.strip().casefold()
-        if wanted in ("household", store.get("households", household).name.casefold()):
-            return household, None
-        for org in store.all("orgs"):
-            if org.name.casefold() == wanted and org.owner == act.principal and not org.outside:
-                return org.id, None
-    return None, f"'{shown(value)}' is not an account of yours."
+    account, why = account_named(store, act.principal, value)
+    return (account, None) if account is not None else (None, why)
 
 
 POSITIONS = ("all", "owner", "employed", "landlord", "banker")

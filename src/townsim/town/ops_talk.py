@@ -11,7 +11,7 @@ from typing import Any
 from townsim.town import ops_core as core
 from townsim.town import talk
 from townsim.town.acts import Act, OpSpec, clean_text, fits, register, shown
-from townsim.town.clock import date_text, parse_date
+from townsim.town.clock import date_text, parse_date, unreadable
 from townsim.town.entities import Appointment, Notice, Talk
 from townsim.town.statement import quoted
 from townsim.town.store import Store
@@ -27,7 +27,7 @@ def _with(store: Store, act: Act) -> tuple[str | None, str]:
     value = act.args.get("with")
     who = core._resolve(store, value, act.actor)
     if who is None:
-        return None, f"no one called '{shown(value)}' is known in the town."
+        return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
         return None, f"{store.get('orgs', who).name if store.has('orgs', who) else shown(value)} is not a person."
     if who == act.actor:
@@ -73,7 +73,9 @@ def _do_converse(store: Store, act: Act, cause: str) -> str:
 
 def _when(store: Store, act: Act) -> tuple[int | None, str]:
     value = act.args.get("day")
-    day = parse_date(value, store.day) if isinstance(value, str) else None
+    day = parse_date(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
+    if day is None and (not isinstance(value, str) or parse_date(value, -10 ** 6) is None):
+        return None, unreadable(value)
     if day is None or not store.day < day <= store.day + AHEAD_DAYS:
         return None, f"'{shown(value)}' is not a day after today and within 60 days."
     return day, ""

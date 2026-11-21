@@ -31,7 +31,7 @@ def ob_id(s, payer, memo):
 def test_pay_moves_money_between_households():
     s = thin()
     out = do(s, "p01", "pay", to="Megan Pryce", amount=25, note="for the lift")
-    assert out.ok and out.msg == "Paid $25.00 to Megan Pryce."
+    assert out.ok and out.msg == "Paid $25.00 to Megan Pryce. It was not counted toward anything owed."
     assert (s.balance("h1"), s.balance("h2")) == (57500, 32500)
     assert s.ledger.transfers[-1].memo == '"for the lift"' and s.ledger.transfers[-1].cause == "op:p01:pay:d0.0"
 
@@ -60,7 +60,7 @@ def test_pay_for_something_not_owed_to_them_is_refused():
 
 def test_pay_to_no_one_too_much_or_yourself_is_refused():
     s = thin()
-    assert refused(s, "p01", "pay", to="Sanjay", amount=5) == "Not done: no one called 'Sanjay' is known in the town."
+    assert refused(s, "p01", "pay", to="Sanjay", amount=5) == "Not done: no one you know is called 'Sanjay'. Names are written in full, as they appear in your records."
     assert refused(s, "p01", "pay", to="Megan Pryce", amount=700) == \
         "Not done: the account holds $600.00 and this needs $700.00."
     assert refused(s, "p01", "pay", to="Tom Ashby", amount=5) == "Not done: that is your own household."
@@ -115,13 +115,13 @@ def test_standing_payment_refusals():
     assert refused(s, "p01", "standing_payment", **{**base, "day": "Funday"}) == \
         "Not done: 'Funday' is not a day of the week."
     assert refused(s, "p01", "standing_payment", **{**base, "start": "soon"}) == \
-        "Not done: 'soon' is not a date that can be read."
+        "Not done: 'soon' is not a date that can be read. Write it like Monday 16 March."
     assert refused(s, "p01", "standing_payment", **{**base, "start": "1 March"}) == \
-        "Not done: '1 March' is not a date that can be read."
+        "Not done: '1 March' is not a date that can be read. Write it like Monday 16 March."
     for weeks in (-1, 1.5, "two", True, 521):
         assert refused(s, "p01", "standing_payment", **{**base, "weeks": weeks}).startswith("Not done:")
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Sanjay"}) == \
-        "Not done: no one called 'Sanjay' is known in the town."
+        "Not done: no one you know is called 'Sanjay'. Names are written in full, as they appear in your records."
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Tom Ashby"}) == \
         "Not done: that is your own household."
     assert refused(s, "p01", "standing_payment", **{**base, "amount": 0}).startswith("Not done:")
@@ -257,7 +257,7 @@ def test_request_refusals():
     s = thin()
     assert refused(s, "p03", "request", to="Ruth Ashby", text="lend", amount="lots").startswith("Not done:")
     assert refused(s, "p03", "request", to="Sanjay", text="lend") == \
-        "Not done: no one called 'Sanjay' is known in the town."
+        "Not done: no one you know is called 'Sanjay'. Names are written in full, as they appear in your records."
     assert refused(s, "p03", "request", to="Craig Pryce", text="lend").startswith("Not done:")
     assert refused(s, "p03", "request", to="Wenlow Lettings", text="lend").startswith("Not done:")
     assert refused(s, "p03", "request", to="Megan Pryce", text="lend", amount=5) == \
@@ -325,8 +325,8 @@ def test_a_name_longer_than_any_name_is_no_one():
     s = thin()
     padded = "Craig Pryce" + " " * 100
     assert refused(s, "p01", "message", to=padded, text="Hello.").startswith("Not done: your letter to")
-    assert refused(s, "p01", "pay", to=padded, amount=1).startswith("Not done: no one called")
-    assert refused(s, "p01", "request", to=padded, text="Hello.").startswith("Not done: no one called")
+    assert refused(s, "p01", "pay", to=padded, amount=1).startswith("Not done: no one you know is called")
+    assert refused(s, "p01", "request", to=padded, text="Hello.").startswith("Not done: no one you know is called")
     assert refused(s, "p01", "stop", id="ob" + "1" * 200).startswith("Not done: you have nothing")
     assert refused(s, "p01", "standing_payment", to="Craig Pryce", amount=1, day="Friday" * 30).startswith(
         "Not done: 'Friday")

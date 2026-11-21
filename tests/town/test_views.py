@@ -515,7 +515,7 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     total = len(v.system.split()) + len(v.user.split())
     assert 1200 < total < 2000
     order = ["knowhow", "people", "statement", "business", "till", "owed", "talks", "inbox", "requests", "read",
-             "closest", "coming", "guard"]
+             "closest", "coming", "read again", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut

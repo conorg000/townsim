@@ -495,7 +495,7 @@ def test_moving_money_between_ones_own_accounts():
     assert refused(s, "p01", "move_money", **{"from": "household", "to": "Marsh's Stores", "amount": 5000}) == \
         "Not done: the account holds $100.00 and this needs $5,000.00."
     assert refused(s, "p01", "move_money", **{"from": "household", "to": "Lowe's Grocer", "amount": 5}) == \
-        "Not done: 'Lowe's Grocer' is not an account of yours."
+        "Not done: 'Lowe's Grocer' is not an account of yours. Yours are: household, Marsh's Stores."
     assert s.ledger.total() == 0
 
 
@@ -570,7 +570,7 @@ def test_a_second_payment_by_hand_then_a_change_never_pays_a_friday_twice(act):
     s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March; Gail Whiteley's wage is $434
     do(s, "p16", "pay", to="Gail Whiteley", amount=434)
     out = do(s, "p16", "pay", 1, to="Gail Whiteley", amount=50)
-    assert out.msg == "Paid $50.00 to Gail Whiteley."                 # Friday 20 March is more than a week ahead
+    assert out.msg == "Paid $50.00 to Gail Whiteley. It was not counted toward anything owed."                 # Friday 20 March is more than a week ahead
     args = dict(who="Gail Whiteley", weekly_pay=500) if act == "set_staff_pay" else dict(who="Gail Whiteley")
     assert do(s, "p16", act, 2, **args).ok
     close(s); live(s, 16)
@@ -736,7 +736,7 @@ def _wages_in(s, since):
 def test_three_payments_by_hand_on_a_thursday_then_a_pay_change_pay_each_friday_once():
     s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
     outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(3)]
-    assert outs[0].endswith("due Friday 13 March.") and outs[1:] == ["Paid $434.00 to Gail Whiteley."] * 2
+    assert outs[0].endswith("due Friday 13 March.") and outs[1:] == ["Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."] * 2
     assert do(s, "p16", "set_staff_pay", 3, who="Gail Whiteley", weekly_pay=500).ok
     close(s); live(s, 20)
     assert [(d, c) for d, src, c in _wages_in(s, 11) if src == "org10"] == [(18, 50_000), (25, 50_000)]
@@ -746,7 +746,7 @@ def test_three_payments_by_hand_on_a_thursday_then_a_pay_change_pay_each_friday_
 def test_two_payments_by_hand_on_a_saturday_then_a_pay_change_pay_each_friday_once():
     s = _hamlet(); live(s, 12); routine(s)          # Saturday 14 March
     outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(2)]
-    assert outs[0].endswith("due Friday 20 March.") and outs[1] == "Paid $434.00 to Gail Whiteley."
+    assert outs[0].endswith("due Friday 20 March.") and outs[1] == "Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."
     out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=500)
     assert out.msg == "Lumb's Grocer pays Gail Whiteley $500.00 a week from Friday 27 March."
     close(s); live(s, 20)

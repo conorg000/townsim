@@ -166,7 +166,7 @@ def test_no_hour_no_talk_and_the_askers_hour_comes_back():
 def test_converse_refuses_what_cannot_be_and_takes_its_hour_at_once():
     s = thin_town()
     for args, why in (({"with": "Ruth Ashby", "opening": "hi"}, "that is you."),
-                      ({"with": "Edith Marsh", "opening": "hi"}, "no one called 'Edith Marsh' is known in the town."),
+                      ({"with": "Edith Marsh", "opening": "hi"}, "no one you know is called 'Edith Marsh'. Names are written in full, as they appear in your records."),
                       ({"with": "Wenlow Lettings", "opening": "hi"}, "Wenlow Lettings is not a person."),
                       ({"with": "Craig Pryce", "opening": " "}, "there was nothing written."),
                       ({"with": "Craig Pryce", "opening": "word " * 121}, "that is too long.")):
@@ -193,7 +193,7 @@ def test_an_appointment_is_held_on_its_day_or_recorded_missed():
     for day, why in (("Monday 2 March", "'Monday 2 March' is not a day after today and within 60 days."),
                      ("1 March", "'1 March' is not a day after today and within 60 days."),
                      ("Saturday 2 May", "'Saturday 2 May' is not a day after today and within 60 days."),
-                     (None, "'None' is not a day after today and within 60 days.")):
+                     (None, "'None' is not a date that can be read. Write it like Monday 16 March.")):
         out = act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": day, "about": "x"})
         assert out.msg == "Not done: " + why
     assert act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": "30 April", "about": "x"}).ok   # day 59

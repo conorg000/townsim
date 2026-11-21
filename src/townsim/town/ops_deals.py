@@ -32,7 +32,7 @@ from townsim.town import ops_core as core
 from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, controls, fits, from_account, name_of_who,
                                register, shown, to_cents)
-from townsim.town.clock import date_text, date_year, parse_date
+from townsim.town.clock import date_text, date_year, parse_date, unreadable
 from townsim.town.entities import Notice, Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
@@ -85,7 +85,7 @@ def _start(store: Store, value: Any) -> tuple[int | None, str]:
         gone = parse_date(value, -10 ** 6) if readable else None
         if gone is not None:
             return None, f"{date_text(gone)} has passed."
-        return None, f"'{shown(value)}' is not a date that can be read."
+        return None, unreadable(value)
     if day == store.day:
         return None, f"{date_text(day)} is today."
     if day == store.day + 1:

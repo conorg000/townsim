@@ -23,7 +23,7 @@ from typing import Any
 
 from townsim.town import firms, hours, jobs, obligations
 from townsim.town import ops_core as core
-from townsim.town.acts import REGISTRY, Act, OpSpec, dollars, fits, name_of_who, register, shown, to_cents
+from townsim.town.acts import REGISTRY, Act, OpSpec, account_named, dollars, fits, name_of_who, register, shown, to_cents
 from townsim.town.clock import date_in, date_text
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
@@ -87,7 +87,7 @@ def _person(store: Store, act: Act, key: str) -> tuple[str | None, str]:
     value = act.args.get(key)
     who = core._resolve(store, value, act.actor)
     if who is None:
-        return None, f"no one called '{shown(value)}' is known in the town."
+        return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
         return None, f"{name_of_who(store, who)} is not a person."
     if who == act.principal:
@@ -383,7 +383,7 @@ def _quitting(store: Store, act: Act) -> tuple[Job | None, str]:
     """The job `quit` leaves, or None and why not."""
     pid = act.principal
     held = jobs.held(store, person=pid)
-    value = act.args.get("from")
+    value = act.args.get("employer", act.args.get("from"))      # `from`, its older name, means the same
     if not core._blank(value):
         who = core._resolve(store, value, act.actor)
         mine = [j for j in held if j.org == who]
@@ -452,7 +452,7 @@ def _staff(store: Store, act: Act) -> tuple[Job | None, str]:
     value = act.args.get("who")
     who = core._resolve(store, value, act.actor)
     if who is None:
-        return None, f"no one called '{shown(value)}' is known in the town."
+        return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
         return None, f"{name_of_who(store, who)} is not a person."
     if _business(store, act.principal) is None:
@@ -635,18 +635,8 @@ def _do_extra(store: Store, act: Act, cause: str) -> str:
 # move_money
 
 def _own_account(store: Store, act: Act, key: str) -> tuple[str | None, str]:
-    """The account `key` names: `household` or the household's name, or a business the
-    principal owns in the town; or None and why not."""
-    value = act.args.get(key)
-    household = store.get("people", act.principal).household
-    if isinstance(value, str) and len(value) <= core.LONGEST_NAME:
-        wanted = value.strip().casefold()
-        if wanted in ("household", store.get("households", household).name.casefold()):
-            return household, "your household"
-        for org in _owned(store, act.principal):
-            if org.name.casefold() == wanted:
-                return org.id, org.name
-    return None, f"'{shown(value)}' is not an account of yours."
+    """The account `key` names (`acts.account_named`), or None and why not."""
+    return account_named(store, act.principal, act.args.get(key))
 
 
 def _check_move(store: Store, act: Act) -> str | None:
@@ -699,7 +689,7 @@ for _spec in (
     OpSpec("move_money", '{"op": "move_money", "from": "household" | "<your business>", '
                          '"to": "household" | "<your business>", "amount": <dollars>}',
            "Move money between your own accounts.", 0.1, _check_move, _do_move, 160, who="owner"),
-    OpSpec("quit", '{"op": "quit", "from": "<employer, if you have more than one job>"}',
+    OpSpec("quit", '{"op": "quit", "employer": "<employer, if you have more than one job>"}',
            "Leave a job.", 0.1, _check_quit, _do_quit, 170, who="employed"),
 ):
     register(_spec)
