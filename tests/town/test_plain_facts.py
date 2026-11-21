@@ -129,3 +129,8 @@ def test_a_wage_not_yet_begun_is_not_counted_as_coming_in():
     assert gen.weekly_in(s, h) == before
     live(s, 14)
     assert gen.weekly_in(s, h) == before + 50_000 or gen.weekly_in(s, h) >= 50_000
+
+
+def test_know_how_does_not_say_what_may_be_done():
+    from townsim.town.facts import KNOWHOW
+    assert not any("at any time" in line for lines in KNOWHOW.values() for line in lines)

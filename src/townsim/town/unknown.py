@@ -76,7 +76,7 @@ class Known(NamedTuple):
     names: tuple[str, ...]          # every known name, to be taken out of a text before it is read
 
 
-def _record_orgs(store: Store, reader: str) -> list[str]:
+def record_orgs(store: Store, reader: str) -> list[str]:
     """The organisations in `reader`'s own records."""
     p = store.get("people", reader)
     accounts = {p.household} | {o.id for o in store.all("orgs") if o.owner == reader}
@@ -104,7 +104,7 @@ def known(store: Store, reader: str, also: tuple[str, ...] = ()) -> Known:
     full = frozenset(n.casefold() for n in people)
     firsts = frozenset(n.split()[0].casefold() for n in people if n.split())
     surnames = frozenset(n.split()[-1].casefold() for n in people if len(n.split()) > 1)
-    names = sorted(set(people) | set(_record_orgs(store, reader)), key=lambda n: (-len(n), n))
+    names = sorted(set(people) | set(record_orgs(store, reader)), key=lambda n: (-len(n), n))
     return Known(full, firsts, surnames, tuple(n for n in names if n.strip()))
 
 

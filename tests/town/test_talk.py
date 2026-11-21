@@ -323,7 +323,6 @@ def test_the_talk_view_shows_what_is_between_them_in_order():
     user = talk.view(s, CRAIG, tk)[1]["content"]
     heads = [b.split("\n")[0] for b in user.split("\n\n")]
     assert heads == ["TODAY: Monday 2 March.", "YOU ARE TALKING WITH Ruth Ashby", "BETWEEN YOU", "THE TALK SO FAR",
-                     "Each of you speaks at most three times in a talk. You have spoken once in this one.",
                      "YOUR HOUSEHOLD'S ACCOUNT", "You have 68.75 hours left this week.", "OPERATIONS"]
     between = user.split("BETWEEN YOU\n")[1].split("\n\n")[0].split("\n")
     assert between[0].startswith("ob9: ") and "a week from Ashby" in between[0]
@@ -603,3 +602,20 @@ def test_a_talk_whose_view_raises_is_not_held_and_nothing_of_it_is_kept(monkeypa
     assert (h.talk, h.turns, h.n) == ("", [], 3)
     assert s.hash() == before and s.get("talks", tk).status == "waiting"
     assert s.engine_errors == [f"view:{RUTH}:d0: ValueError: no view"]
+
+
+def test_no_count_of_turns_is_shown_and_the_last_turn_says_they_part_after_it():
+    s = thin_town()
+    tk = ask_talk(s, RUTH, CRAIG)
+    seen = []
+
+    def script(key, messages):
+        seen.append((key.actor, messages[1]["content"]))
+        return reply("Go on.")
+    hold_all(s, script)
+    assert len(seen) == 5                                  # Ruth's opening, then five turns asked
+    for actor, user in seen:
+        assert "at most three" not in user and "You have spoken" not in user
+    last = {actor: i for i, (actor, _) in enumerate(seen)}
+    for i, (actor, user) in enumerate(seen):
+        assert ("You part after this." in user) == (i == last[actor]), (i, actor)

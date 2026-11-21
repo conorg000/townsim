@@ -57,7 +57,7 @@ MONEY_LINES = 8
 MONEY_KEPT = 4
 SCAN_CHARS = 20_000
 SCAN_TRIES = 50
-ONCE = ("", "once", "twice", "three times")
+LAST_TURN = "You part after this."          # shown on a speaker's last turn only
 
 REPLY_FORM = ('Reply with JSON only, in this form:\n'
               '{"say": "<your words>", "acts": [<operations from the list, in order>], '
@@ -517,8 +517,8 @@ def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
     spoke = len([x for x in lines if x.speaker == pid])
     if lines:
         blocks.append("\n".join(["THE TALK SO FAR"] + [x for line in lines for x in turn_lines(store, line, reader=pid)]))
-    so_far = "not yet spoken" if not spoke else f"spoken {ONCE[min(spoke, 3)]}"
-    blocks.append(f"Each of you speaks at most three times in a talk. You have {so_far} in this one.")
+    if spoke == TURNS - 1:
+        blocks.append(LAST_TURN)
     shown = _results(store, pid, tk)
     if shown:
         reads = [r.id for r in shown if views._is_read(r)]

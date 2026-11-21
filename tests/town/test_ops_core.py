@@ -175,8 +175,7 @@ def test_a_letter_to_no_one_comes_back():
     s = thin()
     assert refused(s, "p01", "message", to="Sanjay", text="hello") == \
         "Not done: your letter to 'Sanjay' came back undelivered."
-    assert refused(s, "p01", "message", to="Wenlow Lettings", text="hello") == \
-        "Not done: your letter to 'Wenlow Lettings' came back undelivered."
+    assert do(s, "p01", "message", to="Wenlow Lettings", text="hello").msg == "Sent to Wenlow Lettings."   # no answer
 
 
 def test_a_letter_to_an_org_with_no_owner_reaches_its_contact():
@@ -188,7 +187,7 @@ def test_a_letter_to_an_org_with_no_owner_reaches_its_contact():
     m = s.all("messages")[-1]
     assert (m.to, m.org) == ("p03", "org9")
     assert refused(s, "p03", "message", to="Wenlow Savings Bank", text="hello") == "Not done: that is you."
-    s.set("orgs", "org9", "routine:setup", contact="")
+    s.set("orgs", "org9", "routine:setup", contact="", outside=True)       # outside, and in no record of hers
     assert refused(s, "p01", "message", to="Wenlow Savings Bank", text="hello") == \
         "Not done: your letter to 'Wenlow Savings Bank' came back undelivered."
 

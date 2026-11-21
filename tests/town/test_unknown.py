@@ -103,7 +103,7 @@ def test_known_people_and_the_reader_s_own_records_are_not_flagged():
             f"agreed, and so did {me.name}.")
     assert _flags(s, pid, writer, text) == []
     # an organisation outside the place that is in no record of theirs is no one they know
-    stranger_orgs = [n for n in outside if n not in unknown._record_orgs(s, pid)]
+    stranger_orgs = [n for n in outside if n not in unknown.record_orgs(s, pid)]
     assert all(_flags(s, pid, writer, f"The {n} wrote.") for n in stranger_orgs if n.split()[-1] in unknown.ORG_WORDS)
 
 

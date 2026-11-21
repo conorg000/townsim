@@ -292,8 +292,7 @@ class _Talk:
         said = blocks.get("THE TALK SO FAR", [])
         self.opening = said[1].removeprefix("  > ") if len(said) > 1 else ""
         self.turns = len([x for x in said if x.endswith(" said:")])
-        found = re.search(r"You have (not yet spoken|spoken (once|twice|three times))", user)
-        self.spoken = {"once": 1, "twice": 2, "three times": 3}.get(found.group(2), 0) if found and found.group(2) else 0
+        self.spoken = len([x for x in said if x.endswith(" said:") and x.removesuffix(" said:") != self.other])
         self.asks = []
         between = blocks.get("BETWEEN YOU", [])
         for i, line in enumerate(between):

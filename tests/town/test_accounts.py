@@ -166,14 +166,21 @@ def test_a_letter_to_a_shop_reaches_its_owner():
     assert "From Craig Pryce to Marsh's Stores:\n  > Do you sell lamp oil?" in person_view(s, "p01")[1]["content"]
 
 
-def test_a_letter_to_an_organisation_with_no_owner_or_outside_comes_back():
+def test_a_letter_to_an_organisation_no_one_here_reads_is_sent_if_it_is_in_the_writer_s_records():
     s = town_with_shop()
-    out = _act(s, "p03", "message", to="Wenlow Lettings", text="The boiler.")
-    assert out.msg == "Not done: your letter to 'Wenlow Lettings' came back undelivered."
-    s.set("orgs", "org3", T, outside=True)
+    out = _act(s, "p03", "message", to="Wenlow Lettings", text="The boiler.")      # his landlord: no answer comes
+    assert out.msg == "Sent to Wenlow Lettings."
+    [m] = s.all("messages")
+    assert (m.sender, m.to, m.org, m.seen) == ("p03", "org1", "org1", True) and not views_news(s)
+    s.set("orgs", "org3", T, outside=True)                                     # outside, and in no record of his
     assert _act(s, "p03", "message", to="Marsh's Stores", text="Hello.").msg == (
         "Not done: your letter to 'Marsh's Stores' came back undelivered.")
-    assert s.all("messages") == []
+    assert len(s.all("messages")) == 1
+
+
+def views_news(s):
+    from townsim.town.views import with_news
+    return {p.id for p in s.all("people")} & with_news(s)
 
 
 # requests

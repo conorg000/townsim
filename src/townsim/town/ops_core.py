@@ -24,7 +24,7 @@ from townsim.town.entities import Message, Notice, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
 from townsim.town.store import Store
-from townsim.town.unknown import unknown_names, writer_text
+from townsim.town.unknown import record_orgs, unknown_names, writer_text
 
 MAX_WORDS = 80            # a note on an answer
 NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
@@ -315,7 +315,9 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
 
 def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
     """Who a letter reaches and the org it was addressed to (or ""): a person, or the owner
-    of an org in the town, or its contact if it has no owner. None if it comes back."""
+    of an org in the town, or its contact if it has no owner; or, for an organisation in the
+    writer's own records with no one in the town to read it (one outside the town, say), the
+    organisation itself: it is sent and gets no answer (design 3.6). None if it comes back."""
     who = _resolve(store, act.args.get("to"), act.actor)
     if who is not None and store.has("people", who):
         return who, ""
@@ -323,6 +325,8 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
         org = store.get("orgs", who)
         if (org.owner or org.contact) and not org.outside:
             return org.owner or org.contact, org.id
+        if store.has("people", act.actor) and org.name in record_orgs(store, act.actor):
+            return org.id, org.id
     return None
 
 
@@ -338,6 +342,10 @@ def _check_message(store: Store, act: Act) -> str | None:
 def _do_message(store: Store, act: Act, cause: str) -> str:
     to, org = _addressee(store, act)
     text = clean_text(act.args["text"])
+    if to == org:                       # no one in the town reads it: kept as sent, and never shown as news
+        store.add("messages", Message(store.new_id("msg", cause), store.day, act.actor, to, text, seen=True, org=org),
+                  cause)
+        return f"Sent to {name_of_who(store, org)}." + writer_text(unknown_names(store, act.actor, "", text))
     message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org,
                       unknown=unknown_names(store, to, act.actor, text))
     store.add("messages", message, cause)
