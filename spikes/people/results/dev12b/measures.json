@@ -1,0 +1,986 @@
+{
+ "tag": "dev12b",
+ "turns": 71,
+ "conversations": 16,
+ "attempts": 3,
+ "invalid": {
+  "rate": 0.0,
+  "n": 0,
+  "unparsed": 0,
+  "all_acts_failed": 0,
+  "examples": []
+ },
+ "conv_calls_unparsed": 0,
+ "acts_failed": {
+  "n": 2,
+  "of": 152,
+  "msgs": [
+   [
+    "There is no one called 'school' that you can pay.",
+    1
+   ],
+   [
+    "You know of no one called 'Sanjay', so the message was not sent.",
+    1
+   ]
+  ]
+ },
+ "repeat": {
+  "rate": 0.0,
+  "n": 0,
+  "of": 68,
+  "examples": []
+ },
+ "repeat_conv_lines": {
+  "rate": 0,
+  "n": 0,
+  "of": 93
+ },
+ "conv_act": {
+  "rate": 0.25,
+  "n": 4,
+  "of": 16,
+  "why": {
+   "in conversation": 4
+  },
+  "ended_by": {
+   "ran to the limit": 12,
+   "a side ended it": 4
+  }
+ },
+ "conv_list": [
+  [
+   0,
+   [
+    "Pete Bevan",
+    "Keith Royle"
+   ],
+   false,
+   ""
+  ],
+  [
+   0,
+   [
+    "Pete Bevan",
+    "Lewis Pryce"
+   ],
+   true,
+   "in conversation: offer_job"
+  ],
+  [
+   1,
+   [
+    "Pete Bevan",
+    "Craig Pryce"
+   ],
+   false,
+   ""
+  ],
+  [
+   2,
+   [
+    "Lewis Pryce",
+    "Pete Bevan"
+   ],
+   true,
+   "in conversation: request"
+  ],
+  [
+   2,
+   [
+    "Craig Pryce",
+    "Lewis Pryce"
+   ],
+   false,
+   ""
+  ],
+  [
+   3,
+   [
+    "Lewis Pryce",
+    "Sian Bevan"
+   ],
+   false,
+   ""
+  ],
+  [
+   3,
+   [
+    "Dave Royle",
+    "Maureen Daly"
+   ],
+   false,
+   ""
+  ],
+  [
+   4,
+   [
+    "Pete Bevan",
+    "Lewis Pryce"
+   ],
+   true,
+   "in conversation: answer"
+  ],
+  [
+   4,
+   [
+    "Owen Royle",
+    "Lewis Pryce"
+   ],
+   false,
+   ""
+  ],
+  [
+   5,
+   [
+    "Dave Royle",
+    "Maureen Daly"
+   ],
+   true,
+   "in conversation: pay"
+  ],
+  [
+   5,
+   [
+    "Pete Bevan",
+    "Dave Royle"
+   ],
+   false,
+   ""
+  ],
+  [
+   6,
+   [
+    "Owen Royle",
+    "Keith Royle"
+   ],
+   false,
+   ""
+  ],
+  [
+   6,
+   [
+    "Dave Royle",
+    "Maureen Daly"
+   ],
+   false,
+   ""
+  ],
+  [
+   6,
+   [
+    "Craig Pryce",
+    "Sian Bevan"
+   ],
+   false,
+   ""
+  ],
+  [
+   7,
+   [
+    "Craig Pryce",
+    "Sian Bevan"
+   ],
+   false,
+   ""
+  ],
+  [
+   7,
+   [
+    "Dave Royle",
+    "Maureen Daly"
+   ],
+   false,
+   ""
+  ]
+ ],
+ "acts_per_person_week": {
+  "message": 2.88,
+  "write_notes": 1.79,
+  "converse": 0.67,
+  "order_stock": 0.29,
+  "shop_at": 0.12,
+  "attempt": 0.12,
+  "answer": 0.12,
+  "pay": 0.12,
+  "request": 0.08,
+  "repay": 0.04,
+  "borrow": 0.04,
+  "offer_job": 0.04
+ },
+ "acts_total_per_person_week": 6.33,
+ "turns_per_person_week": 2.96,
+ "attempt_dispositions": {
+  "redirect:converse": 1,
+  "redirect:request": 1,
+  "applied": 1
+ },
+ "attempt_list": [
+  [
+   "p07",
+   "Ring Dave Royle at Corner Stores for the weekend rate and days, mentioning Sanjay said weekends were the gap",
+   "redirect:converse",
+   [
+    "What you described is something you can do directly, with the converse action."
+   ]
+  ],
+  [
+   "p04",
+   "Phone Brook Cash & Carry to chase the short delivery \u2014 108 units instead of 420 \u2014 and ask them to make up the rest this week",
+   "redirect:request",
+   [
+    "What you described is something you can do directly, with the request action."
+   ]
+  ],
+  [
+   "p11",
+   "Pull the last three months' accounts and bank statements together for Monday's meeting with Sian",
+   "applied:add_fact",
+   [
+    "The firm's accounts and bank statements are assembled for Lewis's meeting with Sian."
+   ]
+  ]
+ ],
+ "requests": {
+  "made": 4,
+  "by_kind": {
+   "job": 1,
+   "ask": 2,
+   "loan": 1
+  },
+  "status": {
+   "accepted": 2,
+   "declined": 1,
+   "open": 1
+  }
+ },
+ "distinct_pairs": 20,
+ "possible_pairs": 66,
+ "nonroutine_people": {
+  "p10": {
+   "shop_at": 3
+  },
+  "p07": {
+   "attempt": 1,
+   "request": 2
+  },
+  "p12": {
+   "repay": 1
+  },
+  "p04": {
+   "attempt": 1,
+   "pay": 1
+  },
+  "p11": {
+   "pay": 1,
+   "attempt": 1,
+   "offer_job": 1
+  },
+  "p09": {
+   "borrow": 1
+  }
+ },
+ "nonroutine_count": 6,
+ "unknown_refs_in_acts": {
+  "n": 1,
+  "examples": [
+   "There is no one called 'school' that you can pay."
+  ]
+ },
+ "unknown_capitalised_words": {
+  "n_texts": 215,
+  "top": [
+   [
+    "Mar",
+    27
+   ],
+   [
+    "Sanjay",
+    23
+   ],
+   [
+    "Mon",
+    13
+   ],
+   [
+    "Christmas",
+    3
+   ],
+   [
+    "Millgate",
+    3
+   ],
+   [
+    "Sun",
+    2
+   ],
+   [
+    "Account",
+    1
+   ],
+   [
+    "Thu",
+    1
+   ],
+   [
+    "Fri",
+    1
+   ],
+   [
+    "Apr",
+    1
+   ],
+   [
+    "Sat",
+    1
+   ],
+   [
+    "Tue",
+    1
+   ]
+  ],
+  "examples": {
+   "Mar": [
+    [
+     "p02",
+     "Rent goes to $235 from 16 Mar (+$25/wk). Account $1,200. Weekly in $800 (my $610 + Gary's $190). Weekly out now ~ $632 (rent 210, bills 300, food ~122). After r"
+    ]
+   ],
+   "Sanjay": [
+    [
+     "p07",
+     "Craig, Pete Bevan. You're at the Corner Stores \u2014 is Sanjay on today? I'm after weekend hours and I need to know the rate before I waste his time. What's he payi"
+    ]
+   ],
+   "Mon": [
+    [
+     "p01",
+     "Before tonight: pull all the bills, list what's fixed and what can be cut. Rent goes to $235 from Mon 16 Mar, that's $25 more a week. Don't borrow without talki"
+    ]
+   ],
+   "Christmas": [
+    [
+     "p03",
+     "Gary, got your message. Asked around. Alan's not taking anyone on, cut the shifts back since Christmas, so I wouldn't bank on the bakery. Sorry, mate. Sanjay at"
+    ]
+   ],
+   "Millgate": [
+    [
+     "p08",
+     "Right, I've got the quote here, look. Four hundred and sixty, pay-in-full, and I've got about a hundred and twenty put by from the Royle rent envelope... well, "
+    ]
+   ],
+   "Sun": [
+    [
+     "p02",
+     "Fri 13 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Weekly in $800, out ~$657 after rise, positive before food. Food target under $100/wk: plan meals and sho"
+    ]
+   ],
+   "Account": [
+    [
+     "p07",
+     "(Monday 9 March) Account $853; Sat 14th school trip $75 due, rent $165 \u2014 about $99 spare after the week. Pushing Lewis on r19: Sat morning delivery 4 hrs + one "
+    ]
+   ],
+   "Thu": [
+    [
+     "p01",
+     "Wed 11 Mar: Bills list tonight before Nadia. Fixed: rent, power, water, council tax. Cuttable: phone, transport, clothes. Nadia first. No borrowing without her."
+    ]
+   ],
+   "Fri": [
+    [
+     "p01",
+     "Wed 11 Mar: Bills list tonight before Nadia. Fixed: rent, power, water, council tax. Cuttable: phone, transport, clothes. Nadia first. No borrowing without her."
+    ]
+   ],
+   "Apr": [
+    [
+     "p07",
+     "Sat 14 Mar: $75 school trip paid. Rent $165 still to go \u2014 account $901, fine. Lewis's $48 in, $24/wk from Mon, done 6 Apr. Weekend hours $48 Sat + $48 evening c"
+    ]
+   ],
+   "Sat": [
+    [
+     "p07",
+     "Sat 14 Mar: $75 school trip paid. Rent $165 still to go \u2014 account $901, fine. Lewis's $48 in, $24/wk from Mon, done 6 Apr. Weekend hours $48 Sat + $48 evening c"
+    ]
+   ],
+   "Tue": [
+    [
+     "p04",
+     "Sat 14 Mar: Offered Maureen $300 advance + extra hours Mon/Tue restock to cover the $460 garage bill. Pete Bevan starts this morning \u2014 Sanjay to show him the ro"
+    ]
+   ]
+  }
+ },
+ "filler_sample": [
+  [
+   "p12",
+   "p05",
+   "Owen \u2014 thanks for those. Rice 1.85, pasta 0.95, tins 0.55. I'll price them against what we pay at the Corner Stores tonight. If the gap's real, we'll shift the basics over to Quarry Road and keep the rest local. Appreciate the shelf check when you're next on."
+  ],
+  [
+   "p10",
+   "p12",
+   "Morning Craig, thanks for getting back to me. Right, $20 a week it is then \u2014 as long as it keeps going I'm happy. Just don't let it drift, like you say. I'll see you about. Megan."
+  ],
+  [
+   "p08",
+   "p09",
+   "Hiya love, I've been looking at the figures. Car is $460 and Northgrid is $1,390, both by Saturday, and we've got $1,056 in the account. Can we sit down tonight properly? Don't want to go into Saturday blind. x"
+  ],
+  [
+   "p09",
+   "p08",
+   "Hiya love, sorry I've been so quiet, the shop's been mad and I didn't want to say anything half-baked. The car's gone for brakes and a tyre, $460, which comes out of our account when I collect it Saturday. I know that leaves us tight, and I'm sorry. Let's sit down tonight and go through the week's money properly, I think we can manage if we're careful with food. Love you x"
+  ],
+  [
+   "p12",
+   "p10",
+   "Morning Megan. Thanks for being patient. I can't clear the $800 yet, but I'd like to start chipping at it \u2014 I'll send you $20 this week and keep it going as I can. I'll not let it drift. Craig."
+  ],
+  [
+   "p12",
+   "p05",
+   "Owen, still after those own-brand figures you mentioned \u2014 anything that gets the food bill down a few dollars a week helps. Let me know what you've got."
+  ],
+  [
+   "p12",
+   "p06",
+   "Sian, Thursday afternoon suits me fine \u2014 say 2pm at the branch. While you're pulling the car loan schedule, I'd like to see if stretching the term a bit is an option; even $10-15 a week off the payment would help. Balance is $3,957 on my side. Thanks, Craig."
+  ],
+  [
+   "p07",
+   "p04",
+   "Dave, Pete Bevan. Thanks for the start today \u2014 but I've got a clash: Lewis Pryce has me on the Saturday morning delivery at Quarry Road this week, the one I've been chasing. Can we start Corner Stores next Saturday instead, or do Sunday mornings only? I don't want to leave you short."
+  ],
+  [
+   "p09",
+   "p08",
+   "Morning love! 10 is perfect, I'll be ready. I know, the car bill is nagging at me too, so I'll keep the shop list tight. Could we sit down with the household figures once we're back? Sorry, I know I'm fretting x"
+  ],
+  [
+   "p02",
+   "p01",
+   "Rent's $235 from Monday. Can we sort the split tonight? I want the bills list too. Don't leave it till the weekend."
+  ],
+  [
+   "p10",
+   "p12",
+   "Morning Craig, hope you're keeping well! Just wondering if there's any chance of chipping away at that $800 you borrowed \u2014 even a bit would help. No rush, just thought I'd ask, ta!"
+  ],
+  [
+   "p11",
+   "p08",
+   "Maureen \u2014 thanks for asking, but no weekend shifts going just now. Takings won't cover it. I'll keep you in mind if that changes."
+  ],
+  [
+   "p08",
+   "p09",
+   "Hiya love, got your message, thanks for telling me straight. Don't worry about the car, we'll sort it. Let's sit down tonight and go through the money properly, I'll put the kettle on. Love you x"
+  ],
+  [
+   "p02",
+   "p01",
+   "Yes, tonight. Kitchen table after tea. I've done the numbers: $800 in, about $657 out once the rent goes up, account on $1,200. We can manage but we don't waste anything from here on. Bring the bills."
+  ],
+  [
+   "p09",
+   "p08",
+   "Sorry love, I know I'm late replying! Bakery's fine for the week, I'll sort the order today. Saturday shop sounds good, shall we go in the morning? x"
+  ],
+  [
+   "p08",
+   "p11",
+   "Hiya Lewis! Hope the food hall's not too mad this week. Any chance you've got weekend shifts going at Quarry Road? I'm trying to claw back a bit of money before Saturday. No pressure at all, just ask if you hear of anything. Ta x"
+  ],
+  [
+   "p03",
+   "p04",
+   "Can you have a word with Sanjay at Corner Stores about Pete Bevan? He needs work, he'd take weekends. Tell Sanjay he's reliable. And can we look at the account this week, it's tight."
+  ],
+  [
+   "p12",
+   "p05",
+   "Owen, it's Craig. What's on offer at Quarry Road this week? Trying to get the food shop down from $87. Any deals on the basics, let me know the figures."
+  ],
+  [
+   "p01",
+   "p03",
+   "Keith, any chance of work at the bakery? Care work's what I've got but I'll take anything. Give us a shout when you can."
+  ],
+  [
+   "p09",
+   "p10",
+   "Megan, I heard about the job at Brennock. I'm really sorry, that's a rotten thing to happen. If there's anything I can do, even just to listen, say the word. Hope you're holding up okay x"
+  ],
+  [
+   "p10",
+   "p12",
+   "Craig, that suits me fine \u2014 $20 a week works, no need to stretch yourself. Send the first one whenever you're ready and we'll chip away at it. Thanks for getting in touch, hope you're keeping well otherwise."
+  ],
+  [
+   "p12",
+   "p11",
+   "Lewis \u2014 Owen says the cost sheet is your paperwork and I should come to you direct. Fair enough. Can we sit down tonight with it? I'm trying to shave the food bill and the own-brand figures are the bit I'm missing. No drama, just want the numbers."
+  ],
+  [
+   "p09",
+   "p08",
+   "Yes, let's sit down tonight. I've got the Northgrid bill sorted with a loan, so we're not in a hole on Saturday. We'll go through the car too. Love you x"
+  ],
+  [
+   "p04",
+   "p03",
+   "Morning love \u2014 got your message about Pete. I'll have a word with Sanjay, but honestly I can't promise much: Brook came up well short on today's delivery so I'm chasing stock and every penny's spoken for with the rent going up. I'll ask, though. Tell Pete to keep his chin up."
+  ],
+  [
+   "p01",
+   "p03",
+   "Keith, any chance the bakery's taking anyone on? Could do with more hours or a job. Let me know when you're in."
+  ],
+  [
+   "p08",
+   "p11",
+   "Alright Lewis! Any chance you've got weekend shifts going at Quarry Road? I could do with some extra money coming in, and I'm happy to work the weekend rush. Let me know, ta!"
+  ],
+  [
+   "p04",
+   "Brook Cash & Carry",
+   "Morning, it's Dave Royle at The Corner Stores. Following up on Monday's delivery \u2014 I ordered 420 units and only 108 turned up. That's a big shortfall and it's left my shelves bare. I need the missing 312 units sorted or a proper credit against the invoice \u2014 I'm not paying full whack for what never arrived. Can you come back to me today please?"
+  ],
+  [
+   "p05",
+   "p12",
+   "Craig, mate \u2014 sorry, the cost sheet's not mine to hand out. Lewis pulled me up on it: it's his paperwork, his call. If you want the figures, go to him direct. Wish I could help more on the food bill but that's the way it is."
+  ],
+  [
+   "p06",
+   "p10",
+   "Megan, I'm so sorry about the shift being cut. That's a hard thing to hear on a Friday. I'd love to sit down with you properly. Would Sunday afternoon work, or early next week? I'd like to hear how you're placed before we talk about how best to get through the next few months. No pressure to have it all worked out yet. Sian"
+  ],
+  [
+   "p07",
+   "p11",
+   "Lewis \u2014 thanks for the Saturday four hours. On the $96 you owe from r17: I've got $75 school trip due Saturday and rent the same day, so I need a date, not 'when takings pick up'. Even $48 this week would help. What can you put in the till for me and when?"
+  ],
+  [
+   "p09",
+   "p08",
+   "Morning love. Still on for 10 Saturday to go through the figures. I've ordered stock from Dales for Monday so we don't lose customers again. I'm still working out how we cover the Northgrid bill, so I'll bring what I've got. Love you x"
+  ],
+  [
+   "p03",
+   "p01",
+   "Gary, bakery's not hiring, Alan's cut back since Christmas. Sorry mate. If anything opens I'll shout. Keep ringing round, there's care agencies in town that take people fast."
+  ],
+  [
+   "p03",
+   "p04",
+   "Any word from Sanjay yet? No pressure, but Pete's struggling and I said I'd try. Let me know when you hear. Keep an eye on the account too, we're close to the wire this month."
+  ],
+  [
+   "p12",
+   "p06",
+   "Sian \u2014 Thursday 2pm still suits me for the car loan terms, unless you'd rather do today. Either way, I'll be at the branch. I want to talk about stretching the term and what that does to the weekly figure. Craig"
+  ],
+  [
+   "p09",
+   "p08",
+   "Still on for 10 tonight. I'll bring the shop numbers and the Northgrid bill so we can see where we stand before Saturday. Love you x"
+  ],
+  [
+   "p05",
+   "p12",
+   "Craig, sorry for the slow reply! Right, this week at Quarry Road the basics are the ones to go for \u2014 I'll get you the exact figures when I'm on shift but the own-brand stuff is where the savings are, rice, pasta, tinned toms, that sort of thing. Give me a bit and I'll text you the numbers. How's things at the Corner Stores anyway?"
+  ],
+  [
+   "p12",
+   "p10",
+   "Megan \u2014 following up on my last message. I owe you $800 and I don't like owing. Money's tight but I can start chipping at it now: $20 a week until it's cleared, first payment this week. If that suits, say the word and I'll send the first $20 straight away. If you'd rather a different arrangement, tell me the figure and I'll work to it."
+  ],
+  [
+   "p11",
+   "p07",
+   "Pete \u2014 $48 put to you today, out of my own pocket, not the till. It comes off the $96 arrears. The rest: $24 a week starting Monday, four weeks, done by 6 April, as signed. And your weekend hours start next week \u2014 $48 Saturday, $48 evening, on top of your $96. That's a date, not a maybe."
+  ],
+  [
+   "p08",
+   "p04",
+   "Hiya Dave, just checking in on the advance when you get a minute. No rush if the books are still being looked at, I know it's a busy one. Thanks again, honestly. M x"
+  ],
+  [
+   "p12",
+   "p05",
+   "Owen \u2014 good to hear from you. Things at the Corner Stores are much as ever: Dave owns it, wages come out of his pocket, so hours and rates are his call. On the shopping: I'm keen on the own-brand numbers. Rice, pasta, tinned toms \u2014 give me the per-item figures when you're on shift and I'll do the sums against what we pay now. We're at $72 a week on food and I want to see if Quarry Road beats it. No rush, but concrete figures please."
+  ]
+ ],
+ "families": {
+  "haiku": {
+   "turns": 37,
+   "invalid_rate": 0.0,
+   "acts_per_turn": 1.41,
+   "messages": 37,
+   "repeat_rate": 0.0,
+   "mean_message_words": 35.8,
+   "attempts": 0,
+   "nonroutine_acts": 1,
+   "median_tokens_out": 448,
+   "empty_act_turns": 1,
+   "conv_lines": 26
+  },
+  "deepseek": {
+   "turns": 34,
+   "invalid_rate": 0.0,
+   "acts_per_turn": 2.38,
+   "messages": 31,
+   "repeat_rate": 0.0,
+   "mean_message_words": 48.8,
+   "attempts": 3,
+   "nonroutine_acts": 12,
+   "median_tokens_out": 332.0,
+   "empty_act_turns": 0,
+   "conv_lines": 67
+  }
+ },
+ "cost": {
+  "people_usd": 0.0407,
+  "narrator_usd": 0.006,
+  "total_usd": 0.0467,
+  "per_person_week": 0.00195,
+  "people_calls": 148,
+  "narrator_calls": 6,
+  "median_tokens_in": 1280.5,
+  "median_tokens_out": 227.0,
+  "median_view_words": 672,
+  "max_view_words": 1523
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 487,
+    "firm:2": 340,
+    "firm:3": 360
+   },
+   "firm_cash": {
+    "firm:1": 703000,
+    "firm:2": 798000,
+    "firm:3": 607400
+   },
+   "hh_cash": {
+    "h1": 140000,
+    "h2": 146900,
+    "h3": 85300,
+    "h4": 59600,
+    "h5": 345800,
+    "h6": 116300
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "unemployed": 1,
+    "outside": 2,
+    "employee": 5,
+    "owner": 3,
+    "banker": 1
+   }
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 136,
+    "firm:2": 322,
+    "firm:3": 340
+   },
+   "firm_cash": {
+    "firm:1": 614180,
+    "firm:2": 797500,
+    "firm:3": 609700
+   },
+   "hh_cash": {
+    "h1": 162700,
+    "h2": 152800,
+    "h3": 93000,
+    "h4": 9200,
+    "h5": 492600,
+    "h6": 111800
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "unemployed": 2,
+    "outside": 1,
+    "employee": 5,
+    "owner": 3,
+    "banker": 1
+   }
+  }
+ ],
+ "ledger_total": 0,
+ "aims_age": {
+  "p01": [
+   [
+    "Talk to Nadia tonight about the budget",
+    0
+   ],
+   [
+    "Find the extra $25 a week for rent from 16 March",
+    0
+   ],
+   [
+    "Ask Sanjay at the Corner Stores about weekend shifts today",
+    4
+   ],
+   [
+    "Finish the bills list and mark what can be cut",
+    3
+   ]
+  ],
+  "p02": [
+   [
+    "Absorb $25/wk rent rise from 16 March",
+    0
+   ],
+   [
+    "Keep household account above safe buffer",
+    0
+   ],
+   [
+    "Trim food spending to under $100/wk",
+    2
+   ],
+   [
+    "Get Gary to agree rent split and bills list",
+    5
+   ],
+   [
+    "Avoid borrowing or owing anyone",
+    0
+   ]
+  ],
+  "p03": [
+   [
+    "Get Pete Bevan work via Sanjay at Corner Stores",
+    1
+   ],
+   [
+    "Keep household account above water each week",
+    1
+   ],
+   [
+    "Keep my hours at the bakery",
+    1
+   ],
+   [
+    "Check the account before any new spending",
+    5
+   ]
+  ],
+  "p04": [
+   [
+    "Sort Maureen's car advance today",
+    6
+   ],
+   [
+    "Chase Brook over short delivery",
+    4
+   ],
+   [
+    "Get shelves restocked Monday",
+    4
+   ],
+   [
+    "Settle Pete Bevan in on weekends",
+    7
+   ],
+   [
+    "Keep costs tight for rent rise",
+    4
+   ]
+  ],
+  "p05": [
+   [
+    "Tell Craig the cost sheet is Lewis's call",
+    6
+   ],
+   [
+    "Check in with Dad and Dave about money",
+    3
+   ],
+   [
+    "Watch the loan and rising rent",
+    2
+   ],
+   [
+    "Keep my three days at Quarry Road steady",
+    4
+   ]
+  ],
+  "p06": [
+   [
+    "Reply to Megan Lister and arrange a chat",
+    7
+   ],
+   [
+    "Review Lewis Pryce total exposure before Monday",
+    5
+   ],
+   [
+    "Confirm Craig Pryce car loan terms",
+    5
+   ],
+   [
+    "Keep household spending within $730 this week",
+    0
+   ],
+   [
+    "Check Owen Royle consolidation loan position",
+    0
+   ]
+  ],
+  "p07": [
+   [
+    "Confirm Saturday start with Lewis, avoid clash with Dave",
+    7
+   ],
+   [
+    "Pay $165 rent by Saturday",
+    5
+   ],
+   [
+    "Get weekend rate/days fixed at Corner Stores",
+    7
+   ],
+   [
+    "Track $24/wk arrears to 6 April",
+    7
+   ]
+  ],
+  "p08": [
+   [
+    "Get Dave's answer on the advance before Saturday",
+    7
+   ],
+   [
+    "Cover the $1,390 Northgrid bill by Saturday",
+    4
+   ],
+   [
+    "Cover the $460 car repair",
+    2
+   ],
+   [
+    "Talk through the week's money with Alan tonight",
+    3
+   ],
+   [
+    "Keep my hours at The Corner Stores",
+    0
+   ]
+  ],
+  "p09": [
+   [
+    "Confirm Saturday money talk with Maureen at 10 and keep the plan lean",
+    3
+   ],
+   [
+    "Check Monday's Dales delivery against demand to avoid spoilage",
+    3
+   ],
+   [
+    "Keep Keith's wages and my draw covered from shop cash",
+    3
+   ],
+   [
+    "Arrange coffee with Megan this week",
+    7
+   ]
+  ],
+  "p10": [
+   [
+    "Talk to Sian about money",
+    6
+   ],
+   [
+    "Claim jobseeker's benefit after redundancy",
+    6
+   ],
+   [
+    "Keep Craig paying $20 a week",
+    3
+   ],
+   [
+    "Get baking supplies for the weekend",
+    3
+   ]
+  ],
+  "p11": [
+   [
+    "Prep paperwork for Sian Monday",
+    5
+   ],
+   [
+    "Stock count before Monday's Dales delivery",
+    6
+   ],
+   [
+    "Keep shelves full, spoilage down",
+    1
+   ],
+   [
+    "Watch wage bill against takings",
+    1
+   ],
+   [
+    "Reply to Maureen about shifts",
+    5
+   ]
+  ],
+  "p12": [
+   [
+    "Get weekly spending under $790",
+    1
+   ],
+   [
+    "Find cheaper food options",
+    1
+   ],
+   [
+    "Keep $20/wk going to Megan",
+    4
+   ],
+   [
+    "Ask Sian about car loan terms",
+    1
+   ],
+   [
+    "Find the extra $9/wk",
+    4
+   ]
+  ]
+ }
+}

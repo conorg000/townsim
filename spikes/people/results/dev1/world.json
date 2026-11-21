@@ -1,0 +1,1350 @@
+{
+ "seed": 1,
+ "weeks": 1,
+ "use_aims": true,
+ "active": [
+  "p01",
+  "p02",
+  "p03"
+ ],
+ "people": {
+  "p01": {
+   "id": "p01",
+   "name": "Gary Tully",
+   "sex": "m",
+   "age": 37,
+   "household": "h1",
+   "role": "unemployed",
+   "model": "haiku",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "care work"
+   ],
+   "ties": {
+    "p02": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "walking the fells",
+    "cars"
+   ],
+   "worries": [
+    "finding work",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p02": {
+   "id": "p02",
+   "name": "Nadia Tully",
+   "sex": "f",
+   "age": 31,
+   "household": "h1",
+   "role": "outside",
+   "model": "haiku",
+   "firm": null,
+   "employer": "Calder Logistics depot",
+   "job_title": "warehouse operative at Calder Logistics depot, out of town",
+   "pay": 61000,
+   "skills": [
+    "forklift driving"
+   ],
+   "ties": {
+    "p01": [
+     "partner"
+    ],
+    "p06": [
+     "sibling"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "football",
+    "the brass band"
+   ],
+   "worries": [
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p03": {
+   "id": "p03",
+   "name": "Keith Royle",
+   "sex": "m",
+   "age": 56,
+   "household": "h2",
+   "role": "employee",
+   "model": "haiku",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "works at Wenlow Bakery & Deli",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p04": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p09": [
+     "employer",
+     "landlord",
+     "friend"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "the allotment",
+    "the brass band"
+   ],
+   "worries": [
+    "keeping your hours",
+    "the rent going up",
+    "your health"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p04": {
+   "id": "p04",
+   "name": "Dave Royle",
+   "sex": "m",
+   "age": 49,
+   "household": "h2",
+   "role": "owner",
+   "model": "deepseek",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "owner of The Corner Stores",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p03": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p08": [
+     "employee"
+    ],
+    "p12": [
+     "employee"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p11": [
+     "rival trader"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "cars",
+    "baking"
+   ],
+   "worries": [
+    "whether the shop is paying its way",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p05": {
+   "id": "p05",
+   "name": "Owen Royle",
+   "sex": "m",
+   "age": 22,
+   "household": "h2",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "works at Quarry Road Food Hall",
+   "pay": 42000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p03": [
+     "parent"
+    ],
+    "p04": [
+     "parent"
+    ],
+    "p11": [
+     "employer"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "your bank manager",
+     "friend"
+    ],
+    "p12": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "knitting",
+    "football"
+   ],
+   "worries": [
+    "the bank loan",
+    "keeping your hours",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p06": {
+   "id": "p06",
+   "name": "Sian Bevan",
+   "sex": "f",
+   "age": 28,
+   "household": "h3",
+   "role": "banker",
+   "model": "haiku",
+   "firm": null,
+   "employer": null,
+   "job_title": "manager of the Wenlow branch of the Northern Mutual Bank",
+   "pay": 72000,
+   "skills": [
+    "lending",
+    "accounts"
+   ],
+   "ties": {
+    "p07": [
+     "partner"
+    ],
+    "p02": [
+     "sibling"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p04": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "knitting"
+   ],
+   "worries": [
+    "the rent going up",
+    "the children's costs",
+    "loans going bad on your books"
+   ],
+   "voice": "careful and polite; you choose words like you're writing a letter",
+   "health": "well"
+  },
+  "p07": {
+   "id": "p07",
+   "name": "Pete Bevan",
+   "sex": "m",
+   "age": 23,
+   "household": "h3",
+   "role": "unemployed",
+   "model": "deepseek",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "gardening"
+   ],
+   "ties": {
+    "p06": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p11": [
+     "friend"
+    ],
+    "p12": [
+     "friend"
+    ],
+    "p10": [
+     "you hold a grudge"
+    ]
+   },
+   "grudge": {
+    "p10": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "crosswords",
+    "knitting"
+   ],
+   "worries": [
+    "finding work",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well"
+  },
+  "p08": {
+   "id": "p08",
+   "name": "Maureen Daly",
+   "sex": "f",
+   "age": 30,
+   "household": "h4",
+   "role": "employee",
+   "model": "haiku",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p09": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p12": [
+     "coworker"
+    ],
+    "p11": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "walking the fells",
+    "fishing"
+   ],
+   "worries": [
+    "keeping your hours"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p09": {
+   "id": "p09",
+   "name": "Alan Daly",
+   "sex": "m",
+   "age": 28,
+   "household": "h4",
+   "role": "owner",
+   "model": "haiku",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "owner of Wenlow Bakery & Deli",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p08": [
+     "partner"
+    ],
+    "p03": [
+     "employee",
+     "tenant",
+     "friend"
+    ],
+    "p04": [
+     "tenant"
+    ],
+    "p05": [
+     "tenant"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "the parish council",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "whether the shop is paying its way"
+   ],
+   "voice": "worried-sounding; you hedge and apologise",
+   "health": "well"
+  },
+  "p10": {
+   "id": "p10",
+   "name": "Megan Lister",
+   "sex": "f",
+   "age": 35,
+   "household": "h5",
+   "role": "outside",
+   "model": "deepseek",
+   "firm": null,
+   "employer": "Brennock General Hospital",
+   "job_title": "porter at Brennock General Hospital, out of town",
+   "pay": 58000,
+   "skills": [
+    "lifting and carrying"
+   ],
+   "ties": {
+    "p12": [
+     "they owe you money"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p02": [
+     "you hold a grudge"
+    ]
+   },
+   "grudge": {
+    "p02": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "baking",
+    "football"
+   ],
+   "worries": [
+    "nothing much, for now"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p11": {
+   "id": "p11",
+   "name": "Lewis Pryce",
+   "sex": "m",
+   "age": 57,
+   "household": "h6",
+   "role": "owner",
+   "model": "deepseek",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "owner of Quarry Road Food Hall",
+   "pay": 35000,
+   "skills": [
+    "buying stock",
+    "keeping books"
+   ],
+   "ties": {
+    "p12": [
+     "partner"
+    ],
+    "p05": [
+     "employee"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p08": [
+     "friend"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p04": [
+     "rival trader"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "crosswords"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "whether the shop is paying its way"
+   ],
+   "voice": "blunt; you say what you think and expect the same",
+   "health": "well"
+  },
+  "p12": {
+   "id": "p12",
+   "name": "Craig Pryce",
+   "sex": "m",
+   "age": 62,
+   "household": "h6",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 44000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p11": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p08": [
+     "coworker"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p10": [
+     "you owe them money"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "walking the fells",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "the money you owe Megan"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well"
+  }
+ },
+ "households": {
+  "h1": {
+   "id": "h1",
+   "members": [
+    "p01",
+    "p02"
+   ],
+   "children": 1,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 21000,
+   "running_cost": 20200,
+   "savings": 120000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h2": {
+   "id": "h2",
+   "members": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "children": 0,
+   "street": "Mill Street",
+   "tenure": "rent",
+   "landlord": "p09",
+   "rent": 17500,
+   "running_cost": 21400,
+   "savings": 101000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h3": {
+   "id": "h3",
+   "members": [
+    "p06",
+    "p07"
+   ],
+   "children": 2,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 16500,
+   "running_cost": 24400,
+   "savings": 73000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h4": {
+   "id": "h4",
+   "members": [
+    "p08",
+    "p09"
+   ],
+   "children": 0,
+   "street": "High Street",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 21000,
+   "running_cost": 17000,
+   "savings": 67000,
+   "owns_let": "h2",
+   "house_value": 0
+  },
+  "h5": {
+   "id": "h5",
+   "members": [
+    "p10"
+   ],
+   "children": 0,
+   "street": "Station Road",
+   "tenure": "own",
+   "landlord": null,
+   "rent": 0,
+   "running_cost": 16400,
+   "savings": 317000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h6": {
+   "id": "h6",
+   "members": [
+    "p11",
+    "p12"
+   ],
+   "children": 0,
+   "street": "Church Lane",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 24000,
+   "running_cost": 19500,
+   "savings": 118000,
+   "owns_let": null,
+   "house_value": 0
+  }
+ },
+ "firms": {
+  "firm:1": {
+   "name": "The Corner Stores",
+   "owner": "p04",
+   "pay": {
+    "p04": 38000,
+    "p08": 46000,
+    "p12": 44000
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 440,
+     "revenue": 440000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 677000,
+     "wages": 128000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 505,
+     "revenue": 505000,
+     "turned_away": 0,
+     "spoiled": 2,
+     "cash": 721000,
+     "wages": 128000,
+     "fixed": 25000,
+     "stock_left": 13
+    }
+   ],
+   "employees": [
+    "p08",
+    "p12"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.6,
+   "visibility": 0.5,
+   "reputation": 0.7695
+  },
+  "firm:2": {
+   "name": "Wenlow Bakery & Deli",
+   "owner": "p09",
+   "pay": {
+    "p09": 38000,
+    "p03": 46000
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 777000,
+     "wages": 84000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 51,
+     "spoiled": 3,
+     "cash": 798000,
+     "wages": 84000,
+     "fixed": 25000,
+     "stock_left": 17
+    }
+   ],
+   "employees": [
+    "p03"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.57,
+   "visibility": 0.5,
+   "reputation": 0.7572772189349112
+  },
+  "firm:3": {
+   "name": "Quarry Road Food Hall",
+   "owner": "p11",
+   "pay": {
+    "p11": 35000,
+    "p05": 42000
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 634000,
+     "wages": 77000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 135,
+     "spoiled": 3,
+     "cash": 597000,
+     "wages": 77000,
+     "fixed": 25000,
+     "stock_left": 17
+    }
+   ],
+   "employees": [
+    "p05"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.63,
+   "visibility": 0.5,
+   "reputation": 0.7439681619256017
+  }
+ },
+ "debts": {
+  "d1": {
+   "id": "d1",
+   "debtor": "p08",
+   "creditor": "bank",
+   "balance": 16359000,
+   "weekly": 21000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d2": {
+   "id": "d2",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 18696000,
+   "weekly": 24000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d3": {
+   "id": "d3",
+   "debtor": "p12",
+   "creditor": "bank",
+   "balance": 395700,
+   "weekly": 4300,
+   "what": "loan for the car",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d4": {
+   "id": "d4",
+   "debtor": "p05",
+   "creditor": "bank",
+   "balance": 595700,
+   "weekly": 4300,
+   "what": "loan to consolidate card debts",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d5": {
+   "id": "d5",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 893500,
+   "weekly": 6500,
+   "what": "business loan for the shop's chiller",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d6": {
+   "id": "d6",
+   "debtor": "p12",
+   "creditor": "p10",
+   "balance": 80000,
+   "weekly": 0,
+   "what": "money borrowed privately, to be paid back when possible",
+   "arrears": 0,
+   "missed_weeks": 0
+  }
+ },
+ "requests": {},
+ "facts": [],
+ "projects": [],
+ "new_orgs": {},
+ "events": [
+  {
+   "week": 2,
+   "kind": "job_lost",
+   "who": "p10",
+   "round": 2
+  },
+  {
+   "week": 1,
+   "kind": "rent_rise",
+   "hh": "h1",
+   "round": 0,
+   "done": true,
+   "new": 23500,
+   "from": 3
+  },
+  {
+   "week": 2,
+   "kind": "supplier_fail",
+   "firm": "firm:3",
+   "round": 0
+  },
+  {
+   "week": 4,
+   "kind": "illness",
+   "who": "p11",
+   "round": 1
+  },
+  {
+   "week": 2,
+   "kind": "arrears_bill",
+   "hh": null,
+   "round": 0
+  },
+  {
+   "kind": "chiller",
+   "firm": "firm:3",
+   "week": 1,
+   "round": 2,
+   "done": true
+  },
+  {
+   "kind": "school_trip",
+   "hh": "h3",
+   "week": 2,
+   "round": 0
+  },
+  {
+   "kind": "car_repair",
+   "who": "p09",
+   "week": 1,
+   "round": 2,
+   "done": true,
+   "amount": 46000
+  }
+ ],
+ "stats_weeks": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 505,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "firm_cash": {
+    "firm:1": 721000,
+    "firm:2": 798000,
+    "firm:3": 597000
+   },
+   "open": {
+    "firm:1": true,
+    "firm:2": true,
+    "firm:3": true
+   },
+   "hh_cash": {
+    "h1": 149800,
+    "h2": 176800,
+    "h3": 106100,
+    "h4": 74500,
+    "h5": 357600,
+    "h6": 132700
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "p01": [
+     "unemployed",
+     null
+    ],
+    "p02": [
+     "outside",
+     "Calder Logistics depot"
+    ],
+    "p03": [
+     "employee",
+     "firm:2"
+    ],
+    "p04": [
+     "owner",
+     "firm:1"
+    ],
+    "p05": [
+     "employee",
+     "firm:3"
+    ],
+    "p06": [
+     "banker",
+     null
+    ],
+    "p07": [
+     "unemployed",
+     null
+    ],
+    "p08": [
+     "employee",
+     "firm:1"
+    ],
+    "p09": [
+     "owner",
+     "firm:2"
+    ],
+    "p10": [
+     "outside",
+     "Brennock General Hospital"
+    ],
+    "p11": [
+     "owner",
+     "firm:3"
+    ],
+    "p12": [
+     "employee",
+     "firm:1"
+    ]
+   },
+   "food_stats": {
+    "wants": 1560,
+    "bought_in_town": 1185,
+    "bought_outside": 0,
+    "went_without": 375,
+    "by_provider": {
+     "firm:3": 340,
+     "firm:2": 340,
+     "firm:1": 505
+    }
+   },
+   "ledger_total": 0
+  }
+ ],
+ "log": [
+  {
+   "kind": "event",
+   "event": {
+    "week": 1,
+    "kind": "rent_rise",
+    "hh": "h1",
+    "round": 0,
+    "done": true,
+    "new": 23500,
+    "from": 3
+   },
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Rent up $25/wk from 16 Mar (210->235). Income 800/wk, outgoings 534/wk before rent rise. Account 1200. Need to find ~$25/wk. Check overtime at Calder. Cut bills/food where possible. Don't borrow from the bank unless desperate."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Nadia Tully",
+    "text": "Got the letter from Dunmore. Rent goes to $235 from the 16th. Can we sit down tonight and go through the money properly? I want us to have a plan before it hits."
+   },
+   "ok": true,
+   "msg": "Your message to Nadia Tully was delivered.",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Yeah, tonight's fine. I'm sorting overtime at Calder tomorrow and I'll go through the bills and the food with you. We'll find the 25 quid. Don't panic yet."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Aims: keep my hours at the bakery; keep the allotment and brass band going; watch my health; check on Gary and Pete, both out of work; keep an eye on the rent."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "event",
+   "event": {
+    "kind": "chiller",
+    "firm": "firm:3",
+    "week": 1,
+    "round": 2,
+    "done": true
+   },
+   "t": 2
+  },
+  {
+   "kind": "event",
+   "event": {
+    "kind": "car_repair",
+    "who": "p09",
+    "week": 1,
+    "round": 2,
+    "done": true,
+    "amount": 46000
+   },
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Rent goes to 235 from the 16th. I'm asking Calder about overtime Monday. Don't worry yet, we'll sort it."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Keith, you hear of anyone hiring care staff in town or out? Any help appreciated. Gary"
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Tonight with Nadia: go through bills and food line by line. Need to find $25/wk before 16 March. Check whether overtime at Calder is enough. Don't touch the $1,200 unless we really have to. Ask Keith and the shops about work."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Keith, any chance the bakery's taking on anyone at the moment? I'm out of work and could do with something in town. Cheers."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan, Gary Tully's asking after care work, in town or out. You hear of any places hiring at Brennock? Any help appreciated. Keith"
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Gary, asking Megan now about care places in Brennock. Will let you know what she says. Keep your chin up. Keith"
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 3
+  }
+ ],
+ "aims": {
+  "p01": [
+   {
+    "text": "Talk through the rent rise with Nadia tonight",
+    "since": 0
+   },
+   {
+    "text": "Find care work, in town or out of town",
+    "since": 0
+   },
+   {
+    "text": "Cover the extra $25 a week before 16 March",
+    "since": 0
+   },
+   {
+    "text": "Keep the $1,200 buffer intact if possible",
+    "since": 0
+   }
+  ],
+  "p02": [
+   {
+    "text": "Find $25/week extra before rent rises on 16 March",
+    "since": 0
+   },
+   {
+    "text": "Ask Calder Logistics about overtime shifts (by Monday)",
+    "since": 0
+   },
+   {
+    "text": "Review household bills and food spending for savings",
+    "since": 0
+   },
+   {
+    "text": "Avoid borrowing from the bank if at all possible",
+    "since": 0
+   }
+  ],
+  "p03": [
+   {
+    "text": "Find Gary care work through Megan",
+    "since": 3
+   },
+   {
+    "text": "Keep my hours at the bakery (3 days)",
+    "since": 1
+   },
+   {
+    "text": "Keep the allotment and brass band going (3 days)",
+    "since": 1
+   },
+   {
+    "text": "Look after my health (3 days)",
+    "since": 1
+   },
+   {
+    "text": "Check on Pete and keep an eye on the rent (3 days)",
+    "since": 3
+   }
+  ],
+  "p04": [],
+  "p05": [],
+  "p06": [],
+  "p07": [],
+  "p08": [],
+  "p09": [],
+  "p10": [],
+  "p11": [],
+  "p12": []
+ },
+ "notes": {
+  "p01": [
+   "(Friday 6 March) Tonight with Nadia: go through bills and food line by line. Need to find $25/wk before 16 March. Check whether overtime at Calder is enough. Don't touch the $1,200 unless we really have to. Ask Keith and the shops about work."
+  ],
+  "p02": [
+   "(Monday 2 March) Rent up $25/wk from 16 Mar (210->235). Income 800/wk, outgoings 534/wk before rent rise. Account 1200. Need to find ~$25/wk. Check overtime at Calder. Cut bills/food where possible. Don't borrow from the bank unless desperate."
+  ],
+  "p03": [
+   "(Wednesday 4 March) Aims: keep my hours at the bakery; keep the allotment and brass band going; watch my health; check on Gary and Pete, both out of work; keep an eye on the rent."
+  ],
+  "p04": [],
+  "p05": [],
+  "p06": [],
+  "p07": [],
+  "p08": [],
+  "p09": [],
+  "p10": [],
+  "p11": [],
+  "p12": []
+ },
+ "shop_choice": {
+  "h1": null,
+  "h2": null,
+  "h3": null,
+  "h4": null,
+  "h5": null,
+  "h6": null
+ },
+ "run_stats": {
+  "fresh_usd": 0.0025505,
+  "cached_usd": 0.0,
+  "fresh_calls": 8,
+  "cached_calls": 0
+ },
+ "ledger_total": 0
+}

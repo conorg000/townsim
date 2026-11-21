@@ -1,0 +1,1012 @@
+{
+ "tag": "seed2",
+ "turns": 54,
+ "conversations": 18,
+ "attempts": 4,
+ "invalid": {
+  "rate": 0.018518518518518517,
+  "n": 1,
+  "unparsed": 0,
+  "all_acts_failed": 1,
+  "examples": [
+   [
+    "p12",
+    "Saturday 14 March",
+    "{\"thoughts\": \"That Northgrid bill is due today and it's a thousand and eighty dollars. The account only has five hundred and seventy-five. I've been meaning to ring them for days and kept putting it o",
+    [
+     "You had no time left this week for anything more of that kind."
+    ]
+   ]
+  ]
+ },
+ "conv_calls_unparsed": 0,
+ "acts_failed": {
+  "n": 6,
+  "of": 129,
+  "msgs": [
+   [
+    "You had no time left this week for anything more of that kind.",
+    2
+   ],
+   [
+    "There is no one called 'car repair garage' that you can pay.",
+    1
+   ],
+   [
+    "There is no one called 'household' that you can pay.",
+    1
+   ],
+   [
+    "Something you wrote could not be understood as an action.",
+    1
+   ],
+   [
+    "You did not say what the job pays a week.",
+    1
+   ]
+  ]
+ },
+ "repeat": {
+  "rate": 0.0,
+  "n": 0,
+  "of": 48,
+  "examples": []
+ },
+ "repeat_loose": {
+  "0.6": 0.0,
+  "0.5": 0.042,
+  "0.4": 0.229
+ },
+ "busiest_pairs": [
+  [
+   "Dave Daly",
+   "Gary Royle",
+   6
+  ],
+  [
+   "Sunil Daly",
+   "Dave Daly",
+   5
+  ],
+  [
+   "Sunil Daly",
+   "Craig Ashby",
+   4
+  ],
+  [
+   "Craig Ashby",
+   "Sunil Daly",
+   3
+  ],
+  [
+   "Sian Shah",
+   "Malcolm Nowak",
+   3
+  ],
+  [
+   "Sunil Daly",
+   "Tomasz Nowak",
+   3
+  ],
+  [
+   "Gary Royle",
+   "Dave Daly",
+   2
+  ],
+  [
+   "Tomasz Nowak",
+   "Sunil Daly",
+   2
+  ]
+ ],
+ "promise_words": {
+  "in writing": 7,
+  "standing order": 0,
+  "sit down": 15,
+  "cuppa": 4,
+  "pint": 1,
+  "rota": 16,
+  "an hour": 0
+ },
+ "conv_openers_by_family": {
+  "deepseek": 16,
+  "haiku": 2
+ },
+ "repeat_conv_lines": {
+  "rate": 0,
+  "n": 0,
+  "of": 100
+ },
+ "conv_act": {
+  "rate": 0.2777777777777778,
+  "n": 5,
+  "of": 18,
+  "why": {
+   "in conversation": 5
+  },
+  "ended_by": {
+   "ran to the limit": 13,
+   "a side ended it": 5
+  }
+ },
+ "conv_list": [
+  [
+   0,
+   [
+    "Gary Royle",
+    "Ross Holt"
+   ],
+   false,
+   ""
+  ],
+  [
+   1,
+   [
+    "Gwen Shah",
+    "Sian Shah"
+   ],
+   false,
+   ""
+  ],
+  [
+   1,
+   [
+    "Dave Daly",
+    "Sunil Daly"
+   ],
+   true,
+   "in conversation: attempt"
+  ],
+  [
+   2,
+   [
+    "Gary Royle",
+    "Ross Holt"
+   ],
+   false,
+   ""
+  ],
+  [
+   2,
+   [
+    "Sunil Daly",
+    "Craig Ashby"
+   ],
+   false,
+   ""
+  ],
+  [
+   2,
+   [
+    "Tomasz Nowak",
+    "Gwen Shah"
+   ],
+   true,
+   "in conversation: attempt"
+  ],
+  [
+   4,
+   [
+    "Gwen Shah",
+    "Ross Holt"
+   ],
+   false,
+   ""
+  ],
+  [
+   4,
+   [
+    "Tomasz Nowak",
+    "Malcolm Nowak"
+   ],
+   false,
+   ""
+  ],
+  [
+   4,
+   [
+    "Gary Royle",
+    "Ross Holt"
+   ],
+   false,
+   ""
+  ],
+  [
+   5,
+   [
+    "Gary Royle",
+    "Ross Holt"
+   ],
+   false,
+   ""
+  ],
+  [
+   5,
+   [
+    "Tomasz Nowak",
+    "Malcolm Nowak"
+   ],
+   false,
+   ""
+  ],
+  [
+   5,
+   [
+    "Malcolm Nowak",
+    "Sian Shah"
+   ],
+   false,
+   ""
+  ],
+  [
+   5,
+   [
+    "Gwen Shah",
+    "Sian Shah"
+   ],
+   false,
+   ""
+  ],
+  [
+   6,
+   [
+    "Tomasz Nowak",
+    "Malcolm Nowak"
+   ],
+   true,
+   "in conversation: attempt"
+  ],
+  [
+   6,
+   [
+    "Gary Royle",
+    "Ross Holt"
+   ],
+   true,
+   "in conversation: order_stock"
+  ],
+  [
+   7,
+   [
+    "Malcolm Nowak",
+    "Tomasz Nowak"
+   ],
+   true,
+   "in conversation: attempt"
+  ],
+  [
+   7,
+   [
+    "Carol Royle",
+    "Alan Ashby"
+   ],
+   false,
+   ""
+  ],
+  [
+   7,
+   [
+    "Gwen Shah",
+    "Sian Shah"
+   ],
+   false,
+   ""
+  ]
+ ],
+ "acts_per_person_week": {
+  "message": 2.12,
+  "write_notes": 1.83,
+  "converse": 0.75,
+  "order_stock": 0.25,
+  "attempt": 0.25,
+  "pay": 0.08,
+  "unknown": 0.04,
+  "offer_job": 0.04
+ },
+ "acts_total_per_person_week": 5.38,
+ "turns_per_person_week": 2.25,
+ "attempt_dispositions": {
+  "applied": 1,
+  "redirect:request": 3
+ },
+ "attempt_list": [
+  [
+   "p02",
+   "Fetch the bank statement from the kitchen table and put it in front of Sunil",
+   "applied:add_fact",
+   [
+    "Dave places the bank statement in front of Sunil."
+   ]
+  ],
+  [
+   "p05",
+   "Ask Ross Holt whether there are any hours going at The Corner Stores, mentioning Tomasz can do typing and admin.",
+   "redirect:request",
+   [
+    "What you described is something you can do directly, with the request action."
+   ]
+  ],
+  [
+   "p12",
+   "Ring Northgrid about the $1,080 energy bill due tomorrow, explain we can't pay it in one go, and ask for an extension or to pay it off in instalments",
+   "redirect:request",
+   [
+    "What you described is something you can do directly, with the request action."
+   ]
+  ],
+  [
+   "p12",
+   "Ring Northgrid about the $1,080 back-dated energy bill and ask to pay it off in instalments, without interest.",
+   "redirect:request",
+   [
+    "What you described is something you can do directly, with the request action."
+   ]
+  ]
+ ],
+ "requests": {
+  "made": 0,
+  "by_kind": {},
+  "status": {}
+ },
+ "distinct_pairs": 14,
+ "possible_pairs": 66,
+ "nonroutine_people": {
+  "p12": {
+   "attempt": 2
+  },
+  "p02": {
+   "attempt": 1
+  },
+  "p05": {
+   "attempt": 1
+  }
+ },
+ "nonroutine_count": 3,
+ "unknown_refs_in_acts": {
+  "n": 2,
+  "examples": [
+   "There is no one called 'car repair garage' that you can pay.",
+   "There is no one called 'household' that you can pay."
+  ]
+ },
+ "unknown_capitalised_words": {
+  "n_texts": 188,
+  "top": [
+   [
+    "Tom",
+    3
+   ],
+   [
+    "PDFs",
+    2
+   ],
+   [
+    "Sir",
+    1
+   ],
+   [
+    "Madam",
+    1
+   ],
+   [
+    "Section",
+    1
+   ],
+   [
+    "Thursdays",
+    1
+   ]
+  ],
+  "examples": {
+   "Tom": [
+    [
+     "p11",
+     "You're a braver man than me, Tom. Ring them, aye \u2014 but don't let them talk you into paying it all at once. Ask for it spread over a few weeks, and get it in wri"
+    ]
+   ],
+   "PDFs": [
+    [
+     "p04",
+     "Sunil, Craig here. I've got your Wednesday email. To put your hardship application to committee I need two things from you: the written redundancy letter (signe"
+    ]
+   ],
+   "Sir": [
+    [
+     "p05",
+     "Dear Sir or Madam, I am writing regarding the notice of rent increase for the property on Orchard Row, from $210 to $235 a week, effective Monday 16 March. My p"
+    ]
+   ],
+   "Madam": [
+    [
+     "p05",
+     "Dear Sir or Madam, I am writing regarding the notice of rent increase for the property on Orchard Row, from $210 to $235 a week, effective Monday 16 March. My p"
+    ]
+   ],
+   "Section": [
+    [
+     "p05",
+     "I've read the whole thing, cover to cover \u2014 twice, in fact. It's not a bare number, Sian. It's a Section 13 notice, and the new rent starts the first of May. Th"
+    ]
+   ],
+   "Thursdays": [
+    [
+     "p06",
+     "Fair enough, Malcolm. But Northgrid's not going to pay my rent, and from Monday it's going up to $235 a week. I need to know by Wednesday whether there's any ex"
+    ]
+   ]
+  }
+ },
+ "filler_sample": [
+  [
+   "p01",
+   "p02",
+   "Tonight's fine. Let's go through the account properly once the kids are down, or after tea. Bring the bank statement and a pen."
+  ],
+  [
+   "p07",
+   "p02",
+   "Dave, come in this morning and we'll talk. I can't promise a shift but I'll put it to Ross. Gary"
+  ],
+  [
+   "p10",
+   "Brook Cash & Carry",
+   "Hello, following up on our order where 178 of 510 units didn't arrive. Please confirm when the balance will be delivered, and please make sure the next order is complete. Many thanks, Ross Holt, The Corner Stores."
+  ],
+  [
+   "p11",
+   "p06",
+   "Sian \u2014 rota's sorted: Thursdays and Saturdays extra from next week, as agreed. I'll have it written up on the board before Monday so there's no confusion. Malcolm"
+  ],
+  [
+   "p07",
+   "p02",
+   "Dave. Asked Ross about hours today. I'll let you know what he says, straight. Nothing promised. If it's no, try the Food Hall \u2014 Alan's there."
+  ],
+  [
+   "p05",
+   "Dunmore Lettings",
+   "Dear Sir or Madam, I am writing regarding the notice of rent increase for the property on Orchard Row, from $210 to $235 a week, effective Monday 16 March. My partner and I would be grateful to know the reason for the rise and whether there is any scope to review it. We have always paid on time and keep the house well. I would appreciate your reply in writing. Yours faithfully, Gwen Shah"
+  ],
+  [
+   "p04",
+   "p01",
+   "Sunil, Craig here. I've got your Wednesday email. To put your hardship application to committee I need two things from you: the written redundancy letter (signed, showing the date and final pay) and three months of bank statements in full. Please send them as clear scans or PDFs. Once committee has them I'll confirm the timing in writing. I can't promise a decision on the car loan until committee has reviewed your file, so please don't rely on it for Saturday's repair until you hear from me. I'll chase committee as soon as the papers are in. Craig."
+  ],
+  [
+   "p12",
+   "p01",
+   "Sunil, heard about Mersey Cable. Sorry to hear it, that's a blow. How are you holding up? If you fancy a chat or a bit of fishing to take your mind off it, give us a shout. Tomasz"
+  ],
+  [
+   "p02",
+   "p07",
+   "Gary, any cooking shifts going at The Corner Stores? Also, does Ross have anything on this week? Need to get some money in quick."
+  ],
+  [
+   "p01",
+   "p02",
+   "Still on for tonight. I'll have the figures ready, including what the car repair does to the account. Bring the statement."
+  ],
+  [
+   "p05",
+   "p12",
+   "Tomasz, I promised I'd follow up either way, so here it is, and I'm sorry it isn't better news. Ross has come back to me and says they can't take anyone on right now \u2014 a plain no, in his words, and he asked me to pass on his apologies and his best wishes. I'd rather tell you straight than leave you waiting. I'll keep my ear to the ground and let you know the moment I hear of anything."
+  ],
+  [
+   "p06",
+   "p11",
+   "Malcolm, can you get the Thursday and Saturday extras on the rota before the weekend? Rent goes up Monday and I need to know where I stand. Cheers, Sian"
+  ],
+  [
+   "p11",
+   "p06",
+   "Morning Sian. I can't promise extra hours right now with takings the way they are, but let me look at the books this week and see what I can do. Won't leave you hanging."
+  ],
+  [
+   "p01",
+   "p02",
+   "Dave, the works are cutting my night shift, so this week's my last paid week. We need to sit down tonight and work out the figures. Don't panic, I'm sorting it."
+  ],
+  [
+   "p04",
+   "p01",
+   "Sunil, Craig Ashby at Northern Mutual. Sorry I've been slow getting back to you, I've got your messages. I'm sorry to hear about the job. Could you ring me this afternoon? I'd like to go through the mortgage and the car loan with you and see what options are open to you. Craig"
+  ],
+  [
+   "p11",
+   "Northgrid",
+   "Good morning, this is Malcolm Nowak, account at Quarry Road. I've got a back-dated bill of $1,080 due Saturday and I can't pay it in one go. Can we set up a payment plan over the next three or four months? I'm good for it, just need some breathing room."
+  ],
+  [
+   "p12",
+   "p01",
+   "Sunil, thanks for your message \u2014 sorry I've been slow. I'm keeping my head above water, just about. I'm sorry to hear about Mersey Cable. A walk would do me good, and I'd like to hear how you're doing. Thursday or Friday suit me. I'll also ask about at the Food Hall and The Corner Stores for work \u2014 I'll let you know if I hear of anything going."
+  ],
+  [
+   "p03",
+   "p07",
+   "Hiya Gary, how's things? Quick one: have The Corner Stores got any weekend shifts going? Would be a big help with the rent going up. Thanks a lot, mate."
+  ],
+  [
+   "p04",
+   "p01",
+   "Sunil, sorry for the slow reply, I should have come back to you properly on Saturday. I have your hardship request flagged urgent with the credit committee. To put it to them I need the redundancy letter and three months of bank statements, ideally today or tomorrow. Once committee has them I'll come back to you on options for the mortgage and the car loan. Can you send those across? Craig"
+  ],
+  [
+   "p01",
+   "p12",
+   "Tomasz, good to hear from you. Friday works, let's do a walk. Things are rough but I'm keeping going. Thanks for asking around about work."
+  ],
+  [
+   "p06",
+   "p11",
+   "Morning Malcolm. Rent goes to $235 from the 16th and I need to know where I stand on extra hours. Can you give me a yes or no by Wednesday? Happy to take whatever you can spare."
+  ],
+  [
+   "p02",
+   "p07",
+   "Gary, Ross said you'd asked about me covering shifts while Gwen's off. Has he got anything real this week? Need to know what hours and when before I plan the money with Sunil tonight."
+  ],
+  [
+   "p01",
+   "p04",
+   "Craig, it's Sunil Daly. I've just been told my job at Mersey Cable Works is ending, my last paid week is this one. I'd like to sit down with you about the mortgage and the car loan before the end of the month. When suits you?"
+  ],
+  [
+   "p01",
+   "p12",
+   "Tomas, how are you holding up? Did we miss our walk Friday? Let me know when you're free this week."
+  ],
+  [
+   "p06",
+   "p10",
+   "Ross, any cover shifts coming up at the Corner Stores? Need a bit more income from next week. Let me know."
+  ],
+  [
+   "p10",
+   "p06",
+   "Sian, love, thanks for your patience. I'm sorting the cover between now and this afternoon, with Gary, and I'll let you know properly once we've got the hours and pay sorted. Ross x"
+  ],
+  [
+   "p06",
+   "p11",
+   "Malcolm, rent's going up on the house from the 16th, so I'm looking at picking up more hours if there's any going. Any chance?"
+  ],
+  [
+   "p10",
+   null,
+   "Hi Dave, Ross here from The Corner Stores. Gary's asked about you covering some shifts while Gwen's off. I'm working out the wages side this afternoon and will come back to you by the end of the day. Thanks for being willing."
+  ],
+  [
+   "p01",
+   "p04",
+   "Craig, got your message. I'll send the redundancy letter and three months of statements as PDFs tonight. Please confirm in writing once committee has them and when a decision is likely. I understand the car loan can't be relied on for Saturday, so I'll cover the $460 repair from the account. Thanks, Sunil."
+  ],
+  [
+   "p08",
+   "p09",
+   "Ian \u2014 quick one. Malcolm Nowak owns our house and the shop lease. Any word round town about him putting rents up? I want to know before he tells me."
+  ],
+  [
+   "p05",
+   "p10",
+   "Ross, thank you again for covering the rota \u2014 I'm resting as told. When you've a moment: you remember I asked about Tomasz Nowak. He's still out of work and would take anything, typing or admin, mornings especially. I promised him I'd follow up either way, so a plain no is quite all right. Gwen."
+  ],
+  [
+   "p01",
+   "p12",
+   "Tomasz, how are you holding up? Any luck with anything yet? Fancy a pint or a walk this week? Don't want you sat in on your own."
+  ],
+  [
+   "p12",
+   "p05",
+   "Gwen, it's Tomasz again, sorry to trouble you. I don't suppose anything's come up at The Corner Stores since we spoke? Even a few days of admin or till work would help \u2014 we've had a shock with an energy bill. No pressure at all, I know you'd say if there was."
+  ],
+  [
+   "p02",
+   "p07",
+   "Gary, any word from Ross on the hours yet? Any news either way, I'd rather know. Cheers, Dave"
+  ],
+  [
+   "p02",
+   "p01",
+   "Still on for tonight after the kids are down. Bank statement and pen. We'll go through it properly and sort out the car bill too."
+  ],
+  [
+   "p10",
+   "p06",
+   "Hiya Sian, thanks for thinking of me. Nothing firm on cover shifts yet, Gwen's off poorly and I'm juggling stock. I'll ring you once I know more. Ta, Ross"
+  ],
+  [
+   "p02",
+   "p07",
+   "Gary, Sunil's lost his job at Mersey Cable and I'm out of work too. Any chance of a shift at The Corner Stores or hearing of anything? I can cook, I'll take anything."
+  ],
+  [
+   "p02",
+   "p07",
+   "Gary, it's Dave. Sunil's out of Mersey Cable from Saturday and we need money coming in. Any cooking shifts at The Corner Stores? I can do prep, cover, whatever you need. Can I come in and talk to you tomorrow?"
+  ],
+  [
+   "p09",
+   "p08",
+   "Carol \u2014 nothing solid my end. I've not heard Nowak say anything about rents, and I'd not repeat a rumour that could cost you at the lease. If I hear anything from anyone who'd actually know, you'll have it straight away. Have you asked him outright?"
+  ],
+  [
+   "p06",
+   "p10",
+   "Ross, any word on cover shifts yet? No rush if you're swamped, just let me know when you can. Sian"
+  ]
+ ],
+ "families": {
+  "haiku": {
+   "turns": 28,
+   "invalid_rate": 0.0,
+   "acts_per_turn": 1.75,
+   "messages": 37,
+   "repeat_rate": 0.0,
+   "mean_message_words": 35.1,
+   "attempts": 1,
+   "nonroutine_acts": 1,
+   "median_tokens_out": 494.5,
+   "empty_act_turns": 1,
+   "conv_lines": 41
+  },
+  "deepseek": {
+   "turns": 26,
+   "invalid_rate": 0.038461538461538464,
+   "acts_per_turn": 1.69,
+   "messages": 14,
+   "repeat_rate": 0.0,
+   "mean_message_words": 46.4,
+   "attempts": 3,
+   "nonroutine_acts": 3,
+   "median_tokens_out": 255.0,
+   "empty_act_turns": 1,
+   "conv_lines": 59
+  }
+ },
+ "cost": {
+  "people_usd": 0.0351,
+  "narrator_usd": 0.0078,
+  "total_usd": 0.043,
+  "per_person_week": 0.00179,
+  "people_calls": 136,
+  "narrator_calls": 8,
+  "median_tokens_in": 1239.5,
+  "median_tokens_out": 185.0,
+  "median_view_words": 651.0,
+  "max_view_words": 1059
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 340,
+    "firm:2": 510,
+    "firm:3": 340
+   },
+   "firm_cash": {
+    "firm:1": 665000,
+    "firm:2": 860000,
+    "firm:3": 920000
+   },
+   "hh_cash": {
+    "h1": 117500,
+    "h2": 133100,
+    "h3": 290000,
+    "h4": 144200,
+    "h5": 373700,
+    "h6": 57500
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "unemployed": 3,
+    "employee": 4,
+    "banker": 1,
+    "owner": 3,
+    "outside": 1
+   }
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 340,
+    "firm:2": 186,
+    "firm:3": 340
+   },
+   "firm_cash": {
+    "firm:1": 654000,
+    "firm:2": 714630,
+    "firm:3": 899500
+   },
+   "hh_cash": {
+    "h1": 84700,
+    "h2": 171200,
+    "h3": 307200,
+    "h4": 165250,
+    "h5": 418250,
+    "h6": 0
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 33000
+   },
+   "employment": {
+    "unemployed": 3,
+    "employee": 4,
+    "banker": 1,
+    "owner": 3,
+    "outside": 1
+   }
+  }
+ ],
+ "ledger_total": 0,
+ "aims_age": {
+  "p01": [
+   [
+    "Send Craig the redundancy letter and bank statements",
+    7
+   ],
+   [
+    "Build the household budget with Dave tonight",
+    1
+   ],
+   [
+    "Pay the $460 car repair Saturday",
+    3
+   ],
+   [
+    "Keep the account above zero until pay lands",
+    1
+   ],
+   [
+    "Check in with Tomasz",
+    6
+   ]
+  ],
+  "p02": [
+   [
+    "Sit down with Sunil tonight and work out the household money",
+    1
+   ],
+   [
+    "Chase Gary and Ross on cooking shifts this week",
+    5
+   ],
+   [
+    "Cut household spending, starting with the food shop",
+    1
+   ],
+   [
+    "Keep the mortgage and car loan paid",
+    1
+   ],
+   [
+    "Clear the overdue $460 car repair bill",
+    5
+   ]
+  ],
+  "p03": [
+   [
+    "Keep my hours at Quarry Road Food Hall",
+    3
+   ],
+   [
+    "Ask Craig about the rent rise and the household budget tonight",
+    3
+   ],
+   [
+    "Find out from Gary about weekend work at The Corner Stores",
+    3
+   ],
+   [
+    "Get out on the fells this weekend if the weather holds",
+    3
+   ]
+  ],
+  "p04": [
+   [
+    "Get Sunil's redundancy letter and statements, then put hardship application to committee",
+    4
+   ],
+   [
+    "Confirm mortgage and car loan options for Sunil Daly",
+    4
+   ],
+   [
+    "Check the rent increase and what it means for the household",
+    0
+   ],
+   [
+    "Keep household account comfortably in the black",
+    0
+   ],
+   [
+    "Review Malcolm's accounts on the file",
+    0
+   ]
+  ],
+  "p05": [
+   [
+    "Tell Tomasz the plain no from Ross",
+    7
+   ],
+   [
+    "Go through figures with Sian for rent rise",
+    7
+   ],
+   [
+    "Thank Ross for kindness, ask when back",
+    7
+   ],
+   [
+    "Trim weekly bills and food",
+    2
+   ],
+   [
+    "Await Dunmore's reply on rent rise",
+    1
+   ]
+  ],
+  "p06": [
+   [
+    "Get extra Thursday and Saturday hours on the rota by Friday",
+    6
+   ],
+   [
+    "Find cover shifts through Ross",
+    4
+   ],
+   [
+    "Cover the rent rise from Monday 16 March ($235/week)",
+    2
+   ],
+   [
+    "Go through the figures with Gwen tonight",
+    4
+   ],
+   [
+    "Pay Saturday's $18 prescription without touching rent money",
+    4
+   ]
+  ],
+  "p07": [
+   [
+    "Sort out the debt to Ross",
+    0
+   ],
+   [
+    "Keep my hours at the shop",
+    0
+   ],
+   [
+    "Cover the rent rise",
+    0
+   ],
+   [
+    "Get Dave some shifts at the shop",
+    0
+   ]
+  ],
+  "p08": [
+   [
+    "Mark down short-dated stock today",
+    7
+   ],
+   [
+    "Cut spoilage below 25 units",
+    3
+   ],
+   [
+    "Track Brook delivery Monday",
+    6
+   ],
+   [
+    "Check weekly books",
+    7
+   ],
+   [
+    "Prepare figures for rent talk with Malcolm",
+    7
+   ]
+  ],
+  "p09": [
+   [
+    "Keep up the loan payments",
+    1
+   ],
+   [
+    "Watch the weekly figures",
+    1
+   ],
+   [
+    "Find out if Nowak is raising rents",
+    7
+   ]
+  ],
+  "p10": [
+   [
+    "Meet Gary this afternoon about floor cover and Dave's hours",
+    5
+   ],
+   [
+    "Confirm Monday Dales delivery arrives in full",
+    7
+   ],
+   [
+    "Reply properly to Sian about cover shifts",
+    5
+   ],
+   [
+    "Keep Gary's $20/week repayment on track",
+    2
+   ],
+   [
+    "Check wages against takings before offering Dave work",
+    7
+   ]
+  ],
+  "p11": [
+   [
+    "Find out what Northgrid said about the $1,080",
+    5
+   ],
+   [
+    "Confirm Sian's extra hours on the rota",
+    7
+   ],
+   [
+    "Keep shop and household money straight",
+    4
+   ],
+   [
+    "Watch spoilage and lost customers",
+    4
+   ],
+   [
+    "Keep an eye on the loans",
+    3
+   ]
+  ],
+  "p12": [
+   [
+    "Ring Northgrid about the energy bill",
+    4
+   ],
+   [
+    "Find admin or shop work",
+    2
+   ],
+   [
+    "Check in on Sunil",
+    2
+   ],
+   [
+    "Keep household budget afloat",
+    2
+   ]
+  ]
+ }
+}

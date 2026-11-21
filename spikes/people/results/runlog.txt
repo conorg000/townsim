@@ -1,0 +1,11 @@
+[main_s1] week 1 done; fresh $0.0074, calls 31 fresh / 24 cached
+[main_s1] week 2 done; fresh $0.0309, calls 122 fresh / 25 cached
+[main_s1] week 3 done; fresh $0.0584, calls 183 fresh / 25 cached
+[main_s1] week 4 done; fresh $0.0813, calls 260 fresh / 25 cached
+run stats: {'fresh_usd': 0.08131520066000006, 'cached_usd': 0.006305577, 'fresh_calls': 260, 'cached_calls': 25}
+[seed2] week 1 done; fresh $0.0154, calls 53 fresh / 0 cached
+[seed2] week 2 done; fresh $0.0430, calls 144 fresh / 0 cached
+run stats: {'fresh_usd': 0.04297276835000003, 'cached_usd': 0.0, 'fresh_calls': 144, 'cached_calls': 0}
+[noaims_s1] week 1 done; fresh $0.0079, calls 31 fresh / 0 cached
+[noaims_s1] week 2 done; fresh $0.0293, calls 115 fresh / 0 cached
+run stats: {'fresh_usd': 0.029344980399999998, 'cached_usd': 0.0, 'fresh_calls': 115, 'cached_calls': 0}

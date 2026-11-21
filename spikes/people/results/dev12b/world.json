@@ -1,0 +1,3656 @@
+{
+ "seed": 1,
+ "weeks": 2,
+ "use_aims": true,
+ "active": [
+  "p01",
+  "p02",
+  "p03",
+  "p04",
+  "p05",
+  "p06",
+  "p07",
+  "p08",
+  "p09",
+  "p10",
+  "p11",
+  "p12"
+ ],
+ "people": {
+  "p01": {
+   "id": "p01",
+   "name": "Gary Tully",
+   "sex": "m",
+   "age": 37,
+   "household": "h1",
+   "role": "unemployed",
+   "model": "haiku",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "care work"
+   ],
+   "ties": {
+    "p02": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "walking the fells",
+    "cars"
+   ],
+   "worries": [
+    "finding work",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p02": {
+   "id": "p02",
+   "name": "Nadia Tully",
+   "sex": "f",
+   "age": 31,
+   "household": "h1",
+   "role": "outside",
+   "model": "haiku",
+   "firm": null,
+   "employer": "Calder Logistics depot",
+   "job_title": "warehouse operative at Calder Logistics depot, out of town",
+   "pay": 61000,
+   "skills": [
+    "forklift driving"
+   ],
+   "ties": {
+    "p01": [
+     "partner"
+    ],
+    "p06": [
+     "sibling"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "football",
+    "the brass band"
+   ],
+   "worries": [
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p03": {
+   "id": "p03",
+   "name": "Keith Royle",
+   "sex": "m",
+   "age": 56,
+   "household": "h2",
+   "role": "employee",
+   "model": "haiku",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "works at Wenlow Bakery & Deli",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p04": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p09": [
+     "employer",
+     "landlord",
+     "friend"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "the allotment",
+    "the brass band"
+   ],
+   "worries": [
+    "keeping your hours",
+    "the rent going up",
+    "your health"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well"
+  },
+  "p04": {
+   "id": "p04",
+   "name": "Dave Royle",
+   "sex": "m",
+   "age": 49,
+   "household": "h2",
+   "role": "owner",
+   "model": "deepseek",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "owner of The Corner Stores",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p03": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p08": [
+     "employee"
+    ],
+    "p12": [
+     "employee"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p11": [
+     "rival trader"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "cars",
+    "baking"
+   ],
+   "worries": [
+    "whether the shop is paying its way",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p05": {
+   "id": "p05",
+   "name": "Owen Royle",
+   "sex": "m",
+   "age": 22,
+   "household": "h2",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "works at Quarry Road Food Hall",
+   "pay": 42000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p03": [
+     "parent"
+    ],
+    "p04": [
+     "parent"
+    ],
+    "p11": [
+     "employer"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "your bank manager",
+     "friend"
+    ],
+    "p12": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "knitting",
+    "football"
+   ],
+   "worries": [
+    "the bank loan",
+    "keeping your hours",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p06": {
+   "id": "p06",
+   "name": "Sian Bevan",
+   "sex": "f",
+   "age": 28,
+   "household": "h3",
+   "role": "banker",
+   "model": "haiku",
+   "firm": null,
+   "employer": null,
+   "job_title": "manager of the Wenlow branch of the Northern Mutual Bank",
+   "pay": 72000,
+   "skills": [
+    "lending",
+    "accounts"
+   ],
+   "ties": {
+    "p07": [
+     "partner"
+    ],
+    "p02": [
+     "sibling"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p04": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "knitting"
+   ],
+   "worries": [
+    "the rent going up",
+    "the children's costs",
+    "loans going bad on your books"
+   ],
+   "voice": "careful and polite; you choose words like you're writing a letter",
+   "health": "well"
+  },
+  "p07": {
+   "id": "p07",
+   "name": "Pete Bevan",
+   "sex": "m",
+   "age": 23,
+   "household": "h3",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "works at Quarry Road Food Hall",
+   "pay": 9600,
+   "skills": [
+    "gardening"
+   ],
+   "ties": {
+    "p06": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p11": [
+     "friend",
+     "employer"
+    ],
+    "p12": [
+     "friend"
+    ],
+    "p10": [
+     "you hold a grudge"
+    ]
+   },
+   "grudge": {
+    "p10": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "crosswords",
+    "knitting"
+   ],
+   "worries": [
+    "finding work",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well"
+  },
+  "p08": {
+   "id": "p08",
+   "name": "Maureen Daly",
+   "sex": "f",
+   "age": 30,
+   "household": "h4",
+   "role": "employee",
+   "model": "haiku",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p09": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p12": [
+     "coworker"
+    ],
+    "p11": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "walking the fells",
+    "fishing"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "keeping your hours"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p09": {
+   "id": "p09",
+   "name": "Alan Daly",
+   "sex": "m",
+   "age": 28,
+   "household": "h4",
+   "role": "owner",
+   "model": "haiku",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "owner of Wenlow Bakery & Deli",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p08": [
+     "partner"
+    ],
+    "p03": [
+     "employee",
+     "tenant",
+     "friend"
+    ],
+    "p04": [
+     "tenant"
+    ],
+    "p05": [
+     "tenant"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "the parish council",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "whether the shop is paying its way"
+   ],
+   "voice": "worried-sounding; you hedge and apologise",
+   "health": "well"
+  },
+  "p10": {
+   "id": "p10",
+   "name": "Megan Lister",
+   "sex": "f",
+   "age": 35,
+   "household": "h5",
+   "role": "unemployed",
+   "model": "deepseek",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "lifting and carrying"
+   ],
+   "ties": {
+    "p12": [
+     "they owe you money"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p02": [
+     "you hold a grudge"
+    ]
+   },
+   "grudge": {
+    "p02": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "baking",
+    "football"
+   ],
+   "worries": [
+    "nothing much, for now"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well"
+  },
+  "p11": {
+   "id": "p11",
+   "name": "Lewis Pryce",
+   "sex": "m",
+   "age": 57,
+   "household": "h6",
+   "role": "owner",
+   "model": "deepseek",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "owner of Quarry Road Food Hall",
+   "pay": 35000,
+   "skills": [
+    "buying stock",
+    "keeping books"
+   ],
+   "ties": {
+    "p12": [
+     "partner"
+    ],
+    "p05": [
+     "employee"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p08": [
+     "friend"
+    ],
+    "p07": [
+     "friend",
+     "employee"
+    ],
+    "p04": [
+     "rival trader"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "crosswords"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "whether the shop is paying its way"
+   ],
+   "voice": "blunt; you say what you think and expect the same",
+   "health": "well"
+  },
+  "p12": {
+   "id": "p12",
+   "name": "Craig Pryce",
+   "sex": "m",
+   "age": 62,
+   "household": "h6",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 44000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p11": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p08": [
+     "coworker"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p10": [
+     "you owe them money"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "walking the fells",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "the money you owe Megan"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well"
+  }
+ },
+ "households": {
+  "h1": {
+   "id": "h1",
+   "members": [
+    "p01",
+    "p02"
+   ],
+   "children": 1,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 21000,
+   "running_cost": 30000,
+   "savings": 120000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h2": {
+   "id": "h2",
+   "members": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "children": 0,
+   "street": "Mill Street",
+   "tenure": "rent",
+   "landlord": "p09",
+   "rent": 17500,
+   "running_cost": 51300,
+   "savings": 101000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h3": {
+   "id": "h3",
+   "members": [
+    "p06",
+    "p07"
+   ],
+   "children": 2,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 16500,
+   "running_cost": 35800,
+   "savings": 73000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h4": {
+   "id": "h4",
+   "members": [
+    "p08",
+    "p09"
+   ],
+   "children": 0,
+   "street": "High Street",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 21000,
+   "running_cost": 31900,
+   "savings": 67000,
+   "owns_let": "h2",
+   "house_value": 0
+  },
+  "h5": {
+   "id": "h5",
+   "members": [
+    "p10"
+   ],
+   "children": 0,
+   "street": "Station Road",
+   "tenure": "own",
+   "landlord": null,
+   "rent": 0,
+   "running_cost": 28200,
+   "savings": 317000,
+   "owns_let": null,
+   "house_value": 0
+  },
+  "h6": {
+   "id": "h6",
+   "members": [
+    "p11",
+    "p12"
+   ],
+   "children": 0,
+   "street": "Church Lane",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 24000,
+   "running_cost": 35900,
+   "savings": 118000,
+   "owns_let": null,
+   "house_value": 0
+  }
+ },
+ "firms": {
+  "firm:1": {
+   "name": "The Corner Stores",
+   "owner": "p04",
+   "pay": {
+    "p04": 38000,
+    "p08": 46000,
+    "p12": 44000
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 440,
+     "revenue": 440000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 677000,
+     "wages": 128000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 487,
+     "revenue": 487000,
+     "turned_away": 0,
+     "spoiled": 5,
+     "cash": 703000,
+     "wages": 128000,
+     "fixed": 25000,
+     "stock_left": 28
+    },
+    {
+     "week": 2,
+     "price": 1000,
+     "sold": 136,
+     "revenue": 136000,
+     "turned_away": 550,
+     "spoiled": 0,
+     "cash": 614180,
+     "wages": 128000,
+     "fixed": 25000,
+     "stock_left": 0
+    }
+   ],
+   "employees": [
+    "p08",
+    "p12"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.6,
+   "visibility": 0.5,
+   "reputation": 0.7180698186528497
+  },
+  "firm:2": {
+   "name": "Wenlow Bakery & Deli",
+   "owner": "p09",
+   "pay": {
+    "p09": 38000,
+    "p03": 46000
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 777000,
+     "wages": 84000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 42,
+     "spoiled": 3,
+     "cash": 798000,
+     "wages": 84000,
+     "fixed": 25000,
+     "stock_left": 17
+    },
+    {
+     "week": 2,
+     "price": 1000,
+     "sold": 322,
+     "revenue": 322000,
+     "turned_away": 402,
+     "spoiled": 0,
+     "cash": 797500,
+     "wages": 84000,
+     "fixed": 25000,
+     "stock_left": 0
+    }
+   ],
+   "employees": [
+    "p03"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.57,
+   "visibility": 0.5,
+   "reputation": 0.7393899999999999
+  },
+  "firm:3": {
+   "name": "Quarry Road Food Hall",
+   "owner": "p11",
+   "pay": {
+    "p11": 35000,
+    "p05": 42000,
+    "p07": 9600
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 634000,
+     "wages": 77000,
+     "fixed": 25000
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 360,
+     "revenue": 360000,
+     "turned_away": 116,
+     "spoiled": 0,
+     "cash": 607400,
+     "wages": 86600,
+     "fixed": 25000,
+     "stock_left": 0
+    },
+    {
+     "week": 2,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 454,
+     "spoiled": 0,
+     "cash": 609700,
+     "wages": 86600,
+     "fixed": 25000,
+     "stock_left": 0
+    }
+   ],
+   "employees": [
+    "p05",
+    "p07"
+   ],
+   "open": true,
+   "need": "food",
+   "quality": 0.63,
+   "visibility": 0.5,
+   "reputation": 0.727771180351906
+  }
+ },
+ "debts": {
+  "d1": {
+   "id": "d1",
+   "debtor": "p08",
+   "creditor": "bank",
+   "balance": 16338000,
+   "weekly": 21000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d2": {
+   "id": "d2",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 18672000,
+   "weekly": 24000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d3": {
+   "id": "d3",
+   "debtor": "p12",
+   "creditor": "bank",
+   "balance": 391400,
+   "weekly": 4300,
+   "what": "loan for the car",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d4": {
+   "id": "d4",
+   "debtor": "p05",
+   "creditor": "bank",
+   "balance": 591400,
+   "weekly": 4300,
+   "what": "loan to consolidate card debts",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d5": {
+   "id": "d5",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 887000,
+   "weekly": 6500,
+   "what": "business loan for the shop's chiller",
+   "arrears": 0,
+   "missed_weeks": 0
+  },
+  "d6": {
+   "id": "d6",
+   "debtor": "p12",
+   "creditor": "p10",
+   "balance": 78000,
+   "weekly": 0,
+   "what": "money borrowed privately, to be paid back when possible",
+   "arrears": 0,
+   "missed_weeks": 0
+  }
+ },
+ "requests": {
+  "r3": {
+   "id": "r3",
+   "sender": "p11",
+   "to": "p07",
+   "kind": "job",
+   "text": "a job at Quarry Road Food Hall for $96 a week. They wrote: \"Eight hours a week, deliveries and the back, twelve an hour.\"",
+   "summary": "If Pete accepts, they work at Quarry Road Food Hall from now for $96 a week.",
+   "made": 0,
+   "expires": 8,
+   "amount": 9600,
+   "weeks": 0,
+   "firm": "firm:3",
+   "on_accept": [],
+   "status": "accepted",
+   "answered": 0
+  },
+  "r17": {
+   "id": "r17",
+   "sender": "p07",
+   "to": "p11",
+   "kind": "ask",
+   "text": "More hours at Quarry Road Food Hall \u2014 extra shifts beyond my eight, weekends or evenings.",
+   "summary": "If Lewis accepts, Pete Bevan is told they agreed; nothing else happens by itself.",
+   "made": 2,
+   "expires": 10,
+   "amount": 0,
+   "weeks": 0,
+   "firm": null,
+   "on_accept": [],
+   "status": "accepted",
+   "answered": 4
+  },
+  "r19": {
+   "id": "r19",
+   "sender": "p07",
+   "to": "p11",
+   "kind": "ask",
+   "text": "Extra shifts: Saturday morning delivery (4 hrs) and one evening rotation/price checks (3 hrs) \u2014 seven hours a week at $12/hr, $84 a week.",
+   "summary": "If Lewis accepts, $84 goes from Lewis's household account to Pete Bevan's.",
+   "made": 2,
+   "expires": 10,
+   "amount": 8400,
+   "weeks": 0,
+   "firm": null,
+   "on_accept": [],
+   "status": "declined",
+   "answered": 4
+  },
+  "r64": {
+   "id": "r64",
+   "sender": "p09",
+   "to": "p06",
+   "kind": "loan",
+   "text": "a loan of $1,400 over 12 weeks. Purpose: Cover Northgrid back-dated energy bill and household shortfall",
+   "summary": "If you accept, the bank pays $1,400 to Alan Daly, who repays $119.90 a week for 12 weeks (12% a year, flat).",
+   "made": 7,
+   "expires": 15,
+   "amount": 140000,
+   "weeks": 12,
+   "firm": null,
+   "on_accept": [],
+   "status": "open",
+   "answered": null
+  }
+ },
+ "facts": [
+  {
+   "subjects": [
+    "p11",
+    "firm:3",
+    "p06"
+   ],
+   "text": "The firm's accounts and bank statements are assembled for Lewis's meeting with Sian.",
+   "t": 6,
+   "by": "p11"
+  }
+ ],
+ "projects": [],
+ "new_orgs": {},
+ "events": [
+  {
+   "week": 2,
+   "kind": "job_lost",
+   "who": "p10",
+   "round": 2,
+   "done": true
+  },
+  {
+   "week": 1,
+   "kind": "rent_rise",
+   "hh": "h1",
+   "round": 0,
+   "done": true,
+   "new": 23500,
+   "from": 3
+  },
+  {
+   "week": 2,
+   "kind": "supplier_fail",
+   "firm": "firm:3",
+   "round": 0,
+   "done": true,
+   "applies_week": 2
+  },
+  {
+   "week": 4,
+   "kind": "illness",
+   "who": "p11",
+   "round": 1
+  },
+  {
+   "week": 2,
+   "kind": "arrears_bill",
+   "hh": "h4",
+   "round": 0,
+   "done": true,
+   "amount": 139000
+  },
+  {
+   "kind": "chiller",
+   "firm": "firm:3",
+   "week": 1,
+   "round": 2,
+   "done": true
+  },
+  {
+   "kind": "school_trip",
+   "hh": "h3",
+   "week": 2,
+   "round": 0,
+   "done": true
+  },
+  {
+   "kind": "car_repair",
+   "who": "p09",
+   "week": 1,
+   "round": 2,
+   "done": true,
+   "amount": 46000
+  }
+ ],
+ "stats_weeks": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 487,
+    "firm:2": 340,
+    "firm:3": 360
+   },
+   "firm_cash": {
+    "firm:1": 703000,
+    "firm:2": 798000,
+    "firm:3": 607400
+   },
+   "open": {
+    "firm:1": true,
+    "firm:2": true,
+    "firm:3": true
+   },
+   "hh_cash": {
+    "h1": 140000,
+    "h2": 146900,
+    "h3": 85300,
+    "h4": 59600,
+    "h5": 345800,
+    "h6": 116300
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "p01": [
+     "unemployed",
+     null
+    ],
+    "p02": [
+     "outside",
+     "Calder Logistics depot"
+    ],
+    "p03": [
+     "employee",
+     "firm:2"
+    ],
+    "p04": [
+     "owner",
+     "firm:1"
+    ],
+    "p05": [
+     "employee",
+     "firm:3"
+    ],
+    "p06": [
+     "banker",
+     null
+    ],
+    "p07": [
+     "employee",
+     "firm:3"
+    ],
+    "p08": [
+     "employee",
+     "firm:1"
+    ],
+    "p09": [
+     "owner",
+     "firm:2"
+    ],
+    "p10": [
+     "outside",
+     "Brennock General Hospital"
+    ],
+    "p11": [
+     "owner",
+     "firm:3"
+    ],
+    "p12": [
+     "employee",
+     "firm:1"
+    ]
+   },
+   "food_stats": {
+    "wants": 1560,
+    "bought_in_town": 1187,
+    "bought_outside": 0,
+    "went_without": 373,
+    "by_provider": {
+     "firm:3": 360,
+     "firm:2": 340,
+     "firm:1": 487
+    }
+   },
+   "ledger_total": 0
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 136,
+    "firm:2": 322,
+    "firm:3": 340
+   },
+   "firm_cash": {
+    "firm:1": 614180,
+    "firm:2": 797500,
+    "firm:3": 609700
+   },
+   "open": {
+    "firm:1": true,
+    "firm:2": true,
+    "firm:3": true
+   },
+   "hh_cash": {
+    "h1": 162700,
+    "h2": 152800,
+    "h3": 93000,
+    "h4": 9200,
+    "h5": 492600,
+    "h6": 111800
+   },
+   "arrears": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0
+   },
+   "employment": {
+    "p01": [
+     "unemployed",
+     null
+    ],
+    "p02": [
+     "outside",
+     "Calder Logistics depot"
+    ],
+    "p03": [
+     "employee",
+     "firm:2"
+    ],
+    "p04": [
+     "owner",
+     "firm:1"
+    ],
+    "p05": [
+     "employee",
+     "firm:3"
+    ],
+    "p06": [
+     "banker",
+     null
+    ],
+    "p07": [
+     "employee",
+     "firm:3"
+    ],
+    "p08": [
+     "employee",
+     "firm:1"
+    ],
+    "p09": [
+     "owner",
+     "firm:2"
+    ],
+    "p10": [
+     "unemployed",
+     null
+    ],
+    "p11": [
+     "owner",
+     "firm:3"
+    ],
+    "p12": [
+     "employee",
+     "firm:1"
+    ]
+   },
+   "food_stats": {
+    "wants": 1605,
+    "bought_in_town": 798,
+    "bought_outside": 105,
+    "went_without": 702,
+    "by_provider": {
+     "firm:3": 340,
+     "firm:2": 322,
+     "firm:1": 136
+    }
+   },
+   "ledger_total": 0
+  }
+ ],
+ "log": [
+  {
+   "kind": "event",
+   "event": {
+    "week": 1,
+    "kind": "rent_rise",
+    "hh": "h1",
+    "round": 0,
+    "done": true,
+    "new": 23500,
+    "from": 3
+   },
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Rent goes to $235 from 16 Mar (+$25/wk). Account $1,200. Weekly in $800 (my $610 + Gary's $190). Weekly out now ~ $632 (rent 210, bills 300, food ~122). After rise ~ $657 out. Still positive but thin. Cut food spend where I can. Do not borrow from the bank. Don't ask Sian for anything."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Morning love. Did you get the bakery sorted for this week? Shall we do a proper shop Saturday? x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Keith Royle",
+    "opening": "Morning Keith. Pete. Any hours going at the bakery \u2014 even part-time or covering? I'm looking and I'm not fussy about what I do."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Lewis, Pete Bevan. Have you got any work at the Food Hall \u2014 shelf-stacking, deliveries, garden bits out the back? I need something regular."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Nadia Tully",
+    "text": "Dunmore have put the rent up to $235 from the 16th. We need to sit down tonight and go through the money properly before we decide anything."
+   },
+   "ok": true,
+   "msg": "Your message to Nadia Tully was delivered.",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Ring Sanjay at Corner Stores re weekend work, pay rate. Ask Dave for contact. Also ask Lewis about jobs."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "offer_job",
+    "to": "Pete Bevan",
+    "weekly_pay": 96,
+    "text": "Eight hours a week, deliveries and the back, twelve an hour."
+   },
+   "ok": true,
+   "msg": "Your job offer (r3) went to Pete Bevan.",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "answer",
+    "request": "r3",
+    "answer": "accept",
+    "note": "Wednesday start, deliveries and the back yard."
+   },
+   "ok": true,
+   "msg": "You accepted Lewis's request. You now work at Quarry Road Food Hall for $96 a week, starting now.",
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Brook Cash & Carry",
+    "units": 340
+   },
+   "ok": true,
+   "msg": "Ordered 340 units from Brook Cash & Carry at $6.65 each, for delivery on Monday.",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Pete starts today \u2014 deliveries and back yard, 8 hrs. Ordered 340 from Brook (cheaper). Watch for short deliveries and keep spoilage down. Takings barely cover wages \u2014 need to push baskets or trim costs."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Craig Pryce",
+    "opening": "Craig, Pete Bevan. You're at the Corner Stores \u2014 is Sanjay on today? I'm after weekend hours and I need to know the rate before I waste his time. What's he paying, and is it Saturdays, Sundays, or both?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Wed 4 Mar: Food Hall job confirmed, 8 hrs @ $12 = $96/wk, deliveries and back. Chasing Sanjay at Corner Stores for weekend work \u2014 need rate and days. Household: $730 in account. Weekly in $816, out $679 before extras. Tight but covered; any surprise breaks it."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Yes, tonight. Kitchen table after tea. I've done the numbers: $800 in, about $657 out once the rent goes up, account on $1,200. We can manage but we don't waste anything from here on. Bring the bills."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Pete needs work. Sanjay at Corner Stores mostly weekends, pay near minimum; ask Dave to check if he'd take Pete. Alan's not taking on. Watch the account, it's tight."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Morning Craig, hope you're keeping well! Just wondering if there's any chance of chipping away at that $800 you borrowed \u2014 even a bit would help. No rush, just thought I'd ask, ta!"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Weekly: in 790 (Lewis 350 + pay 440). Out: bills 359, mortgage 240, car 43, chiller 65, food 87 = 794. Short about $4/wk. Owe bank 4000 (car, d3), Megan 800 (d6). Ideas: cut food spend, ask Sian about car loan terms, keep chipping at Megan."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Owen Royle",
+    "text": "Owen, it's Craig. What's on offer at Quarry Road this week? Trying to get the food shop down from $87. Any deals on the basics, let me know the figures."
+   },
+   "ok": true,
+   "msg": "Your message to Owen Royle was delivered.",
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Sorry love, I know I'm late replying! Bakery's fine for the week, I'll sort the order today. Saturday shop sounds good, shall we go in the morning? x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 1
+  },
+  {
+   "kind": "event",
+   "event": {
+    "kind": "chiller",
+    "firm": "firm:3",
+    "week": 1,
+    "round": 2,
+    "done": true
+   },
+   "t": 2
+  },
+  {
+   "kind": "event",
+   "event": {
+    "kind": "car_repair",
+    "who": "p09",
+    "week": 1,
+    "round": 2,
+    "done": true,
+    "amount": 46000
+   },
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Hiya love, sorry I've been so quiet, the shop's been mad and I didn't want to say anything half-baked. The car's gone for brakes and a tyre, $460, which comes out of our account when I collect it Saturday. I know that leaves us tight, and I'm sorry. Let's sit down tonight and go through the week's money properly, I think we can manage if we're careful with food. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 330
+   },
+   "ok": true,
+   "msg": "Ordered 330 units from Dales Wholesale at $7 each, for delivery on Monday.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Keith, any chance the bakery's taking anyone on? Could do with more hours or a job. Let me know when you're in."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Before tonight: pull all the bills, list what's fixed and what can be cut. Rent goes to $235 from Mon 16 Mar, that's $25 more a week. Don't borrow without talking to Nadia first."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, sorry for the slow reply! Right, this week at Quarry Road the basics are the ones to go for \u2014 I'll get you the exact figures when I'm on shift but the own-brand stuff is where the savings are, rice, pasta, tinned toms, that sort of thing. Give me a bit and I'll text you the numbers. How's things at the Corner Stores anyway?"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Friday 6 March. Chiller bill $650 hits Saturday. 340 units from Brook Monday \u2014 check count on delivery, Brook comes short. Takings $3,000/wk, wages $866 + draw $350 + rent $250 = $1,466. Spoilage 25 units last week \u2014 sort the ordering or the chiller. Need to talk to Sian about the business loan before it squeezes harder."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Pete Bevan",
+    "opening": "Pete \u2014 quick word. Deliveries Monday from Brook, 340 units. They've come short before, so count every crate before you sign. And keep the back yard clear so we can move stock quick."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Morning Megan. Thanks for being patient. I can't clear the $800 yet, but I'd like to start chipping at it \u2014 I'll send you $20 this week and keep it going as I can. I'll not let it drift. Craig."
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Sian, Craig Pryce here. I'd like a word about the car loan \u2014 $4,000 outstanding at $43 a week. I want to know if there's any room on the terms, or a cheaper way to run it. Can we have a quick chat this week? Figures first, please."
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Lewis, quick word on the shopping. We're about $4 a week short with the way we're going. Food's at $87 \u2014 can we get that down to $60 or so? I'm thinking cheaper cuts, fewer treats, and maybe switching where we shop."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Morning love! Saturday shop is on, let's go about 10 so we're not rushed. Mind the car bill is due Saturday too, so let's keep the shop lean x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Hiya Lewis, hope the food hall's going well! Any chance you need an extra pair of hands at the weekends? Would love to pick up a few extra quid. Let me know x"
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Fri 6 Mar. Rent $235 from Mon 16 Mar (+$25/wk). Account $1,200. Weekly in $800, out ~$657 after rise, so roughly +$143/wk before food. Food target: under $100/wk (own-brand, plan meals, no waste). Do not borrow from Northern Mutual. Do not ask Sian. Check the account every Monday. Gary still hasn't answered about the rent split; follow up next week if nothing."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "request",
+    "to": "Lewis Pryce",
+    "text": "More hours at Quarry Road Food Hall \u2014 extra shifts beyond my eight, weekends or evenings.",
+    "amount": 0
+   },
+   "ok": true,
+   "msg": "Your request (r17) went to Lewis Pryce; it stays open for two weeks.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "request",
+    "to": "Lewis Pryce",
+    "text": "Extra shifts: Saturday morning delivery (4 hrs) and one evening rotation/price checks (3 hrs) \u2014 seven hours a week at $12/hr, $84 a week.",
+    "amount": 84
+   },
+   "ok": true,
+   "msg": "Your request (r19) went to Lewis Pryce; it stays open for two weeks.",
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Hiya love, got your message, thanks for telling me straight. Don't worry about the car, we'll sort it. Let's sit down tonight and go through the money properly, I'll put the kettle on. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Alright Lewis! Any chance you've got weekend shifts going at Quarry Road? I could do with some extra money coming in, and I'm happy to work the weekend rush. Let me know, ta!"
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Keith, any chance of work at the bakery? Care work's what I've got but I'll take anything. Give us a shout when you can."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 7 Mar: Talk to Nadia tonight, budget first, no borrowing before that. Ask Keith re bakery (sent). Need $25/wk more from Mon 16 Mar. Check which bills can be cut."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Hello Craig, thank you for getting in touch. I'm happy to look at the car loan with you. Your balance is $4,000 at $43 a week, and the account is up to date. I'll pull the full schedule and the options available, and I can talk through them with you this week. Would Thursday afternoon at the branch suit you?"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 7 Mar. Food deal with Lewis: $72 (saves $15). New weekly out: 359+240+43+65+72 = 779. In 790. Margin ~$11/wk. Owe bank 4000 (car d3), Megan 800 (d6). Owen sending figures on own-brand. Ask Sian re car loan terms. Start paying Megan \u2014 even $20/wk."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Owen Royle",
+    "text": "Owen \u2014 good to hear from you. Things at the Corner Stores are much as ever: Dave owns it, wages come out of his pocket, so hours and rates are his call. On the shopping: I'm keen on the own-brand numbers. Rice, pasta, tinned toms \u2014 give me the per-item figures when you're on shift and I'll do the sums against what we pay now. We're at $72 a week on food and I want to see if Quarry Road beats it. No rush, but concrete figures please."
+   },
+   "ok": true,
+   "msg": "Your message to Owen Royle was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan \u2014 following up on my last message. I owe you $800 and I don't like owing. Money's tight but I can start chipping at it now: $20 a week until it's cleared, first payment this week. If that suits, say the word and I'll send the first $20 straight away. If you'd rather a different arrangement, tell me the figure and I'll work to it."
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Morning Craig, thanks for getting back to me. Right, $20 a week it is then \u2014 as long as it keeps going I'm happy. Just don't let it drift, like you say. I'll see you about. Megan."
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "shop_at",
+    "firm": "The Corner Stores"
+   },
+   "ok": true,
+   "msg": "Your household will do its usual shopping at The Corner Stores.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, sorry for the delay mate \u2014 here's the weekly deal figures I promised. Give me a shout if anything doesn't add up and I'll go through it with you. How's the Corner Stores treating you?"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sent Craig the weekly deal figures (Saturday 7 March). Still need to: keep an eye on hours at Quarry Road after the chiller repair, watch the loan payments and the rent rise."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Saturday 7 March. Chiller payment $650 due today. Shop account $4,240, household $1,180. Pete wants 7 extra hrs at $84/wk \u2014 decide today, he's good on deliveries and counting crates. Maureen also asking for weekend work \u2014 can't afford both. Must see Sian about the business loan. Takings $3,000 vs $1,466 fixed costs + loan \u2014 margin too thin."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Sian Bevan",
+    "opening": "Sian, Lewis Pryce. I'll not waste your time \u2014 I need to talk about the business loan on the chiller. Sixty-five a week plus the six-fifty bill today is squeezing me, and takings aren't growing. What can you actually do for me \u2014 restructure, payment holiday, or am I just talking to a wall?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Maureen Daly",
+    "opening": "Morning, Maureen! Before we get busy \u2014 how's the week been with you? I'm chewing over the stock order for Monday, and I want your take on it."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Brook Cash & Carry",
+    "units": 420
+   },
+   "ok": true,
+   "msg": "Ordered 420 units from Brook Cash & Carry at $6.65 each, for delivery on Monday.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Ordered 420 from Brook at $6.65 \u2014 cheaper, but check the delivery Monday for short counts. 25 spoiled last week; watch dates on the fresh stuff. Rent rising, so keep costs tight."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Gary, got your message. Asked around. Alan's not taking anyone on, cut the shifts back since Christmas, so I wouldn't bank on the bakery. Sorry, mate. Sanjay at the Corner Stores might be worth asking, mostly weekends. I'll keep my ears open."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Can you have a word with Sanjay about Pete Bevan? Weekends, near minimum, but Pete needs anything. He's asking after work at the bakery and I've told him there's nothing there. Let me know what Sanjay says."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Morning love! 10 is perfect, I'll be ready. I know, the car bill is nagging at me too, so I'll keep the shop list tight. Could we sit down with the household figures once we're back? Sorry, I know I'm fretting x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Lewis Pryce, chiller business loan. Weekly $65 plus $650 bill due today. Takings flat. Asked for accounts and statements by Monday. Consider term extension or restructure; no payment holiday promised yet. Also a mortgage with us on the house ($187,200 outstanding, $240/wk), so check total exposure before deciding."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 3
+  },
+  {
+   "kind": "event",
+   "event": {
+    "week": 2,
+    "kind": "supplier_fail",
+    "firm": "firm:3",
+    "round": 0,
+    "done": true,
+    "applies_week": 2
+   },
+   "t": 4
+  },
+  {
+   "kind": "event",
+   "event": {
+    "week": 2,
+    "kind": "arrears_bill",
+    "hh": "h4",
+    "round": 0,
+    "done": true,
+    "amount": 139000
+   },
+   "t": 4
+  },
+  {
+   "kind": "event",
+   "event": {
+    "kind": "school_trip",
+    "hh": "h3",
+    "week": 2,
+    "round": 0,
+    "done": true
+   },
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Mon 9 Mar: Lewis Pryce meeting, accounts and 3 months of bank statements due this morning. Chiller loan $8,935 at $65/wk; house mortgage $187,200 at $240/wk. Check total exposure before any restructure or term extension. Household: account $853, spend cap $730 this week, school trip $75 paid. Craig Pryce reply and meeting within 2 days. Owen Royle consolidation check within 7 days. Dunmore rent review later this week."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Dear Craig, thank you for your patience. I have looked at your car loan terms and would like to go through them with you in person. Could we meet at the branch on Wednesday 11 March? Please let me know a time that suits you. Kind regards, Sian Bevan"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Lewis, Pete. Brook's not coming, so you're a delivery short \u2014 I can take Saturday morning in and get it on the shelf, four hours, and one evening too. That's r19 still sitting with you. Yes or no today, and what rate?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "attempt": "Ring Dave Royle at Corner Stores for the weekend rate and days, mentioning Sanjay said weekends were the gap"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "(Monday 9 March) Account $853; Sat 14th school trip $75 due, rent $165 \u2014 about $99 spare after the week. Pushing Lewis on r19: Sat morning delivery 4 hrs + one evening, given Brook's no-show. Corner Stores: Dave Royle sets the weekend rate, Sanjay manages \u2014 ring Dave direct. Food shop still to do."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Gary, bakery's not hiring, Alan's cut back since Christmas. Sorry mate. If anything opens I'll shout. Keep ringing round, there's care agencies in town that take people fast."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Can you have a word with Sanjay at Corner Stores about Pete Bevan? He needs work, he'd take weekends. Tell Sanjay he's reliable. And can we look at the account this week, it's tight."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Hiya Lewis! Hope the food hall's not too mad this week. Any chance you've got weekend shifts going at Quarry Road? I'm trying to claw back a bit of money before Saturday. No pressure at all, just ask if you hear of anything. Ta x"
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Morning love! Yes, let's sit down with the figures tonight once you're back. Northgrid's bill for $1,390 is due Saturday, so we really need to plan around it. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Morning love. Still on for 10 on Saturday to go through the money, yeah? I'll have the shop numbers printed out so we can look at everything together. Sorry again about the bill. x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Nadia Tully",
+    "text": "Can we sit down tonight and go through the budget? Rent goes to $235 from the 16th, so we need to find the extra $25 a week. I'll have the bills pulled together. Nothing gets borrowed till we've talked."
+   },
+   "ok": true,
+   "msg": "Your message to Nadia Tully was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Cheers for asking round, Keith. Appreciate it. I'll try Sanjay at the Corner Stores like you said."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 380
+   },
+   "ok": true,
+   "msg": "Ordered 380 units from Dales Wholesale at $6.96 each, for delivery on Monday.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "answer",
+    "request": "r19",
+    "answer": "decline",
+    "note": "Pete \u2014 not this week. Brook's lorry is off the road so I'm paying Dales prices and the wage bill won't stretch. I'll come back to you when takings pick up."
+   },
+   "ok": true,
+   "msg": "You declined Pete's request.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Maureen \u2014 thanks for asking, but no weekend shifts going just now. Takings won't cover it. I'll keep you in mind if that changes."
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Monday 9 March. Brook lorry off the road \u2014 ordered 380 from Dales at $6.96 ($2,645). Dearer but reliable. Declined Pete's extra hours and Maureen's weekend ask \u2014 can't afford both, can't afford either right now. Seeing Sian about the chiller loan \u2014 bring the last three months. Need baskets up or costs down."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Morning Lewis \u2014 busy week with that chiller, hope it's all sorted now. Quick one: are my three days staying as they are, or is anything shifting with Pete coming on?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig \u2014 got the figures for you. Own-brand at Quarry Road: rice 1kg $1.85, pasta 500g $0.95, tinned toms 400g $0.55. Compare that against what you pay now and let me know how it stacks up. I'll double-check the shelf prices on my next shift in case anything's moved."
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Sian, Thursday afternoon suits me fine \u2014 say 2pm at the branch. While you're pulling the car loan schedule, I'd like to see if stretching the term a bit is an option; even $10-15 a week off the payment would help. Balance is $3,957 on my side. Thanks, Craig."
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "repay",
+    "debt": "d6",
+    "amount": 20
+   },
+   "ok": true,
+   "msg": "You repaid $20 on the money borrowed privately, to be paid back when possible; $780 is still owed.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Mon 9 Mar. Replied to Sian \u2014 Thursday 2pm, ask about stretching car loan term. Started Megan repayments: $20/wk (d6, now $780 left). Margin was ~$11/wk, so $20 to Megan puts me ~$9 short \u2014 need to find it. Owen's own-brand figures could shave food further. Watch the account."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, that suits me fine \u2014 $20 a week works, no need to stretch yourself. Send the first one whenever you're ready and we'll chip away at it. Thanks for getting in touch, hope you're keeping well otherwise."
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "attempt": "Phone Brook Cash & Carry to chase the short delivery \u2014 108 units instead of 420 \u2014 and ask them to make up the rest this week"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Morning love \u2014 got your message about Pete. I'll have a word with Sanjay, but honestly I can't promise much: Brook came up well short on today's delivery so I'm chasing stock and every penny's spoken for with the rent going up. I'll ask, though. Tell Pete to keep his chin up."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 180
+   },
+   "ok": true,
+   "msg": "Ordered 180 units from Dales Wholesale at $6.96 each, for delivery on Monday.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Mon 9 Mar: Brook delivered only 108 of 420 \u2014 chase them hard, don't pay full invoice. Ordered 180 from Dales to cover shelves (dearer but reliable). Ask Sanjay about Pete Bevan for weekend work \u2014 Keith asked."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "answer",
+    "request": "r17",
+    "answer": "accept",
+    "note": "Saturday morning four hours plus one evening, $12 an hour."
+   },
+   "ok": true,
+   "msg": "You accepted Pete's request.",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Owe Pete r17 back hours. Agreed to pay down from next week's takings, bit at a time. New shifts: Sat 4hrs + one evening 4hrs at $12 = $96 extra/week on top of $96."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Agreement with Pete Bevan, 9 March: r17 arrears of $96 to be cleared at $24 a week starting next week (week of 16 March), four weeks, finishing week of 6 April. Signed copy given to Pete. r19: 4 hrs Saturday at $12 ($48) plus one 4-hr evening at $12 ($48) = $96 extra on top of his $96 base."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Gary Tully",
+    "text": "Rent's $235 from Monday. Can we sort the split tonight? I want the bills list too. Don't leave it till the weekend."
+   },
+   "ok": true,
+   "msg": "Your message to Gary Tully was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Wed 11 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Weekly in $800, out ~$657 after rise, positive before food. Food target under $100/wk, shop own-brand. Still no answer from Gary on rent split, chase tonight. No borrowing, no asking Sian. Check account Mon 16 Mar."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Any word from Sanjay yet? No pressure, but Pete's struggling and I said I'd try. Let me know when you hear. Keep an eye on the account too, we're close to the wire this month."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Yes, still on for tonight at 10, love. I'll have my side of the numbers too. Let's sort the Northgrid bill and the car between us. x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "shop_at",
+    "firm": "Wenlow Bakery & Deli"
+   },
+   "ok": true,
+   "msg": "Your household will do its usual shopping at Wenlow Bakery & Deli.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Brook Cash & Carry",
+    "text": "Morning, it's Dave Royle at The Corner Stores. Following up on Monday's delivery \u2014 I ordered 420 units and only 108 turned up. That's a big shortfall and it's left my shelves bare. I need the missing 312 units sorted or a proper credit against the invoice \u2014 I'm not paying full whack for what never arrived. Can you come back to me today please?"
+   },
+   "ok": true,
+   "msg": "Your letter to Brook Cash & Carry has been sent.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Maureen Daly",
+    "opening": "Morning, Maureen! Before the rush \u2014 I've been chasing Brook over that short delivery, and I want to get the shelves properly filled this week. How are we looking on the leafy stuff, is it still wilting on you? And listen, about that car \u2014 let's have a proper talk about the $460, I don't want you stuck."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Wed 11 Mar: Bills list tonight before Nadia. Fixed: rent, power, water, council tax. Cuttable: phone, transport, clothes. Nadia first. No borrowing without her. Sanjay re weekend shifts, go in Thu or Fri."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Wed 11 March. Lost 116 customers last week to empty shelves/queues \u2014 that's $1,160 of takings walking out the door. Pete's weekend hours start next week ($96 extra + $24 arrears). Need to see Sian Monday with last 3 months' accounts and statements. Maureen still waiting on a proper reply \u2014 no shifts spare. Check stock count before Monday's Dales delivery."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Owen Royle",
+    "text": "Owen \u2014 thanks for those. Rice 1.85, pasta 0.95, tins 0.55. I'll price them against what we pay at the Corner Stores tonight. If the gap's real, we'll shift the basics over to Quarry Road and keep the rest local. Appreciate the shelf check when you're next on."
+   },
+   "ok": true,
+   "msg": "Your message to Owen Royle was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Sian \u2014 Thursday 2pm still suits me for the car loan terms, unless you'd rather do today. Either way, I'll be at the branch. I want to talk about stretching the term and what that does to the weekly figure. Craig"
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, thank you for your message. Thursday at 2pm at the branch suits me well. I will have the car loan schedule ready, and I will look at what a longer term would mean for your payment. Please bring your latest statement if you have it. Best, Sian"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 340
+   },
+   "ok": true,
+   "msg": "Ordered 340 units from Dales Wholesale at $6.96 each, for delivery on Monday.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Morning love. Still on for 10 Saturday to go through the figures. I've ordered stock from Dales for Monday so we don't lose customers again. I'm still working out how we cover the Northgrid bill, so I'll bring what I've got. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Dave Royle",
+    "opening": "Dave, Pete Bevan here. Craig Pryce said you're the man who sets the weekend rate at the Corner Stores. I'm after Saturday and Sunday mornings \u2014 deliveries, shelf-stacking, whatever Sanjay needs. What's the rate and can you take me on?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Lewis \u2014 thanks for the Saturday four hours. On the $96 you owe from r17: I've got $75 school trip due Saturday and rent the same day, so I need a date, not 'when takings pick up'. Even $48 this week would help. What can you put in the till for me and when?"
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "pay",
+    "to": "Maureen Daly",
+    "amount": 460,
+    "note": "Advance on pay for car repair, to be taken back out of next couple of packets"
+   },
+   "ok": true,
+   "msg": "You paid Maureen Daly $460.",
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "message",
+    "to": "Sanjay",
+    "text": "Sanjay, Pete Bevan's after the weekend mornings \u2014 shelf-stacking and helping you out, $90 for the two mornings. Craig vouched for him, he's done food hall work at Quarry Road. Are you happy to have him under you Saturdays and Sundays? Let me know and I'll confirm with him Friday."
+   },
+   "ok": false,
+   "msg": "You know of no one called 'Sanjay', so the message was not sent.",
+   "t": 5
+  },
+  {
+   "kind": "event",
+   "event": {
+    "week": 2,
+    "kind": "job_lost",
+    "who": "p10",
+    "round": 2,
+    "done": true
+   },
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig \u2014 good to hear from you, and glad the figures were useful. Bit of a snag though: Lewis got wind of the shelf check and he's firm that the cost sheet is his paperwork, not something I can hand over. Says if you want figures for anything, come to him direct. Sorry to be a letdown on that \u2014 didn't want you chasing me for numbers I can't give. How's the Corner Stores treating you otherwise? Still up for a kickabout Sunday?"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Keith Royle",
+    "opening": "Dad \u2014 got a minute? Rent's going up and I'm trying to keep on top of the loan payments, so I wanted to check where we're all at with money this month. How's your week been?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Brook Cash & Carry",
+    "text": "Morning \u2014 Dave Royle at The Corner Stores. Still waiting on the shortfall from Monday's delivery: ordered 420, got 108, so 312 units short. That's leaving my shelves bare and I'm not paying the full invoice for stock I never received. Can you confirm today when the 312 will come and what you're crediting me? I'd rather keep buying from you but I need this put right."
+   },
+   "ok": true,
+   "msg": "Your letter to Brook Cash & Carry has been sent.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 120
+   },
+   "ok": true,
+   "msg": "Ordered 120 units from Dales Wholesale at $6.96 each, for delivery on Monday.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Maureen Daly",
+    "opening": "Morning, Maureen! Before the rush \u2014 I've been on to Brook again about that short delivery, and I've put another order in with Dales so we're not scraping the shelves this weekend. Now, about your car \u2014 you said $460 by Saturday. Let's talk it through properly, because I can't wave a wand but I'm not having you stuck either. What's the story with the garage \u2014 is it pay-in-full or can they do it over a couple of weeks?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Job going at Brennock \u2014 last paid week, pay 14 March plus two weeks' redundancy. Claim jobseeker's benefit $190/week after. Savings $3,478. Keep Craig at $20/week ($780 owed). Get baking supplies at Wenlow Bakery & Deli."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Hi Sian, it's Megan. Bit of a bombshell \u2014 Brennock's cutting the night shift, so I'm out after this week. I'll get two weeks' redundancy and then jobseeker's at $190. I've got a bit put by and the house is paid off, so I'm not panicking yet, but I'd like a word about how best to sit it out. Any chance of a chat this week?"
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan, I only just heard about the hospital letting people go. I'm so sorry, that's a terrible thing to be handed. If you want to talk it through, or need anything at all, say the word. Sian"
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Hiya love, I've been looking at the figures. Car is $460 and Northgrid is $1,390, both by Saturday, and we've got $1,056 in the account. Can we sit down tonight properly? Don't want to go into Saturday blind. x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Nadia Tully",
+    "text": "Sorry I didn't get the budget done Wednesday. Let's sit down tonight, bills list and the split. I'll have the list ready. No borrowing before we've talked."
+   },
+   "ok": true,
+   "msg": "Your message to Nadia Tully was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Fri 13 Mar: Nadia tonight, bills list and split. Rent $235 from Mon 16 Mar, need $25/wk more. Sanjay re weekend shifts, go in today or tomorrow. No borrowing without Nadia."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Sian Bevan",
+    "opening": "Sian, thanks for making time. Here's my latest statement. The car loan's $43 a week and it's the thing squeezing me \u2014 what would a longer term do to that payment?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Owen Royle",
+    "text": "Owen, still after those own-brand figures you mentioned \u2014 anything that gets the food bill down a few dollars a week helps. Let me know what you've got."
+   },
+   "ok": true,
+   "msg": "Your message to Owen Royle was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Fri 13 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Weekly in $800, out ~$657 after rise, positive before food. Food target under $100/wk: plan meals and shop own-brand this weekend. Gary still no answer on rent split. If nothing by Sun, raise it face to face. No borrowing, no asking Sian. Check account Mon 16 Mar."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan, I heard about the job at Brennock. I'm really sorry, that's a rotten thing to happen. If there's anything I can do, even just to listen, say the word. Hope you're holding up okay x"
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Still on for 10 tonight. I'll bring the shop numbers and the Northgrid bill so we can see where we stand before Saturday. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "pay",
+    "to": "Pete Bevan",
+    "amount": 48,
+    "note": "From my own pocket, against the r17 arrears \u2014 the $48 you asked for. Rest clears at $24 a week from next week as signed."
+   },
+   "ok": true,
+   "msg": "You paid Pete Bevan $48.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Pete Bevan",
+    "text": "Pete \u2014 $48 put to you today, out of my own pocket, not the till. It comes off the $96 arrears. The rest: $24 a week starting Monday, four weeks, done by 6 April, as signed. And your weekend hours start next week \u2014 $48 Saturday, $48 evening, on top of your $96. That's a date, not a maybe."
+   },
+   "ok": true,
+   "msg": "Your message to Pete Bevan was delivered.",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Fri 13 March. Paid Pete $48 personally against r17 arrears ($96). Balance $48, clears $24/wk from week of 16 March. Pull last 3 months' accounts + statements for Sian Monday. Count stock before Monday's Dales delivery (380 units ordered)."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "attempt": "Pull the last three months' accounts and bank statements together for Monday's meeting with Sian"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Friday 13 March: Owen asked about the account. Told him keep about $300 back, pay rent and bills first, loan $43 before anything else. Need to check the account figures tonight and speak to Dave about the store takings. Rent going up: check the notice from Alan Daly. Still need to get Pete Bevan work through Sanjay at Corner Stores."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Maureen needs advance on pay for car by Saturday ($460, garage won't do instalments). Check books \u2014 household account $1,009 but rent rising. Offer partial advance + extra hours, restock Monday."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Friday 13 March. Dave to look at the books and come back at dinnertime about an advance. Short about $340 for the car by Saturday (have ~$120 put by). Extra hours likely, restock Monday. Also due Saturday: Northgrid $1,390. Talk to Alan tonight about the week's money."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Maureen: needs $460 for garage by Saturday, has $120, short $340. Offer advance ~$300 plus extra hours Mon/Tue restock. Check books at dinnertime. Brook Millgate shop shut \u2014 ask her about it."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Craig Pryce: car loan term options to confirm. Total exposure is mortgage $240/wk, car $43/wk, chiller $65/wk. He owes Megan Lister $780 and pays about $20/wk. Income $790/wk vs outgoings $794/wk. Check Lewis Pryce exposure before any restructure, as they may be related."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Craig Pryce: car loan term stretch. Need lender's exact terms today; ring Craig with weekly saving figure. His test: worth doing only if saving is $9/week or more. Also account for Megan Lister ($780 owed, $20/week) and chiller loan ($65/week) in the full picture. His income $790/week vs outgoings $794/week."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "borrow",
+    "amount": 1400,
+    "weeks": 12,
+    "purpose": "Cover Northgrid back-dated energy bill and household shortfall"
+   },
+   "ok": true,
+   "msg": "Your loan application (r64) went to Sian Bevan at the bank.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan, I heard about the job at Brennock. I'm really sorry, that's a rotten thing to happen. Do you want to meet for a coffee this week? No pressure, I'm just around if you want to talk. x"
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Maureen Daly",
+    "text": "Yes, let's sit down tonight. I've got the Northgrid bill sorted with a loan, so we're not in a hole on Saturday. We'll go through the car too. Love you x"
+   },
+   "ok": true,
+   "msg": "Your message to Maureen Daly was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan, I'm so sorry about the shift being cut. That's a hard thing to hear on a Friday. I'd love to sit down with you properly. Would Sunday afternoon work, or early next week? I'd like to hear how you're placed before we talk about how best to get through the next few months. No pressure to have it all worked out yet. Sian"
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Sian, thanks ever so for that, it means a lot. It's a real blow, I won't pretend otherwise. I'd like to have a proper word with you about money \u2014 what I should be claiming and how to keep things ticking over. When are you free this week? Megan x"
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Alan, thank you, that's kind of you. I'm bearing up. I'll be in for baking supplies this weekend anyway \u2014 can't sit about doing nothing, I'd go mad. See you soon, Megan x"
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, hope you're keeping well. Just a reminder it's Saturday and the $20 is due \u2014 I'm out of work now so I'm counting on it more than ever. Thanks, Megan"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "shop_at",
+    "firm": "Wenlow Bakery & Deli"
+   },
+   "ok": true,
+   "msg": "Your household will do its usual shopping at Wenlow Bakery & Deli.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Sian Bevan",
+    "opening": "Sian, Craig again \u2014 picking up where we left off on the car loan. The arithmetic: $794 out, $790 in, and I've just started $20 a week to Megan, so I'm about $9 short. Stretching the car loan term is still the lever I want to pull. What would a longer term do to the weekly figure, and what's it cost me over the whole term?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Lewis \u2014 Owen says the cost sheet is your paperwork and I should come to you direct. Fair enough. Can we sit down tonight with it? I'm trying to shave the food bill and the own-brand figures are the bit I'm missing. No drama, just want the numbers."
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Megan \u2014 $20 again this week, so you're down to $760. It's slow but it's steady and I'm not going to let it slide. I'll keep you posted."
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 14 Mar. Owen can't hand over cost sheet \u2014 Lewis says it's his. Asking Lewis direct tonight. Sian: finish car loan term talk. Margin ~$11/wk, $20 to Megan means ~$9 short \u2014 need cheaper food or loan stretch. Megan now $760."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "pay",
+    "to": "school",
+    "amount": 75,
+    "note": "School trip, due Saturday 14 March"
+   },
+   "ok": false,
+   "msg": "There is no one called 'school' that you can pay.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Dave, Pete Bevan. Thanks for the start today \u2014 but I've got a clash: Lewis Pryce has me on the Saturday morning delivery at Quarry Road this week, the one I've been chasing. Can we start Corner Stores next Saturday instead, or do Sunday mornings only? I don't want to leave you short."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 14 Mar: $75 school trip paid. Rent $165 still to go \u2014 account $901, fine. Lewis's $48 in, $24/wk from Mon, done 6 Apr. Weekend hours $48 Sat + $48 evening confirmed 'a date, not a maybe' \u2014 need to confirm with Lewis which Saturday I start, and square it with Dave Royle's Corner Stores weekend start. Don't double-book Saturday mornings."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 14 Mar: Bills list tonight, before Nadia. Rent $235 from Mon 16, need $25/wk more. Go see Sanjay about weekend shifts TODAY. Nadia tonight, budget first. No borrowing without Nadia."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Hiya Dave, just checking in on the advance when you get a minute. No rush if the books are still being looked at, I know it's a busy one. Thanks again, honestly. M x"
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Maureen Daly",
+    "opening": "Morning, Maureen! Right \u2014 I've had a proper look at the books, and here's what I can do. I'll advance you three hundred on this week's pay, and you pick up extra hours Monday and Tuesday on the restock to make up the difference. That gets you to the garage today, doesn't it?"
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Brook Cash & Carry",
+    "text": "Morning \u2014 Dave Royle at The Corner Stores. Following up my letter: last Monday's delivery came in at 108 units against 420 ordered, and I'm not paying the full invoice for stock I never got. I need the shortfall credited and a firm date on the rest, or I'll be taking my custom elsewhere. Ring me back today."
+   },
+   "ok": true,
+   "msg": "Your letter to Brook Cash & Carry has been sent.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 14 Mar: Offered Maureen $300 advance + extra hours Mon/Tue restock to cover the $460 garage bill. Pete Bevan starts this morning \u2014 Sanjay to show him the ropes, $90 for the two mornings. Chased Brook again in writing over the 108-of-420 short delivery. Rent rise still to plan for \u2014 keep costs tight."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Craig, mate \u2014 sorry, the cost sheet's not mine to hand out. Lewis pulled me up on it: it's his paperwork, his call. If you want the figures, go to him direct. Wish I could help more on the food bill but that's the way it is."
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p05",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Told Craig the cost sheet is Lewis's call. Keep three hundred back this week per Dad. Watch the loan payment and rent rise."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 14 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Food: plan meals, own-brand, under $100/wk. Gary's bills list and split due tonight; if not by Sun, raise face to face. No borrowing, no asking Sian. Check account Mon 16 Mar."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Maureen advance $300 off this week's pay, restock Mon+Tue extra hours to make up difference. Put arrangement in writing for Alan. Her Northgrid bill $1,390 due Sat, car $460."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Dave: $300 advance today, comes off this week's pay. Friday take-home $160 before restock hours. Mon/Tue restock extra hours to make up difference. Wants signed written agreement + exact restock figure. Still owed: Northgrid $1,390 by Sat, car $460. Talk to Alan tonight."
+   },
+   "ok": true,
+   "msg": "",
+   "t": 7
+  }
+ ],
+ "aims": {
+  "p01": [
+   {
+    "text": "Talk to Nadia tonight about the budget",
+    "since": 0
+   },
+   {
+    "text": "Find the extra $25 a week for rent from 16 March",
+    "since": 0
+   },
+   {
+    "text": "Ask Sanjay at the Corner Stores about weekend shifts today",
+    "since": 4
+   },
+   {
+    "text": "Finish the bills list and mark what can be cut",
+    "since": 3
+   }
+  ],
+  "p02": [
+   {
+    "text": "Absorb $25/wk rent rise from 16 March",
+    "since": 0
+   },
+   {
+    "text": "Keep household account above safe buffer",
+    "since": 0
+   },
+   {
+    "text": "Trim food spending to under $100/wk",
+    "since": 2
+   },
+   {
+    "text": "Get Gary to agree rent split and bills list",
+    "since": 5
+   },
+   {
+    "text": "Avoid borrowing or owing anyone",
+    "since": 0
+   }
+  ],
+  "p03": [
+   {
+    "text": "Get Pete Bevan work via Sanjay at Corner Stores",
+    "since": 1
+   },
+   {
+    "text": "Keep household account above water each week",
+    "since": 1
+   },
+   {
+    "text": "Keep my hours at the bakery",
+    "since": 1
+   },
+   {
+    "text": "Check the account before any new spending",
+    "since": 5
+   }
+  ],
+  "p04": [
+   {
+    "text": "Sort Maureen's car advance today",
+    "since": 6
+   },
+   {
+    "text": "Chase Brook over short delivery",
+    "since": 4
+   },
+   {
+    "text": "Get shelves restocked Monday",
+    "since": 4
+   },
+   {
+    "text": "Settle Pete Bevan in on weekends",
+    "since": 7
+   },
+   {
+    "text": "Keep costs tight for rent rise",
+    "since": 4
+   }
+  ],
+  "p05": [
+   {
+    "text": "Tell Craig the cost sheet is Lewis's call",
+    "since": 6
+   },
+   {
+    "text": "Check in with Dad and Dave about money",
+    "since": 3
+   },
+   {
+    "text": "Watch the loan and rising rent",
+    "since": 2
+   },
+   {
+    "text": "Keep my three days at Quarry Road steady",
+    "since": 4
+   }
+  ],
+  "p06": [
+   {
+    "text": "Reply to Megan Lister and arrange a chat",
+    "since": 7
+   },
+   {
+    "text": "Review Lewis Pryce total exposure before Monday",
+    "since": 5
+   },
+   {
+    "text": "Confirm Craig Pryce car loan terms",
+    "since": 5
+   },
+   {
+    "text": "Keep household spending within $730 this week",
+    "since": 0
+   },
+   {
+    "text": "Check Owen Royle consolidation loan position",
+    "since": 0
+   }
+  ],
+  "p07": [
+   {
+    "text": "Confirm Saturday start with Lewis, avoid clash with Dave",
+    "since": 7
+   },
+   {
+    "text": "Pay $165 rent by Saturday",
+    "since": 5
+   },
+   {
+    "text": "Get weekend rate/days fixed at Corner Stores",
+    "since": 7
+   },
+   {
+    "text": "Track $24/wk arrears to 6 April",
+    "since": 7
+   }
+  ],
+  "p08": [
+   {
+    "text": "Get Dave's answer on the advance before Saturday",
+    "since": 7
+   },
+   {
+    "text": "Cover the $1,390 Northgrid bill by Saturday",
+    "since": 4
+   },
+   {
+    "text": "Cover the $460 car repair",
+    "since": 2
+   },
+   {
+    "text": "Talk through the week's money with Alan tonight",
+    "since": 3
+   },
+   {
+    "text": "Keep my hours at The Corner Stores",
+    "since": 0
+   }
+  ],
+  "p09": [
+   {
+    "text": "Confirm Saturday money talk with Maureen at 10 and keep the plan lean",
+    "since": 3
+   },
+   {
+    "text": "Check Monday's Dales delivery against demand to avoid spoilage",
+    "since": 3
+   },
+   {
+    "text": "Keep Keith's wages and my draw covered from shop cash",
+    "since": 3
+   },
+   {
+    "text": "Arrange coffee with Megan this week",
+    "since": 7
+   }
+  ],
+  "p10": [
+   {
+    "text": "Talk to Sian about money",
+    "since": 6
+   },
+   {
+    "text": "Claim jobseeker's benefit after redundancy",
+    "since": 6
+   },
+   {
+    "text": "Keep Craig paying $20 a week",
+    "since": 3
+   },
+   {
+    "text": "Get baking supplies for the weekend",
+    "since": 3
+   }
+  ],
+  "p11": [
+   {
+    "text": "Prep paperwork for Sian Monday",
+    "since": 5
+   },
+   {
+    "text": "Stock count before Monday's Dales delivery",
+    "since": 6
+   },
+   {
+    "text": "Keep shelves full, spoilage down",
+    "since": 1
+   },
+   {
+    "text": "Watch wage bill against takings",
+    "since": 1
+   },
+   {
+    "text": "Reply to Maureen about shifts",
+    "since": 5
+   }
+  ],
+  "p12": [
+   {
+    "text": "Get weekly spending under $790",
+    "since": 1
+   },
+   {
+    "text": "Find cheaper food options",
+    "since": 1
+   },
+   {
+    "text": "Keep $20/wk going to Megan",
+    "since": 4
+   },
+   {
+    "text": "Ask Sian about car loan terms",
+    "since": 1
+   },
+   {
+    "text": "Find the extra $9/wk",
+    "since": 4
+   }
+  ]
+ },
+ "notes": {
+  "p01": [
+   "(Friday 6 March) Before tonight: pull all the bills, list what's fixed and what can be cut. Rent goes to $235 from Mon 16 Mar, that's $25 more a week. Don't borrow without talking to Nadia first.",
+   "(Saturday 7 March) Sat 7 Mar: Talk to Nadia tonight, budget first, no borrowing before that. Ask Keith re bakery (sent). Need $25/wk more from Mon 16 Mar. Check which bills can be cut.",
+   "(Wednesday 11 March) Wed 11 Mar: Bills list tonight before Nadia. Fixed: rent, power, water, council tax. Cuttable: phone, transport, clothes. Nadia first. No borrowing without her. Sanjay re weekend shifts, go in Thu or Fri.",
+   "(Friday 13 March) Fri 13 Mar: Nadia tonight, bills list and split. Rent $235 from Mon 16 Mar, need $25/wk more. Sanjay re weekend shifts, go in today or tomorrow. No borrowing without Nadia.",
+   "(Saturday 14 March) Sat 14 Mar: Bills list tonight, before Nadia. Rent $235 from Mon 16, need $25/wk more. Go see Sanjay about weekend shifts TODAY. Nadia tonight, budget first. No borrowing without Nadia."
+  ],
+  "p02": [
+   "(Monday 2 March) Rent goes to $235 from 16 Mar (+$25/wk). Account $1,200. Weekly in $800 (my $610 + Gary's $190). Weekly out now ~ $632 (rent 210, bills 300, food ~122). After rise ~ $657 out. Still positive but thin. Cut food spend where I can. Do not borrow from the bank. Don't ask Sian for anything.",
+   "(Friday 6 March) Fri 6 Mar. Rent $235 from Mon 16 Mar (+$25/wk). Account $1,200. Weekly in $800, out ~$657 after rise, so roughly +$143/wk before food. Food target: under $100/wk (own-brand, plan meals, no waste). Do not borrow from Northern Mutual. Do not ask Sian. Check the account every Monday. Gary still hasn't answered about the rent split; follow up next week if nothing.",
+   "(Wednesday 11 March) Wed 11 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Weekly in $800, out ~$657 after rise, positive before food. Food target under $100/wk, shop own-brand. Still no answer from Gary on rent split, chase tonight. No borrowing, no asking Sian. Check account Mon 16 Mar.",
+   "(Friday 13 March) Fri 13 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Weekly in $800, out ~$657 after rise, positive before food. Food target under $100/wk: plan meals and shop own-brand this weekend. Gary still no answer on rent split. If nothing by Sun, raise it face to face. No borrowing, no asking Sian. Check account Mon 16 Mar.",
+   "(Saturday 14 March) Sat 14 Mar. Account $1,400. Rent $235 from Mon 16 Mar. Food: plan meals, own-brand, under $100/wk. Gary's bills list and split due tonight; if not by Sun, raise face to face. No borrowing, no asking Sian. Check account Mon 16 Mar."
+  ],
+  "p03": [
+   "(Wednesday 4 March) Pete needs work. Sanjay at Corner Stores mostly weekends, pay near minimum; ask Dave to check if he'd take Pete. Alan's not taking on. Watch the account, it's tight.",
+   "(Friday 13 March) Friday 13 March: Owen asked about the account. Told him keep about $300 back, pay rent and bills first, loan $43 before anything else. Need to check the account figures tonight and speak to Dave about the store takings. Rent going up: check the notice from Alan Daly. Still need to get Pete Bevan work through Sanjay at Corner Stores."
+  ],
+  "p04": [
+   "(Saturday 7 March) Ordered 420 from Brook at $6.65 \u2014 cheaper, but check the delivery Monday for short counts. 25 spoiled last week; watch dates on the fresh stuff. Rent rising, so keep costs tight.",
+   "(Monday 9 March) Mon 9 Mar: Brook delivered only 108 of 420 \u2014 chase them hard, don't pay full invoice. Ordered 180 from Dales to cover shelves (dearer but reliable). Ask Sanjay about Pete Bevan for weekend work \u2014 Keith asked.",
+   "(Friday 13 March) Maureen needs advance on pay for car by Saturday ($460, garage won't do instalments). Check books \u2014 household account $1,009 but rent rising. Offer partial advance + extra hours, restock Monday.",
+   "(Friday 13 March) Maureen: needs $460 for garage by Saturday, has $120, short $340. Offer advance ~$300 plus extra hours Mon/Tue restock. Check books at dinnertime. Brook Millgate shop shut \u2014 ask her about it.",
+   "(Saturday 14 March) Sat 14 Mar: Offered Maureen $300 advance + extra hours Mon/Tue restock to cover the $460 garage bill. Pete Bevan starts this morning \u2014 Sanjay to show him the ropes, $90 for the two mornings. Chased Brook again in writing over the 108-of-420 short delivery. Rent rise still to plan for \u2014 keep costs tight.",
+   "(Saturday 14 March) Maureen advance $300 off this week's pay, restock Mon+Tue extra hours to make up difference. Put arrangement in writing for Alan. Her Northgrid bill $1,390 due Sat, car $460."
+  ],
+  "p05": [
+   "(Saturday 7 March) Sent Craig the weekly deal figures (Saturday 7 March). Still need to: keep an eye on hours at Quarry Road after the chiller repair, watch the loan payments and the rent rise.",
+   "(Saturday 14 March) Told Craig the cost sheet is Lewis's call. Keep three hundred back this week per Dad. Watch the loan payment and rent rise."
+  ],
+  "p06": [
+   "(Saturday 7 March) Lewis Pryce, chiller business loan. Weekly $65 plus $650 bill due today. Takings flat. Asked for accounts and statements by Monday. Consider term extension or restructure; no payment holiday promised yet. Also a mortgage with us on the house ($187,200 outstanding, $240/wk), so check total exposure before deciding.",
+   "(Monday 9 March) Mon 9 Mar: Lewis Pryce meeting, accounts and 3 months of bank statements due this morning. Chiller loan $8,935 at $65/wk; house mortgage $187,200 at $240/wk. Check total exposure before any restructure or term extension. Household: account $853, spend cap $730 this week, school trip $75 paid. Craig Pryce reply and meeting within 2 days. Owen Royle consolidation check within 7 days. Dunmore rent re",
+   "(Friday 13 March) Craig Pryce: car loan term options to confirm. Total exposure is mortgage $240/wk, car $43/wk, chiller $65/wk. He owes Megan Lister $780 and pays about $20/wk. Income $790/wk vs outgoings $794/wk. Check Lewis Pryce exposure before any restructure, as they may be related.",
+   "(Friday 13 March) Craig Pryce: car loan term stretch. Need lender's exact terms today; ring Craig with weekly saving figure. His test: worth doing only if saving is $9/week or more. Also account for Megan Lister ($780 owed, $20/week) and chiller loan ($65/week) in the full picture. His income $790/week vs outgoings $794/week."
+  ],
+  "p07": [
+   "(Monday 2 March) Ring Sanjay at Corner Stores re weekend work, pay rate. Ask Dave for contact. Also ask Lewis about jobs.",
+   "(Wednesday 4 March) Wed 4 Mar: Food Hall job confirmed, 8 hrs @ $12 = $96/wk, deliveries and back. Chasing Sanjay at Corner Stores for weekend work \u2014 need rate and days. Household: $730 in account. Weekly in $816, out $679 before extras. Tight but covered; any surprise breaks it.",
+   "(Monday 9 March) (Monday 9 March) Account $853; Sat 14th school trip $75 due, rent $165 \u2014 about $99 spare after the week. Pushing Lewis on r19: Sat morning delivery 4 hrs + one evening, given Brook's no-show. Corner Stores: Dave Royle sets the weekend rate, Sanjay manages \u2014 ring Dave direct. Food shop still to do.",
+   "(Saturday 14 March) Sat 14 Mar: $75 school trip paid. Rent $165 still to go \u2014 account $901, fine. Lewis's $48 in, $24/wk from Mon, done 6 Apr. Weekend hours $48 Sat + $48 evening confirmed 'a date, not a maybe' \u2014 need to confirm with Lewis which Saturday I start, and square it with Dave Royle's Corner Stores weekend start. Don't double-book Saturday mornings."
+  ],
+  "p08": [
+   "(Friday 13 March) Friday 13 March. Dave to look at the books and come back at dinnertime about an advance. Short about $340 for the car by Saturday (have ~$120 put by). Extra hours likely, restock Monday. Also due Saturday: Northgrid $1,390. Talk to Alan tonight about the week's money.",
+   "(Saturday 14 March) Dave: $300 advance today, comes off this week's pay. Friday take-home $160 before restock hours. Mon/Tue restock extra hours to make up difference. Wants signed written agreement + exact restock figure. Still owed: Northgrid $1,390 by Sat, car $460. Talk to Alan tonight."
+  ],
+  "p09": [],
+  "p10": [
+   "(Friday 13 March) Job going at Brennock \u2014 last paid week, pay 14 March plus two weeks' redundancy. Claim jobseeker's benefit $190/week after. Savings $3,478. Keep Craig at $20/week ($780 owed). Get baking supplies at Wenlow Bakery & Deli."
+  ],
+  "p11": [
+   "(Saturday 7 March) Saturday 7 March. Chiller payment $650 due today. Shop account $4,240, household $1,180. Pete wants 7 extra hrs at $84/wk \u2014 decide today, he's good on deliveries and counting crates. Maureen also asking for weekend work \u2014 can't afford both. Must see Sian about the business loan. Takings $3,000 vs $1,466 fixed costs + loan \u2014 margin too thin.",
+   "(Monday 9 March) Monday 9 March. Brook lorry off the road \u2014 ordered 380 from Dales at $6.96 ($2,645). Dearer but reliable. Declined Pete's extra hours and Maureen's weekend ask \u2014 can't afford both, can't afford either right now. Seeing Sian about the chiller loan \u2014 bring the last three months. Need baskets up or costs down.",
+   "(Monday 9 March) Owe Pete r17 back hours. Agreed to pay down from next week's takings, bit at a time. New shifts: Sat 4hrs + one evening 4hrs at $12 = $96 extra/week on top of $96.",
+   "(Monday 9 March) Agreement with Pete Bevan, 9 March: r17 arrears of $96 to be cleared at $24 a week starting next week (week of 16 March), four weeks, finishing week of 6 April. Signed copy given to Pete. r19: 4 hrs Saturday at $12 ($48) plus one 4-hr evening at $12 ($48) = $96 extra on top of his $96 base.",
+   "(Wednesday 11 March) Wed 11 March. Lost 116 customers last week to empty shelves/queues \u2014 that's $1,160 of takings walking out the door. Pete's weekend hours start next week ($96 extra + $24 arrears). Need to see Sian Monday with last 3 months' accounts and statements. Maureen still waiting on a proper reply \u2014 no shifts spare. Check stock count before Monday's Dales delivery.",
+   "(Friday 13 March) Fri 13 March. Paid Pete $48 personally against r17 arrears ($96). Balance $48, clears $24/wk from week of 16 March. Pull last 3 months' accounts + statements for Sian Monday. Count stock before Monday's Dales delivery (380 units ordered)."
+  ],
+  "p12": [
+   "(Wednesday 4 March) Weekly: in 790 (Lewis 350 + pay 440). Out: bills 359, mortgage 240, car 43, chiller 65, food 87 = 794. Short about $4/wk. Owe bank 4000 (car, d3), Megan 800 (d6). Ideas: cut food spend, ask Sian about car loan terms, keep chipping at Megan.",
+   "(Saturday 7 March) Sat 7 Mar. Food deal with Lewis: $72 (saves $15). New weekly out: 359+240+43+65+72 = 779. In 790. Margin ~$11/wk. Owe bank 4000 (car d3), Megan 800 (d6). Owen sending figures on own-brand. Ask Sian re car loan terms. Start paying Megan \u2014 even $20/wk.",
+   "(Monday 9 March) Mon 9 Mar. Replied to Sian \u2014 Thursday 2pm, ask about stretching car loan term. Started Megan repayments: $20/wk (d6, now $780 left). Margin was ~$11/wk, so $20 to Megan puts me ~$9 short \u2014 need to find it. Owen's own-brand figures could shave food further. Watch the account.",
+   "(Saturday 14 March) Sat 14 Mar. Owen can't hand over cost sheet \u2014 Lewis says it's his. Asking Lewis direct tonight. Sian: finish car loan term talk. Margin ~$11/wk, $20 to Megan means ~$9 short \u2014 need cheaper food or loan stretch. Megan now $760."
+  ]
+ },
+ "shop_choice": {
+  "h1": null,
+  "h2": null,
+  "h3": null,
+  "h4": null,
+  "h5": "firm:2",
+  "h6": null
+ },
+ "run_stats": {
+  "fresh_usd": 0.04671152920000002,
+  "cached_usd": 0.0,
+  "fresh_calls": 154,
+  "cached_calls": 0
+ },
+ "ledger_total": 0
+}
