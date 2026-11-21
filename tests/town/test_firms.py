@@ -5,9 +5,12 @@ import random
 import subprocess
 import sys
 
-from townsim.econ.firm import Firm
+from townsim.econ.demand import NEEDS, DemandRule, Household, Offering, shop
+from townsim.econ.firm import Cohort, Firm
+from townsim.econ.ledger import Ledger
 from townsim.econ.suppliers import Supplier
-from townsim.town import firms
+from townsim.town import clock, firms
+from townsim.town.entities import Buyer, FirmRow
 
 from town.helpers import delivered, run_week, set_cash, set_order, shops_town, stock
 
@@ -57,17 +60,31 @@ def test_shopping_can_be_undone_exactly():
 def test_shopping_twice_in_a_day_serves_nobody_twice():
     s = stocked(shops_town()); firms.shop_today(s)
     today = [b for b in s.all("buyers") if b.shop_day == 0]
-    assert today and all(b.shopped_on == 0 for b in today)
+    assert today and all(b.shopped_week == 1 for b in today)
     m = s.mark(); h = s.hash()
     firms.shop_today(s)
     assert s.mark() == m and s.hash() == h
 
 
+def test_a_buyer_shops_once_a_week_whatever_its_shop_day_becomes():
+    s = stocked(shops_town()); firms.shop_today(s)
+    monday = [b.id for b in s.all("buyers") if b.shop_day == 0]
+    for b in monday: s.set("buyers", b, S, shop_day=2)
+    s.advance_day(); s.advance_day()
+    n = len(s.ledger.transfers); firms.shop_today(s)
+    assert {t.src for t in s.ledger.transfers[n:]}.isdisjoint(
+        {s.get("buyers", b).account for b in monday if s.get("buyers", b).account != "outside:households"})
+    assert all(s.get("buyers", b).shopped_week == 1 for b in monday)
+    s.set("buyers", monday[0], S, shopped_week=0)   # but a buyer that has not shopped this week does
+    firms.shop_today(s)
+    assert s.get("buyers", monday[0]).shopped_week == 1
+
+
 def test_only_todays_buyers_shop():
     s = stocked(shops_town()); s.advance_day()   # Tuesday
     firms.shop_today(s)
-    assert {b.shop_day for b in s.all("buyers") if b.shopped_on == 1} == {1}
-    assert all(b.shopped_on == -1 for b in s.all("buyers") if b.shop_day != 1)
+    assert {b.shop_day for b in s.all("buyers") if b.shopped_week == 1} == {1}
+    assert all(b.shopped_week == -1 for b in s.all("buyers") if b.shop_day != 1)
     paid = {t.src for t in shopping(s)}
     tuesday = {b.account for b in s.all("buyers") if b.shop_day == 1}
     assert paid and paid <= tuesday
@@ -103,13 +120,14 @@ def test_background_buyers_pay_from_outside_households():
 def test_a_buyer_remembers_where_it_last_bought():
     s = stocked(shops_town()); firms.shop_today(s)
     orgs = {f.org for f in s.all("firms")}
-    bought = [b.last_bought for b in s.all("buyers") if b.shopped_on == 0 and b.last_bought]
+    bought = [b.last_bought for b in s.all("buyers") if b.shopped_week == 1 and b.last_bought]
     assert bought and set(bought) <= orgs
 
 
 _WEEK = """
 from tests.town.helpers import run_week, shops_town
-from townsim.town import firms
+from townsim.town import clock, firms
+from townsim.town.entities import Buyer, FirmRow
 s = shops_town(seed=5)
 firms.deliver(s)
 run_week(s)
@@ -196,20 +214,32 @@ def test_deliveries_come_on_mondays_and_the_week_closes_on_sundays():
     assert s.mark() == m
 
 
-def test_old_stock_is_thrown_away_and_the_week_is_recorded():
+def test_old_stock_perishes_as_in_the_econ_firm_and_the_week_is_recorded():
     s = shops_town()
-    s.set("firms", "fm1", S, stock_units=[5, 7], stock_weeks=[-1, 1], sold=9, turned_stock=2,
-          turned_capacity=3, spoiled=1, first_served=4, first_refused=1, extra_hours=5.0)
+    s.set("firms", "fm1", S, stock_units=[5, 20], stock_weeks=[0, 1], sold=9, turned_stock=2,
+          turned_capacity=3, spoiled=1, first_served=4, first_refused=1, extra_hours=5.0, delivered=20,
+          takings=9000)
+    model = Firm("x", "food", 1000, 0.6, 0.5, 0.75, 1, 60, 0, 0, shelf_life=2,
+                 cohorts=[Cohort(0, 5, 0), Cohort(1, 20, 0)])
+    assert model.perish(1) == 8          # the week-0 cohort is past its last week; 15% of the rest wilts
     for _ in range(6): s.advance_day()
     firms.close_week(s)
     f = s.get("firms", "fm1")
-    assert f.stock_units == [7] and f.stock_weeks == [1]
+    assert f.stock_units == [c.units for c in model.cohorts] == [17] and f.stock_weeks == [1]
     assert (f.sold, f.turned_stock, f.turned_capacity, f.spoiled, f.first_served, f.first_refused,
-            f.extra_hours) == (0, 0, 0, 0, 0, 0, 0.0)
+            f.extra_hours, f.delivered, f.takings) == (0, 0, 0, 0, 0, 0, 0.0, 0, 0)
     [tw] = [t for t in s.all("tills") if t.firm == "fm1"]
     assert (tw.week, tw.price, tw.sold, tw.turned_stock, tw.turned_capacity, tw.spoiled, tw.stock_left,
-            tw.cash) == (1, 1000, 9, 2, 3, 6, 7, s.balance("org3"))
+            tw.cash, tw.delivered, tw.takings) == (1, 1000, 9, 2, 3, 9, 17, s.balance("org3"), 20, 9000)
     assert len(s.all("tills")) == 3
+
+
+def test_a_week_of_trade_is_recorded_in_the_till():
+    s = shops_town(); run_week(s)
+    for f in s.all("firms"):
+        [tw] = [t for t in s.all("tills") if t.firm == f.id]
+        assert tw.takings == sum(t.cents for t in shopping(s) if t.dst == f.org) == tw.sold * tw.price > 0
+        assert tw.delivered == sum(delivered(s, f.id)) > 0
 
 
 def test_reputation_moves_as_the_econ_firm_moves_it():
@@ -240,3 +270,141 @@ def test_a_week_of_trade_can_be_undone_exactly():
     assert s.ledger.total() == 0 and s.all("tills")
     s.undo_to(m)
     assert s.hash() == before
+
+
+def test_deliver_delivers_once_a_week_however_often_it_is_called():
+    s = shops_town(); firms.deliver(s); m = s.mark()
+    firms.deliver(s)
+    assert s.mark() == m and delivered(s, "fm1") == [240]
+    assert {f.delivered_week for f in s.all("firms")} == {1}
+
+
+def test_an_order_is_placed_through_one_door():
+    s = shops_town(); m = s.mark()
+    for sup, units in (("sp9", 10), ("sp1", -1), ("sp1", 5001), ("sp1", 2.5), ("sp1", True)):
+        try:
+            firms.place_order(s, "fm1", sup, units, "routine:t")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError((sup, units))
+    assert s.mark() == m
+    firms.place_order(s, "fm1", "sp2", 50, "routine:t")
+    firms.place_order(s, "fm1", "sp1", 100, "routine:t")       # replaces the first
+    f = s.get("firms", "fm1")
+    assert (f.order_supplier, f.order_units, f.order_cents) == ("sp1", 100, 700)
+
+
+def test_a_placed_order_is_paid_at_the_price_it_was_placed_at():
+    s = shops_town(); set_order(s, "fm1", "sp1", 100)
+    s.set("suppliers", "sp1", S, unit_cents=800)
+    firms.deliver(s)
+    [t] = [t for t in s.ledger.transfers if t.cause == "routine:delivery:fm1"]
+    assert t.cents == 100 * 700
+    f = s.get("firms", "fm1")
+    assert (f.order_supplier, f.order_units, f.order_cents, f.last_supplier, f.last_units) == ("", 0, 0, "sp1", 100)
+
+
+def test_a_repeated_order_is_paid_at_the_price_of_the_day():
+    s = shops_town(); s.set("suppliers", "sp1", S, unit_cents=750)
+    firms.deliver(s)
+    [t] = [t for t in s.ledger.transfers if t.cause == "routine:delivery:fm1"]
+    assert t.cents == 240 * 750
+
+
+def test_ordering_nothing_stops_deliveries_until_an_order_is_placed():
+    s = shops_town(); set_order(s, "fm1", "sp1", 0)
+    run_week(s); firms.deliver(s); run_week(s)
+    assert delivered(s, "fm1") == [] and s.get("firms", "fm1").last_units == 0
+    set_order(s, "fm1", "sp1", 30); run_week(s)
+    assert delivered(s, "fm1") == [30]
+
+
+def test_an_order_from_no_supplier_repeats_last_weeks_and_is_cleared():
+    s = shops_town(); s.set("firms", "fm1", S, order_supplier="sp9", order_units=50, order_cents=700)
+    firms.deliver(s)
+    f = s.get("firms", "fm1")
+    assert delivered(s, "fm1") == [240] and (f.order_supplier, f.order_units) == ("", 0)
+    assert any("sp9" in e for e in s.engine_errors)
+
+
+def test_a_supplier_priced_at_nothing_is_skipped_and_the_rest_delivered():
+    s = shops_town(); s.set("suppliers", "sp2", S, unit_cents=0)
+    firms.deliver(s)
+    assert delivered(s, "fm2") == [] and delivered(s, "fm1") == [240] and delivered(s, "fm3") == [60]
+    assert any("fm2" in e and "sp2" in e for e in s.engine_errors) and s.ledger.total() == 0
+
+
+def test_a_buyer_with_no_account_is_skipped_and_the_rest_shop():
+    s = stocked(shops_town())
+    s.add("buyers", Buyer("by99", "h99", 2, 1.1, 10_000, shop_day=0), S)
+    firms.shop_today(s)
+    assert any("by99" in e for e in s.engine_errors)
+    assert s.get("buyers", "by99").shopped_week == -1 and shopping(s)
+
+
+def test_a_second_buyer_for_a_household_is_skipped():
+    s = stocked(shops_town())
+    s.add("buyers", Buyer("by99", "h1", 2, 1.1, 10_000, shop_day=0), S)
+    firms.shop_today(s)
+    assert any("by99" in e and "h1" in e for e in s.engine_errors)
+    assert s.get("buyers", "by99").shopped_week == -1
+
+
+def test_a_second_food_shop_on_one_organisation_is_skipped():
+    s = stocked(shops_town())
+    s.add("firms", FirmRow("fm9", "org3", "food", 900, 0.9, 0.9, 0.9, 60, 2, stock_units=[100], stock_weeks=[1]), S)
+    units = sum(sum(f.stock_units) for f in s.all("firms"))
+    firms.shop_today(s)
+    assert any("fm9" in e and "org3" in e for e in s.engine_errors)
+    fm9 = s.get("firms", "fm9")
+    assert fm9.stock_units == [100] and fm9.sold == 0
+    sold = sum(f.sold for f in s.all("firms"))
+    assert sum(sum(f.stock_units) for f in s.all("firms")) == units - sold and s.ledger.total() == 0
+
+
+def _econ_twin(s):
+    """The direct econ call equivalent to one `shop_today` for every buyer: households,
+    firms and a real ledger built from the rows."""
+    L = Ledger(); hh = []
+    for b in s.all("buyers"):
+        hid = b.id if b.account == "outside:households" else b.account
+        L.open(hid, allow_credit=b.account == "outside:households")
+        L.accounts[hid].balance = 10**15 if b.account == "outside:households" else s.balance(hid)
+        hh.append(Household(hid, b.size, {"food": b.wtp}, {"food": b.budget}, 0,
+                            {"food": b.last_bought} if b.last_bought else {}))
+    provs = {}
+    for f in s.all("firms"):
+        L.open(f.org); L.accounts[f.org].balance = s.balance(f.org)
+        provs[f.org] = Firm(f.org, "food", f.price, f.quality, f.visibility, f.reputation, staff=f.staff,
+                            units_per_staff=f.units_per_staff, wage=0, fixed_cost=0, shelf_life=f.shelf_weeks,
+                            cohorts=[Cohort(w, u, 0) for u, w in zip(f.stock_units, f.stock_weeks)])
+    L.open("outside:market")
+    offs = [Offering(f.org, f.need, f.price, f.quality, f.visibility) for f in s.all("firms")]
+    shop(L, hh, offs, provs, NEEDS["food"], DemandRule(), clock.week(s.day), 1.0, s.seed, "routine:shopping")
+    return L, hh, provs
+
+
+def test_shopping_in_town_is_exactly_the_econ_rule():
+    for seed in (1, 2, 3, 7):
+        s = shops_town(seed=seed); firms.deliver(s)
+        for i, b in enumerate(s.all("buyers")):
+            s.set("buyers", b.id, S, shop_day=0)
+            if i % 5 == 0: s.set("buyers", b.id, S, last_bought="org4")
+        homes = [b.account for b in s.all("buyers") if b.account != "outside:households"]
+        for account, cents in zip(homes, (1000, 2500, 999)): set_cash(s, account, cents)
+        before = {a: s.balance(a) for a in s.ledger.accounts}
+        L, hh, provs = _econ_twin(s)
+        firms.shop_today(s)
+        for f in s.all("firms"):
+            e, p = provs[f.org].week, provs[f.org]
+            assert (f.sold, f.turned_stock, f.turned_capacity, f.first_served, f.first_refused,
+                    s.balance(f.org) - before[f.org], sum(f.stock_units)) == \
+                (e.sold, e.turned_away_stock, e.turned_away_capacity, e.first_served,
+                 e.first_attempts - e.first_served, L.balance(f.org) - before[f.org], p.stock()), (seed, f.id)
+        for b, h in zip(s.all("buyers"), hh):
+            if b.account != "outside:households":
+                assert s.balance(b.account) - before[b.account] == L.balance(h.id) - before[b.account]
+            assert b.last_bought == h.last_bought.get("food", ""), (seed, b.id)
+        market = s.balance("outside:market") if s.ledger.has("outside:market") else 0
+        assert market == L.balance("outside:market") and sum(f.sold for f in s.all("firms")) > 0

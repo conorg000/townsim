@@ -1,15 +1,18 @@
 """Shops, their suppliers, and shopping by the one rule of demand.
 
 The arithmetic is `townsim.econ`'s: `econ.demand.shop` decides who buys what where,
-`econ.firm.Firm` serves, refuses and moves reputation, `econ.suppliers.Supplier` fills
-orders and drifts its price. This module builds those objects from the store's rows,
-runs them, and writes back what they changed through `Store` methods, so every cent
-moved is in the ledger with a cause, and every change can be undone and replayed.
+`econ.firm.Firm` serves, refuses, perishes stock and moves reputation,
+`econ.suppliers.Supplier` fills orders and drifts its price. This module builds those
+objects from the store's rows, runs them, and writes back what they changed through
+`Store` methods, so every cent moved is in the ledger with a cause, and every change can
+be undone and replayed.
 
 Each day `shop_today` puts the buyers whose shopping day it is through the rule with
-their whole week's wants. On Mondays `deliver` brings each shop its order; on Sundays
-`close_week` throws away old stock, moves reputations and supplier prices, and records
-the week.
+their whole week's wants. On Mondays `deliver` brings each shop its order, once; on
+Sundays `close_week` spoils stock as econ does, moves reputations and supplier prices,
+and records the week. Orders are placed through `place_order` only. None of the three
+daily functions raises: a row they cannot use is skipped with a line in
+`store.engine_errors`, and the rest of the call goes ahead.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from townsim.town.store import Store
 
 NEED = "food"
 HOURS_PER_STAFF = 38.0
+MAX_ORDER = 5000
 OUTSIDE_BUYERS = "outside:households"
 OUT_OF_TOWN = "outside:market"   # where `econ.demand.shop` pays for what is bought out of town
 SHOPPING = "routine:shopping"
@@ -43,6 +47,35 @@ def capacity(store: Store, firm_id: str) -> int:
     """Units the shop can serve in a week: `units_per_staff` for each 38 hours worked."""
     f = store.get("firms", firm_id)
     return int(f.units_per_staff * staff_hours(store, f.org) // HOURS_PER_STAFF)
+
+
+def _error(store: Store, what: str, text: str) -> None:
+    store.engine_errors.append(f"{what} d{store.day}: {text}")
+
+
+def _changed(row: object, **fields: object) -> dict:
+    return {k: v for k, v in fields.items() if getattr(row, k) != v}
+
+
+# --- orders ----------------------------------------------------------------------------
+
+
+def place_order(store: Store, firm_id: str, supplier_id: str, units: int, cause: str) -> None:
+    """Order `units` from `supplier_id` for Monday at the supplier's price now, replacing any
+    order already placed this week. `units == 0` orders nothing, now or repeated later, until
+    an order is placed again. Raises ValueError for an unknown firm or supplier, or units
+    outside 0..5000; nothing changes then."""
+    if not store.has("firms", firm_id):
+        raise ValueError(f"no firm {firm_id!r}")
+    if not isinstance(units, int) or isinstance(units, bool) or not 0 <= units <= MAX_ORDER:
+        raise ValueError(f"units must be a whole number from 0 to {MAX_ORDER}, got {units!r}")
+    if units == 0:
+        store.set("firms", firm_id, cause, order_supplier="", order_units=0, order_cents=0, last_units=0)
+        return
+    if not store.has("suppliers", supplier_id):
+        raise ValueError(f"no supplier {supplier_id!r}")
+    store.set("firms", firm_id, cause, order_supplier=supplier_id, order_units=units,
+              order_cents=store.get("suppliers", supplier_id).unit_cents)
 
 
 # --- the adapter ---------------------------------------------------------------------
@@ -75,16 +108,14 @@ class _Ledger:
         self.sales.append((payer, payee, cents))
 
 
-def _cohorts(row: FirmRow) -> list[Cohort]:
-    return [Cohort(w, u, 0) for u, w in zip(row.stock_units, row.stock_weeks) if u > 0]
-
-
 def _firm(store: Store, row: FirmRow) -> Firm:
     """An `econ.firm.Firm` for the row: its id is the shop's organisation account, and its
-    capacity the week's, so its count of the week's sales is checked against it."""
+    capacity the week's, so its count of the week's sales is checked against it. It keeps
+    econ's own `carry_loss`."""
     f = Firm(row.org, row.need, row.price, row.quality, row.visibility, row.reputation,
              staff=1, units_per_staff=capacity(store, row.id), wage=0, fixed_cost=0,
-             shelf_life=row.shelf_weeks, cohorts=_cohorts(row))
+             shelf_life=row.shelf_weeks,
+             cohorts=[Cohort(w, u, 0) for u, w in zip(row.stock_units, row.stock_weeks) if u > 0])
     f.week = WeekCounters(sold=row.sold, turned_away_stock=row.turned_stock,
                           turned_away_capacity=row.turned_capacity,
                           first_attempts=row.first_served + row.first_refused,
@@ -92,24 +123,59 @@ def _firm(store: Store, row: FirmRow) -> Firm:
     return f
 
 
-def _changed(row: object, **fields: object) -> dict:
-    return {k: v for k, v in fields.items() if getattr(row, k) != v}
-
-
 def _econ_id(b: Buyer) -> str:
     """A background buyer is its own household in econ, so it has its own random stream."""
     return b.id if b.account == OUTSIDE_BUYERS else b.account
 
 
+def _buyers_today(store: Store) -> list[Buyer]:
+    """Today's buyers who have not shopped this week, less any that cannot shop (noted)."""
+    week = clock.week(store.day)
+    first: dict[str, str] = {}          # household account -> its first buyer, by id
+    for b in store.all("buyers"):
+        if b.account != OUTSIDE_BUYERS:
+            first.setdefault(b.account, b.id)
+    out = []
+    for b in store.where("buyers", shop_day=clock.dow(store.day)):
+        if b.shopped_week == week:
+            continue
+        if not store.ledger.has(b.account):
+            _error(store, "shop_today", f"buyer {b.id} pays from {b.account!r}, which is no account; skipped")
+        elif b.account != OUTSIDE_BUYERS and first[b.account] != b.id:
+            _error(store, "shop_today", f"buyer {b.id} is a second buyer for {b.account}; skipped")
+        elif not isinstance(b.size, int) or b.size < 1 or b.budget < 0 or b.wtp < 0:
+            _error(store, "shop_today", f"buyer {b.id} has size {b.size}, budget {b.budget}, wtp {b.wtp}; skipped")
+        else:
+            out.append(b)
+    return out
+
+
+def _shops(store: Store) -> list[FirmRow]:
+    """Food shops that can trade, one per organisation (the first by id), others noted."""
+    out, orgs = [], set()
+    for f in store.all("firms"):
+        if f.need != NEED:
+            continue
+        if f.org in orgs:
+            _error(store, "shop_today", f"{f.id} is a second {NEED} shop for {f.org}; skipped")
+        elif not store.ledger.has(f.org):
+            _error(store, "shop_today", f"{f.id} trades from {f.org!r}, which is no account; skipped")
+        elif f.price <= 0:
+            _error(store, "shop_today", f"{f.id} has price {f.price}; skipped")
+        else:
+            out.append(f)
+        orgs.add(f.org)
+    return out
+
+
 def shop_today(store: Store) -> None:
-    """Every buyer whose `shop_day` is today, and who has not shopped today, buys its week's
-    food by the one rule. One transaction; one transfer per (payer, payee)."""
-    today = clock.dow(store.day)
-    buyers = [b for b in store.where("buyers", shop_day=today) if b.shopped_on != store.day]
+    """Every buyer whose `shop_day` is today, and who has not shopped this week, buys its
+    week's food by the one rule. One transaction; one transfer per (payer, payee)."""
+    buyers = _buyers_today(store)
     if not buyers:
         return
-    spec = NEEDS[NEED]
-    rows = [f for f in store.all("firms") if f.need == NEED]
+    rows = _shops(store)
+    week = clock.week(store.day)
     with store.transaction():
         households, accounts = [], {}
         for b in buyers:
@@ -120,7 +186,7 @@ def shop_today(store: Store) -> None:
         providers = {f.org: _firm(store, f) for f in rows}
         offerings = [Offering(f.org, f.need, f.price, f.quality, f.visibility) for f in rows]
         ledger = _Ledger(store, accounts)
-        shop(ledger, households, offerings, providers, spec, DemandRule(), clock.week(store.day), 1.0,
+        shop(ledger, households, offerings, providers, NEEDS[NEED], DemandRule(), week, 1.0,
              store.seed, SHOPPING)
         totals: dict[tuple[str, str], list[int]] = {}
         for payer, payee, cents in ledger.sales:
@@ -133,14 +199,16 @@ def shop_today(store: Store) -> None:
             memo = f"{NEED} out of town x{units}" if payee == OUT_OF_TOWN else f"{NEED} x{units}"
             store.transfer(payer, payee, cents, memo, SHOPPING)
         for b, hh in zip(buyers, households):
-            store.set("buyers", b.id, SHOPPING, shopped_on=store.day,
+            store.set("buyers", b.id, SHOPPING, shopped_week=week,
                       **_changed(b, last_bought=hh.last_bought.get(NEED, "")))
         for row in rows:
             f = providers[row.org]
             w = f.week
+            taken = sum(c for (_, payee), (c, _) in totals.items() if payee == row.org)
             fields = _changed(row, stock_units=[c.units for c in f.cohorts], stock_weeks=[c.week for c in f.cohorts],
                               sold=w.sold, turned_stock=w.turned_away_stock, turned_capacity=w.turned_away_capacity,
-                              first_served=w.first_served, first_refused=w.first_attempts - w.first_served)
+                              first_served=w.first_served, first_refused=w.first_attempts - w.first_served,
+                              takings=row.takings + taken)
             if fields:
                 store.set("firms", row.id, SHOPPING, **fields)
 
@@ -149,33 +217,54 @@ def shop_today(store: Store) -> None:
 
 
 def _supplier(row: SupplierRow) -> Supplier:
-    return Supplier(row.id, row.base_cents or row.unit_cents, row.unit_cents, row.reliability,
-                    row.short_low, row.short_high)
+    return Supplier(row.id, row.base_cents, row.unit_cents, row.reliability, row.short_low, row.short_high)
+
+
+def _order(store: Store, row: FirmRow) -> tuple[str, int, int] | None:
+    """The supplier, units and unit price of Monday's delivery to `row`, or None."""
+    if row.order_units > 0:
+        if store.has("suppliers", row.order_supplier):
+            return row.order_supplier, row.order_units, row.order_cents
+        _error(store, "deliver", f"{row.id} ordered from {row.order_supplier!r}, which is no supplier; "
+                                 "last week's order repeated")
+    if row.last_units <= 0 or not row.last_supplier:
+        return None
+    if not store.has("suppliers", row.last_supplier):
+        _error(store, "deliver", f"{row.id} repeats an order from {row.last_supplier!r}, which is no supplier; skipped")
+        return None
+    return row.last_supplier, row.last_units, store.get("suppliers", row.last_supplier).unit_cents
 
 
 def deliver(store: Store) -> None:
-    """Monday: each shop gets the order placed since last Monday, or last week's again,
-    as far as the supplier fills it and the shop can pay for it, paid on delivery."""
+    """Monday, once a week: each shop gets the order placed since last Monday at the price it
+    was placed at, or last week's again at today's price, as far as the supplier fills it and
+    the shop can pay for it, paid on delivery."""
     if clock.dow(store.day) != 0:
         return
     week = clock.week(store.day)
     with store.transaction():
         for row in store.all("firms"):
-            cause = f"routine:delivery:{row.id}"
-            if row.order_units > 0 and row.order_supplier:
-                sid, units = row.order_supplier, row.order_units
-            else:
-                sid, units = row.last_supplier, row.last_units
-            if not sid or units <= 0 or not store.has("suppliers", sid):
+            if row.delivered_week == week:
                 continue
-            sp = store.get("suppliers", sid)
-            got = _supplier(sp).fill(units, random.Random(f"fill:{store.seed}:{week}:{row.id}"))
-            got = min(got, max(0, store.balance(row.org)) // sp.unit_cents)
-            fields: dict = dict(last_supplier=sid, last_units=units, order_units=0)
-            if got > 0:
-                store.transfer(row.org, sp.org, got * sp.unit_cents,
-                               f"{got} units from {store.get('orgs', sp.org).name}", cause)
-                fields.update(stock_units=[*row.stock_units, got], stock_weeks=[*row.stock_weeks, week])
+            cause = f"routine:delivery:{row.id}"
+            fields: dict = dict(delivered_week=week, order_supplier="", order_units=0, order_cents=0)
+            order = _order(store, row)
+            if order is not None:
+                sid, units, cents = order
+                sp = store.get("suppliers", sid)
+                if cents <= 0:
+                    _error(store, "deliver", f"{row.id}: {sid} is priced at {cents} cents; skipped")
+                elif not store.ledger.has(row.org) or not store.ledger.has(sp.org):
+                    _error(store, "deliver", f"{row.id}: no account for {row.org} or {sp.org}; skipped")
+                else:
+                    got = _supplier(sp).fill(units, random.Random(f"fill:{store.seed}:{week}:{row.id}"))
+                    got = min(got, max(0, store.balance(row.org)) // cents)
+                    fields.update(last_supplier=sid, last_units=units)
+                    if got > 0:
+                        name = store.get("orgs", sp.org).name if store.has("orgs", sp.org) else sp.org
+                        store.transfer(row.org, sp.org, got * cents, f"{got} units from {name}", cause)
+                        fields.update(stock_units=[*row.stock_units, got], stock_weeks=[*row.stock_weeks, week],
+                                      delivered=row.delivered + got)
             fields = _changed(row, **fields)
             if fields:
                 store.set("firms", row.id, cause, **fields)
@@ -185,27 +274,31 @@ def deliver(store: Store) -> None:
 
 
 def close_week(store: Store) -> None:
-    """Sunday: old stock is thrown away, reputations and supplier prices move, each shop's
-    week is recorded, and its counters and extra hours return to 0."""
+    """Sunday: stock perishes as `econ.firm.Firm.perish` has it, reputations and supplier
+    prices move, each shop's week is recorded, and its counters and extra hours return to 0."""
     if clock.dow(store.day) != 6:
         return
     week = clock.week(store.day)
     with store.transaction():
         for row in store.all("firms"):
-            keep = [(u, w) for u, w in zip(row.stock_units, row.stock_weeks) if week - w < row.shelf_weeks]
-            thrown = sum(row.stock_units) - sum(u for u, _ in keep)
-            spoiled = row.spoiled + thrown
             f = _firm(store, row)
+            spoiled = row.spoiled + f.perish(week)
             f.update_reputation()
+            stock_left = f.stock()
             store.add("tills", TillWeek(store.new_id("tw", CLOSE), row.id, week, row.price, row.sold,
-                                        row.turned_stock, row.turned_capacity, spoiled,
-                                        sum(u for u, _ in keep), store.balance(row.org)), CLOSE)
-            fields = _changed(row, stock_units=[u for u, _ in keep], stock_weeks=[w for _, w in keep],
+                                        row.turned_stock, row.turned_capacity, spoiled, stock_left,
+                                        store.balance(row.org) if store.ledger.has(row.org) else 0,
+                                        row.delivered, row.takings), CLOSE)
+            fields = _changed(row, stock_units=[c.units for c in f.cohorts], stock_weeks=[c.week for c in f.cohorts],
                               reputation=round(f.reputation, _PLACES), sold=0, turned_stock=0,
-                              turned_capacity=0, spoiled=0, first_served=0, first_refused=0, extra_hours=0.0)
+                              turned_capacity=0, spoiled=0, first_served=0, first_refused=0, extra_hours=0.0,
+                              delivered=0, takings=0)
             if fields:
                 store.set("firms", row.id, CLOSE, **fields)
         for sp in store.all("suppliers"):
+            if sp.base_cents <= 0 or sp.unit_cents <= 0:
+                _error(store, "close_week", f"{sp.id} has price {sp.unit_cents} and base {sp.base_cents}; no drift")
+                continue
             model = _supplier(sp)
             model.drift(random.Random(f"drift:{store.seed}:{week}:{sp.id}"))
             fields = _changed(sp, unit_cents=model.price, reliability=round(model.p_full, _PLACES))

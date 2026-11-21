@@ -135,13 +135,8 @@ def shops_town(seed: int = 1) -> Store:
         s.add("firms", FirmRow(fid, org, "food", price=1000, quality=0.6, visibility=0.5, reputation=0.75,
                                units_per_staff=60, shelf_weeks=2, last_supplier=supplier, last_units=units,
                                staff=staff), "routine:setup")
-    for org, name, cents, reliability, low, high in (("org6", "Vale Wholesale", 700, 1.0, 0.85, 0.95),
-                                                     ("org7", "Cheap Van Foods", 665, 0.7, 0.2, 0.65)):
-        s.open_account(org, "routine:setup")
-        s.add("orgs", Org(org, name, "supplier", outside=True), "routine:setup")
-        sid = s.new_id("sp", "routine:setup")
-        s.add("suppliers", SupplierRow(sid, org, cents, reliability, base_cents=cents, short_low=low,
-                                       short_high=high), "routine:setup")
+    add_supplier(s, "org6", "Vale Wholesale", 700, 1.0, 0.85, 0.95)
+    add_supplier(s, "org7", "Cheap Van Foods", 665, 0.7, 0.2, 0.65)
     accounts = [h.id for h in s.all("households")] + ["outside:households"] * 40
     for n, account in enumerate(accounts):
         size = len(s.get("households", account).members) if account != "outside:households" else \
@@ -150,8 +145,6 @@ def shops_town(seed: int = 1) -> Store:
         budget = round(spec.wants_per_person * size ** spec.size_exponent * spec.ref_price * spec.budget_factor)
         bid = s.new_id("by", "routine:setup")
         s.add("buyers", Buyer(bid, account, size, wtp, budget, shop_day=n % 7), "routine:setup")
-        if account != "outside:households":
-            s.set("households", account, "routine:setup", shop_day=n % 7)
     return s
 
 
@@ -164,8 +157,20 @@ def set_cash(s: Store, account: str, cents: int) -> None:
         s.transfer(account, "outside:employers", -gap, "set cash", "routine:setup")
 
 
+def add_supplier(s: Store, org: str, name: str, cents: int, reliability: float, low: float, high: float,
+                 base_cents: int | None = None) -> str:
+    """An outside organisation `org` and a supplier trading from it, whose price drifts back
+    towards `base_cents` (its price today unless given)."""
+    s.open_account(org, "routine:setup")
+    s.add("orgs", Org(org, name, "supplier", outside=True), "routine:setup")
+    sid = s.new_id("sp", "routine:setup")
+    s.add("suppliers", SupplierRow(sid, org, cents, reliability, base_cents=cents if base_cents is None else base_cents,
+                                   short_low=low, short_high=high), "routine:setup")
+    return sid
+
+
 def set_order(s: Store, firm: str, supplier: str, units: int) -> None:
-    s.set("firms", firm, "routine:setup", order_supplier=supplier, order_units=units)
+    firms.place_order(s, firm, supplier, units, "routine:setup")
 
 
 def stock(s: Store, firm: str) -> int:
@@ -178,8 +183,9 @@ def delivered(s: Store, firm: str) -> list[int]:
 
 
 def run_week(s: Store) -> None:
-    """Seven days of shopping and Sunday's close, from whatever day it is, without deliveries."""
+    """Seven days of Monday's delivery, shopping and Sunday's close, from whatever day it is."""
     for _ in range(7):
+        firms.deliver(s)
         firms.shop_today(s)
         firms.close_week(s)
         s.advance_day()
