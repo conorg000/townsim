@@ -104,9 +104,9 @@ def test_worst_case():
     fam = Family("a", "cheap/one", {"max_tokens": 1200})
     messages = [{"role": "system", "content": "x" * 1000}, {"role": "user", "content": "y" * 2000}]
     price = Price(input_per_mtok=0.10, output_per_mtok=0.50)
-    assert families.worst_case(fam, price, messages) == pytest.approx(((1000 + 2 * 4) * 0.10 + 1200 * 0.50) / 1e6)
+    assert families.worst_case(fam, price, messages) == pytest.approx(1.5 * ((1000 + 2 * 4) * 0.10 + 1200 * 0.50) / 1e6)
     assert families.worst_case(fam, price, [{"role": "user", "content": "abcd"}]) == pytest.approx(
-        ((2 + 4) * 0.10 + 1200 * 0.50) / 1e6)                   # ceil(4 / 3) tokens in, and 4 for the message
+        1.5 * ((2 + 4) * 0.10 + 1200 * 0.50) / 1e6)             # ceil(4 / 3) tokens in, 4 for the message; half again for billing
 
 
 def test_shipped_files_load():

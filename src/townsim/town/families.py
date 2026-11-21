@@ -139,10 +139,16 @@ def input_tokens(messages: list[dict]) -> int:
     return math.ceil(sum(len(str(m.get("content") or "")) for m in messages) / 3)
 
 
+# What is billed for a call runs above the listed price times the tokens the reply reports:
+# by 0% to 25% across the four families in the first live week (2026-11-23), since a provider
+# may count tokens its own way or route to a dearer host. A worst case allows half as much again.
+BILLED_MARGIN = 1.5
+
+
 def worst_case(family: Family, price: Price, messages: list[dict]) -> float:
     """Dollars one attempt at a call with `messages` costs at most, if the provider keeps to
     `max_tokens`: `input_tokens(messages)` plus 4 per message in, and the family's
-    `max_tokens` out, at `price`."""
+    `max_tokens` out, at `price`, times `BILLED_MARGIN`."""
     tokens_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
     tokens_out = family.params["max_tokens"]
-    return (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+    return BILLED_MARGIN * (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
