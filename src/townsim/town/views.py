@@ -8,8 +8,9 @@ how their trade works; what is on their mind; their notes; their hours; the oper
 
 The inbox shows the three most pressing letters and notices in full (closest ties first, a
 notice ranking with the household, then oldest) and counts the rest, which stay unseen;
-requests waiting are shown three at a time in the same order. A view is at most 1,200 words,
-system and user together, where giving way can achieve it. Building a view changes nothing.
+requests waiting are shown three at a time in the same order. A view is about 1,200 words on
+an ordinary day and never over 2,000, system and user together (see `layout`). Building a
+view changes nothing.
 """
 
 from __future__ import annotations
@@ -23,15 +24,19 @@ from townsim.town.acts import accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
 from townsim.town.obligations import money
-from townsim.town.statement import line_rows, statement, statement_text
+from townsim.town.facts import cut_words as _cut
+from townsim.town.statement import statement
 from townsim.town.store import Store, id_key
 
 MAX_WORDS = 1200
+CEILING = 2000
 STATEMENT_LINES = 25
 IN_FULL = 3
 PEOPLE_KEPT = 6
-RESULTS_SHOWN = 6
-RESULT_WORDS = 40
+RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
+RESULT_WORDS = 30
+UNKNOWN_LINES = 3
+NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
 READ_CUT = 120
 LETTER_CUT = 100
@@ -92,12 +97,22 @@ def inbox(store: Store, pid: str) -> tuple[list, int, str]:
     return rows[:IN_FULL], len(rows[IN_FULL:]), _counted(rows[IN_FULL:])
 
 
-def _item_text(store: Store, row: Any, words: int | None = None) -> str:
+def _item_lines(store: Store, row: Any, words: int | None = None) -> list[str]:
+    """A notice; or a letter, `From <name>: <text>` (cut to `words`), and beneath it a line
+    for each name in the part shown that the reader does not know (at most three)."""
     if not isinstance(row, Message):
-        return row.text
-    lines = [f"From {_letter_head(store, row)}: {_cut(row.text, words)}"]
-    lines += [f"({name} is not someone you know.)" for name in row.unknown]
-    return "\n".join(lines)
+        return [row.text]
+    shown = _cut(row.text, words)
+    lines = [f"From {_letter_head(store, row)}: {shown}"]
+    names = [n for n in row.unknown if n in shown]
+    lines += [f"({n} is not someone you know.)" for n in names[:UNKNOWN_LINES]]
+    if len(names) > UNKNOWN_LINES:
+        lines.append(f"({len(names) - UNKNOWN_LINES} more names in it are not people you know.)")
+    return lines
+
+
+def _item_text(store: Store, row: Any, words: int | None = None) -> str:
+    return "\n".join(_item_lines(store, row, words))
 
 
 def _wakes(result) -> bool:
@@ -117,24 +132,13 @@ def has_news(store: Store, pid: str) -> bool:
     return pid in with_news(store)
 
 
-def _cut(text: str, n: int | None) -> str:
-    """`text` up to its `n`th word, with `…` after it if anything was left out; whitespace
-    and line breaks kept as they were."""
-    if n is None:
-        return text
-    found = list(re.finditer(r"\S+", text))
-    if len(found) <= n:
-        return text
-    return text[:found[n - 1].end()] + "\u2026" if n > 0 else "\u2026"
-
-
 def _is_read(result) -> bool:
     return result.ok and result.op.strip().lower() == "read"
 
 
 class _Results(NamedTuple):
-    """The results shown (id, row), newest six oldest first; the ids of older ones passed
-    over; and which shown one is the latest `read`."""
+    """The results shown, the newest nine oldest first; the ids of older ones passed over;
+    and which shown one is the latest `read`."""
 
     shown: list
     passed: list[str]
@@ -148,13 +152,24 @@ def _results(store: Store, pid: str) -> _Results:
     return _Results(shown, passed, reads[-1] if reads else None)
 
 
+_CODE_ID = re.compile(r"\([a-z]+\d+\)")
+
+
 def _result_text(r, latest_read: str | None, read_words: int) -> str:
-    """`<op>: <text>`, each line after the first indented; cut to 40 words, or for the latest
-    read to `read_words`; an older read is `<op>: shown before`."""
+    """`<op>: <text>`, each line after the first indented. The latest read is cut to
+    `read_words`; an older read in the same batch is not shown; anything else is cut to 30
+    words, keeping any id in parentheses that code wrote."""
     if _is_read(r) and r.id != latest_read:
-        return f"{r.op}: shown before"
-    words = read_words if r.id == latest_read else RESULT_WORDS
-    return _cut(f"{r.op}: {r.text}", words).replace("\n", "\n  ")
+        return f"{r.op}: not shown, a later read follows"
+    full = f"{r.op}: {r.text}"
+    if r.id == latest_read:
+        text = _cut(full, read_words)
+    else:
+        text = _cut(full, RESULT_WORDS)
+        missing = [i for i in _CODE_ID.findall(full) if i not in text]
+        if missing:
+            text = _cut(full, max(1, RESULT_WORDS - len(missing))) + " " + " ".join(dict.fromkeys(missing))
+    return text.replace("\n", "\n  ")
 
 
 def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list:
@@ -164,13 +179,11 @@ def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list
     return [rq for rq in rows if not rq.seen] + [rq for rq in rows if rq.seen]
 
 
-def _request_text(store: Store, rq, words: int | None) -> str:
+def _request_lines(store: Store, rq, words: int | None) -> list[str]:
     text = f"{rq.id} from {name_of_who(store, rq.sender)}: {_cut(rq.text, words)}"
     if rq.cents > 0:
         text += f" They ask you for {money(rq.cents)}."
-    if rq.summary:
-        text += f"\n  {rq.summary}"
-    return text
+    return [text] + ([f"  {rq.summary}"] if rq.summary else [])
 
 
 def _hours(h: float) -> str:
@@ -181,12 +194,12 @@ def _hours(h: float) -> str:
 
 
 class _Parts(NamedTuple):
-    """Everything a user message is made of, built once; `_user` lays out a trimmed choice."""
+    """Everything a user message is made of, built once."""
 
     results: _Results
     business: list[str]           # the business with two, one and no till weeks: [full, ..]
     book: str
-    owed: str
+    accounts: list[str]
     items: list[Any]              # inbox rows, most pressing first
     waiting: list                 # open requests, in the order they are shown
     people: list[str]
@@ -203,6 +216,7 @@ class _Choice(NamedTuple):
     statement: Any
     people: int
     business: str
+    owed: int
     in_full: int
     requests: int
     letter_words: int | None = None
@@ -210,9 +224,24 @@ class _Choice(NamedTuple):
     read_words: int = READ_WORDS
 
 
+class _Sec(NamedTuple):
+    """A section: its heading (None for a line on its own), its lines each with the id of the
+    item it belongs to (or None), how many leading lines may never go, and whether it may lose
+    lines at all."""
+
+    head: str | None
+    lines: list[tuple[str, str | None]]
+    keep: int = 0
+    fixed: bool = False
+
+    def text(self) -> str:
+        return "\n".join(([self.head] if self.head else []) + [t for t, _ in self.lines])
+
+
 class Layout(NamedTuple):
     """A view laid out: its two messages, the ids shown in full (and results passed over),
-    and the steps of giving way that were taken, in order, as letters `a` to `g`."""
+    and the steps of giving way that were taken, in order: `statement`, `people`, `till`,
+    `owed`, `inbox`, `requests`, `cut`, `read`, and `guard` for the last guard."""
 
     system: str
     user: str
@@ -220,15 +249,14 @@ class Layout(NamedTuple):
     steps: list[str]
 
 
-def _owed(store: Store, pid: str) -> str:
+def _owed(store: Store, accounts: list[str], most: int) -> list[str]:
     """`facts.owed_lines` for the household, then under its name for each business."""
-    accounts = accounts_of(store, pid)
-    blocks = facts.owed_lines(store, accounts[0])
+    lines = facts.owed_lines(store, accounts[0], most)
     for org in accounts[1:]:
-        lines = facts.owed_lines(store, org)
-        if lines:
-            blocks += [name_of_who(store, org)] + lines
-    return "\n".join(blocks)
+        more = facts.owed_lines(store, org, most)
+        if more:
+            lines += [name_of_who(store, org)] + more
+    return lines
 
 
 def _parts(store: Store, pid: str) -> _Parts:
@@ -237,79 +265,124 @@ def _parts(store: Store, pid: str) -> _Parts:
     weeks = facts.till_weeks(store, pid)
     business = [facts.business(store, pid, weeks=w) for w in range(weeks, -1, -1)] if weeks else \
         [facts.business(store, pid)]
-    return _Parts(_results(store, pid), business, facts.bank_book(store, pid), _owed(store, pid),
+    return _Parts(_results(store, pid), business, facts.bank_book(store, pid), accounts_of(store, pid),
                   _unseen(store, pid, rank), _waiting(store, pid, rank),
                   facts.people_lines(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
                   person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid))
 
 
-def _user(store: Store, parts: _Parts, c: _Choice) -> str:
-    sections = [f"TODAY: {date_text(store.day)}."]
+def _plain(text: str) -> list[tuple[str, str | None]]:
+    return [(line, None) for line in text.split("\n")] if text else []
+
+
+def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
+    out = [_Sec(None, [(f"TODAY: {date_text(store.day)}.", None)], fixed=True)]
     res = parts.results
     if res.shown:
         rows = [f"({len(res.passed)} earlier results not shown)"] if res.passed else []
         rows += [_result_text(r, res.latest_read, c.read_words) for r in res.shown]
-        sections.append("WHAT CAME OF YOUR LAST ACTS\n" + "\n".join(rows))
-    sections.append("YOUR HOUSEHOLD'S ACCOUNT\n" + statement_text(store, c.statement))
+        out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", _plain("\n".join(rows)), fixed=True))
+    out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _plain(facts.statement_lines(store, c.statement))))
     if parts.book:
-        sections.append("THE BANK'S BOOK\n" + parts.book)
+        out.append(_Sec("THE BANK'S BOOK", _plain(parts.book)))
     if c.business:
-        sections.append("YOUR BUSINESS\n" + c.business)
-    if parts.owed:
-        sections.append("WHAT IS OWED\n" + parts.owed)
+        out.append(_Sec("YOUR BUSINESS", _plain(c.business)))
+    owed = _owed(store, parts.accounts, c.owed)
+    if owed:
+        out.append(_Sec("WHAT IS OWED", _plain("\n".join(owed))))
     if parts.items:
-        rows = [_item_text(store, r, c.letter_words if i == 0 else None) for i, r in enumerate(parts.items[:c.in_full])]
+        rows = [(line, r.id) for i, r in enumerate(parts.items[:c.in_full])
+                for line in _item_lines(store, r, c.letter_words if i == 0 else None)]
         counted = _counted(parts.items[c.in_full:])
-        sections.append("LETTERS AND NOTICES\n" + "\n".join(rows + ([counted] if counted else [])))
+        out.append(_Sec("LETTERS AND NOTICES", rows + ([(counted, None)] if counted else [])))
     if parts.waiting:
-        rows = [_request_text(store, rq, c.request_words if i == 0 else None)
-                for i, rq in enumerate(parts.waiting[:c.requests])]
+        rows = [(line, rq.id) for i, rq in enumerate(parts.waiting[:c.requests])
+                for line in _request_lines(store, rq, c.request_words if i == 0 else None)]
         more = len(parts.waiting) - c.requests
-        rows += [f"({more} more requests waiting)"] if more else []
-        sections.append("WAITING FOR YOUR ANSWER\n" + "\n".join(rows))
+        keep = len(_request_lines(store, parts.waiting[0], c.request_words))
+        out.append(_Sec("WAITING FOR YOUR ANSWER", rows + ([(f"({more} more requests waiting)", None)] if more else []),
+                        keep=keep))
     if parts.people[:c.people]:
-        sections.append("PEOPLE YOU KNOW\n" + "\n".join(parts.people[:c.people]))
+        out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(parts.people[:c.people]))))
     if parts.knowhow:
-        sections.append("HOW THINGS WORK\n" + "\n".join(parts.knowhow))
+        out.append(_Sec("HOW THINGS WORK", _plain("\n".join(parts.knowhow))))
     if parts.mind:
-        sections.append("ON YOUR MIND\n" + "\n".join(parts.mind))
+        out.append(_Sec("ON YOUR MIND", _plain("\n".join(parts.mind))))
     if parts.notes:
-        sections.append("YOUR NOTES\n" + parts.notes)
-    sections.append(f"You have {parts.hours} hours left this week.")
-    sections.append("OPERATIONS\n" + "\n".join(parts.operations))
-    return "\n\n".join(sections)
+        out.append(_Sec("YOUR NOTES", _plain(parts.notes)))
+    out.append(_Sec(None, [(f"You have {parts.hours} hours left this week.", None)], fixed=True))
+    out.append(_Sec("OPERATIONS", _plain("\n".join(parts.operations)), fixed=True))
+    return out
 
 
-def _system(store: Store, pid: str) -> str:
-    return f"{facts.who(store, pid)}\n\n{REPLY_FORM}"
+def _render(secs: list[_Sec]) -> str:
+    return "\n\n".join(s.text() for s in secs)
+
+
+def _guard(secs: list[_Sec], room: int) -> tuple[list[_Sec], set[str], bool]:
+    """While the user message is `room` words or more, take whole lines (a whole letter,
+    notice or request at a time) from the end of the longest section that may lose them, and
+    end it with `(not everything is shown today)`. Returns the sections, the ids of what was
+    taken, and whether anything was."""
+    secs = list(secs)
+    taken: set[str] = set()
+    fired = False
+    while _words(_render(secs)) >= room:
+        open_ = [i for i, s in enumerate(secs) if not s.fixed and
+                 len([ln for ln in s.lines if ln[0] != NOT_ALL]) > s.keep]
+        if not open_:
+            break
+        i = max(open_, key=lambda k: (_words(secs[k].text()), -k))
+        s = secs[i]
+        lines = [ln for ln in s.lines if ln[0] != NOT_ALL]
+        _, owner = lines[-1]
+        if owner is None:
+            lines = lines[:-1]
+        else:
+            first = next(k for k, ln in enumerate(lines) if ln[1] == owner)
+            if first < s.keep:
+                lines = lines[:-1]          # never within the lines that must stay
+            else:
+                lines = lines[:first]
+                taken.add(owner)
+        secs[i] = s._replace(lines=lines + [(NOT_ALL, None)])
+        fired = True
+    return secs, taken, fired
 
 
 def layout(store: Store, pid: str) -> Layout:
-    """The view of `pid`, about 1,200 words together on an ordinary day and never near 2,000.
+    """The view of `pid`: about 1,200 words on an ordinary day, never over 2,000.
 
-    Everything is built once, then laid out again only as each step of giving way needs.
-    While the whole is over 1,200 words, and each only as far as needed: (a) the household
-    statement's in-and-out lines, oldest first, down to none (a line counting them appears);
-    (b) the people known, down to the six closest; (c) the business's second till week;
-    (d) the third and second letters or notices move to the counted line and wait unseen;
-    (e) the third and second requests move to a counted line and wait unseen; (f) the one
-    letter left is cut to 100 words and the one request left to 60; (g) the latest `read`
-    result is cut to 120 words. What is written is already limited where it is made (a letter
-    150 words, a request 80, notes 150, an aim 20), so what is left stays under 2,000."""
+    What anyone writes is limited where it is written (a letter 150 words, a request 80,
+    notes 150, an aim 20, a payment's note 12), and everything a view shows from the store is
+    bounded: memos are cut to labels, upcoming payments are counted past ten going out and six
+    coming in, results past nine, what is owed past eight a line, names not known past three
+    a letter. Everything is built once, then laid out again only as each step of giving way
+    needs. While the whole is over 1,200 words, and each only as far as needed: the household
+    statement's in-and-out lines, oldest first, down to none (`statement`); the people known,
+    down to the six closest (`people`); the business's second till week (`till`); what is
+    owed, down to four lines an account (`owed`); the third and second letters or notices,
+    which move to the counted line and wait unseen (`inbox`); the third and second requests,
+    likewise (`requests`); the one letter left cut to 100 words and the one request to 60
+    (`cut`); the latest read result cut to 120 words (`read`). If the whole is still 2,000
+    words or more, the last guard (`guard`) takes whole lines from the end of the longest
+    section that may lose them until it is under 2,000, and ends that section with
+    `(not everything is shown today)`; the date, the results, the first request, the hours
+    and the operations never go, and what it takes in full is not counted as shown."""
     system = _system(store, pid)
     parts = _parts(store, pid)
     st = statement(store, store.get("people", pid).household, ahead=facts.AHEAD, max_lines=STATEMENT_LINES)
-    c = _Choice(st, len(parts.people), parts.business[0], min(IN_FULL, len(parts.items)),
+    c = _Choice(st, len(parts.people), parts.business[0], facts.OWED_LINES, min(IN_FULL, len(parts.items)),
                 min(IN_FULL, len(parts.waiting)))
     base = _words(system)
     steps: list[str] = []
 
     def over(choice: _Choice) -> int:
-        return base + _words(_user(store, parts, choice)) - MAX_WORDS
+        return base + _words(_render(_sections(store, parts, choice))) - MAX_WORDS
 
     left = over(c)
-    if left > 0 and st.lines:                                                     # (a)
-        sizes = [_words(row) for row in line_rows(store, st.lines)]
+    if left > 0 and st.lines:
+        sizes = [_words(row) for row in facts.transfer_rows(store, st.lines)]
         note = _words(f"({st.earlier + 1} earlier lines not shown)") if st.earlier == 0 else 0
         drop, saved = 0, -note
         while drop < len(sizes) and saved < left:
@@ -317,35 +390,44 @@ def layout(store: Store, pid: str) -> Layout:
             drop += 1
         if saved > 0:
             c = c._replace(statement=st._replace(lines=st.lines[drop:], earlier=st.earlier + drop))
-            steps.append("a")
+            steps.append("statement")
             left = over(c)
-    if left > 0 and c.people > PEOPLE_KEPT:                                       # (b)
-        sizes = [_words(p) for p in reversed(parts.people[PEOPLE_KEPT:])]
-        cut = _needed(sizes, left)
-        c = c._replace(people=c.people - cut)
-        steps.append("b")
+    if left > 0 and c.people > PEOPLE_KEPT:
+        c = c._replace(people=c.people - _needed([_words(p) for p in reversed(parts.people[PEOPLE_KEPT:])], left))
+        steps.append("people")
         left = over(c)
-    if left > 0 and len(parts.business) > 2:                                      # (c)
+    if left > 0 and len(parts.business) > 2:
         c = c._replace(business=parts.business[1])
-        steps.append("c")
+        steps.append("till")
         left = over(c)
-    for field in ("in_full", "requests"):                                        # (d), (e)
+    if left > 0 and _owed(store, parts.accounts, facts.OWED_KEPT) != _owed(store, parts.accounts, c.owed):
+        c = c._replace(owed=facts.OWED_KEPT)
+        steps.append("owed")
+        left = over(c)
+    for field, step in (("in_full", "inbox"), ("requests", "requests")):
         if left > 0 and getattr(c, field) > 1:
-            steps.append("d" if field == "in_full" else "e")
+            steps.append(step)
             while left > 0 and getattr(c, field) > 1:
                 c = c._replace(**{field: getattr(c, field) - 1})
                 left = over(c)
-    if left > 0 and (c.in_full and isinstance(parts.items[0], Message) or c.requests):   # (f)
+    if left > 0 and (c.in_full and isinstance(parts.items[0], Message) or c.requests):
         c = c._replace(letter_words=LETTER_CUT, request_words=REQUEST_CUT)
-        steps.append("f")
+        steps.append("cut")
         left = over(c)
-    if left > 0 and parts.results.latest_read is not None:                       # (g)
+    if left > 0 and parts.results.latest_read is not None:
         c = c._replace(read_words=READ_CUT)
-        steps.append("g")
-    user = _user(store, parts, c)
-    ids = ([r.id for r in parts.results.shown] + parts.results.passed + [r.id for r in parts.items[:c.in_full]]
-           + [rq.id for rq in parts.waiting[:c.requests]])
-    return Layout(system, user, ids, steps)
+        steps.append("read")
+        left = over(c)
+    secs = _sections(store, parts, c)
+    taken: set[str] = set()
+    if left + MAX_WORDS >= CEILING:
+        secs, taken, fired = _guard(secs, CEILING - base)
+        if fired:
+            steps.append("guard")
+    ids = ([r.id for r in parts.results.shown] + parts.results.passed
+           + [r.id for r in parts.items[:c.in_full] if r.id not in taken]
+           + [rq.id for rq in parts.waiting[:c.requests] if rq.id not in taken])
+    return Layout(system, _render(secs), ids, steps)
 
 
 def _needed(sizes: list[int], over: int) -> int:
@@ -357,6 +439,10 @@ def _needed(sizes: list[int], over: int) -> int:
         if saved >= over:
             return n
     return len(sizes)
+
+
+def _system(store: Store, pid: str) -> str:
+    return f"{facts.who(store, pid)}\n\n{REPLY_FORM}"
 
 
 def view(store: Store, pid: str) -> tuple[list[dict], list[str]]:

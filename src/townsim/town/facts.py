@@ -12,6 +12,7 @@ nothing here changes the store.
 from __future__ import annotations
 
 import dataclasses
+import re
 from datetime import timedelta
 
 from townsim.econ.firm import Firm
@@ -262,7 +263,7 @@ def _work(store: Store, pid: str) -> list[str]:
         wages = {j.wage_ob for j in store.all("jobs")}
         for o in _active(store, payee=home):
             if o.kind == "wage" and o.id not in wages and not store.has("households", o.payer):
-                lines.append(f"Your household is paid {o.memo}: {money(o.cents)} a week, on {_payday(o)}.")
+                lines.append(f"Your household is paid {memo(o.memo)}: {money(o.cents)} a week, on {_payday(o)}.")
     return lines
 
 
@@ -280,12 +281,12 @@ def _debts(store: Store, pid: str) -> list[tuple[int, str]]:
     rows = []
     for o in _active(store, payer=h):
         if o.last is not None and not (o.kind == "loan" and o.memo.startswith("mortgage")):
-            rows.append((o.cents, f"Your household owes {_the(name_of(store, o.payee))}: {o.memo}, {money(o.cents)} a "
-                                  f"week, the last payment on {when(o.last)}."))
+            rows.append((o.cents, f"Your household owes {_the(name_of(store, o.payee))}: {memo(o.memo)}, "
+                                  f"{money(o.cents)} a week, the last payment on {when(o.last)}."))
     for o in _active(store, payee=h):
         if o.last is not None:
             rows.append((o.cents, f"{_the(name_of(store, o.payer), True)} owes your household: "
-                                  f"{o.memo}, {money(o.cents)} a week, the last payment on {when(o.last)}."))
+                                  f"{memo(o.memo)}, {money(o.cents)} a week, the last payment on {when(o.last)}."))
     return sorted(rows, key=lambda r: -r[0])
 
 
@@ -328,7 +329,27 @@ def who(store: Store, pid: str) -> str:
 # --- what is owed, and the bank's book --------------------------------------------------------
 
 OWED_LINES = 8
+OWED_KEPT = 4                      # what is owed when it gives way
 BOOK_LINES = 12
+GOING_OUT = 10
+COMING_IN = 6
+MEMO_WORDS = 12
+
+
+def cut_words(text: str, n: int | None) -> str:
+    """`text` up to its `n`th word, with `…` after it if anything was left out; whitespace
+    and line breaks kept as they were."""
+    if n is None:
+        return text
+    found = list(re.finditer(r"\S+", text))
+    if len(found) <= n:
+        return text
+    return text[:found[n - 1].end()] + "\u2026" if n > 0 else "\u2026"
+
+
+def memo(text: str) -> str:
+    """A memo as a label: at most twelve words, on one line."""
+    return cut_words(" ".join(text.split()), MEMO_WORDS)
 _OWED_KINDS = ("loan", "agreement", "standing")
 
 
@@ -338,10 +359,10 @@ def _arrears(store: Store, ob_id: str) -> tuple[int, int | None]:
     return sum(d.cents - d.paid for d in dues), min((d.day for d in dues), default=None)
 
 
-def owed_lines(store: Store, account: str) -> list[str]:
+def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
     """What `account` owes and is owed that matters week to week: loans, agreements and
     standing payments in force, and anything at all with arrears; one line each, in id order,
-    at most eight and then a line counting the rest."""
+    at most `most` and then a line counting the rest."""
     rows = []
     for ob in store.all("obligations"):
         if account not in (ob.payer, ob.payee):
@@ -355,9 +376,9 @@ def owed_lines(store: Store, account: str) -> list[str]:
         else:
             every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
             how = f"{every} {party}" + (f", until {when(ob.last)}" if ob.last is not None else "")
-        rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
-    if len(rows) > OWED_LINES:
-        rows = rows[:OWED_LINES] + [f"({len(rows) - OWED_LINES} more not shown)"]
+        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
+    if len(rows) > most:
+        rows = rows[:most] + [f"({len(rows) - most} more not shown)"]
     return rows
 
 
@@ -377,24 +398,65 @@ def bank_book(store: Store, pid: str) -> str:
         until = f", until {when(ob.last)}" if ob.last is not None else ""
         late, since = _arrears(store, ob.id)
         overdue = f", {money(late)} overdue since {date_text(since)}" if late else ""
-        rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {ob.memo}, {money(ob.cents)} a week{until}{overdue}")
+        rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {memo(ob.memo)}, {money(ob.cents)} a week{until}{overdue}")
     if len(rows) > BOOK_LINES:
         rows = rows[:BOOK_LINES] + [f"({len(rows) - BOOK_LINES} more not shown)"]
+    fees: dict[str, int] = {}
+    for ob in store.where("obligations", payee=bank.id):
+        if ob.penalty:
+            unpaid = sum(d.cents - d.paid for d in store.where("dues", obligation=ob.id) if d.status != "paid")
+            if unpaid > 0:
+                fees[ob.payer] = fees.get(ob.payer, 0) + unpaid
+    late = [f"{name_of(store, who)}: late fees of {money(c)} unpaid" for who, c in fees.items()]
+    if len(late) > BOOK_LINES:
+        late = late[:BOOK_LINES] + [f"({len(late) - BOOK_LINES} more not shown)"]
+    rows += late
     return "\n".join([bank.name, f"Account: {money(store.balance(bank.id))}"] + rows)
 
 
 # --- an owner's business ------------------------------------------------------------------
 
 
-def _coming(store: Store, account: str) -> list[str]:
+def coming(store: Store, ups: list, most: int) -> list[str]:
+    """The rows for upcoming payments `ups`, each memo cut to a label: what is overdue first,
+    then soonest first, at most `most`, then a line counting the rest; `  nothing` for none."""
     rows = []
-    for u in upcoming(store, account, AHEAD):
-        if not u.out:
-            continue
+    for u in ups:
         late = any(d.status in OWED for d in store.where("dues", obligation=u.obligation, day=u.day))
         day = f"overdue since {date_text(u.day)}" if late else date_text(u.day)
-        rows.append(f"  {day}  {money(u.cents)}  {name_of(store, u.other)}  {u.memo} ({u.obligation})")
-    return rows or ["  nothing"]
+        rows.append((not late, u.day, f"  {day}  {money(u.cents)}  {name_of(store, u.other)}  {memo(u.memo)} "
+                                      f"({u.obligation})"))
+    rows.sort(key=lambda r: r[:2])
+    out = [r[2] for r in rows[:most]]
+    if len(rows) > most:
+        out.append(f"  ({len(rows) - most} more not shown)")
+    return out or ["  nothing"]
+
+
+def _coming(store: Store, account: str) -> list[str]:
+    return coming(store, [u for u in upcoming(store, account, AHEAD) if u.out], GOING_OUT)
+
+
+def transfer_rows(store: Store, lines: list) -> list[str]:
+    """The rows `statement_lines` shows for a statement's in-and-out `lines`, oldest first."""
+    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  {memo(x.memo)}" for x in lines]
+
+
+def statement_lines(store: Store, st) -> str:
+    """A statement as `statement.statement_text` lays it out, with every memo cut to a label
+    and at most ten payments going out and six coming in."""
+    rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
+    if st.earlier:
+        rows.append(f"  ({st.earlier} earlier lines not shown)")
+    rows += transfer_rows(store, st.lines)
+    if not st.lines and not st.earlier:
+        rows.append("  nothing")
+    rows.append(f"Going out by {date_text(st.until)}:")
+    rows += coming(store, st.out, GOING_OUT)
+    rows.append(f"Expected in by {date_text(st.until)}:")
+    rows += coming(store, st.coming_in, COMING_IN)
+    rows.append(f"After what goes out: {money(st.after_out)}")
+    return "\n".join(rows)
 
 
 def _till(label: str, t) -> str:

@@ -82,13 +82,14 @@ def test_when_the_news_is_too_long_the_rest_waits_for_another_day():
     assert f"letter {len(shown) + 1} " in person_view(s, "p03")[1]["content"]
 
 
-def test_a_long_statement_loses_its_oldest_lines_to_stay_within_1200_words():
+def test_a_long_statement_shows_its_newest_lines_and_memos_as_labels():
     s = thin_town()
-    for i in range(25):
+    for i in range(30):
         s.transfer("outside:employers", "h2", 100, f"line {i} " + "word " * 60, "routine:t")
     text = person_view(s, "p03")[1]["content"]
-    assert len(text.split()) <= 1200 and "earlier lines not shown)" in text
-    assert "line 24 " in text and "line 0 " not in text
+    assert len(text.split()) <= 1200 and "(6 earlier lines not shown)" in text
+    assert "line 29 " in text and "line 4 " not in text
+    assert "  Monday 2 March  $1.00  Employers  line 29 " + "word " * 9 + "word\u2026" in text
 
 
 # --- the generated hamlet -------------------------------------------------------------
@@ -154,13 +155,21 @@ def heads(text):
     return [p.split("\n")[0] for p in text.split("\n\n") if p.split("\n")[0] in HEADS]
 
 
+def ready(s, *pids):
+    """Give each person time for what a test has them do, whatever the events of the place."""
+    for pid in pids:
+        s.set("people", pid, "routine:test", hours_left=500.0)
+
+
 def send(s, sender, to, text):
+    ready(s, sender)
     out = apply_act(s, Act(sender, sender, "message", {"to": s.get("people", to).name, "text": text}), 0)
     assert out.ok, out.msg
     return s.all("messages")[-1].id
 
 
 def ask(s, sender, to, text):
+    ready(s, sender)
     out = apply_act(s, Act(sender, sender, "request", {"to": s.get("people", to).name, "text": text}), 0)
     assert out.ok, out.msg
     return s.all("requests")[-1].id
@@ -461,6 +470,7 @@ def test_a_view_changes_nothing():
 
 def _result(s, pid, op, **args):
     """Do an act for `pid` and keep its result as the loop does."""
+    ready(s, pid)
     out = apply_act(s, Act(pid, pid, op, args), len(s.all("results")))
     s.add("results", Result(s.new_id("res", out.cause), s.day, pid, op, out.msg, out.ok), out.cause)
     return out
@@ -489,7 +499,7 @@ def _worst(seed=1):
         if i in (1, 4):
             _result(s, owner.id, "read", what="account in full")
         else:
-            _result(s, owner.id, "pay", to="Nobody Here", amount=1, note="word " * 60)
+            _result(s, owner.id, "pay", to="Nobody Here", amount=1, note="word " * 12)
     _result(s, owner.id, "read", what="agreements")
     return s, owner.id, letters, asked
 
@@ -499,7 +509,9 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
     assert 1200 < total < 2000
-    assert v.steps == list("abcdefg")                         # every step of giving way, in order
+    assert "guard" not in v.steps
+    order = ["statement", "people", "till", "owed", "inbox", "requests", "cut", "read"]
+    assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests", "cut"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert len(shown[0].split()) <= 104 and shown[0].endswith("\u2026") and shown[-1].startswith("(4 more:")
     waiting = section(v.user, "WAITING FOR YOUR ANSWER")
@@ -516,25 +528,35 @@ def test_no_one_s_worst_case_reaches_2000_words(seed):
     assert words(views.person_view(s, owner)) < 2000
 
 
-def test_at_most_six_results_are_shown_and_only_the_latest_read_in_full():
+def test_at_most_nine_results_are_shown_and_only_the_latest_read_in_full():
     s = place(1)
     pid = _kind(s, "owner")[0].id
-    for i in range(8):
-        _result(s, pid, "read" if i in (2, 6) else "pay", what="account in full", to="Nobody Here", amount=1)
+    for i in range(11):
+        _result(s, pid, "read" if i in (3, 8) else "pay", what="account in full", to="Nobody Here", amount=1)
     rows = section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
     assert rows[0] == "(2 earlier results not shown)"
-    assert [r.split(":")[0] for r in rows[1:] if not r.startswith("  ")] == ["read", "pay", "pay", "pay", "read", "pay"]
-    assert rows[1] == "read: shown before" and rows[-1].startswith("pay: Not done:")
-    reads = [r.id for r in s.all("results") if r.op == "read"]
+    heads_ = [r.split(":")[0] for r in rows[1:] if not r.startswith("  ")]
+    assert heads_ == ["pay", "read", "pay", "pay", "pay", "pay", "read", "pay", "pay"]
+    assert rows[2] == "read: not shown, a later read follows" and rows[-1].startswith("pay: Not done:")
     ids = views.shown_ids(s, pid)
-    assert [r.id for r in s.all("results")][:2] == ids[6:8] and reads[1] in ids[:6]
+    results = [r.id for r in s.all("results")]
+    assert ids[:9] == results[2:] and ids[9:11] == results[:2]      # the two oldest are passed over
     views.mark_seen(s, pid, ids, "routine:seen:x")
     assert all(r.seen for r in s.all("results"))
-    _result(s, pid, "read", what="account in full"); _result(s, pid, "read", what="agreements")
+    for _ in range(8):                                             # a whole turn: nothing is passed over
+        _result(s, pid, "pay", to="Nobody Here", amount=1)
     rows = section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
-    assert rows[0] == "read: shown before" and rows[1].startswith("read: ob")
-    _result(s, pid, "pay", to="Nobody Here", amount=1, note="word " * 70)
-    assert len(section(person_view(s, pid)[1]["content"], "WHAT CAME OF YOUR LAST ACTS")[-1].split()) <= 40
+    assert len(rows) == 8 and not rows[0].startswith("(")
+
+
+def test_a_result_is_cut_to_30_words_but_keeps_the_ids_code_wrote():
+    s = thin_town()
+    s.add("results", Result("res1", 0, "p03", "standing_payment", "Set up " + "word " * 40 + "(ob12) and (rq3).", True),
+          "routine:t")
+    s.add("results", Result("res2", 0, "p03", "pay", "Paid " + "word " * 50, True), "routine:t")
+    rows = section(person_view(s, "p03")[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
+    assert rows[0].endswith("\u2026 (ob12) (rq3)") and len(rows[0].split()) <= 32
+    assert rows[1].endswith("\u2026") and len(rows[1].split()) == 30
 
 
 def test_what_is_owed_lists_loans_agreements_standing_payments_and_arrears():
@@ -625,3 +647,221 @@ def test_the_sender_of_a_request_shown_counts_as_known():
     third = next(q for q in s.all("people") if q.id not in knows(s, pid) and q.id not in (pid, stranger))
     send(s, third.id, pid, f"{friend_of_stranger} asked about you.")
     assert friend_of_stranger not in s.all("messages")[-1].unknown
+
+
+# --- hostile input --------------------------------------------------------------------------
+
+import random  # noqa: E402
+
+from townsim.town.entities import Notice as _Notice  # noqa: E402,F401
+
+
+@functools.lru_cache(maxsize=None)
+def _three_weeks():
+    s = gen.generate(1, FAMILIES)
+    run_routine(s, 21)
+    return s
+
+
+def _after_three_weeks():
+    import pickle
+    return pickle.loads(pickle.dumps(_three_weeks()))
+
+
+def _name_pairs(rng, n=150, tag=""):
+    """`n` words of first names and surnames in pairs, none of them anyone here."""
+    words = [tag] if tag else []
+    while len(words) < n:
+        words += [rng.choice(names.FIRST_NAMES), rng.choice(names.SURNAMES)]
+    return " ".join(words[:n])
+
+
+def _owner_of_most(s):
+    return max(_kind(s, "owner"), key=lambda p: len(s.where("jobs", org=next(
+        o.id for o in s.all("orgs") if o.owner == p.id)))).id
+
+
+def test_a_letter_of_name_pairs_notes_at_most_three_names():
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    rng = random.Random("pairs")
+    for o in [p.id for p in s.all("people") if p.id != owner][:5]:
+        send(s, o, owner, _name_pairs(rng))
+    v = views.layout(s, owner)
+    assert len(v.system.split()) + len(v.user.split()) < 2000
+    letters = section(v.user, "LETTERS AND NOTICES")
+    notes = [x for x in letters if x.endswith("is not someone you know.)")]
+    assert len(notes) <= 3 * len([x for x in letters if x.startswith("From ")])
+    assert any(re.fullmatch(r"\(\d+ more names in it are not people you know\.\)", x) for x in letters)
+    shown = letters[0]
+    for x in letters[1:4]:
+        if x.endswith("is not someone you know.)"):
+            assert x[1:].split(" is not")[0] in shown                 # only names in the part shown
+
+
+def test_standing_payments_to_someone_cannot_swell_their_view():
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    shop = next(o.name for o in s.all("orgs") if o.owner == owner)
+    payers = [p.id for p in s.all("people") if p.id != owner][:9]
+    for payer in payers:
+        ready(s, payer)
+        out = apply_act(s, Act(payer, payer, "standing_payment", {"to": shop, "amount": 0.01, "day": "Friday",
+                                                                  "note": "Payment " * 80}), 0)
+        assert out.msg == "Not done: the note is too long."
+        for to in (s.get("people", owner).name, shop, s.get("people", owner).name):
+            out = apply_act(s, Act(payer, payer, "standing_payment", {"to": to, "amount": 0.01, "day": "Friday",
+                                                                      "note": "Payment " * 12}), 0)
+            assert out.ok, out.msg
+    v = views.layout(s, owner)
+    assert len(v.system.split()) + len(v.user.split()) < 2000
+    account = section(v.user, "YOUR HOUSEHOLD'S ACCOUNT")
+    coming = account[account.index(next(x for x in account if x.startswith("Expected in by"))) + 1:-1]
+    assert len(coming) <= 7 and re.fullmatch(r"  \(\d+ more not shown\)", coming[-1])
+    owed = section(v.user, "WHAT IS OWED")
+    assert all(len(x.split()) <= 30 for x in owed)
+
+
+def test_the_bank_s_book_counts_late_fees_unpaid():
+    s = place(1)
+    bank = next(o for o in s.all("orgs") if o.kind == "bank")
+    loan = next(o for o in s.where("obligations", payee=bank.id) if o.kind == "loan")
+    for _ in range(9):
+        if s.balance(loan.payer) > 0:
+            s.transfer(loan.payer, "outside:opening", s.balance(loan.payer), "spent", "routine:t")
+        run_routine(s, 1)
+    fees = sum(d.cents - d.paid for o in s.where("obligations", payee=bank.id) if o.penalty and o.payer == loan.payer
+               for d in s.where("dues", obligation=o.id) if d.status != "paid")
+    assert fees > 0
+    book = section(person_view(s, _kind(s, "banker")[0].id)[1]["content"], "THE BANK'S BOOK")
+    assert f"{O.name_of(s, loan.payer)}: late fees of {money(fees)} unpaid" in book
+
+
+def test_what_is_owed_gives_way_to_four_lines_an_account():
+    s = thin_town()
+    for i in range(9):
+        O.create(s, kind="agreement", payer="h2", payee="h1", cents=100 + i, first=3, every=7, memo=f"thing {i}",
+                 ends="both", made_by="routine", cause="routine:t")
+    assert len(section(person_view(s, "p03")[1]["content"], "WHAT IS OWED")) == 9
+    s.set("people", "p03", "routine:t", notes="note " * 150)
+    aims.update(s, "p03", [f"aim {i} " + "thing " * 18 for i in range(5)], "op:x:aims:d0.0")
+    for i in range(3):
+        s.add("messages", Message(f"msg{i + 1}", 0, "p01", "p03", f"letter {i} " + "word " * 148), "routine:t")
+        s.add("requests", Request(f"rq{i + 1}", 0, "p01", "p03", "please " * 80, 0, 14), "routine:t")
+    for i in range(9):
+        s.add("results", Result(f"res{i + 1}", 0, "p03", "pay", "word " * 40, True), "routine:t")
+    v = views.layout(s, "p03")
+    assert v.steps[:2] == ["statement", "owed"]
+    assert section(v.user, "WHAT IS OWED") == [x for x in section(v.user, "WHAT IS OWED")[:4]] + ["(5 more not shown)"]
+
+
+def test_the_last_guard_holds_the_ceiling():
+    s = thin_town()
+    s.set("people", "p03", "routine:t", notes="\n".join(["note " * 10] * 250))   # longer than the operations allow
+    for i in range(3):
+        s.add("messages", Message(f"msg{i + 1}", 0, "p01", "p03", f"letter {i} " + "word " * 1000), "routine:t")
+    s.add("requests", Request("rq1", 0, "p01", "p03", "Lend me a ladder", 0, 14), "routine:t")
+    v = views.layout(s, "p03")
+    assert v.steps[-1] == "guard" and len(v.system.split()) + len(v.user.split()) < 2000
+    assert "(not everything is shown today)" in v.user and "rq1 from Ruth Ashby: Lend me a ladder" in v.user
+    assert v.user.startswith("TODAY:") and "\nOPERATIONS\n" in v.user and "hours left this week." in v.user
+    letters = section(v.user, "LETTERS AND NOTICES") or []
+    assert [i for i in v.ids if i.startswith("msg")] == [f"msg{k + 1}" for k in range(len(
+        [x for x in letters if x.startswith("From ")]))]
+
+
+def _pile_on(s, rng, targets):
+    """Everything the operations allow, in random amounts, on `targets`, through `apply_act`."""
+    people = [p.id for p in s.all("people")]
+    ready(s, *people)
+    for t in targets:
+        if rng.random() < 0.5:                                    # arrears and their notices
+            h = s.get("people", t).household
+            if s.balance(h) > 0:
+                s.transfer(h, "outside:opening", s.balance(h), "spent", "routine:t")
+    run_routine(s, rng.randint(1, 3))
+    ready(s, *people)
+    k = 0
+    for t in targets:
+        name = s.get("people", t).name
+        shop = next((o.name for o in s.all("orgs") if o.owner == t and not o.outside), None)
+        for o in people:
+            if o == t:
+                continue
+            if rng.random() < 0.6:
+                k += 1
+                text = _name_pairs(rng, 150, f"L{k}") if rng.random() < 0.4 else f"L{k} " + "word " * 149
+                apply_act(s, Act(o, o, "message", {"to": name, "text": text}), 0)
+            if rng.random() < 0.4:
+                apply_act(s, Act(o, o, "standing_payment", {"to": rng.choice([name, shop or name]), "amount": 0.01,
+                                                             "day": rng.choice(["Friday", "Monday"]),
+                                                             "note": "label " * rng.randint(1, 12)}), 0)
+            if rng.random() < 0.3:
+                apply_act(s, Act(t, t, "standing_payment", {"to": s.get("people", o).name, "amount": 0.01,
+                                                             "day": "Wednesday", "note": "label " * 12}), 0)
+            if rng.random() < 0.4:
+                k += 1
+                args = {"to": name, "text": f"R{k} " + "please " * 79, "amount": rng.choice([0, 5])}
+                mine = [ob.id for ob in s.where("obligations", payer=s.get("people", t).household)
+                        if ob.payee == s.get("people", o).household and ob.status == "active"]
+                if mine and rng.random() < 0.5:
+                    args["for"] = mine[0]
+                apply_act(s, Act(o, o, "request", args), 0)
+        apply_act(s, Act(t, t, "write_notes", {"text": "note " * 150}), 0)
+        aims.update(s, t, [f"aim {i} " + "thing " * 18 for i in range(5)], f"op:{t}:aims:d{s.day}.0")
+        ready(s, t)
+        for _ in range(8):
+            op = rng.choice(["pay", "standing_payment", "stop", "message", "request", "answer", "read", "read",
+                             "write_notes", "fly"])
+            other = s.get("people", rng.choice([p for p in people if p != t])).name
+            obs = [ob.id for ob in s.where("obligations", payer=s.get("people", t).household)]
+            rqs = [rq.id for rq in s.where("requests", status="open") if rq.to == t]
+            args = {"pay": {"to": other, "amount": 1, "note": "label " * 12},
+                    "standing_payment": {"to": other, "amount": 1, "day": "Friday", "note": "label " * 12},
+                    "stop": {"id": rng.choice(obs) if obs else "ob1"},
+                    "message": {"to": other, "text": "word " * 150},
+                    "request": {"to": other, "text": "word " * 80},
+                    "answer": {"request": rng.choice(rqs) if rqs else "rq1", "answer": rng.choice(["accept", "decline"]),
+                               "note": "word " * 80},
+                    "read": {"what": rng.choice(["account", "account in full", "agreements"])},
+                    "write_notes": {"text": "note " * 150}, "fly": {}}[op]
+            _result(s, t, op, **args)
+
+
+def _check_view(s, pid):
+    before, n = s.hash(), len(s.changes)
+    v = views.layout(s, pid)
+    assert s.hash() == before and len(s.changes) == n and views.shown_ids(s, pid) == v.ids
+    total = len(v.system.split()) + len(v.user.split())
+    assert total < 2000, (pid, total, v.steps)
+    lines = v.user.split("\n")
+    assert v.user.startswith("TODAY:") and "OPERATIONS" in lines and any(x.endswith("hours left this week.") for x in lines)
+    results = sorted(s.where("results", actor=pid, seen=False), key=lambda r: (r.day, acts.id_key(r.id)))
+    if results:
+        rows = [x for x in section(v.user, "WHAT CAME OF YOUR LAST ACTS") if not x.startswith("  ")]
+        assert len([x for x in rows if not x.startswith("(")]) == min(9, len(results))
+        assert {r.id for r in results} <= set(v.ids)
+    waiting = views._waiting(s, pid)
+    if waiting:
+        assert f"{waiting[0].id} from " in v.user and waiting[0].id in v.ids
+    assert len(v.ids) == len(set(v.ids))
+    for rq in waiting:
+        assert v.user.count(f"{rq.id} from ") == (1 if rq.id in v.ids else 0)
+    for m in s.where("messages", to=pid, seen=False):
+        tag = m.text.split(" ", 1)[0]
+        shown = sum(1 for x in lines if x.startswith("From ") and x.split(": ", 1)[-1].startswith(tag + " "))
+        assert shown == (1 if m.id in v.ids else 0), (m.id, tag)
+    for nt in s.where("notices", to=pid, seen=False):
+        if nt.id in v.ids:
+            assert nt.text in lines
+    return total, v.steps
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_hostile_input_never_breaks_the_view(seed):
+    s = _after_three_weeks()
+    low = min((j for j in s.all("jobs") if s.get("people", j.person).kind == "staff"), key=lambda j: j.weekly).person
+    targets = [_owner_of_most(s), _kind(s, "banker")[0].id, low]
+    _pile_on(s, random.Random(f"hostile:{seed}"), targets)
+    for pid in targets:
+        _check_view(s, pid)

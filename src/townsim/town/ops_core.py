@@ -25,7 +25,8 @@ from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, statement, statement_text
 from townsim.town.store import Store
 
-MAX_WORDS = 80            # a note on a payment or an answer
+MAX_WORDS = 80            # a note on an answer
+NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
 LETTER_WORDS = 150
 REQUEST_WORDS = 80
 NOTES_WORDS = 150
@@ -119,7 +120,7 @@ def _check_pay(store: Store, act: Act) -> str | None:
     cents, why = _amount(act.args.get("amount"))
     if cents is None:
         return why
-    if _too_long(_note(act.args.get("note"))):
+    if _too_long(_note(act.args.get("note")), NOTE_WORDS):
         return "the note is too long."
     ref = _pay_ref(act)
     if ref is not None:
@@ -181,7 +182,7 @@ def _check_standing(store: Store, act: Act) -> str | None:
         return f"'{shown(act.args.get('start'))}' is not a date that can be read."
     if _weeks(act.args.get("weeks")) is None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
-    if _too_long(_note(act.args.get("note"))):
+    if _too_long(_note(act.args.get("note")), NOTE_WORDS):
         return "the note is too long."
     return None
 

@@ -216,8 +216,14 @@ def test_requests_and_notes_on_payments_and_answers_have_their_limits():
     assert refused(s, "p01", "request", to="Craig Pryce", text="word " * 81) == \
         "Not done: that is too long for one request."
     assert do(s, "p01", "request", to="Craig Pryce", text="word " * 80).ok
-    assert refused(s, "p01", "pay", to="Craig Pryce", amount=1, note="word " * 81) == "Not done: the note is too long."
-    assert do(s, "p01", "pay", 1, to="Craig Pryce", amount=1, note="word " * 80).ok
+    assert refused(s, "p01", "pay", to="Craig Pryce", amount=1, note="word " * 13) == "Not done: the note is too long."
+    assert do(s, "p01", "pay", 1, to="Craig Pryce", amount=1, note="word " * 12).ok
+    assert refused(s, "p01", "standing_payment", to="Craig Pryce", amount=1, day="Friday",
+                   note="word " * 13) == "Not done: the note is too long."
+    assert do(s, "p03", "request", 2, to="Ruth Ashby", text="Lend me $5?", amount=5).ok
+    assert refused(s, "p01", "answer", request="rq2", answer="accept", note="word " * 81) == \
+        "Not done: the note is too long."
+    assert do(s, "p01", "answer", 3, request="rq2", answer="accept", note="word " * 80).ok
 
 
 # request and answer
