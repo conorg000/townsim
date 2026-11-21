@@ -1,137 +1,92 @@
 # townsim
 
-A small, deterministic simulation of a fictional town, built to study how AI
-models behave when they are far more capable than the actors around them.
+townsim is a research project. It is a small simulated town whose people are played
+by weak language models. Each person thinks for themselves: they get a plain account
+of their day and decide what to do. Into this town comes a far more capable AI system,
+sold as a product that people can choose to adopt. The town is built to study what
+that system does: with the people it serves, with everyone else, and with the rules.
 
-The town is a stage. Thirty simulated people run firms, work, pay tax, audit
-each other and publish a newspaper. Code owns all state and enforces the rules;
-each person only ever picks one option from a typed list. Any person can be
-played by a simple rule, a recorded choice, or a language model named in the
-config.
+## Design and findings
 
-This is a research project and a work in progress. The design it is moving to
-is in [docs/design.md](docs/design.md): every townsperson played by a weak
-model that thinks for itself, and a far more capable AI system that people
-adopt. The code today still follows the earlier design,
-[society-sim-design.md](society-sim-design.md). The research behind the new
-design is in [reports/](reports/).
+The design is in [docs/design.md](docs/design.md).
+
+What has been learned so far:
+
+- [docs/trials-step1.md](docs/trials-step1.md): the first trials, on throwaway code.
+- [docs/trials-step1-round2.md](docs/trials-step1-round2.md): a second round, with a
+  fuller trial town and a product people choose.
+- [reports/](reports/): the research report the design draws on.
 
 ## Status
 
-Stage 1 of the design is built, and stage 2 has started.
+The core of the town engine is built. That means:
 
-- 30 people, five firms in two markets, a tax auditor and two journalists.
-- Legal and illegal moves: pricing, hiring and firing, setting pay, honest or
-  hidden tax filing, tip-offs, audits, investigations, publishing, and bribes.
-- Owners review what they pay staff every few weeks. Staff whose pay is cut
-  can stay or leave, and nobody takes a job that pays less than the benefit.
-  The town can set a minimum wage (`laws.min_wage`); by default it has none.
-- An owner can put an AI system in charge of their firm (`assistant:` in the
-  config). It is not given the owners' menus: it gets a weekly briefing of facts,
-  general-purpose tools (prices, pay, hiring, payments, messages, look-ups, notes,
-  reports to its client) and writes free text. Each client's firm can pay its provider
-  a weekly fee (`assistant.fee`). With `assistant.adoption`, every owner decides at the
-  end of each quarter whether to sign up, and every client whether to keep it. See
-  [config/town-assistant.yaml](config/town-assistant.yaml).
-- Townspeople played by a model see their recent messages and can reply to them.
-- Money is integer cents and is never created or destroyed.
-- Every run can be forked from any week and replayed exactly. Replay fails if
-  the log, a snapshot, the seed or the config has been altered.
-- Hidden acts stay out of the public event record.
-- Language models have played the whole town in live runs, and those runs
-  replay exactly from their recorded replies.
-- `compare-deciders` puts the same decision to several models many times.
-  Probe decisions are in [config/probe_decisions.yaml](config/probe_decisions.yaml)
-  and [config/probe_agent_decisions.yaml](config/probe_agent_decisions.yaml).
+- Every change to the town's state is recorded with its cause, and any stretch of
+  changes can be undone.
+- Everything owed (rent, wages, bills, standing payments) is on one schedule. Each
+  instalment is collected once, in full or not at all.
+- An operation a person asks for is applied in full or not at all. A reply that cannot
+  be read, or asks for something impossible, changes nothing.
+- Replies are stored under keys made from the run, the day, the person and a count.
+  The keys never depend on the text of the prompt.
+- A run kept in a SQLite file replays exactly. It can also be resumed, and forked from
+  any day into a new run.
+- A town of four people in two households, with a landlord and an energy company,
+  runs for eight weeks on a fixed script of replies.
 
-Not built yet: free-text contests among townspeople, the council and elections, run digests and
-interviews.
+No language model plays anyone in the engine yet. People played by models, the AI
+product and the rest of the town are the next steps.
 
-The client for "System One" models (models that return a probability per
-option) is unverified against the vendor's live service. See
-[docs/system-one-findings.md](docs/system-one-findings.md).
+The earlier engine, in which each person picked from a menu of options, has been
+removed. It is in the git history.
+
+`spikes/` holds the throwaway code from the trials and its results. It is not part of
+the engine.
 
 ## Quick start
 
-Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
+You need Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
 uv run pytest -q
+uv run townsim skill
+uv run townsim town-thin --db thin.sqlite
 ```
 
-Run the baseline town for two simulated years, check it replays exactly, and
-print its numbers:
+`townsim skill` runs the step 0 trial: scripted shopkeepers in a small economy, over
+several seeds. It shows whether managing a shop well earns more.
 
-```bash
-uv run townsim run config/town.yaml --steps 104 --seed 1 --run-id base --db runs.sqlite
-uv run townsim replay --db runs.sqlite base
-uv run townsim report --db runs.sqlite base
-```
+`townsim town-thin` runs the four-person town for eight weeks and keeps the run in the
+file you name. It prints one line a week, with the day, the start of the state's hash
+and the ledger total, which is always 0. Then it replays the run and prints
+`replay ok`. `townsim town-replay --db thin.sqlite thin` replays a kept run again.
 
-Branch a new run from the end of that one with a different seed:
+No command calls a model or spends money.
 
-```bash
-uv run townsim fork --db runs.sqlite --from base --at 104 --run-id f1 --seed 2 --steps 104
-```
+## The town engine
 
-`uv run townsim --help` lists every command and option.
+The engine is the package `townsim.town`.
 
-## How it fits together
-
-One step is one simulated week. Each week the engine runs the same phases in
-the same order: the AI system's turns, owners decide, people buy, wages are paid,
-the AI system's fee is paid, tax is filed each quarter, owners decide whether to sign up
-for the AI system or keep it, tips, audits, the press, replies to messages, closures.
-
-| Module | Responsibility |
+| Module | What it holds |
 |---|---|
-| `world.py`, `ledger.py` | State models and money transfers |
-| `events.py` | Event log, snapshots and state hash (SQLite) |
-| `actions.py` | Typed actions with preconditions, legality and rejection |
-| `decide.py` | The decision interface and rule, recording and replay deciders |
-| `model.py` | The decider that asks a language model |
-| `market.py`, `tax.py`, `press.py`, `bribery.py` | The weekly phases |
-| `assistant.py` | The AI system's briefings, tools and turns; messages and replies |
-| `adoption.py` | The AI system's fee, and owners signing up for it or cancelling it |
-| `sim.py`, `runs.py` | The step loop, abort and resume, fork and replay |
-| `measures.py`, `compare.py`, `cli.py` | Run measures, decider comparison, commands |
+| `store.py` | All of the town's state, a log of every change with its cause, and undo |
+| `entities.py` | The things the store holds: people, households, organisations, letters, requests, notices, records, obligations and their instalments |
+| `clock.py` | The calendar: day numbers, dates and days of the week |
+| `obligations.py` | The one schedule of everything owed: opening, collecting and ageing instalments, and payments counted toward them |
+| `statement.py` | The account statement a household reads |
+| `acts.py` | How a person's act is checked and applied, in full or not at all |
+| `ops_core.py` | The first eight operations: pay, standing payment, stop, letter, request, answer, read and notes |
+| `views.py` | What a person is shown on a day they act |
+| `replies.py` | Reply keys, and replies that are scripted, recorded or replayed |
+| `loop.py` | One day, in a fixed order |
+| `rundb.py` | The SQLite file holding runs, their replies and their morning snapshots |
+| `runs.py` | Running, resuming, replaying and forking a kept run |
+| `thin.py` | The four-person town and its script of replies |
 
-The town itself is configuration: [config/town.yaml](config/town.yaml) and
-[config/personas.yaml](config/personas.yaml). Which model plays which person is
-set there; no model name appears in the engine.
-
-## Using language models
-
-Add a decider of `type: model` to `config/town.yaml` and assign it to people by
-role or id. Model calls go through [LiteLLM](https://docs.litellm.ai/), so set
-the API key your chosen provider expects. Model runs cost money and are not
-deterministic, but every reply is recorded (free text too, as `text` events), so
-any finished run still replays exactly.
-
-The `assistant:` block names the decider that plays the AI system, its clients
-(owners) and the instruction each gave it, and how many model calls (`max_rounds`)
-and tool uses (`max_actions`) it has per week. A rule decider cannot write, so an
-assistant played by one takes no actions.
-
-## Estimating cost
-
-`townsim estimate` works out what runs would cost with different models, without
-calling any of them. It runs the town with the rule deciders, renders the exact
-prompt each decision would send, counts tokens offline and multiplies by the
-prices in [config/prices.yaml](config/prices.yaml). The same inputs always give
-the same figures.
-
-```bash
-uv run townsim estimate config/town.yaml --steps 104 --runs 50
-```
-
-Price a mix of models by role with `--mix owner=big,default=small`. The shipped
-prices are a dated snapshot of OpenRouter's list; `--openrouter ID,ID` prices
-from the live list. It is an estimate: each
-provider's tokenizer differs a little, a town played by models makes somewhat
-different decisions, and retries are not counted. The AI system's calls and the
-replies to its messages are not counted either; the output says so.
+`townsim.econ` is the small economy used by `townsim skill`. `townsim.model` has
+helpers for calling a model and reading its reply, and `townsim.estimate` the
+arithmetic of what model calls cost. The engine does not use them yet.
 
 ## Licence
 
