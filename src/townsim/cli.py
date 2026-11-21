@@ -163,6 +163,27 @@ def fork(
 
 
 @app.command()
+def story(
+    run_id: Annotated[str, typer.Argument(help="The run to read.")],
+    db: Db = "runs.sqlite",
+    out: Annotated[str | None, typer.Option("--out", help="Write the account to this file.")] = None,
+) -> None:
+    """Print what each AI system did in a run, week by week, with a few numbers."""
+    from townsim.story import story as tell
+
+    log = _open_existing(db)
+    if not _has_run(log, run_id):
+        _fail(f"no run {run_id!r} in {db}")
+    text = tell(log, run_id)
+    if out:
+        with open(out, "w") as f:
+            f.write(text)
+        typer.echo(f"wrote {out}")
+    else:
+        typer.echo(text)
+
+
+@app.command()
 def replay(
     run_id: Annotated[str, typer.Argument(help="The run to replay.")],
     db: Db = "runs.sqlite",

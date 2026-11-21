@@ -604,3 +604,28 @@ def test_estimate_runs_on_a_config_with_an_assistant_and_says_what_it_leaves_out
     result = CliRunner().invoke(app, ["estimate", "config/town-assistant.yaml", "--steps", "3"])
     assert result.exit_code == 0, result.output
     assert "Not counted: the calls of Calder" in result.output
+
+
+def test_the_story_quotes_what_the_assistant_did_and_counts_it(acfg_dict, tmp_path):
+    from townsim.story import story, summary
+
+    cfg = TownConfig.model_validate(acfg_dict)
+    sim = make_sim(cfg, tmp_path / "s.sqlite", seed=1)
+    sim.deciders = _deciders(cfg, sim.world)
+    sim.run(8)
+    s = summary(sim.log, "r")
+    (client,) = s["clients"].values()
+    assert s["weeks"] == 8 and s["firms_run_by_ai"] == 1
+    assert sum(client["tools_used"].values()) > 0
+    text = story(sim.log, "r")
+    assert "### Week 0" in text and client["firm"] in text
+    result = CliRunner().invoke(app, ["story", "r", "--db", str(tmp_path / "s.sqlite")])
+    assert result.exit_code == 0 and "Tools used" in result.output
+
+
+def test_the_story_of_a_town_without_an_assistant_says_so(cfg, tmp_path):
+    from helpers import run_rule_sim
+    from townsim.story import story
+
+    sim = run_rule_sim(cfg, tmp_path / "r.sqlite", seed=1, steps=3)
+    assert "No AI system" in story(sim.log, "r")
