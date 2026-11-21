@@ -132,9 +132,10 @@ as one, and to end it properly the party asks the other, who accepts or declines
 Whoever uses `stop` is told which of these happened, so nobody is left unable to
 cancel something for want of the right word.
 
-**Order of collection.** On a day everything due is taken oldest first, and within
-a day wages, then rent, then loan instalments, then bills, then agreement terms,
-then standing payments, then fees. An instalment is paid whole or not at all.
+**Order of collection.** On a day wages are paid first. Then everything due is
+taken oldest first, and among things due the same day rent, then loan instalments,
+then bills, then agreement terms, then standing payments, then fees. An instalment
+is paid whole or not at all.
 
 **Events are fixed when the place is generated.** A seeded deck of ordinary events
 at plain base rates (a supplier fails, a cold month, an illness, a job lost, a rent
