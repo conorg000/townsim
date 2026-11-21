@@ -92,3 +92,30 @@ def test_town_thin_fails_when_the_engine_reports_errors(tmp_path, monkeypatch):
     assert result.exit_code == 1
     assert "engine errors: " in result.output and "engine errors: 0" not in result.output
     assert "Traceback" not in result.output
+
+
+def _one_plain_line(result):
+    assert result.exit_code == 1, result.output
+    assert "Traceback" not in result.output and isinstance(result.exception, (SystemExit, type(None)))
+    assert len(result.output.strip().splitlines()) == 1, result.output
+    return result.output.strip()
+
+
+def test_town_commands_report_a_bad_file_or_run_in_one_plain_line(tmp_path):
+    junk = tmp_path / "junk.sqlite"
+    junk.write_text("this is not a database " * 100)
+    assert "junk.sqlite" in _one_plain_line(_run("town-thin", "--weeks", "1", "--db", str(junk)))
+    assert "junk.sqlite" in _one_plain_line(_run("town-replay", "--db", str(junk), "thin"))
+    nowhere = str(tmp_path / "no" / "such" / "dir" / "t.sqlite")
+    assert "t.sqlite" in _one_plain_line(_run("town-thin", "--weeks", "1", "--db", nowhere))
+    db = str(tmp_path / "t.sqlite")
+    for bad in ("a|b", ""):
+        assert "run id" in _one_plain_line(_run("town-thin", "--weeks", "1", "--db", db, "--run-id", bad))
+
+
+def test_town_replay_of_a_run_kept_under_another_schema_is_a_plain_error(tmp_path):
+    db = str(tmp_path / "thin.sqlite")
+    _run("town-thin", "--weeks", "1", "--db", db, "--run-id", "t1")
+    with sqlite3.connect(db) as con:
+        con.execute("update runs set schema = 0")
+    assert "schema 0" in _one_plain_line(_run("town-replay", "--db", db, "t1"))

@@ -226,7 +226,8 @@ def _check_message(store: Store, act: Act) -> str | None:
 
 def _do_message(store: Store, act: Act, cause: str) -> str:
     to = _person_to(store, act)
-    store.add("messages", Message(store.new_id("msg"), store.day, act.actor, to, clean_text(act.args["text"])), cause)
+    message = Message(store.new_id("msg", cause), store.day, act.actor, to, clean_text(act.args["text"]))
+    store.add("messages", message, cause)
     return f"Sent to {name_of_who(store, to)}."
 
 
@@ -259,7 +260,7 @@ def _check_request(store: Store, act: Act) -> str | None:
 
 def _do_request(store: Store, act: Act, cause: str) -> str:
     to = _person_to(store, act)
-    rq = Request(store.new_id("rq"), store.day, act.actor, to, clean_text(act.args["text"]),
+    rq = Request(store.new_id("rq", cause), store.day, act.actor, to, clean_text(act.args["text"]),
                  _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS)
     store.add("requests", rq, cause)
     return f"Sent to {name_of_who(store, to)} ({rq.id}). It stays open until {date_text(rq.expires)}."
@@ -315,7 +316,7 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     if note:
         text += f" They wrote: {note}"
-    store.add("notices", Notice(store.new_id("n"), store.day, rq.sender, text), cause)
+    store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
     return told
 
 

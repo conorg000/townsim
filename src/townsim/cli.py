@@ -2,8 +2,10 @@
 replayed from a SQLite file. No command calls a model."""
 
 import json
+import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Iterator
 
 import typer
 
@@ -34,6 +36,20 @@ def skill_cmd(
     typer.echo(json.dumps(result, indent=2) if as_json else format_table(result))
 
 
+@contextmanager
+def _plainly(db: str) -> Iterator[None]:
+    """A file that is not a database, a place a file cannot be made, or a bad run or
+    snapshot, as one plain line and exit code 1."""
+    try:
+        yield
+    except sqlite3.Error as e:
+        _fail(f"cannot use {db} as a run database: {e}")
+    except KeyError as e:
+        _fail(f"{db} has nothing kept for {e.args[0]!r}" if e.args else f"{db} is missing something it needs")
+    except ValueError as e:
+        _fail(str(e))
+
+
 def _replay(db, run_id: str) -> None:
     from townsim.town.replies import ReplayMismatch
     from townsim.town.runs import replay
@@ -60,10 +76,12 @@ def town_thin_cmd(
     from townsim.town.runs import run
     from townsim.town.thin import thin_script, thin_town
 
-    with RunDB(db) as rdb:
+    with _plainly(db), RunDB(db) as rdb:
         try:
+            rdb.get_run(run_id)
+        except KeyError:
             rdb.create_run(run_id, seed=0)
-        except ValueError:
+        else:
             _fail(f"{db} already has a run called {run_id!r}")
         store = thin_town()
         replier = ScriptedReplier(thin_script)
@@ -89,7 +107,7 @@ def town_replay_cmd(
 
     if not Path(db).is_file():
         _fail(f"no database file {db}")
-    with RunDB(db) as rdb:
+    with _plainly(db), RunDB(db) as rdb:
         try:
             rdb.get_run(run_id)
         except KeyError:

@@ -365,3 +365,9 @@ def test_a_file_from_before_schemas_reads_as_schema_0(tmp_path):
         con.execute("insert into runs values ('old', 1, null, null)")
     with RunDB(path) as db:
         assert db.get_run("old")["schema"] == 0
+
+
+@pytest.mark.parametrize("run_id", ["", "a|b", None, 7])
+def test_a_run_id_must_be_a_plain_name(db, run_id):
+    with pytest.raises(ValueError):
+        db.create_run(run_id, seed=1)

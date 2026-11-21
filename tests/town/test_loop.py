@@ -247,3 +247,12 @@ def test_results_are_never_held_back_by_the_word_cap():
     text = person_view(s, "p03")[1]["content"]
     assert "fly: Not done: there is no operation called 'fly'.\nread: Balance: " in text
     assert "more not shown yet)" in text
+
+
+def test_ids_are_counted_under_the_cause_of_what_made_them(weeks8):
+    s, _ = weeks8
+    counters = [i for i, c in enumerate(s.changes) if c.table == "counter"]
+    assert counters
+    for i in counters:                          # each id is counted, then its row added, under one cause
+        c, row = s.changes[i], s.changes[i + 1]
+        assert row.field == "+" and row.cause == c.cause != "routine:new_id" and row.id == f"{c.id}{c.new}", (c, row)

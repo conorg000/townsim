@@ -214,3 +214,13 @@ def test_paying_on_the_due_day_after_it_was_collected_counts_toward_the_next():
         assert [s.get("dues", x.due).day for x in m] == [14]
     s, days = _rent_on_its_day(act)
     assert days == [7, 7] and received(s, "outside:lettings") == 2 * 17_500
+
+
+def test_a_ref_without_matching_is_refused():
+    s = town(h1=50_000); rent = make_rent(s, cents=17_500, first=7)
+    before = unchanged(s)
+    with pytest.raises(ValueError):
+        O.pay(s, "h1", "outside:lettings", 1_000, "x", "op:p1:pay:d0.0", ref=rent, match=False)
+    with pytest.raises(ValueError):
+        O.pay(s, "h1", "outside:lettings", 1_000, "x", "op:p1:pay:d0.0", ref="anything", match=False)
+    assert unchanged(s) == before

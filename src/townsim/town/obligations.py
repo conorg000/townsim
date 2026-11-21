@@ -86,7 +86,7 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
             raise ValueError(f"no ledger account {account!r}")
     if payer == payee:
         raise ValueError(f"payer and payee are both {payer!r}")
-    ob = Obligation(store.new_id("ob"), kind, payer, payee, cents, first, every, last, memo, ends,
+    ob = Obligation(store.new_id("ob", cause), kind, payer, payee, cents, first, every, last, memo, ends,
                     made_by, store.day, penalty)
     store.add("obligations", ob, cause)
     if falls_on(ob, store.day):
@@ -123,7 +123,7 @@ def ensure_due(store: Store, ob_id: str, day: int, cause: str) -> Due:
     """The one row for this obligation's instalment on `day`, created if absent."""
     due = _find_due(store, ob_id, day)
     if due is None:
-        due = Due(store.new_id("du"), ob_id, day, store.get("obligations", ob_id).cents)
+        due = Due(store.new_id("du", cause), ob_id, day, store.get("obligations", ob_id).cents)
         store.add("dues", due, cause)
     return due
 
@@ -154,7 +154,7 @@ def name_of(store: Store, account: str) -> str:
 
 def _tell(store: Store, account: str, text: str, cause: str) -> None:
     for person in people_of(store, account):
-        store.add("notices", Notice(store.new_id("n"), store.day, person, text), cause)
+        store.add("notices", Notice(store.new_id("n", cause), store.day, person, text), cause)
 
 
 def age_arrears(store: Store) -> None:
@@ -180,7 +180,7 @@ def age_arrears(store: Store) -> None:
             cause = f"routine:default:{due.id}"
             store.set("dues", due.id, cause, status="defaulted")
             text = f"{name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
-            store.add("records", Record(store.new_id("rec"), store.day, "default", ob.payer, text), cause)
+            store.add("records", Record(store.new_id("rec", cause), store.day, "default", ob.payer, text), cause)
             if ob.status == "active" and due.day == _last_instalment(ob):
                 store.set("obligations", ob.id, cause, status="breached")
 
@@ -283,7 +283,10 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
     """Pay `cents` from `payer` to `payee` in one transfer and count it toward what the payer
     owes the payee: arrears oldest first, then the single next instalment. With `ref`, only
     that obligation. What is left over is an ordinary payment. With `match=False` it is only
-    the transfer: no due is touched and nothing is returned. Changes nothing if it raises."""
+    the transfer: no due is touched and nothing is returned, and `ref` may not be given.
+    Changes nothing if it raises."""
+    if ref is not None and not match:
+        raise ValueError(f"ref {ref!r} names what to count toward, but match is False")
     if not _is_int(cents) or cents <= 0:
         raise ValueError(f"cents must be a positive int, got {cents!r}")
     for account in (payer, payee):
@@ -357,7 +360,7 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
         if ob.ends == "both":
             store.set("obligations", ob_id, cause, status="breached")
             text = f"{name_of(store, ob.payer)} stopped paying {ob.memo}, an agreement with {name_of(store, ob.payee)}."
-            store.add("records", Record(store.new_id("rec"), store.day, "breach", ob.payer, text), cause)
+            store.add("records", Record(store.new_id("rec", cause), store.day, "breach", ob.payer, text), cause)
             return "breach"
         store.set("obligations", ob_id, cause, status="stopped")
         return "stopped" if ob.ends == "payer" else "left"

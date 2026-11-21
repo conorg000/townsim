@@ -248,3 +248,11 @@ def test_empty_tables_are_left_out_of_the_hash():
     assert s.hash() == before
     s.add("notices", Notice("n1", 0, "p1", "x"), "routine:x")
     assert "notices" in s.canonical()["tables"] and s.hash() != before
+
+
+def test_new_id_takes_the_cause_it_is_given():
+    s = Store()
+    assert s.new_id("ob", "op:p1:pay:d0.0") == "ob1" and s.changes[-1].cause == "op:p1:pay:d0.0"
+    assert s.new_id("ob") == "ob2" and s.changes[-1].cause == "routine:new_id"
+    with pytest.raises(ValueError):
+        s.new_id("ob", "")

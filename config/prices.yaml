@@ -1,8 +1,7 @@
-# Model prices for `townsim estimate`, in US dollars per million tokens.
+# Model prices, in US dollars per million tokens, read by `townsim.estimate.load_prices`.
 #
-# Snapshot of OpenRouter's public price list taken on 2026-11-20. Prices change: refresh
-# with `townsim estimate ... --openrouter ID,ID` to price straight from the live list.
-# Names are OpenRouter model ids.
+# Snapshot of OpenRouter's public price list taken on 2026-11-20. Prices change: check
+# them against the live list before relying on an estimate. Names are OpenRouter model ids.
 #
 # reasoning_tokens_per_call is optional and is NOT in OpenRouter's list. Set it for a
 # thinking model that spends hidden reasoning tokens on every call; they are billed at

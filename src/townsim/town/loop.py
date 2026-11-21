@@ -42,7 +42,7 @@ def _lapse(store: Store) -> None:
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed")
         text = f"Your request {rq.id} to {name_of_who(store, rq.to)} ({cut(rq.text)}) was not answered and has lapsed."
-        store.add("notices", Notice(store.new_id("n"), store.day, rq.sender, text), cause)
+        store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
 
 
 def routine(store: Store) -> None:

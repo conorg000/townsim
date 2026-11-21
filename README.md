@@ -84,9 +84,13 @@ The engine is the package `townsim.town`.
 | `runs.py` | Running, resuming, replaying and forking a kept run |
 | `thin.py` | The four-person town and its script of replies |
 
-`townsim.econ` is the small economy used by `townsim skill`. `townsim.model` has
-helpers for calling a model and reading its reply, and `townsim.estimate` the
-arithmetic of what model calls cost. The engine does not use them yet.
+The engine keeps its money in the ledger from `townsim.econ.ledger`: every account's
+balance in integer cents, and every transfer with its memo and cause.
+
+The rest of `townsim.econ` is the small economy used by `townsim skill`.
+`townsim.model` has helpers for calling a model and reading its reply, and
+`townsim.estimate` the arithmetic of what model calls cost. The engine does not use
+those two yet.
 
 ## Licence
 
