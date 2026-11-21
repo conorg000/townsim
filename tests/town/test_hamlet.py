@@ -449,8 +449,8 @@ def test_a_repair_is_a_bill_due_in_a_week():
     changes = event(s, "repair", "h6", amount=55_500)
     [ob] = [s.get("obligations", c.id) for c in changes if c.table == "obligations" and c.field == "+"]
     market = [o.payee for o in s.where("obligations", payer="h6") if o.memo == "regular spending"][0]
-    assert (ob.kind, ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.memo, ob.ends) == (
-        "bill", "h6", market, 55_500, 21, 0, "repair to the house", "service")
+    assert (ob.kind, ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.memo, ob.ends, ob.cannot_stop) == (
+        "bill", "h6", market, 55_500, 21, 0, "repair to the house", "both", "work")
     assert notices(s, changes) == [("p10", "The house needs a repair costing $555.00. It is due on Monday 23 March.")]
 
 
@@ -640,7 +640,7 @@ def test_a_late_fee_is_told_by_its_memo_alone():
 def test_a_repair_is_billed_after_regular_spending_has_stopped():
     s = at(14)
     [ob] = [o for o in s.where("obligations", payer="h6") if o.memo == "regular spending"]
-    O.stop(s, ob.id, "h6", T)
+    s.set("obligations", ob.id, T, status="stopped")          # as though it could be stopped
     changes = event(s, "repair", "h6", amount=10_000)
     [bill] = [s.get("obligations", c.id) for c in changes if c.table == "obligations" and c.field == "+"]
     assert (bill.payee, bill.cents, bill.memo, bill.first) == (ob.payee, 10_000, "repair to the house", 21)
@@ -669,3 +669,65 @@ def test_a_cold_spell_near_an_energy_bills_end_tells_the_weeks_it_has():
     assert {t for p, t in told if p in first} == {"A cold spell: energy bills are 30% higher for two weeks."}
     assert {t for p, t in told if p not in first} == {"A cold spell: energy bills are 30% higher for four weeks."}
 
+
+
+# what a household cannot stop
+
+def _stop(s, pid, ob_id, n=0):
+    return acts.apply_act(s, acts.Act(pid, pid, "stop", {"id": ob_id}), n)
+
+
+def test_a_household_cannot_stop_what_it_costs_to_live_or_a_bill_for_work_done():
+    s = place()
+    routine(s)
+    spending, energy = (next(o.id for o in s.where("obligations", payer="h2") if o.memo == m)
+                        for m in ("regular spending", "energy"))
+    before = s.hash()
+    assert _stop(s, "p3", spending).msg == "Not done: that is what the household spends to live; it cannot be stopped."
+    assert _stop(s, "p3", energy).msg == "Not done: the house's energy cannot be stopped while you live there."
+    event(s, "repair", "h2", amount=10_000)
+    bill = s.all("obligations")[-1]
+    assert bill.memo == "repair to the house" and bill.every == 0
+    before = s.hash()
+    assert _stop(s, "p3", bill.id).msg == "Not done: that is a bill for work already done."
+    assert s.hash() == before
+    event(s, "cold_month", next(o.id for o in s.all("orgs") if o.kind == "utility"), amount=20, weeks=2, eid="ev98")
+    extra = next(o for o in s.where("obligations", payer="h2") if o.memo == "extra energy, cold spell")
+    assert _stop(s, "p3", extra.id).msg == "Not done: the house's energy cannot be stopped while you live there."
+    for ob in (spending, energy, bill.id):
+        with pytest.raises(ValueError):
+            O.stop(s, ob, "h2", T)
+
+
+def test_stopping_rent_is_withholding_it_and_says_so():
+    s = place()
+    days(s, 1)                                                   # stopped on Tuesday 3 March
+    rent = next(o for o in s.where("obligations", payer="h1") if o.kind == "rent")          # to the agency
+    out = _stop(s, "p1", rent.id)
+    agency = O.name_of(s, rent.payee)
+    assert out.msg == (f"That was your rent to {agency}. Stopping it is recorded as a breach. The rent stays owed "
+                       f"each week and is no longer taken from your account.")
+    assert s.all("records")[-1].text == f"Brindle household stopped paying the rent to {agency} (rent for 8 Back Lane)."
+    days(s, 7)
+    told = [n.text for n in s.where("notices", to="p1") if "was not taken" in n.text]
+    assert told == [f"Rent for 8 Back Lane, $258.00, due Monday 9 March, was not taken: you stopped it on "
+                    f"Tuesday 3 March. It is owed."]
+    assert not any("agreement" in n.text for n in s.where("notices", to="p1"))
+
+
+def test_an_outside_landlord_serves_notice_when_the_rent_defaults():
+    s = place()
+    days(s, 1)                                                   # stopped on Tuesday 3 March
+    rent = next(o for o in s.where("obligations", payer="h1") if o.kind == "rent")
+    agency = O.name_of(s, rent.payee)
+    _stop(s, "p1", rent.id)
+    days(s, 35)                                                  # the day-7 rent defaults on day 35
+    recs = [r for r in s.all("records") if r.kind == "notice to quit"]
+    assert [(r.day, r.about, r.text) for r in recs] == \
+        [(35, "h1", f"{agency} has served notice on the Brindle household to leave 8 Back Lane by Monday 4 May.")]
+    for pid in ("p1", "p2"):
+        assert f"{agency} has served notice: you are to leave 8 Back Lane by Monday 4 May." in \
+            [n.text for n in s.where("notices", to=pid)]
+    assert any(c.cause == f"routine:notice:{rent.id}" for c in s.changes)
+    days(s, 14)                                                  # more defaults, but notice stands: once
+    assert len([r for r in s.all("records") if r.kind == "notice to quit"]) == 1

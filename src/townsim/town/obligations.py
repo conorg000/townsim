@@ -25,6 +25,11 @@ from townsim.town.store import Store, id_key
 
 KIND_ORDER = ("wage", "rent", "loan", "bill", "agreement", "standing", "fee")
 ENDS = ("payer", "both", "service")
+# What a household may not stop, and why not: what it spends to live, the house's energy while
+# it lives there, and a bill for work already done.
+UNSTOPPABLE = {"living": "that is what the household spends to live; it cannot be stopped.",
+               "energy": "the house's energy cannot be stopped while you live there.",
+               "work": "that is a bill for work already done."}
 
 LATE_FEE_CENTS = 2500
 FEE_AFTER_DAYS = 7
@@ -64,12 +69,13 @@ def _is_int(x: object) -> bool:
 
 def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first: int, every: int = 0,
            last: int | None = None, memo: str, ends: str, made_by: str, cause: str,
-           penalty: bool = False, final_cents: int = 0) -> str:
+           penalty: bool = False, final_cents: int = 0, cannot_stop: str = "") -> str:
     """Add an obligation and return its id. Raises ValueError, changing nothing, on bad arguments.
 
     `first` may not be before today. If an instalment falls today its due is opened here,
     so an obligation made after that day's `open_dues` is still collected today. A
     `final_cents` above 0 is the instalment that falls on `last`, which must then be given.
+    `cannot_stop`, a key of `UNSTOPPABLE`, marks one its payer may not stop.
     """
     if kind not in KIND_ORDER:
         raise ValueError(f"kind {kind!r} is not one of {KIND_ORDER}")
@@ -90,8 +96,10 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
         raise ValueError(f"payer and payee are both {payer!r}")
     if not _is_int(final_cents) or final_cents < 0 or (final_cents > 0 and last is None):
         raise ValueError(f"final_cents must be an int >= 0, and above 0 only with a last day, got {final_cents!r}")
+    if cannot_stop and cannot_stop not in UNSTOPPABLE:
+        raise ValueError(f"cannot_stop {cannot_stop!r} is not one of {tuple(UNSTOPPABLE)}")
     ob = Obligation(store.new_id("ob", cause), kind, payer, payee, cents, first, every, last, memo, ends,
-                    made_by, store.day, penalty, final_cents=final_cents)
+                    made_by, store.day, penalty, final_cents=final_cents, cannot_stop=cannot_stop)
     store.add("obligations", ob, cause)
     if falls_on(ob, store.day):
         ensure_due(store, ob.id, store.day, cause)
@@ -265,6 +273,10 @@ def _shown(text: str) -> str:
     return memo(text)
 
 
+# Called as `hook(store, obligation, due)` when a due defaults (the outside landlord's notice
+# to quit, registered by `ops_deals`).
+ON_DEFAULT: list = []
+
 FEE_ON = "late fee on "
 
 
@@ -307,12 +319,19 @@ def age_arrears(store: Store) -> None:
             store.set("dues", due.id, cause, status="defaulted")
             text = f"{name_of(store, ob.payer)} defaulted on {_payment(ob, due.day, due.cents - due.paid)}."
             store.add("records", Record(store.new_id("rec", cause), store.day, "default", ob.payer, text), cause)
+            for hook in ON_DEFAULT:
+                hook(store, ob, due)
 
 
 def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:
-    text = f"{_cap(_payment(ob, due.day, remainder))} could not be taken."
-    if ob.status != "breached":
-        text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
+    """Tell the payer a due went to arrears: why, for one they stopped; else what the account held."""
+    if ob.status == "breached" and ob.stopped_on >= 0:
+        text = (f"{_cap(_shown(ob.memo))}, {money(remainder)}, due {date_text(due.day)}, was not taken: "
+                f"you stopped it on {date_text(ob.stopped_on)}. It is owed.")
+    else:
+        text = f"{_cap(_payment(ob, due.day, remainder))} could not be taken."
+        if ob.status != "breached":
+            text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
     _tell(store, ob.payer, text, cause)
 
 
@@ -534,7 +553,8 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
     dated today or earlier that is still owed stays owed (and is still collected); a due
     dated after today, opened ahead by a payment by hand, is void, as `end` leaves one, and
     what was counted toward it stays with the payee, both sides told. Raises ValueError,
-    changing nothing, if `by` is not the payer or the obligation is not active.
+    changing nothing, if `by` is not the payer, the obligation is not active, or it is one
+    its payer may not stop (`cannot_stop`).
     """
     if not store.has("obligations", ob_id):
         raise ValueError(f"no obligation {ob_id!r}")
@@ -543,12 +563,15 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
         raise ValueError(f"{by!r} does not pay {ob_id}")
     if ob.status != "active":
         raise ValueError(f"{ob_id} is {ob.status}, not active")
+    if ob.cannot_stop:
+        raise ValueError(f"{ob_id} cannot be stopped: {UNSTOPPABLE[ob.cannot_stop]}")
     with store.transaction():
         store.set("obligations", ob_id, cause, stopped_on=store.day)
         if ob.ends == "both":
             store.set("obligations", ob_id, cause, status="breached")
-            text = (f"{name_of(store, ob.payer)} stopped paying an agreement with {name_of(store, ob.payee)} "
-                    f"({_shown(ob.memo)}).")
+            what = (f"the rent to {name_of(store, ob.payee)}" if ob.kind == "rent"
+                    else f"an agreement with {name_of(store, ob.payee)}")
+            text = f"{name_of(store, ob.payer)} stopped paying {what} ({_shown(ob.memo)})."
             store.add("records", Record(store.new_id("rec", cause), store.day, "breach", ob.payer, text), cause)
             return "breach"
         _void_after(store, ob, store.day, cause)

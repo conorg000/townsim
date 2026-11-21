@@ -294,7 +294,7 @@ def _check_stop(store: Store, act: Act) -> str | None:
     if (isinstance(ob_id, str) and store.has("obligations", ob_id)
             and controls(store, act.principal, store.get("obligations", ob_id).payer)
             and store.get("obligations", ob_id).status == "active"):
-        return None
+        return obligations.UNSTOPPABLE.get(store.get("obligations", ob_id).cannot_stop)
     return f"you have nothing with the id '{shown(ob_id)}'."
 
 
@@ -304,6 +304,9 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
         return other[1](store, act, cause)
     ob = store.get("obligations", act.args["id"])
     result = obligations.stop(store, ob.id, ob.payer, cause)
+    if result == "breach" and ob.kind == "rent":
+        return (f"That was your rent to {name_of(store, ob.payee)}. Stopping it is recorded as a breach. The rent "
+                f"stays owed each week and is no longer taken from your account.")
     if result == "breach":
         return f"That was an agreement with {name_of(store, ob.payee)}. Stopping it is recorded as a breach."
     return "Stopped." if result == "stopped" else "You have left; the fee ends."

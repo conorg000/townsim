@@ -146,7 +146,8 @@ def test_stop_a_service_leaves_it():
 def test_stop_on_an_agreement_is_a_breach_and_says_so():
     s = thin(); rent = ob_id(s, "h1", "rent")
     out = do(s, "p01", "stop", id=rent)
-    assert out.msg == "That was an agreement with Wenlow Lettings. Stopping it is recorded as a breach."
+    assert out.msg == ("That was your rent to Wenlow Lettings. Stopping it is recorded as a breach. The rent stays "
+                       "owed each week and is no longer taken from your account.")
     assert s.get("obligations", rent).status == "breached"
     assert s.all("records")[-1].kind == "breach"
 

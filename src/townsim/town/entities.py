@@ -163,6 +163,7 @@ class Obligation:
     next_cents: int = 0        # with `next_from`: what instalments on and after that day are for
     next_from: int = -1        # the day a change of amount takes effect, or -1 for none pending
     stopped_on: int = -1       # the day its payer stopped it (stopped or breached), or -1
+    cannot_stop: str = ""      # why its payer may not stop it: "living", "energy", "work" (`obligations.UNSTOPPABLE`)
 
 
 @dataclass

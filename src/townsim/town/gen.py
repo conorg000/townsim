@@ -384,9 +384,9 @@ def _org(store: Store, name: str, kind: str, outside: bool = False, owner: str =
 
 
 def _weekly(store: Store, kind: str, payer: str, payee: str, cents: int, first: int, memo: str, ends: str,
-            last: int | None = None) -> str:
+            last: int | None = None, cannot_stop: str = "") -> str:
     return O.create(store, kind=kind, payer=payer, payee=payee, cents=cents, first=first, every=7, last=last,
-                    memo=memo, ends=ends, made_by="routine", cause=SETUP)
+                    memo=memo, ends=ends, made_by="routine", cause=SETUP, cannot_stop=cannot_stop)
 
 
 def _employ(store: Store, person: str, org: str, hours_a_week: float, weekly: int, since: int,
@@ -633,11 +633,11 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
             _weekly(s, "loan", h.id, bank, housing, MONDAY, f"mortgage on {h.address}", "both",
                     last=7 * (rng.randint(min(150, left), left) - 1))
         energy = _r100(h.shares["energy"] * income)
-        _weekly(s, "bill", h.id, utility, energy, WEDNESDAY, "energy", "service")
+        _weekly(s, "bill", h.id, utility, energy, WEDNESDAY, "energy", "service", cannot_stop="energy")
         food = expected_food(len(h.members), price)
         # what regular outgoings leave of income is the drawn margin: the rest of it goes on regular spending
         rest = income * (1 - h.shares["margin"]) - housing - energy - food
-        _weekly(s, "bill", h.id, market, _r100(rest), SATURDAY, "regular spending", "payer")
+        _weekly(s, "bill", h.id, market, _r100(rest), SATURDAY, "regular spending", "payer", cannot_stop="living")
         if h is not bhome and rng.random() < PERSONAL_LOAN_CHANCE:
             _weekly(s, "loan", h.id, bank, _r100(_u(rng, PERSONAL_LOAN_SHARE) * income), MONDAY,
                     rng.choice(LOAN_PURPOSES), "both", last=7 * (rng.randint(20, 150) - 1))

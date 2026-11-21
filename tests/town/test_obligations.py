@@ -317,10 +317,9 @@ def test_a_breached_agreement_keeps_falling_due_and_is_not_taken():
     dues = [d for d in s.all("dues") if d.obligation == rent]
     assert [(d.day, d.status, d.paid) for d in dues] == [(0, "arrears", 0), (7, "arrears", 0), (14, "arrears", 0)]
     assert not any(t.memo.startswith("rent, due") for t in s.ledger.transfers)
-    told = [n.text for n in s.all("notices") if n.to == "p1" and "could not be taken" in n.text]
-    assert told == ["A payment of $175.00 due Monday 2 March (rent) could not be taken.",
-                    "A payment of $175.00 due Monday 9 March (rent) could not be taken.",
-                    "A payment of $175.00 due Monday 16 March (rent) could not be taken."]
+    told = [n.text for n in s.all("notices") if n.to == "p1" and "not taken" in n.text]
+    assert told == [f"Rent, $175.00, due Monday {d}, was not taken: you stopped it on Monday 2 March. It is owed."
+                    for d in ("2 March", "9 March", "16 March")]
     fees = [o for o in s.all("obligations") if o.penalty]                  # the ladder climbs as for any arrears
     assert [o.memo for o in fees] == ["late fee on rent due Monday 2 March", "late fee on rent due Monday 9 March"]
     assert [u.day for u in O.upcoming(s, "h1") if u.obligation == rent] == [0, 7, 14, 21]

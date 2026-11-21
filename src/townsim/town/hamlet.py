@@ -68,7 +68,7 @@ def _repair(store: Store, e: Event, cause: str) -> str | None:
         return None
     due = store.day + REPAIR_DAYS
     obligations.create(store, kind="bill", payer=e.who, payee=spending[-1].payee, cents=e.amount, first=due,
-                       memo="repair to the house", ends="service", made_by="routine", cause=cause)
+                       memo="repair to the house", ends="both", made_by="routine", cause=cause, cannot_stop="work")
     _tell(store, _adults(store, e.who), f"The house needs a repair costing {money(e.amount)}. "
                                         f"It is due on {date_text(due)}.", cause)
     return None
@@ -102,7 +102,8 @@ def _cold_month(store: Store, e: Event, cause: str) -> str | None:
         bills = obligations.instalment_days(ob, store.day, e.weeks)
         for day in bills:
             obligations.create(store, kind="bill", payer=ob.payer, payee=ob.payee, cents=extra, first=day,
-                               memo="extra energy, cold spell", ends="service", made_by="routine", cause=cause)
+                               memo="extra energy, cold spell", ends="service", made_by="routine", cause=cause,
+                               cannot_stop="energy")
         if bills:
             _tell(store, _adults(store, ob.payer),
                   f"A cold spell: energy bills are {e.amount}% higher for {_weeks(len(bills))}.", cause)

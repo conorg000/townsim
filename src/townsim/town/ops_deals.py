@@ -635,12 +635,35 @@ def _check_notice(store: Store, act: Act) -> str | None:
 
 def _do_notice(store: Store, act: Act, cause: str) -> str:
     h, _ = _notice(store, act)
+    by = _serve(store, h, store.get("people", act.principal).name, cause)
+    return f"You have served notice on {_household(h)} to leave {_address(h)} by {by}."
+
+
+def _serve(store: Store, h, landlord: str, cause: str) -> str:
+    """Serve notice to quit on `h` from `landlord` (a name): a record, and its adults told. The day
+    they are to leave by, as written."""
     by = date_text(store.day + QUIT_DAYS)
-    landlord = store.get("people", act.principal).name
     text = f"{landlord} has served notice on {_household(h)} to leave {_address(h)} by {by}."
     store.add("records", Record(store.new_id("rec", cause), store.day, "notice to quit", h.id, text), cause)
     _tell(store, _adults(store, h.id), f"{landlord} has served notice: you are to leave {_address(h)} by {by}.", cause)
-    return f"You have served notice on {_household(h)} to leave {_address(h)} by {by}."
+    return by
+
+
+def _outside_notice(store: Store, ob, due) -> None:
+    """When rent a household owes an outside organisation defaults, it serves notice as a landlord
+    would (`serve_notice`): once, unless notice was served on the household within `QUIT_DAYS`."""
+    if ob.kind != "rent" or not store.has("households", ob.payer) or not store.has("orgs", ob.payee):
+        return
+    org = store.get("orgs", ob.payee)
+    if not org.outside:
+        return
+    h = store.get("households", ob.payer)
+    if any(r.about == h.id and store.day - r.day < QUIT_DAYS for r in store.where("records", kind="notice to quit")):
+        return
+    _serve(store, h, org.name, f"routine:notice:{ob.id}")
+
+
+obligations.ON_DEFAULT.append(_outside_notice)
 
 
 ANSWERERS_OF_DEALS: dict[str, core.Answerer] = {"agreement": (_check_agreement, _do_agreement),
