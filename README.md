@@ -9,9 +9,12 @@ each person only ever picks one option from a typed list. Any person can be
 played by a simple rule, a recorded choice, or a language model named in the
 config.
 
-This is a research project and a work in progress. See
-[society-sim-design.md](society-sim-design.md) for the design and what it can
-and cannot show.
+This is a research project and a work in progress. The design it is moving to
+is in [docs/design.md](docs/design.md): every townsperson played by a weak
+model that thinks for itself, and a far more capable AI system that people
+adopt. The code today still follows the earlier design,
+[society-sim-design.md](society-sim-design.md). The research behind the new
+design is in [reports/](reports/).
 
 ## Status
 
