@@ -50,11 +50,11 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
     assert fees[0].ends == "both"                                        # the parent is "service"
     assert [d.day for d in s.all("dues") if d.obligation == fees[0].id] == [7]
     assert [(n.to, n.text) for n in s.all("notices")] == [
-        (p, "energy, $48.00, due Monday 2 March, could not be taken. The account held $0.00.") for p in ("p1", "p2")
+        (p, "energy, $48.00, due Monday 2 March, could not be taken. The Ashby account held $0.00.") for p in ("p1", "p2")
     ] + [(p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
          for p in ("p1", "p2")] + [
         (p, "late fee on energy due Monday 2 March, $25.00, due Monday 9 March, could not be taken. "
-            "The account held $0.00.") for p in ("p1", "p2")]
+            "The Ashby account held $0.00.") for p in ("p1", "p2")]
     run_days(s, 7)
     two_weeks = [n for n in s.all("notices") if "two weeks" in n.text]
     assert len(two_weeks) == len(O.people_of(s, "h1")) == 2
@@ -291,7 +291,7 @@ def test_a_due_that_cannot_be_taken_is_told_once():
     run_days(s, 5)
     told = [n for n in s.all("notices") if "could not be taken" in n.text]
     assert [(n.to, n.day, n.text) for n in told] == [
-        (p, 0, "rent, $175.00, due Monday 2 March, could not be taken. The account held $100.00.") for p in ("p1", "p2")]
+        (p, 0, "rent, $175.00, due Monday 2 March, could not be taken. The Ashby account held $100.00.") for p in ("p1", "p2")]
     causes = {c.cause for c in s.changes if c.table == "notices" and c.field == "+" and "could not" in c.new.text}
     assert causes == {"routine:collect:du1"}
 
@@ -302,7 +302,7 @@ def test_a_part_paid_due_tells_what_remains():
     O.pay(s, "h1", "outside:lettings", 5_000, "part", "op:p1:pay:d0.0")
     run_days(s, 2)
     [first, _] = [n.text for n in s.all("notices")]
-    assert first == "rent, $125.00, due Tuesday 3 March, could not be taken. The account held $50.00."
+    assert first == "rent, $125.00, due Tuesday 3 March, could not be taken. The Ashby account held $50.00."
     assert s.get("obligations", ob).status == "active"
 
 

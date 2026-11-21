@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
-from townsim.town.store import Store, id_key
+from townsim.town.store import TABLES, Store, id_key
 
 MAX_CENTS = 100_000_000
 _SHOWN = 40
@@ -111,6 +111,8 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     `op:<actor>/<principal>:...` for an act done for someone else; for an act naming no
     operation, the tag has `?` in place of the operation's name. Hours are the actor's."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
+    if spec is not None and spec.who != "all" and spec.who not in _positions_or_none(store, act.actor):
+        spec = None   # an operation outside the actor's positions is one they do not have
     who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
     cause = f"op:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
@@ -123,8 +125,6 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
             reason = authorise(store, act)
             if reason is not None:
                 return _not_done(act, reason, cause)
-        if spec.who not in positions(store, act.actor):
-            return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
         person = store.get("people", act.actor)
         hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
         if person.hours_left < hours:
@@ -141,6 +141,11 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         store.engine_errors.append(f"{cause}: {type(e).__name__}: {str(e)[:200]}")
         return _not_done(act, "that could not be carried out.", cause)
     return Outcome(True, told, act, cause)
+
+
+def _positions_or_none(store: Store, pid: Any) -> list[str]:
+    """`positions`, or none for an actor who is not a person."""
+    return positions(store, pid) if isinstance(pid, str) and store.has("people", pid) else []
 
 
 def dollars(value: Any) -> Decimal | None:
@@ -221,10 +226,7 @@ UNKNOWN = 6
 
 def _rows(store: Store, table: str) -> list:
     """Every row of `table`, or none if this store has no such table."""
-    try:
-        return store.all(table)
-    except KeyError:
-        return []
+    return store.all(table) if table in TABLES else []
 
 
 def tie_rank(store: Store, pid: str, other: str) -> int:
@@ -264,8 +266,9 @@ def account_of(store: Store, who: str) -> str:
 
 
 def accounts_of(store: Store, pid: str) -> list[str]:
-    """The accounts `pid` controls: their household's, then every org they own, in id order."""
-    return [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid]
+    """The accounts `pid` controls: their household's, then every org in the town they own,
+    in id order. An org outside the town is not theirs to draw on, whoever its owner."""
+    return [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid and not o.outside]
 
 
 def controls(store: Store, pid: str, account: str) -> bool:
@@ -275,7 +278,7 @@ def controls(store: Store, pid: str, account: str) -> bool:
 def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
     """The account the act draws on, or None and why not. No `from`, the word `household`
     or the household's own name is the principal's household; an org's name, that org if
-    the principal owns it."""
+    the principal owns it and it is in the town."""
     value = act.args.get("from") if isinstance(act.args, dict) else None
     household = store.get("people", act.principal).household
     if value is None or (isinstance(value, str) and not value.strip()):
@@ -285,7 +288,7 @@ def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
         if wanted in ("household", store.get("households", household).name.casefold()):
             return household, None
         for org in store.all("orgs"):
-            if org.name.casefold() == wanted and org.owner == act.principal:
+            if org.name.casefold() == wanted and org.owner == act.principal and not org.outside:
                 return org.id, None
     return None, f"'{shown(value)}' is not an account of yours."
 

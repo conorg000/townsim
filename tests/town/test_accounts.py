@@ -61,7 +61,7 @@ def test_a_firm_in_arrears_tells_its_owner():
              **SETUP)
     run_days(s, 1)
     assert [n.text for n in s.where("notices", to="p01")] == [
-        "new freezer, $3,000.00, due Monday 2 March, could not be taken. The account held $2,000.00."]
+        "new freezer, $3,000.00, due Monday 2 March, could not be taken. The Marsh's Stores account held $2,000.00."]
     assert s.where("notices", to="p02") == []
 
 
@@ -260,3 +260,49 @@ def test_the_seed_is_part_of_the_hash():
 def test_new_people_and_households_keep_the_old_constructors():
     h = Household("h9", "Lowe", ["p9"])
     assert (h.street, h.shop_day, h.landlord) == ("", 5, "")
+
+
+# small corrections
+
+def test_accepting_a_request_names_the_account_paid():
+    s = thin(); s.set("orgs", "org1", T, owner="p01")
+    rent, _ = _arrears_for_the_pryces_rent(s)
+    _act(s, "p01", "request", to="Megan Pryce", text="The rent, please.", amount=185, **{"for": rent})
+    assert _act(s, "p04", "answer", request="rq1", answer="accept").msg == "Accepted. Paid $185.00 to Wenlow Lettings."
+
+
+def test_a_letter_to_ones_own_business_is_refused():
+    s = town_with_shop()
+    assert _act(s, "p01", "message", to="Marsh's Stores", text="Note to self.").msg == "Not done: that is you."
+    assert s.all("messages") == []
+
+
+def test_descriptions_hold_for_owners_too():
+    from townsim.town.acts import REGISTRY
+    assert not any("household" in REGISTRY[n].desc for n in ("pay", "standing_payment", "read", "stop"))
+
+
+def test_an_outside_organisation_is_not_an_account_of_its_owner():
+    s = town_with_shop(); s.set("orgs", "org3", T, outside=True)
+    assert accounts_of(s, "p01") == ["h1"] and not controls(s, "p01", "org3")
+    out = _act(s, "p01", "pay", to="Wenlow Lettings", amount=1, **{"from": "Marsh's Stores"})
+    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours."
+
+
+def test_an_operation_out_of_position_is_the_same_as_an_unknown_one():
+    s = thin()
+    register(OpSpec("lend", '{"op": "lend"}', "Lend.", 0.5, _no_reason, _done, 90, who="banker"))
+    held, unknown = _act(s, "p03", "lend"), _act(s, "p03", "fly")
+    assert held.msg == "Not done: there is no operation called 'lend'." and held.cause == "op:p03:?:d0.0"
+    assert unknown.cause == held.cause
+    other = apply_act(s, Act("p03", "p01", "lend", {}), 0)              # unknown before any authoriser speaks
+    assert other.msg == "Not done: there is no operation called 'lend'."
+
+
+def test_rows_of_a_table_this_store_lacks_are_none_but_other_errors_rise():
+    import pytest
+    from townsim.town.acts import _rows
+    assert _rows(thin(), "no_such_table") == []
+    s = thin(); s._tables["ties"] = None                               # a broken store is not hidden
+    with pytest.raises(Exception):
+        _rows(s, "ties")

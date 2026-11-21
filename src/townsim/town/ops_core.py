@@ -245,8 +245,11 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
 
 
 def _check_message(store: Store, act: Act) -> str | None:
-    if _addressee(store, act) is None:
+    found = _addressee(store, act)
+    if found is None:
         return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
+    if found[1] and found[0] == act.actor:
+        return "that is you."
     return _text(act.args.get("text"), "that is too long for one letter.")
 
 
@@ -366,7 +369,8 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
             obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
         else:
             obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
-        told += f" Paid {money(rq.cents)} to {name_of_who(store, rq.sender)}."
+        paid = rq.sender if payee == account_of(store, rq.sender) else payee
+        told += f" Paid {money(rq.cents)} to {name_of_who(store, paid)}."
     asked = cut(rq.text)
     text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
             f"your request {rq.id} ({asked}).")
@@ -420,14 +424,14 @@ def _do_notes(store: Store, act: Act, cause: str) -> str:
 for _spec in (
     OpSpec("pay", '{"op": "pay", "to": "<name>", "amount": <dollars>, "note": "<what for>", '
                   '"for": "<id of what it is owed on, if any>"}',
-           "Pay someone now from your household's account.", 0.25, _check_pay, _do_pay, 10, takes_from=True),
+           "Pay money once.", 0.25, _check_pay, _do_pay, 10, takes_from=True),
     OpSpec("standing_payment", '{"op": "standing_payment", "to": "<name>", "amount": <dollars>, '
                                '"day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", '
                                '"weeks": <number, or 0 for until stopped>, "note": "<what for>"}',
-           "Pay someone the same sum every week from your household's account.", 0.25,
+           "Set up a weekly payment that goes out by itself.", 0.25,
            _check_standing, _do_standing, 20, takes_from=True),
     OpSpec("stop", '{"op": "stop", "id": "<id of the payment or agreement>"}',
-           "End a payment your household makes on a schedule.", 0.1, _check_stop, _do_stop, 30),
+           "Stop a payment or agreement.", 0.1, _check_stop, _do_stop, 30),
     OpSpec("message", '{"op": "message", "to": "<name>", "text": "<what you write>"}',
            "Write a letter to a person in the town.", 0.25, _check_message, _do_message, 40),
     OpSpec("request", '{"op": "request", "to": "<name>", "text": "<what you ask for>", '
@@ -437,7 +441,7 @@ for _spec in (
                      '"note": "<optional words>"}',
            "Accept or decline a request made to you.", 0.1, _check_answer, _do_answer, 60),
     OpSpec("read", '{"op": "read", "what": "account" | "account in full" | "agreements"}',
-           "Read your household's account or its agreements.", 0.1, _check_read, _do_read, 70, takes_from=True),
+           "Read an account or what is owed.", 0.1, _check_read, _do_read, 70, takes_from=True),
     OpSpec("write_notes", '{"op": "write_notes", "text": "<for yourself>"}',
            "Replace your own notes.", 0.1, _check_notes, _do_notes, 80),
 ):

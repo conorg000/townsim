@@ -189,7 +189,7 @@ def age_arrears(store: Store) -> None:
 def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:
     text = f"{ob.memo}, {money(remainder)}, due {date_text(due.day)}, could not be taken."
     if ob.status != "breached":
-        text += f" The account held {money(store.balance(ob.payer))}."
+        text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
     _tell(store, ob.payer, text, cause)
 
 
