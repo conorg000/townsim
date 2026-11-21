@@ -1,7 +1,8 @@
 """The `townsim` command: the small economy's skill test, and the thin town run and
-replayed from a SQLite file. No command calls a model."""
+replayed from a SQLite file. Only `town-live` and `town-probe` call models, behind a cap."""
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -128,6 +129,83 @@ def town_hamlet_cmd(
     except (OSError, ValueError) as e:
         _fail(f"cannot read the families from {families}: {e}")
     _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet_script.script)
+
+
+_PRICES = str(Path(__file__).resolve().parents[2] / "config" / "prices.yaml")
+_KEY = "OPENROUTER_API_KEY"
+
+
+def _need_key(command: str) -> None:
+    """Fail in one line if the key is not in the environment; its value is never read."""
+    if _KEY not in os.environ:
+        _fail(f"no {_KEY} in the environment; run with: uv run --env-file .env townsim {command} …")
+
+
+def _cap(cap: float, most: float) -> None:
+    if not (cap > 0 and cap <= most):
+        _fail(f"the cap must be above $0 and at most ${most:g}, got ${cap:g}")
+
+
+def _load_families(families: str, prices: str):
+    """The families and the prices, or one plain line and exit code 1."""
+    from townsim.estimate import load_prices
+    from townsim.town import families as fam
+
+    try:
+        return fam.load(families, prices), load_prices(prices)
+    except (OSError, ValueError) as e:
+        _fail(f"cannot read the families from {families} and {prices}: {e}")
+
+
+def _litellm():
+    """LiteLLM's completion function and a cost function over its replies, loaded only here."""
+    import litellm
+
+    litellm.drop_params = True
+    litellm.suppress_debug_info = True
+    return litellm.completion, lambda resp: litellm.completion_cost(completion_response=resp)
+
+
+@app.command("town-live")
+def town_live_cmd(
+    db: Annotated[str, typer.Option("--db", help="SQLite file to keep the run in.")],
+    weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run in all, from day 0.")],
+    cap: Annotated[float, typer.Option("--cap", help="Dollars the run may spend in all, at most 5.")],
+    run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "live",
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.")] = _FAMILIES,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.")] = _PRICES,
+) -> None:
+    """Run the hamlet with its people played by language models, behind a spending cap, then
+    replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
+    AND SPENDS MONEY. Exits 1 on engine errors, a replay mismatch, or a stop other than the cap."""
+    from townsim.town import live
+    from townsim.town.replies import ReplayMismatch
+    from townsim.town.rundb import RunDB
+
+    _cap(cap, live.MAX_CAP)
+    _need_key("town-live")
+    fams, price_list = _load_families(families, prices)
+    completion_fn, cost_fn = _litellm()
+    with _plainly(db), RunDB(db) as rdb:
+        try:
+            got = live.play(rdb, run_id, seed, weeks, fams, price_list, cap, completion_fn, cost_fn=cost_fn,
+                            echo=typer.echo)
+        except ReplayMismatch as e:
+            _fail(f"the run cannot go on: {e}")
+        for name, n, dollars in live.spend_by_family(rdb, run_id):
+            typer.echo(f"  {name}  {n} replies  ${dollars:.4f}")
+        typer.echo(f"stored spend: ${rdb.spent(run_id):.4f}")
+        typer.echo(f"lost to failed attempts: ${live.lost_spend(rdb, run_id):.4f}")
+        errors = rdb.errors(run_id)
+        typer.echo(f"engine errors: {len(errors)}")
+        for day, text in errors[:10]:
+            typer.echo(f"  day {day}: {text}")
+        _replay(rdb, run_id)
+        if got.stopped and got.stopped.startswith("cap: "):
+            typer.echo(f"stopped by the cap of ${cap:g} after {got.days_done} days; run again with a larger cap to go on")
+        if errors or (got.stopped and not got.stopped.startswith("cap: ")):
+            raise typer.Exit(code=1)
 
 
 @app.command("town-replay")
