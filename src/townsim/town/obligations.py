@@ -268,6 +268,8 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
     for account in (payer, payee):
         if not store.ledger.has(account):
             raise ValueError(f"no ledger account {account!r}")
+    if payer == payee:
+        raise ValueError(f"payer and payee are both {payer!r}")
     account = store.ledger.accounts[payer]
     if account.balance < cents and not account.allow_credit:
         raise Overdraft(f"{payer} has {account.balance}, cannot pay {cents} to {payee} ({memo})")

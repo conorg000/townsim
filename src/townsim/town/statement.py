@@ -89,7 +89,7 @@ def agreements_text(store: Store, account: str) -> str:
         if ob.every == 0:
             rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} once on {date_text(ob.first)} {party}, {ob.status}")
             continue
-        how = "every week" if ob.every == 7 else f"every {ob.every} days"
+        how = {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
         until = f", until {date_text(ob.last)}" if ob.last is not None else ""
         rows.append(f"{ob.id}: {ob.memo}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, {ob.status}")
     return "\n".join(rows) or "nothing"

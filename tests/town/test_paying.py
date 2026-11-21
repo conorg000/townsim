@@ -101,6 +101,8 @@ def test_a_payment_that_cannot_be_covered_changes_nothing():
     before = unchanged(s)
     with pytest.raises(Overdraft):
         O.pay(s, "h1", "outside:lettings", 1_001, "x", "op:p1:pay:d0.0")
+    with pytest.raises(ValueError):
+        O.pay(s, "h1", "h1", 100, "x", "op:p1:pay:d0.0")             # no payment to oneself
     for bad in (0, -5, 10.0, True):
         with pytest.raises(ValueError):
             O.pay(s, "h1", "outside:lettings", bad, "x", "op:p1:pay:d0.0")
@@ -162,3 +164,42 @@ def test_a_due_already_open_still_stands_after_stop():
 def test_name_of():
     s = town()
     assert [O.name_of(s, a) for a in ("h1", "outside:lettings", "p1")] == ["Ashby", "Lettings", "p1"]
+
+
+def _rent_on_its_day(paid_by_hand):
+    """Rent of 17,500 every week from day 7; `paid_by_hand(s)` runs on day 7, then the
+    days run through day 15. Returns the store and the days lettings was paid."""
+    s = town(h1=50_000); make_rent(s, cents=17_500, first=7)
+    run_days(s, 7)
+    paid_by_hand(s)
+    s.advance_day(); run_days(s, 8)
+    assert s.ledger.total() == 0
+    return s, [t.t for t in to(s, "outside:lettings")]
+
+
+def test_paying_on_the_due_day_before_it_is_opened():
+    def act(s):
+        m = O.pay(s, "h1", "outside:lettings", 17_500, "rent", "op:p1:pay:d7.0")
+        assert [s.get("dues", x.due).day for x in m] == [7]
+        O.open_dues(s); O.age_arrears(s); O.collect(s)
+    s, days = _rent_on_its_day(act)
+    assert days == [7, 14] and received(s, "outside:lettings") == 2 * 17_500
+
+
+def test_paying_on_the_due_day_after_it_is_opened_but_before_it_is_collected():
+    def act(s):
+        O.open_dues(s)
+        m = O.pay(s, "h1", "outside:lettings", 17_500, "rent", "op:p1:pay:d7.0")
+        assert [s.get("dues", x.due).day for x in m] == [7] and len(s.all("dues")) == 1
+        O.age_arrears(s); O.collect(s)
+    s, days = _rent_on_its_day(act)
+    assert days == [7, 14] and received(s, "outside:lettings") == 2 * 17_500
+
+
+def test_paying_on_the_due_day_after_it_was_collected_counts_toward_the_next():
+    def act(s):
+        O.open_dues(s); O.age_arrears(s); O.collect(s)
+        m = O.pay(s, "h1", "outside:lettings", 17_500, "rent", "op:p1:pay:d7.0")
+        assert [s.get("dues", x.due).day for x in m] == [14]
+    s, days = _rent_on_its_day(act)
+    assert days == [7, 7] and received(s, "outside:lettings") == 2 * 17_500

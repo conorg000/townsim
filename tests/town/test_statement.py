@@ -82,3 +82,9 @@ def test_agreements_text_lists_everything_paid_or_received():
     ])
     assert agreements_text(s, "p1") == "nothing"
     assert (s.hash(), len(s.changes)) == before
+
+
+def test_a_daily_obligation_reads_every_day():
+    s = town()
+    O.create(s, kind="standing", payer="h1", payee="h2", cents=100, first=1, every=1, memo="daily", ends="payer", **SETUP)
+    assert agreements_text(s, "h1") == "ob1: daily, $1.00 every day to Brook, first Tuesday 3 March, active"
