@@ -19,6 +19,8 @@ MAX_IN = 0.20    # dollars per million input tokens a family's model may cost at
 MAX_OUT = 1.00   # dollars per million output tokens
 MAX_TOKENS = 4000
 EFFORTS = ("none", "low")
+PARAMS = ("max_tokens", "temperature", "top_p", "reasoning_effort")   # all a family may set
+TOKENS_PER_MESSAGE = 4   # framing a chat API adds around each message
 
 
 @dataclass(frozen=True)
@@ -59,34 +61,57 @@ def check_price(name: str, model: str, price: Price) -> None:
                          f"${price.output_per_mtok} out, above the ceiling of ${MAX_IN} in and ${MAX_OUT} out")
 
 
-def _family(name: str, spec: object, prices: dict[str, Price]) -> Family:
-    if not isinstance(spec, dict):
-        raise ValueError(f"family {name!r} is not a mapping with a model and params")
-    model = spec.get("model")
-    if not isinstance(model, str) or not model.strip():
-        raise ValueError(f"family {name!r} has no model")
-    params = spec.get("params")
+def _number(v: object) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def check_params(name: str, params: object) -> None:
+    """Raise ValueError unless `params` holds exactly the parameters a family may set: a whole
+    `max_tokens` from 1 to 4000 (required), `temperature` from 0 to 2, `top_p` above 0 and at
+    most 1, `reasoning_effort` none or low. Anything else could route a call around the price
+    guard (another model, more completions, more tokens), so any other key is refused."""
     if not isinstance(params, dict):
         raise ValueError(f"family {name!r}: params must be a mapping")
-    params = {str(k): v for k, v in params.items()}
+    for k in params:
+        if k not in PARAMS:
+            raise ValueError(f"family {name!r}: params may not set {k!r} (only {', '.join(PARAMS)})")
     mt = params.get("max_tokens")
     if isinstance(mt, bool) or not isinstance(mt, int) or not 1 <= mt <= MAX_TOKENS:
         raise ValueError(f"family {name!r}: params must have a whole max_tokens from 1 to {MAX_TOKENS}, got {mt!r}")
+    if "temperature" in params and not (_number(params["temperature"]) and 0 <= params["temperature"] <= 2):
+        raise ValueError(f"family {name!r}: temperature must be a number from 0 to 2, got {params['temperature']!r}")
+    if "top_p" in params and not (_number(params["top_p"]) and 0 < params["top_p"] <= 1):
+        raise ValueError(f"family {name!r}: top_p must be a number above 0 and at most 1, got {params['top_p']!r}")
     if "reasoning_effort" in params and params["reasoning_effort"] not in EFFORTS:
         raise ValueError(f"family {name!r}: reasoning_effort must be one of {', '.join(EFFORTS)}, "
                          f"got {params['reasoning_effort']!r}")
-    if model not in prices:
-        raise ValueError(f"family {name!r}: {model} has no price in the prices file")
-    check_price(name, model, prices[model])
-    return Family(name, model, params)
+
+
+def check_family(family: Family, prices: dict[str, Price]) -> None:
+    """Raise ValueError unless `family` names a model string priced in `prices` within the
+    ceiling and sets only the parameters `check_params` allows."""
+    if not isinstance(family.model, str) or not family.model.strip():
+        raise ValueError(f"family {family.name!r} has no model")
+    check_params(family.name, family.params)
+    if family.model not in prices:
+        raise ValueError(f"family {family.name!r}: {family.model} has no price in the prices file")
+    check_price(family.name, family.model, prices[family.model])
+
+
+def _family(name: str, spec: object, prices: dict[str, Price]) -> Family:
+    if not isinstance(spec, dict):
+        raise ValueError(f"family {name!r} is not a mapping with a model and params")
+    params = spec.get("params")
+    family = Family(name, spec.get("model"), {str(k): v for k, v in params.items()} if isinstance(params, dict) else params)  # type: ignore[arg-type]
+    check_family(family, prices)
+    return family
 
 
 def load(path: str, prices_path: str) -> dict[str, Family]:
     """The families whose `left_out` is false, in file order. Raises ValueError (one plain
     line) for a file that is not YAML or not a mapping, a family without a model, params
-    without a whole `max_tokens` from 1 to 4000 (or with a `reasoning_effort` other than
-    none or low), a model the prices file does not price, a price above the ceiling, or
-    fewer than two families left in."""
+    other than those `check_params` allows, a model the prices file does not price, a price
+    above the ceiling, or fewer than two families left in."""
     raw = _read(path)
     prices = load_prices(prices_path)
     loaded = {}
@@ -105,7 +130,9 @@ def input_tokens(messages: list[dict]) -> int:
 
 
 def worst_case(family: Family, price: Price, messages: list[dict]) -> float:
-    """Dollars a call with `messages` could cost at most: `input_tokens(messages)` in and the
-    family's `max_tokens` out, at `price`."""
+    """Dollars one attempt at a call with `messages` costs at most, if the provider keeps to
+    `max_tokens`: `input_tokens(messages)` plus 4 per message in, and the family's
+    `max_tokens` out, at `price`."""
+    tokens_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
     tokens_out = family.params["max_tokens"]
-    return (input_tokens(messages) * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+    return (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000

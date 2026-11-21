@@ -104,9 +104,9 @@ def test_worst_case():
     fam = Family("a", "cheap/one", {"max_tokens": 1200})
     messages = [{"role": "system", "content": "x" * 1000}, {"role": "user", "content": "y" * 2000}]
     price = Price(input_per_mtok=0.10, output_per_mtok=0.50)
-    assert families.worst_case(fam, price, messages) == pytest.approx((1000 * 0.10 + 1200 * 0.50) / 1e6)
+    assert families.worst_case(fam, price, messages) == pytest.approx(((1000 + 2 * 4) * 0.10 + 1200 * 0.50) / 1e6)
     assert families.worst_case(fam, price, [{"role": "user", "content": "abcd"}]) == pytest.approx(
-        (2 * 0.10 + 1200 * 0.50) / 1e6)                         # ceil(4 / 3) tokens in
+        ((2 + 4) * 0.10 + 1200 * 0.50) / 1e6)                   # ceil(4 / 3) tokens in, and 4 for the message
 
 
 def test_shipped_files_load():
@@ -116,3 +116,30 @@ def test_shipped_files_load():
     assert loaded["deepseek"].model == "deepseek/deepseek-v4.1-flash-1017"
     assert {n: f.params["reasoning_effort"] for n, f in loaded.items()} == {
         "haiku": "none", "deepseek": "none", "hunyuan": "none", "minimax": "low"}
+
+
+@pytest.mark.parametrize("extra", ["n: 5", "max_completion_tokens: 100000", "fallbacks: [openai/gpt-6.2-sol]",
+                                   "extra_body: {models: [anthropic/claude-sonnet-5.5]}", "tools: [{type: function}]",
+                                   "response_format: {type: json_object}", "api_base: 'http://elsewhere'",
+                                   "custom_llm_provider: openai", "timeout: 600", "model: anthropic/claude-sonnet-5.5",
+                                   "seed: 1", "stream: true"])
+def test_params_other_than_the_allowed_are_refused(tmp_path, extra):
+    f, p = write(tmp_path, family("a", "cheap/one") + family("b", "cheap/two", f"{{max_tokens: 10, {extra}}}"))
+    key = extra.split(":")[0]
+    with pytest.raises(ValueError, match=rf"'b'.*{key}"):
+        families.load(f, p)
+
+
+@pytest.mark.parametrize("params,ok", [("{max_tokens: 10, temperature: 0}", True), ("{max_tokens: 10, temperature: 2}", True),
+                                       ("{max_tokens: 10, temperature: 2.1}", False), ("{max_tokens: 10, temperature: -0.1}", False),
+                                       ("{max_tokens: 10, temperature: '0.8'}", False), ("{max_tokens: 10, temperature: true}", False),
+                                       ("{max_tokens: 10, temperature: .nan}", False),
+                                       ("{max_tokens: 10, top_p: 1}", True), ("{max_tokens: 10, top_p: 0.5}", True),
+                                       ("{max_tokens: 10, top_p: 0}", False), ("{max_tokens: 10, top_p: 1.5}", False)])
+def test_temperature_and_top_p_are_bounded(tmp_path, params, ok):
+    f, p = write(tmp_path, family("a", "cheap/one") + family("b", "cheap/two", params))
+    if ok:
+        assert list(families.load(f, p)) == ["a", "b"]
+    else:
+        with pytest.raises(ValueError, match="'b'"):
+            families.load(f, p)

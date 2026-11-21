@@ -26,9 +26,6 @@ meta/muse-ember:
 anthropic/claude-haiku-5.5:
   input_per_mtok: 0.1
   output_per_mtok: 0.5
-  # Measured on a 104-week live run (2026-11-20) with the model's default thinking:
-  # 444,447 reasoning tokens over 1,329 calls. Remove this line if thinking is set to none.
-  reasoning_tokens_per_call: 335
 
 deepseek/deepseek-v4.1-flash-1017:
   input_per_mtok: 0.15
