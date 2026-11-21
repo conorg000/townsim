@@ -9,7 +9,9 @@ that ceiling.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 import yaml
 
@@ -26,11 +28,16 @@ TOKENS_PER_MESSAGE = 4   # framing a chat API adds around each message
 @dataclass(frozen=True)
 class Family:
     """A family's name, its model (the OpenRouter id as the file gives it) and the
-    parameters passed to every call as given."""
+    parameters passed to every call as given (kept as a read-only copy)."""
 
     name: str
     model: str
-    params: dict
+    params: Mapping
+
+    def __post_init__(self) -> None:
+        # a read-only copy, so no key can be added once the family has been checked
+        if isinstance(self.params, Mapping):
+            object.__setattr__(self, "params", MappingProxyType(dict(self.params)))
 
 
 def _read(path: str) -> dict:
@@ -70,7 +77,7 @@ def check_params(name: str, params: object) -> None:
     `max_tokens` from 1 to 4000 (required), `temperature` from 0 to 2, `top_p` above 0 and at
     most 1, `reasoning_effort` none or low. Anything else could route a call around the price
     guard (another model, more completions, more tokens), so any other key is refused."""
-    if not isinstance(params, dict):
+    if not isinstance(params, Mapping):
         raise ValueError(f"family {name!r}: params must be a mapping")
     for k in params:
         if k not in PARAMS:

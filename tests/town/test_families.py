@@ -143,3 +143,13 @@ def test_temperature_and_top_p_are_bounded(tmp_path, params, ok):
     else:
         with pytest.raises(ValueError, match="'b'"):
             families.load(f, p)
+
+
+def test_a_familys_params_are_a_frozen_copy():
+    given = {"max_tokens": 10}
+    f = Family("a", "cheap/one", given)
+    given["n"] = 5
+    assert dict(f.params) == {"max_tokens": 10}
+    with pytest.raises(TypeError):
+        f.params["n"] = 5
+    assert {**f.params} == {"max_tokens": 10}

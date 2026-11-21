@@ -99,9 +99,9 @@ def test_cost_falls_back_to_characters_when_counts_are_missing(usage):
     fake = Fake(lambda m, msgs: response("x" * 30, usage=usage))
     reply = replier(fake, cost_fn=lambda resp: 0).ask(key("p02"), MESSAGES)
     chars_in = sum(len(m["content"]) for m in MESSAGES)
-    assert reply.tokens_in == -(-chars_in // 3) and reply.tokens_out == 10
-    assert reply.cost > 0
-    assert reply.cost == pytest.approx((reply.tokens_in * 0.10 + 10 * 0.50) / 1e6)
+    assert reply.tokens_in == 0 and reply.tokens_out == 0           # what the provider said: nothing
+    floor_in = -(-chars_in // 3) + 4 * len(MESSAGES)
+    assert reply.cost == pytest.approx((floor_in * 0.10 + 10 * 0.50) / 1e6) and reply.cost > 0
 
 
 def test_a_reply_object_without_choices_still_costs_something():
@@ -330,3 +330,70 @@ def test_each_attempt_that_raised_is_told_to_lost_in_order_after_the_batch():
     w = [worst_case(FAMILIES[FAMILY_OF[k.actor]], PRICES[FAMILIES[FAMILY_OF[k.actor]].model], m) for k, m in pairs]
     assert [d for d, _ in told] == [w[1], w[3], w[3], w[3]]          # p02 once, p04 three times, in order
     assert {t for _, t in told} == {caller}
+
+
+def test_counts_below_what_can_be_seen_are_floored_for_the_cost_only():
+    fake = Fake(lambda m, msgs: response("x" * 30, reasoning="y" * 30, usage=(0, 0)))
+    reply = replier(fake, cost_fn=lambda resp: 0).ask(key("p02"), MESSAGES)
+    floor_in = -(-sum(len(m["content"]) for m in MESSAGES) // 3) + 4 * len(MESSAGES)
+    assert (reply.tokens_in, reply.tokens_out) == (0, 0)
+    assert reply.cost == pytest.approx((floor_in * 0.10 + 20 * 0.50) / 1e6)
+    fake = Fake(lambda m, msgs: response("x" * 30, usage=(5000, 900)))   # above the floors: as reported
+    reply = replier(fake).ask(key("p02"), MESSAGES)
+    assert (reply.tokens_in, reply.tokens_out) == (5000, 900)
+    assert reply.cost == pytest.approx((5000 * 0.10 + 900 * 0.50) / 1e6)
+
+
+class _Exploding:
+    """A reply whose `choices` raises when read."""
+
+    @property
+    def choices(self):
+        raise RuntimeError("body unreadable")
+
+
+def test_an_answer_that_cannot_be_read_counts_as_one_lost_attempt():
+    told = []
+
+    def answer(model, messages):
+        return _Exploding() if messages[-1]["content"] == "p02" else response("fine")
+    pairs = [(key(p), [{"role": "user", "content": p}]) for p in PEOPLE[:3]]
+    r = replier(Fake(answer), lost=told.append)
+    got = r.ask_many(pairs)
+    assert isinstance(got[1], StopRun) and str(got[1]).startswith("unavailable: maker/alpha:")
+    assert [g.text for i, g in enumerate(got) if i != 1] == ["fine", "fine"]
+    assert told == [worst_case(FAMILIES["a"], PRICES["maker/alpha"], pairs[1][1])]
+
+
+def test_a_lost_callback_that_raises_keeps_the_batch_and_stops_everything_after():
+    def answer(model, messages):
+        if messages[-1]["content"] == "p02":
+            raise TimeoutError("gave up")
+        return response("fine")
+
+    def lost(dollars):
+        raise OSError("disk full")
+    fake = Fake(answer)
+    r = replier(fake, lost=lost)
+    got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in PEOPLE[:3]])
+    assert got[0].text == got[2].text == "fine" and isinstance(got[1], StopRun)
+    assert r.stopped.startswith("unavailable: lost-spend callback failed")
+    calls = len(fake.calls)
+    with pytest.raises(StopRun):
+        r.ask(key("p04"), MESSAGES)
+    assert all(isinstance(g, StopRun) for g in r.ask_many([(key("p05"), MESSAGES)]))
+    assert len(fake.calls) == calls and r.stopped.startswith("unavailable: lost-spend callback failed")
+
+
+def test_a_key_added_to_params_after_the_check_never_reaches_the_call():
+    given = {"max_tokens": 100}
+    fams = dict(FAMILIES, a=Family("a", "maker/alpha", given))
+    fake = Fake()
+    r = ModelReplier(fams, PRICES, FAMILY_OF, fake, cap=1.0, spent=lambda: 0.0)
+    given["n"] = 50
+    with pytest.raises(TypeError):
+        fams["a"].params["fallbacks"] = ["x/y"]
+    with pytest.raises(TypeError):
+        r.families["a"].params["n"] = 50
+    r.ask(key("p02"), MESSAGES)
+    assert set(fake.calls[0]) == {"model", "messages", "timeout", "max_tokens"}

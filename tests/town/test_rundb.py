@@ -258,3 +258,26 @@ def test_a_provider_that_overspends_is_held_to_the_cap(tmp_path, name, provider)
         excess = max(0.0, max(billed - allowed for billed, allowed in r.batches))
         assert recorded <= cap + excess + 1e-12
         print(f"{name}: billed {p.billed / cap:.2f} x the cap, recorded {recorded / cap:.2f} x")
+
+
+def test_a_provider_reporting_nothing_is_still_charged_and_stopped(tmp_path):
+    """Usage 0/0 and a cost function saying 0: each reply is charged at least the listed price
+    of what can be seen (the messages' characters / 3 plus 4 a message in, the reply's characters
+    / 3 out), so stored spend grows and the run stops; it never passes C by more than one batch
+    (ATTEMPTS x that batch's worst case, at most)."""
+    cap = 0.01
+
+    def completion(**kw):
+        message = SimpleNamespace(content='{"acts": []}', reasoning_content=None, refusal=None)
+        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")],
+                               usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0))
+    with RunDB(str(tmp_path / "z.sqlite")) as db:
+        db.create_run("z", seed=1)
+        names = fam.names("config/families.yaml")
+        s = gen.generate(1, names)
+        r = _Watched(_Billing(), _families(names), PRICES, {q.id: q.family for q in s.all("people")}, completion,
+                     cap=cap, spent=lambda: db.spent("z"), cost_fn=lambda resp: 0.0, sleep_fn=lambda t: None)
+        end = run(db, "z", s, r, 400)
+        assert end.day < 400 and r.stopped.startswith("cap:")
+        assert all(rep.cost > 0 and (rep.tokens_in, rep.tokens_out) == (0, 0) for _, rep in db.replies("z"))
+        assert 0 < db.spent("z") <= cap

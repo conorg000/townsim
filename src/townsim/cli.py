@@ -118,7 +118,8 @@ def town_hamlet_cmd(
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run.")] = 8,
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "hamlet",
-    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.")] = _FAMILIES,
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
+                                          show_default="config/families.yaml")] = _FAMILIES,
 ) -> None:
     """Generate the hamlet for a seed and run it on a scripted life, then replay it. No model
     is called. Exits 1 if the engine reported any errors."""

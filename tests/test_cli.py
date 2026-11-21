@@ -176,3 +176,14 @@ def test_a_town_that_cannot_be_made_leaves_no_run_behind(tmp_path):
             rdb.get_run("h")
     again = _run("town-hamlet", "--weeks", "1", "--db", db, "--run-id", "h")
     assert again.exit_code == 0, again.output
+
+
+@pytest.mark.parametrize("command", ["town-thin", "town-hamlet", "town-replay", "town-live", "town-probe"])
+def test_help_shows_no_local_paths(command):
+    from pathlib import Path
+    import townsim.cli as cli
+    result = runner.invoke(app, [command, "--help"], env={"COLUMNS": "200", "TERM": "dumb"})
+    assert result.exit_code == 0, result.output
+    assert str(Path(cli.__file__).resolve().parents[2]) not in result.output
+    if command == "town-hamlet":
+        assert "config/families.yaml" in result.output

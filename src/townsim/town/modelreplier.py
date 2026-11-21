@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from townsim.estimate import Price
 from townsim.model import RETRY_SLEEPS, ModelUnavailable, complete, finish_reason, reasoning_text, reply_text, token_count
-from townsim.town.families import Family, check_family, input_tokens, worst_case
+from townsim.town.families import TOKENS_PER_MESSAGE, Family, check_family, input_tokens, worst_case
 from townsim.town.replies import Reply, ReplyKey, StopRun
 
 ATTEMPTS = len(RETRY_SLEEPS) + 1   # the attempts `model.complete` makes at one call
@@ -51,11 +51,16 @@ class ModelReplier:
 
     `family_of` maps a person's id to a family name; `cost_fn(response)` gives a call's
     dollars (LiteLLM's `completion_cost(completion_response=...)` in live use). A reply's
-    recorded cost is the larger of that and the listed price of its tokens, so a cost
-    function that under-reports cannot hide spend. `lost(dollars)` is told the worst case of
+    recorded cost is the larger of that and the listed price of its tokens, each count taken
+    as at least what can be seen (the messages' characters / 3 plus 4 a message in, the
+    reply's text and reasoning characters / 3 out), so neither a cost function nor usage that
+    under-reports can hide spend; the reply's `tokens_in`/`tokens_out` keep what the provider
+    reported (0 when it reported nothing). `lost(dollars)` is told the worst case of
     every attempt that raised (a provider may bill an attempt the client gave up on), once
     per attempt, on the calling thread after a batch's calls have all finished, in the pairs'
-    order. `spent()` gives the dollars already spent on the run: what its stored replies cost
+    order; a raising `lost` stops this replier (`unavailable: lost-spend callback failed`)
+    after the batch is returned whole. An answer that cannot be read counts as one lost
+    attempt. `spent()` gives the dollars already spent on the run: what its stored replies cost
     plus everything `lost` was given. `stopped` says why this replier last stopped a run:
     `cap: ...`, `refused: <model>: ...` or `unavailable: <model>: ...`.
 
@@ -68,6 +73,7 @@ class ModelReplier:
                  completion_fn: Callable, cap: float, spent: Callable[[], float], cost_fn: Callable | None = None,
                  workers: int = 8, sleep_fn: Callable[[float], None] = time.sleep,
                  lost: Callable[[float], None] | None = None) -> None:
+        families = {n: Family(f.name, f.model, f.params) for n, f in families.items()}   # read-only copies
         for family in families.values():
             check_family(family, prices)
         for person, name in family_of.items():
@@ -84,7 +90,7 @@ class ModelReplier:
         self.sleep_fn = sleep_fn
         self.lost = lost
         self.stopped: str | None = None
-        self._refused = False
+        self._halted = False     # a refusal, or a lost-spend callback that failed: nothing more is sent
 
     def _family(self, actor: str) -> Family:
         return self.families[self.family_of[actor]]
@@ -109,7 +115,7 @@ class ModelReplier:
         killed mid-batch may lose up to one batch of replies that were paid for; they are
         asked again on resume."""
         fams = [self._family(key.actor) for key, _ in pairs]
-        if self._refused:
+        if self._halted:
             return [StopRun(self.stopped) for _ in pairs]
         if not pairs:
             return []
@@ -133,24 +139,32 @@ class ModelReplier:
                     raise
             try:
                 return self._call(counted, family, messages)
-            except Exception as e:      # noqa: BLE001  (a fault reading one reply)
+            except Exception as e:      # noqa: BLE001  (an answer that could not be read)
+                failed[i] += 1          # it was answered, so perhaps billed: one attempt lost
                 return StopRun(f"unavailable: {family.model}: {type(e).__name__}: {e}")
 
         with ThreadPoolExecutor(max_workers=min(self.workers, len(pairs))) as pool:
             results = list(pool.map(one, range(len(pairs))))
-        if self.lost is not None:
-            for n, w in zip(failed, worsts):
-                for _ in range(n):
-                    self.lost(w)
         why = []
         for got in results:
             if isinstance(got, Reply) and got.error and got.error.startswith("refused:"):
-                self._refused = True
+                self._halted = True
                 why.append(got.error)
             elif isinstance(got, StopRun):
                 why.append(str(got))
         if why:
             self.stopped = why[0]
+        if self.lost is not None:
+            broken = None
+            for n, w in zip(failed, worsts):
+                for _ in range(n):
+                    try:
+                        self.lost(w)
+                    except Exception as e:      # noqa: BLE001  (the run cannot keep its spend)
+                        broken = broken or f"unavailable: lost-spend callback failed: {type(e).__name__}: {e}"
+            if broken is not None:
+                self._halted = True
+                self.stopped = broken
         return results
 
     def _call(self, completion_fn: Callable, family: Family, messages: list[dict]) -> Reply | StopRun:
@@ -163,14 +177,14 @@ class ModelReplier:
 
     def _reply(self, family: Family, messages: list[dict], resp) -> Reply:
         text, reasoning, finish = reply_text(resp), reasoning_text(resp), finish_reason(resp)
-        tokens_in = _usage_count(resp, "prompt_tokens")
-        tokens_out = _usage_count(resp, "completion_tokens")
-        if tokens_in is None:
-            tokens_in = input_tokens(messages)
-        if tokens_out is None:
-            tokens_out = math.ceil((len(text or "") + len(reasoning or "")) / 3)
+        tokens_in = _usage_count(resp, "prompt_tokens") or 0      # as the provider reported them
+        tokens_out = _usage_count(resp, "completion_tokens") or 0
+        # the cost counts at least what can be seen, whatever the provider reported
+        seen_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
+        seen_out = math.ceil((len(text or "") + len(reasoning or "")) / 3)
         price = self.prices[family.model]
-        cost = (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+        cost = (max(tokens_in, seen_in) * price.input_per_mtok
+                + max(tokens_out, seen_out) * price.output_per_mtok) / 1_000_000
         if self.cost_fn is not None:
             try:
                 c = self.cost_fn(resp)
