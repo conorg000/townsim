@@ -21,7 +21,7 @@ from typing import Any, Iterator, NamedTuple
 from townsim.econ.ledger import Ledger
 
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results", "ties",
-          "firms", "suppliers", "buyers", "tills", "work")
+          "firms", "suppliers", "buyers", "tills", "work", "jobs", "events")
 
 # Fields looked up often enough to be indexed, each a sorted tuple of field names.
 INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -34,6 +34,7 @@ INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
     "firms": (("org",),),
     "buyers": (("shop_day",),),
     "work": (("holder",),),
+    "jobs": (("person",), ("org",)),
 }
 
 _ID = re.compile(r"([A-Za-z:]+)(\d+)", re.ASCII)

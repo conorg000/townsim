@@ -7,7 +7,7 @@ from townsim.econ.demand import NEEDS
 from townsim.econ.ledger import Transfer
 from townsim.town import firms
 from townsim.town import obligations as O
-from townsim.town.entities import Buyer, FirmRow, Household, Org, Person, SupplierRow, Tie
+from townsim.town.entities import Buyer, FirmRow, Household, Job, Org, Person, SupplierRow, Tie
 from townsim.town.store import Store
 from townsim.town.thin import thin_town
 
@@ -111,8 +111,9 @@ def town_with_two_shops() -> Store:
 def shops_town(seed: int = 1) -> Store:
     """The thin town grown to twelve households (h1..h12, each with money of its own); three
     food shops with empty shelves, 60 units a week per 38 staff hours and standing orders:
-    fm1 at org3 (Ruth Ashby p01; four staff; $5,000), fm2 at org4 (Craig Pryce p03) and fm3
-    at org5 (Ann Lowe p05), $2,000 each; two outside suppliers, sp1 at org6 (700 cents a
+    fm1 at org3 (Ruth Ashby p01; four staff, jb1..jb4: p01, p02, p06, p07; $5,000), fm2 at
+    org4 (Craig Pryce p03, jb5) and fm3 at org5 (Ann Lowe p05, jb6), $2,000 each; each job
+    38 hours a week, with no wage obligation; two outside suppliers, sp1 at org6 (700 cents a
     unit, always complete) and sp2 at org7 (665 cents, complete seven times in ten); a buyer
     for each household and forty background buyers paying from `outside:households`, which
     allows credit. Shopping days are spread over the week; `outside:market` is not opened."""
@@ -127,14 +128,16 @@ def shops_town(seed: int = 1) -> Store:
         s.transfer("outside:employers", h, 40_000 + 5_000 * (i % 4), "opening", "routine:setup")
     s.open_account("outside:households", "routine:setup", allow_credit=True)
     for org, name, owner, staff, supplier, units, cash in (
-            ("org3", "Marsh's Stores", "p01", 4, "sp1", 240, 500_000),
-            ("org4", "Pryce Provisions", "p03", 1, "sp2", 60, 200_000),
-            ("org5", "Lowe's Grocer", "p05", 1, "sp1", 60, 200_000)):
+            ("org3", "Marsh's Stores", "p01", ["p01", "p02", "p06", "p07"], "sp1", 240, 500_000),
+            ("org4", "Pryce Provisions", "p03", ["p03"], "sp2", 60, 200_000),
+            ("org5", "Lowe's Grocer", "p05", ["p05"], "sp1", 60, 200_000)):
         add_shop(s, org, name, owner, cash)
         fid = s.new_id("fm", "routine:setup")
         s.add("firms", FirmRow(fid, org, "food", price=1000, quality=0.6, visibility=0.5, reputation=0.75,
-                               units_per_staff=60, shelf_weeks=2, last_supplier=supplier, last_units=units,
-                               staff=staff), "routine:setup")
+                               units_per_staff=60, shelf_weeks=2, last_supplier=supplier, last_units=units),
+                               "routine:setup")
+        for person in staff:
+            s.add("jobs", Job(s.new_id("jb", "routine:setup"), person, org, 0, 38.0, "", -7), "routine:setup")
     add_supplier(s, "org6", "Vale Wholesale", 700, 1.0, 0.85, 0.95)
     add_supplier(s, "org7", "Cheap Van Foods", 665, 0.7, 0.2, 0.65)
     accounts = [h.id for h in s.all("households")] + ["outside:households"] * 40

@@ -1,6 +1,7 @@
 import pytest
 
-from townsim.town import hours, store
+from townsim.town import hours
+from townsim.town.entities import Job
 from townsim.town.acts import Act, apply_act
 from townsim.town.loop import routine
 
@@ -62,10 +63,14 @@ def test_a_person_with_no_hours_is_refused_plainly():
     assert not out.ok and out.msg == "Not done: you have no time left this week for that."
 
 
-def test_job_hours_are_nothing_without_a_jobs_table():
-    s = thin()
-    assert "jobs" not in store.TABLES
+def test_job_hours_are_the_hours_of_the_jobs_a_person_holds():
+    s = town_with_shop()
     assert hours.job_hours(s, "p01") == 0.0
+    for org, h in (("org3", 30.0), ("org1", 8.5)):
+        s.add("jobs", Job(s.new_id("jb", "routine:setup"), "p01", org, 40000, h, "", -7), "routine:setup")
+    give_work(s, "p01", "org3", "ordering")
+    assert hours.job_hours(s, "p01") == 38.5 and hours.job_hours(s, "p02") == 0.0
+    assert hours.free_hours(s, "p01") == 27.5
 
 
 def test_give_refuses_an_unknown_kind_of_work():

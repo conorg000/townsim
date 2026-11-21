@@ -233,14 +233,14 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
 
 def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
     """Who a letter reaches and the org it was addressed to (or ""): a person, or the owner
-    of an org in the town. None if it comes back."""
+    of an org in the town, or its contact if it has no owner. None if it comes back."""
     who = resolve(store, act.args.get("to"), act.actor)
     if who is not None and store.has("people", who):
         return who, ""
     if who is not None and store.has("orgs", who):
         org = store.get("orgs", who)
-        if org.owner and not org.outside:
-            return org.owner, org.id
+        if (org.owner or org.contact) and not org.outside:
+            return org.owner or org.contact, org.id
     return None
 
 

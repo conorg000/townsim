@@ -38,9 +38,9 @@ _PLACES = 6
 
 
 def staff_hours(store: Store, org: str) -> float:
-    """Hours worked at `org`'s shops this week: 38 for each of `FirmRow.staff` (standing in
-    for the jobs there until jobs exist), plus the shop's `extra_hours`."""
-    return sum(HOURS_PER_STAFF * f.staff + f.extra_hours for f in store.where("firms", org=org))
+    """Hours worked at `org` this week: the hours of its jobs, plus its shops' `extra_hours`."""
+    jobs = sum(j.hours for j in store.where("jobs", org=org))
+    return jobs + sum(f.extra_hours for f in store.where("firms", org=org))
 
 
 def capacity(store: Store, firm_id: str) -> int:

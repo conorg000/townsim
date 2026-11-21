@@ -1,0 +1,18 @@
+# Model families that play the people of a generated place. The engine reads only the
+# names; each person is dealt one when the place is made.
+haiku:
+  model: anthropic/claude-haiku-5.5
+  params: {max_tokens: 1200, temperature: 0.8}
+  left_out: false
+deepseek:
+  model: deepseek/deepseek-v4.1-flash
+  params: {max_tokens: 1200, temperature: 0.8}
+  left_out: false
+hunyuan:
+  model: tencent/hy4-flash
+  params: {max_tokens: 1200, temperature: 0.8}
+  left_out: false
+minimax:
+  model: minimax/minimax-m3.1-flash
+  params: {max_tokens: 1200, temperature: 0.8}
+  left_out: false

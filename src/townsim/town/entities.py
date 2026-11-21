@@ -41,13 +41,15 @@ class Household:
 @dataclass
 class Org:
     """`owner` is the person who controls its account, if any; `outside` is an
-    organisation beyond the town, whose books are only kept for the town's side."""
+    organisation beyond the town, whose books are only kept for the town's side.
+    `contact` is the person who receives letters addressed to it when it has no owner."""
 
     id: str
     name: str
     kind: str
     owner: str = ""
     outside: bool = False
+    contact: str = ""
 
 
 @dataclass
@@ -184,8 +186,8 @@ class FirmRow:
     the order Monday's delivery repeats when nobody places one; `order_cents` is the
     supplier's price when the order was placed, and `delivered_week` the last week a
     delivery was made. `sold` to `first_refused`, `delivered` and `takings` (cents) count
-    the week so far and return to 0 when it closes, as does `extra_hours`. `staff` stands
-    in for the jobs at the shop until jobs exist."""
+    the week so far and return to 0 when it closes, as does `extra_hours`. The hours worked
+    there are its organisation's jobs (see `firms.staff_hours`)."""
 
     id: str
     org: str
@@ -209,7 +211,6 @@ class FirmRow:
     first_served: int = 0
     first_refused: int = 0
     extra_hours: float = 0.0
-    staff: int = 1
     order_cents: int = 0
     delivered_week: int = -1
     delivered: int = 0
@@ -278,3 +279,33 @@ class Work:
     account: str
     what: str
     hours: float
+
+
+@dataclass
+class Job:
+    """`person` works `hours` a week for the organisation `org`, paid `weekly` cents by the
+    wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start)."""
+
+    id: str
+    person: str
+    org: str
+    weekly: int
+    hours: float
+    wage_ob: str
+    since: int
+
+
+@dataclass
+class Event:
+    """Something ordinary that will happen on `day`, dealt when the place was made. `kind` is
+    illness, job_lost, repair, supplier_short or cold_month; `who` the person, household,
+    supplier or organisation it falls on; `amount` the cents of a one-off bill (for
+    cold_month, the percent energy bills rise); `weeks` how long it lasts."""
+
+    id: str
+    day: int
+    kind: str
+    who: str
+    amount: int
+    weeks: int
+    done: bool = False

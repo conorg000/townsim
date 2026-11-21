@@ -3,7 +3,7 @@ import pytest
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import acts
 from townsim.town.acts import Act, apply_act
-from townsim.town.entities import Request
+from townsim.town.entities import Org, Request
 from townsim.town.statement import agreements_text, statement, statement_text
 
 from town.helpers import thin
@@ -175,6 +175,20 @@ def test_a_letter_to_no_one_comes_back():
         "Not done: your letter to 'Sanjay' came back undelivered."
     assert refused(s, "p01", "message", to="Wenlow Lettings", text="hello") == \
         "Not done: your letter to 'Wenlow Lettings' came back undelivered."
+
+
+def test_a_letter_to_an_org_with_no_owner_reaches_its_contact():
+    s = thin()
+    s.open_account("org9", "routine:setup")
+    s.add("orgs", Org("org9", "Wenlow Savings Bank", "bank", contact="p03"), "routine:setup")
+    out = do(s, "p01", "message", to="wenlow savings bank", text="About a loan.")
+    assert out.ok and out.msg == "Sent to Wenlow Savings Bank."
+    m = s.all("messages")[-1]
+    assert (m.to, m.org) == ("p03", "org9")
+    assert refused(s, "p03", "message", to="Wenlow Savings Bank", text="hello") == "Not done: that is you."
+    s.set("orgs", "org9", "routine:setup", contact="")
+    assert refused(s, "p01", "message", to="Wenlow Savings Bank", text="hello") == \
+        "Not done: your letter to 'Wenlow Savings Bank' came back undelivered."
 
 
 def test_control_characters_are_taken_out_of_what_people_write():

@@ -160,7 +160,8 @@ def test_an_empty_shelf_turns_customers_away():
 
 def test_capacity_is_counted_over_the_week():
     s = stocked(shops_town(), units=1000)
-    s.set("firms", "fm1", S, units_per_staff=100, staff=1)
+    s.set("firms", "fm1", S, units_per_staff=100)
+    for jb in ("jb2", "jb3", "jb4"): s.set("jobs", jb, S, hours=0.0)
     for f in ("fm2", "fm3"): s.set("firms", f, S, stock_units=[], stock_weeks=[])
     assert firms.staff_hours(s, "org3") == 38.0 and firms.capacity(s, "fm1") == 100
     for _ in range(6): firms.shop_today(s); s.advance_day()
@@ -171,7 +172,8 @@ def test_capacity_is_counted_over_the_week():
 
 def test_extra_hours_add_to_capacity_for_the_week_only():
     s = shops_town()
-    s.set("firms", "fm1", S, units_per_staff=100, staff=1, extra_hours=19.0)
+    s.set("firms", "fm1", S, units_per_staff=100, extra_hours=19.0)
+    for jb in ("jb2", "jb3", "jb4"): s.set("jobs", jb, S, hours=0.0)
     assert firms.staff_hours(s, "org3") == 57.0 and firms.capacity(s, "fm1") == 150
     for _ in range(6): s.advance_day()
     firms.close_week(s)
@@ -376,8 +378,8 @@ def _econ_twin(s):
     provs = {}
     for f in s.all("firms"):
         L.open(f.org); L.accounts[f.org].balance = s.balance(f.org)
-        provs[f.org] = Firm(f.org, "food", f.price, f.quality, f.visibility, f.reputation, staff=f.staff,
-                            units_per_staff=f.units_per_staff, wage=0, fixed_cost=0, shelf_life=f.shelf_weeks,
+        provs[f.org] = Firm(f.org, "food", f.price, f.quality, f.visibility, f.reputation, staff=1,
+                            units_per_staff=firms.capacity(s, f.id), wage=0, fixed_cost=0, shelf_life=f.shelf_weeks,
                             cohorts=[Cohort(w, u, 0) for u, w in zip(f.stock_units, f.stock_weeks)])
     L.open("outside:market")
     offs = [Offering(f.org, f.need, f.price, f.quality, f.visibility) for f in s.all("firms")]
