@@ -53,7 +53,8 @@ def town_thin_cmd(
     weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run.")] = 8,
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "thin",
 ) -> None:
-    """Run the thin town on its script of replies, then replay it. No model is called."""
+    """Run the thin town on its script of replies, then replay it. No model is called.
+    Exits 1 if the engine reported any errors."""
     from townsim.town.replies import ScriptedReplier
     from townsim.town.rundb import RunDB
     from townsim.town.runs import run
@@ -69,7 +70,13 @@ def town_thin_cmd(
         for n in range(1, weeks + 1):
             store = run(rdb, run_id, store, replier, 7)
             typer.echo(f"week {n}  day {store.day}  {store.hash()[:12]}  ledger total {store.ledger.total()}")
+        errors = rdb.errors(run_id)
+        typer.echo(f"engine errors: {len(errors)}")
+        for day, text in errors[:10]:
+            typer.echo(f"  day {day}: {text}")
         _replay(rdb, run_id)
+        if errors:
+            raise typer.Exit(code=1)
 
 
 @app.command("town-replay")

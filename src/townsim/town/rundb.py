@@ -26,6 +26,10 @@ create table if not exists changes (
     run text not null, day integer not null, blob blob not null,
     primary key (run, day)
 );
+create table if not exists errors (
+    run text not null, day integer not null, n integer not null, text text not null,
+    primary key (run, day, n)
+);
 create table if not exists turns (
     run text not null, day integer not null, blob blob not null,
     primary key (run, day)
@@ -147,3 +151,15 @@ class RunDB:
 
     def turn_days(self, run_id: str) -> list[int]:
         return [r[0] for r in self._db.execute("select day from turns where run = ? order by day", (run_id,))]
+
+    def put_errors(self, run_id: str, day: int, errors: list[str]) -> None:
+        """Keep the engine errors a day raised, replacing any already kept for that day."""
+        with self._db:
+            self._db.execute("delete from errors where run = ? and day = ?", (run_id, day))
+            self._db.executemany("insert into errors values (?, ?, ?, ?)",
+                                 [(run_id, day, n, text) for n, text in enumerate(errors)])
+
+    def errors(self, run_id: str) -> list[tuple[int, str]]:
+        """Every engine error kept for the run, as (day, text), in order."""
+        return [(r[0], r[1]) for r in
+                self._db.execute("select day, text from errors where run = ? order by day, n", (run_id,))]

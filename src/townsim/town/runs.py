@@ -10,7 +10,7 @@ from townsim.town.store import Store
 
 def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> Store:
     """Run `days` days from `store.day`, keeping each morning's snapshot, each day's
-    changes and turns, and every reply. On `StopRun`, the day it was raised in is not kept: the
+    changes, turns and engine errors, and every reply. On `StopRun`, the day it was raised in is not kept: the
     store returned is that morning's snapshot, loaded fresh.
 
     Raises ValueError, writing nothing, if the run already has a snapshot for the day it
@@ -23,13 +23,14 @@ def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> St
     for _ in range(days):
         day = store.day
         db.save_snapshot(run_id, day, store)
-        mark = store.mark()
+        mark, errors = store.mark(), len(store.engine_errors)
         try:
             report = run_day(store, recording, keys)
         except StopRun:
             return db.load_snapshot(run_id, day)
         db.put_changes(run_id, day, store.changes[mark:])
         db.put_turns(run_id, day, report.turns)
+        db.put_errors(run_id, day, store.engine_errors[errors:])
     db.save_snapshot(run_id, store.day, store)
     return store
 

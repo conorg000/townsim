@@ -9,15 +9,6 @@ from townsim.town.acts import (REGISTRY, Act, OpSpec, account_of, apply_act, cle
 from town.helpers import thin
 
 
-@pytest.fixture(autouse=True)
-def registry_restored():
-    """Tests that register their own operations leave the registry as they found it."""
-    saved = dict(REGISTRY)
-    yield
-    REGISTRY.clear()
-    REGISTRY.update(saved)
-
-
 @pytest.mark.parametrize("args", [None, [], "pay", {"to": "Megan Pryce"}, {"to": "Megan Pryce", "amount": "lots"},
     {"to": "Megan Pryce", "amount": -5}, {"to": "Megan Pryce", "amount": True}, {"to": ["x"], "amount": 5},
     {"to": "Sanjay", "amount": 5}, {"to": "Megan Pryce", "amount": 10**9}])

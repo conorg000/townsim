@@ -17,7 +17,7 @@ def test_town_thin_prints_a_line_a_week_then_replays(tmp_path):
     result = _run("town-thin", "--weeks", "3", "--db", db)
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()
-    assert len(lines) == 4 and lines[-1] == "replay ok"
+    assert len(lines) == 5 and lines[-2:] == ["engine errors: 0", "replay ok"]
     for n, line in enumerate(lines[:3], start=1):
         week, day, digest, total = line.split("  ")
         assert week == f"week {n}" and day == f"day {7 * n}"
@@ -35,7 +35,7 @@ def test_town_thin_is_the_same_every_time(tmp_path):
 def test_town_thin_defaults_to_eight_weeks(tmp_path):
     result = _run("town-thin", "--db", str(tmp_path / "thin.sqlite"))
     assert result.exit_code == 0
-    assert result.output.splitlines()[-2].startswith("week 8  day 56  ")
+    assert result.output.splitlines()[-3].startswith("week 8  day 56  ")
 
 
 def test_town_thin_refuses_a_run_id_already_in_the_file(tmp_path):
@@ -78,3 +78,17 @@ def test_town_replay_of_an_unknown_run_or_file_is_a_plain_error(tmp_path):
     missing = _run("town-replay", "--db", str(tmp_path / "missing.sqlite"), "thin")
     assert missing.exit_code == 1 and "no database file" in missing.output
     assert not (tmp_path / "missing.sqlite").exists()
+
+
+def test_town_thin_fails_when_the_engine_reports_errors(tmp_path, monkeypatch):
+    from townsim.town import acts, thin
+
+    def breaks(store, act, cause):
+        raise RuntimeError("a bug")
+
+    monkeypatch.setitem(acts.REGISTRY, "break", acts.OpSpec("break", "{}", "", 0.0, lambda s, a: None, breaks))
+    monkeypatch.setattr(thin, "thin_script", lambda key, messages: '{"acts": [{"op": "break"}]}')
+    result = _run("town-thin", "--weeks", "1", "--db", str(tmp_path / "e.sqlite"))
+    assert result.exit_code == 1
+    assert "engine errors: " in result.output and "engine errors: 0" not in result.output
+    assert "Traceback" not in result.output

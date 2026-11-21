@@ -6,6 +6,7 @@ import sys
 
 import pytest
 
+from townsim.town.acts import OpSpec, register
 from townsim.town.replies import Reply, ReplayMismatch, ScriptedReplier, StopRun
 from townsim.town.rundb import RunDB
 from townsim.town.runs import fork, replay, resume, run
@@ -178,3 +179,27 @@ def test_two_processes_reach_the_same_hash(tmp_path):
                              env=env, capture_output=True, text=True, check=True)
         hashes.append(out.stdout.strip())
     assert len(hashes[0]) == 64 and hashes[0] == hashes[1]
+
+
+def _breaks(store, act, cause):
+    raise RuntimeError("a bug")
+
+
+def test_engine_errors_are_kept_with_their_day(tmp_path):
+    register(OpSpec("break", "{}", "", 0.0, lambda s, a: None, _breaks))
+
+    def script(key, messages):
+        if (key.day, key.actor) in ((3, "p02"), (5, "p04")):
+            return '{"acts": [{"op": "break"}, {"op": "break"}]}'
+        if (key.day, key.actor) == (11, "p03"):
+            raise StopRun("stop")
+        return thin_script(key, messages)
+
+    with RunDB(str(tmp_path / "e.sqlite")) as db:
+        db.create_run("e", seed=1)
+        assert db.errors("e") == []
+        run(db, "e", thin_town(), ScriptedReplier(script), 12)
+        errors = db.errors("e")
+        assert [day for day, _ in errors] == [3, 3, 5, 5]
+        assert errors[0][1].startswith("op:p02:break:d3.0: RuntimeError: a bug")
+        assert 11 not in db.change_days("e")
