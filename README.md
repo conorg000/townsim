@@ -23,9 +23,6 @@ Stage 1 of the design is built, and stage 2 has started.
 - Owners review what they pay staff every few weeks. Staff whose pay is cut
   can stay or leave, and nobody takes a job that pays less than the benefit.
   The town can set a minimum wage (`laws.min_wage`); by default it has none.
-- Regulars pricing: every `regulars_review_weeks` weeks an owner chooses what to charge
-  regulars (people who have bought from the firm many times): 5% less, the listed price,
-  or 5, 10 or 15% more. Other customers always pay the listed price.
 - A person can hand their decisions to an AI agent with a standing instruction
   (`agents:` in the config).
 - Money is integer cents and is never created or destroyed.

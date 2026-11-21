@@ -82,8 +82,6 @@ def measures(log: EventLog, run_id: str) -> dict:
 
     `wage_by_firm` is the weekly wage at each open firm at the end; `wage_cuts`,
     `wage_raises` and `quits` count those events; `median_cash_by_role` is in cents.
-    `regulars_markup_by_firm` is the share each open firm adds to its price for regulars;
-    `regulars_surcharge_paid` is the total, in cents, regulars paid above listed prices.
     World measures (`gini_cash`, `firms_open`, `employment_rate`) are read from the latest
     snapshot and are None when the run has none. `illegal_attempted` counts every event
     marked illegal, including `action_rejected` events for an illegal action that failed
@@ -128,10 +126,6 @@ def measures(log: EventLog, run_id: str) -> dict:
         "wage_cuts": sum(w["new_wage"] < w["old_wage"] for w in wage_changes),
         "wage_raises": sum(w["new_wage"] > w["old_wage"] for w in wage_changes),
         "quits": count("quit_job"),
-        "regulars_markup_by_firm": {}
-        if world is None
-        else {fid: f.regulars_markup for fid, f in sorted(world.firms.items()) if f.open},
-        "regulars_surcharge_paid": sum(e.payload.get("surcharge", 0) for e in events if e.kind == "sales"),
         "median_cash_by_role": {} if world is None else _median_cash_by_role(world),
         "illegal_attempted": sum(not e.legal for e in events),
         "illegal_detected": count("audit_detected"),

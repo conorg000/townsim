@@ -23,7 +23,6 @@ params:
   dividend_share: 0.5
   audit_budget_per_quarter: 6
   wage_review_weeks: 4  # owners decide what to pay staff every this many weeks; 0 = never
-  regulars_review_weeks: 4  # owners decide what to charge regulars every this many weeks; 0 = never
 deciders:
   rule: {type: rule}
 assignment: {default: rule, by_role: {}, by_person: {}}

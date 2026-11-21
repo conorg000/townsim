@@ -35,8 +35,6 @@ class Firm(BaseModel):
     profit_qtd: int = 0
     customers_last_step: int = 0
     revenue_last_step: int = 0
-    # Share added to the listed price for regulars (people whose loyalty to the firm is high).
-    regulars_markup: float = 0.0
     # The firm's own books for its last few weeks, oldest first: one
     # [price, customers, takings, wages paid] entry per week. The owner can see these.
     recent_weeks: list[list[int]] = Field(default_factory=list)

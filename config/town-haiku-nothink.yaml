@@ -25,7 +25,6 @@ params:
   dividend_share: 0.5
   audit_budget_per_quarter: 6
   wage_review_weeks: 4
-  regulars_review_weeks: 4  # owners decide what to charge regulars every this many weeks; 0 = never
 deciders:
   rule: {type: rule}
   haiku: {type: model, model: openrouter/anthropic/claude-haiku-5.5, reasoning_effort: none, max_tokens: 2000}
