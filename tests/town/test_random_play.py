@@ -5,10 +5,15 @@ day the books must balance, no operation may have failed inside the engine, ever
 must be paid between nothing and its sum, no account without credit may be below zero,
 and every transfer and change must carry a cause. At the end, no due is collected twice
 and every paid due received exactly its sum.
+
+Payments are steered toward what the view shows as owed often enough that payments by
+hand are counted toward dues in most seeds, and across the seeds together there must be
+a part-payment by hand, a late fee and a default, so the checks cannot go quiet.
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import random
 import re
@@ -37,9 +42,24 @@ WEIGHTS = {"pay": 5, "standing_payment": 2, "stop": 0.5, "message": 1, "request"
 _IDS = re.compile(r"\b(?:ob|rq)\d+\b")
 
 
+_OWED = re.compile(r"^  .+?  \$[\d,]+\.\d\d  (.+?)  .* \((ob\d+)\)$")
+
+
 def _ids(messages: list[dict], prefix: str) -> list[str]:
     text = " ".join(m.get("content", "") for m in messages)
     return sorted(set(i for i in _IDS.findall(text) if i.startswith(prefix)))
+
+
+def _owed(messages: list[dict]) -> list[tuple[str, str, str]]:
+    """(name, obligation id, amount) for each line under "Going out by" in the view whose
+    payee is someone a payment can name."""
+    found, going_out = [], False
+    for line in messages[-1].get("content", "").split("\n"):
+        if line.startswith("Going out by") or line.startswith("Expected in by"):
+            going_out = line.startswith("Going out by")
+        elif going_out and (m := _OWED.match(line)) and m.group(1) in NAMES:
+            found.append((m.group(1), m.group(2), line.split("  ")[2]))
+    return found
 
 
 def random_script(rng: random.Random):
@@ -66,8 +86,14 @@ def random_script(rng: random.Random):
     def name():
         return pick(NAMES, JUNK_NAMES)
 
-    def args(op: str, obs: list[str], rqs: list[str]) -> dict:
-        if op == "pay":
+    def args(op: str, obs: list[str], rqs: list[str], owed: list[tuple[str, str, str]]) -> dict:
+        if op == "pay" and owed and rng.random() < 0.5:        # toward something owed, in full or in part
+            to, ob, sum_ = rng.choice(owed)
+            whole = int(sum_.removeprefix("$").replace(",", "").split(".")[0])
+            a = {"to": to, "amount": rng.choice([sum_, sum_, max(1, whole // 2), rng.randint(1, 40)]), "note": text()}
+            if rng.random() < 0.6:
+                a["for"] = ob
+        elif op == "pay":
             a = {"to": name(), "amount": amount(), "note": text(), "for": pick(obs, ["ob999", "", None, 4, "rq1"], 0.3)}
         elif op == "standing_payment":
             a = {"to": name(), "amount": amount(),
@@ -97,7 +123,7 @@ def random_script(rng: random.Random):
             a[rng.choice(["extra", "op2", "amount", "to"])] = rng.choice([1, "x", None])
         return a
 
-    def element(obs: list[str], rqs: list[str]):
+    def element(obs: list[str], rqs: list[str], owed: list[tuple[str, str, str]]):
         roll = rng.random()
         if roll < 0.05:
             return rng.choice([5, "pay", None, [], ["pay", "Ruth Ashby", 5], True])
@@ -105,7 +131,7 @@ def random_script(rng: random.Random):
             op = rng.choice(["fly", "", None, 7, "PAY", " Pay ", "write notes", "borrow", ["pay"]])
         else:
             op = rng.choices(list(REGISTRY), [WEIGHTS.get(n, 1) for n in REGISTRY])[0]
-        a = args(op.strip().lower() if isinstance(op, str) else "", obs, rqs)
+        a = args(op.strip().lower() if isinstance(op, str) else "", obs, rqs, owed)
         return {"op": op, **a} if rng.random() > 0.03 else {**a}
 
     def reply(key, messages: list[dict]) -> str | None:
@@ -115,8 +141,8 @@ def random_script(rng: random.Random):
         if roll < 0.10:
             return rng.choice(["I'll think about it.", "{", "{\"acts\": ", "[]", "null", "{\"acts\": \"pay\"}",
                                "{\"thoughts\": \"no acts key\"}", "}{", "\x00", "{" * 5000])
-        obs, rqs = _ids(messages, "ob"), _ids(messages, "rq")
-        acts = [element(obs, rqs) for _ in range(rng.randint(0, 10))]
+        obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages)
+        acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
         body = json.dumps({"thoughts": text() if rng.random() < 0.5 else "", "acts": acts})
         if rng.random() < 0.15:
             body = rng.choice(["Here is my reply: ", "```json\n", "{\"note\": 1} "]) + body + rng.choice(["", "\n```", " {"])
@@ -167,6 +193,18 @@ def _check_run(s) -> None:
             assert t is None and by_hand[d.id] == d.paid, d
 
 
+def _hand_matched(s) -> list[tuple[str, int, int]]:
+    """(due id, cents counted by hand, cents the due is for) for each payment by hand counted toward a due."""
+    return [(c.id, c.new - c.old, s.get("dues", c.id).cents) for c in s.changes
+            if c.table == "dues" and c.field == "paid" and c.cause.startswith("op:")]
+
+
+@functools.cache
+def _played(seed: int):
+    """The store after `_play(seed)`, played once for all the tests that read it. Do not change it."""
+    return _play(seed)
+
+
 def _play(seed: int):
     rng = random.Random(seed)
     s = thin_town()
@@ -181,8 +219,19 @@ def _play(seed: int):
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_random_acts_never_break_the_books(seed):
-    s = _play(seed)
-    _check_run(s)
+    _check_run(_played(seed))
+
+
+def test_random_play_counts_payments_toward_what_is_owed():
+    """Across the seeds: payments by hand are counted toward dues in most of them, and
+    there is at least one part-payment by hand, one late fee and one default."""
+    stores = [_played(seed) for seed in SEEDS]
+    matched = [_hand_matched(s) for s in stores]
+    assert sum(1 for m in matched if m) > len(stores) // 2, [len(m) for m in matched]
+    assert any(cents < due_cents for m in matched for _, cents, due_cents in m)          # part of a due
+    assert any(o.penalty for s in stores for o in s.all("obligations"))                     # a late fee
+    assert any(c.table == "dues" and c.field == "status" and c.new == "defaulted"
+               for s in stores for c in s.changes)                                          # a default
 
 
 def test_random_play_does_things():
@@ -190,7 +239,7 @@ def test_random_play_does_things():
     answered, standing payments are set up and stopped."""
     done = Counter()
     for seed in range(5):
-        s = _play(seed)
+        s = _played(seed)
         done.update(c.cause.split(":")[2] for c in s.changes
                     if c.cause.startswith("op:") and c.table not in ("results", "counter"))   # what was done, not told
     for op in ("pay", "standing_payment", "stop", "message", "request", "answer", "write_notes"):
