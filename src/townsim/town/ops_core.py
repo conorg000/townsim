@@ -3,6 +3,10 @@ their answers, reading the account, and notes. Registered when this module is im
 
 Each `check` refuses anything its arguments do not support, so each `do` only acts.
 Arguments come from a reply and may be any JSON value.
+
+An act is carried out for its principal: money moves from the principal's household
+account, and requests answered are those made to the principal. Letters and requests
+are sent by the actor, and notes are the actor's own.
 """
 
 from __future__ import annotations
@@ -36,7 +40,8 @@ def _too_long(text: str) -> bool:
 
 
 def _own(store: Store, act: Act) -> str:
-    return account_of(store, act.actor)
+    """The account the act uses: the principal's."""
+    return account_of(store, act.principal)
 
 
 def _payee(store: Store, act: Act) -> tuple[str | None, str]:
@@ -267,7 +272,7 @@ def _open_request(store: Store, act: Act) -> Request | None:
     if not isinstance(rq_id, str) or not store.has("requests", rq_id):
         return None
     rq = store.get("requests", rq_id)
-    if rq.to != act.actor or rq.status != "open" or store.day > rq.expires:
+    if rq.to != act.principal or rq.status != "open" or store.day > rq.expires:
         return None
     return rq
 

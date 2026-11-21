@@ -97,10 +97,12 @@ def _not_done(act: Act, reason: str, cause: str) -> Outcome:
 def apply_act(store: Store, act: Act, n: int) -> Outcome:
     """Apply one act in full or not at all. `n` numbers the act within the day's acts.
 
-    The outcome carries the act's cause tag; for an act naming no operation, the tag
-    has `?` in place of the operation's name."""
+    The outcome carries the act's cause tag, `op:<actor>:<op>:d<day>.<n>`, or
+    `op:<actor>/<principal>:...` for an act done for someone else; for an act naming no
+    operation, the tag has `?` in place of the operation's name. Hours are the actor's."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
-    cause = f"op:{act.actor}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
+    who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
+    cause = f"op:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
         return _not_done(act, "that operation was not written in a form that can be read.", cause)
     if spec is None:

@@ -1,7 +1,9 @@
 import pytest
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
+from townsim.town import acts
 from townsim.town.acts import Act, apply_act
+from townsim.town.entities import Request
 from townsim.town.statement import agreements_text, statement, statement_text
 
 from town.helpers import thin
@@ -368,3 +370,38 @@ def test_junk_in_any_argument_never_breaks_anything(op, key):
         if not out.ok:
             assert s.hash() == before and len(out.msg) < 500, (op, key, value)
         assert s.engine_errors == [] and s.ledger.total() == 0, (op, key, value, s.engine_errors)
+
+
+# acting for someone else
+
+def _ruth_may_act_for_craig():
+    acts.AUTHORISERS[:] = [lambda s, a: None if a.actor == a.principal or (a.actor, a.principal) == ("p01", "p03")
+                           else "you have no connection that allows you to act for them."]
+
+
+def test_an_act_for_a_principal_uses_their_account_and_the_actors_hours():
+    s = thin(); _ruth_may_act_for_craig()
+    out = apply_act(s, Act("p01", "p03", "pay", {"to": "Wenlow Lettings", "amount": 10}), 2)
+    assert out.ok and out.cause == "op:p01/p03:pay:d0.2"
+    t = s.ledger.transfers[-1]
+    assert (t.src, t.dst, t.cents, t.cause) == ("h2", "org1", 1_000, "op:p01/p03:pay:d0.2")
+    assert s.get("people", "p01").hours_left == 11.75 and s.get("people", "p03").hours_left == 12.0
+    assert apply_act(s, Act("p01", "p01", "pay", {"to": "Megan Pryce", "amount": 1}), 3).cause == "op:p01:pay:d0.3"
+    out = apply_act(s, Act("p01", "p04", "pay", {"to": "Wenlow Lettings", "amount": 1}), 4)
+    assert out.msg == "Not done: you have no connection that allows you to act for them."
+
+
+def test_a_principal_s_requests_stops_letters_and_notes():
+    s = thin(); _ruth_may_act_for_craig()
+    s.add("requests", Request("rq1", 0, "p02", "p03", "Could you spare $5?", 500, 14), "routine:t")
+    assert apply_act(s, Act("p01", "p01", "answer", {"request": "rq1", "answer": "accept"}), 0).msg.startswith(
+        "Not done: you have no open request")                      # it is Craig's to answer
+    out = apply_act(s, Act("p01", "p03", "answer", {"request": "rq1", "answer": "accept"}), 1)
+    assert out.ok and s.ledger.transfers[-1][1:4] == ("h2", "h1", 500)
+    rent = ob_id(s, "h2", "rent")
+    assert apply_act(s, Act("p01", "p01", "stop", {"id": rent}), 2).msg.startswith("Not done:")
+    assert apply_act(s, Act("p01", "p03", "stop", {"id": rent}), 3).ok
+    assert apply_act(s, Act("p01", "p03", "message", {"to": "Tom Ashby", "text": "Hello."}), 4).ok
+    assert s.all("messages")[-1].sender == "p01"
+    assert apply_act(s, Act("p01", "p03", "write_notes", {"text": "mine"}), 5).ok
+    assert (s.get("people", "p01").notes, s.get("people", "p03").notes) == ("mine", "")

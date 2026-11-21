@@ -15,7 +15,7 @@ This is the first of four plans for design step 2a. The later ones, each written
 ## Global Constraints
 
 - Money is integer cents. `Ledger.total()` is 0 after every operation and every day.
-- The store changes only through `Store` methods, and every change carries a non-empty cause: `routine:<what>`, `op:<actor>:<op>:d<day>.<n>`, `auto:<id>` or `narrator:<id>`.
+- The store changes only through `Store` methods, and every change carries a non-empty cause: `routine:<what>`, `op:<actor>:<op>:d<day>.<n>` (or `op:<actor>/<principal>:<op>:d<day>.<n>` for an act done for someone else), `auto:<id>` or `narrator:<id>`.
 - Deterministic: no threads, no wall clock, no unseeded randomness, no iteration over a `set` or use of built-in `hash()` anywhere that reaches state or output. Where an order is needed among entities it is `id_key` order.
 - No test calls a model or the network. Nothing in this plan spends money.
 - An operation applies in full or not at all. A reply from a model is data: junk in it must never raise out of the engine.
