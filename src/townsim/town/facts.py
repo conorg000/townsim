@@ -202,30 +202,154 @@ def _home(store: Store, pid: str) -> list[str]:
 
 
 def _does(store: Store, pid: str) -> str:
-    """What someone does, said of them: their `job` line, or where they work, or ""."""
-    p = store.get("people", pid)
-    if _job_line(store, pid):
-        first = p.job.split(" ")[0]
-        return p.job if _verb(first) else f"is {p.job}"
+    """What someone does, said of them: their job line, or where they work, or ""."""
+    line = job_line(store, pid)
+    if line:
+        return line if _verb(line.split(" ")[0]) else f"is {line}"
     held = jobs.held(store, person=pid)
     if held:
         return f"works at {store.get('orgs', held[0].org).name}"
     return "has no work at present" if store.where("jobs", person=pid) else ""
 
 
-def _job_line(store: Store, pid: str) -> str:
-    """`Person.job`, unless it names where they worked in a job that has ended and not where
-    they work now: then it is no longer true, and "" is returned."""
+_COUNT_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def _count(n: int) -> str:
+    return _COUNT_WORDS[n] if 0 <= n < len(_COUNT_WORDS) else str(n)
+
+
+def _lets(store: Store, pid: str) -> int:
+    """How many houses `pid` lets, themselves or through their household."""
+    home = store.get("people", pid).household
+    return len([h for h in store.all("households") if h.landlord in (pid, home) and h.id != home])
+
+
+def job_line(store: Store, pid: str) -> str:
+    """What `pid` does, said of them, as it is today. The line written when the place was made
+    (`Person.job`) while it is still true: every organisation it names is one they work at or
+    own today, or it names none and they hold no job. Otherwise a line read from the rows:
+    the houses they let, what they run and where they work, joined by `and`; "" if none."""
     p = store.get("people", pid)
     line = p.job.strip()
-    if not line:
-        return ""
-    names = lambda js: [store.get("orgs", j.org).name for j in js if store.has("orgs", j.org)]  # noqa: E731
-    now = names(jobs.held(store, person=pid))
-    gone = [n for n in names(store.where("jobs", person=pid)) if n not in now]
-    if any(n in line for n in gone) and not any(n in line for n in now):
-        return ""
-    return p.job
+    held = jobs.held(store, person=pid)
+    owned = [o for o in store.all("orgs") if o.owner == pid and not o.outside]
+    now = {store.get("orgs", j.org).name for j in held if store.has("orgs", j.org)} | {o.name for o in owned}
+    named = [o.name for o in store.all("orgs") if o.name and o.name in line]
+    if line and ((named and all(n in now for n in named)) or (not named and not held)):
+        return line
+    parts = []
+    n = _lets(store, pid)
+    if n:
+        parts.append(f"lets {_count(n)} house" + ("" if n == 1 else "s"))
+    parts += [f"runs {o.name}" for o in owned]
+    parts += [f"works at {store.get('orgs', j.org).name}" for j in held
+              if store.has("orgs", j.org) and store.get("orgs", j.org).owner != pid]
+    return " and ".join(parts)
+
+
+def _relation_counts(store: Store, pid: str) -> bool:
+    """Whether `pid` is the one whose household's own debts are on their mind: living alone,
+    the head of the household (its first member), or the head's partner."""
+    members = store.get("households", store.get("people", pid).household).members
+    return len(members) == 1 or members[0] == pid or any(
+        t.person == members[0] and t.other == pid and t.kind == "partner" for t in store.all("ties"))
+
+
+def _live(store: Store, **where: str) -> list:
+    return [o for o in store.where("obligations", **where) if o.status in SCHEDULED]
+
+
+def worries(store: Store, pid: str, n: int) -> list[str]:
+    """The first `n` of what is on `pid`'s mind about money and work, each true of the rows
+    today: more going out than coming in; debts between people and when they end; the
+    household's loans; their shop's custom, loans and rent; their hours; finding work on
+    benefit; a small pension; their rent or mortgage; the houses they let; the bank's loans;
+    the software firm's funding; their job; the earner they depend on; else the bills."""
+    from townsim.town import gen        # the measures of a week's money (gen reads this module)
+    p = store.get("people", pid)
+    home = p.household
+    h = store.get("households", home)
+    held = jobs.held(store, person=pid)
+    found: list[str] = []
+    inn, out = gen.weekly_in(store, home), gen.weekly_out(store, home)
+    if inn < out:
+        found.append(f"More goes out each week ({money(out)}) than comes in ({money(inn)}).")
+    for t in store.all("ties"):
+        if t.person == pid and t.kind in ("creditor", "debtor") and store.has("people", t.other):
+            other = store.get("people", t.other)
+            payer, payee = (home, other.household) if t.kind == "creditor" else (other.household, home)
+            owed = [o for o in _live(store, payer=payer) if o.payee == payee and o.kind == "agreement"]
+            if owed:
+                o, first = owed[0], other.name.split()[0]
+                found.append(f"Paying back {first}: {money(o.cents)} a week until {when(o.last)}."
+                             if t.kind == "creditor" else
+                             f"Whether {first} keeps up the {money(o.cents)} a week owed to you.")
+    mine = _relation_counts(store, pid)
+    for o in _live(store, payer=home):
+        if o.kind == "loan" and not o.memo.startswith("mortgage") and mine:
+            found.append(f"The {o.memo} costs {money(o.cents)} a week until {when(o.last)}.")
+    food = [f for f in store.all("firms") if f.need == firms.NEED]
+    smallest = min(food, key=lambda f: (f.last_units, id_key(f.id))).org if food else ""
+    for org in [o for o in store.all("orgs") if o.owner == pid and not o.outside and store.where("firms", org=o.id)]:
+        if org.id == smallest:
+            found.append(f"Whether enough custom comes into {org.name}, the smallest of the {_count(len(food))} shops.")
+        for o in _live(store, payer=org.id):
+            if o.kind == "loan":
+                found.append(f"The {o.memo} costs {org.name} {money(o.cents)} a week.")
+            elif o.kind == "rent":
+                found.append(f"Whether {org.name} takes enough to pay its rent and running costs "
+                             f"of {money(o.cents)} a week.")
+    shop_jobs = [j for j in held if store.where("firms", org=j.org) and store.get("orgs", j.org).owner != pid]
+    if shop_jobs and shop_jobs[0].hours < 30:
+        found.append(f"You only get {shop_jobs[0].hours:g} hours a week at {store.get('orgs', shop_jobs[0].org).name}.")
+    benefit = jobs.benefit_held(store, pid)
+    if not held and benefit:
+        found.append(f"Finding work; your benefit is {money(store.get('obligations', benefit).cents)} a week.")
+    pensioners = [q for q in h.members if store.get("people", q).kind == "retired"
+                  or (store.get("people", q).kind == "landlord" and store.get("people", q).age >= jobs.PENSION_AGE)]
+    pensions = [o for o in store.where("obligations", payee=home) if o.memo == "state pension"]
+    if pid in pensioners and pensioners.index(pid) < len(pensions):
+        mine_ob = pensions[pensioners.index(pid)]
+        all_cents = sorted(o.cents for o in store.all("obligations") if o.memo == "state pension" and o.status in SCHEDULED)
+        if mine_ob.status in SCHEDULED and mine_ob.cents <= all_cents[len(all_cents) // 2]:
+            found.append(f"Getting by on your pension of {money(mine_ob.cents)} a week.")
+    if store.has("people", h.landlord) and h.landlord != pid:
+        rent = [o for o in _live(store, payer=home) if o.kind == "rent"]
+        if rent:
+            found.append(f"Your rent of {money(rent[0].cents)} a week to {store.get('people', h.landlord).name}.")
+    mortgage = [o for o in _live(store, payer=home) if o.memo.startswith("mortgage")]
+    if mortgage and mine:
+        found.append(f"Your mortgage of {money(mortgage[0].cents)} a week.")
+    if p.kind == "landlord" and _lets(store, pid):
+        found.append(f"Keeping the {_count(_lets(store, pid))} houses you let in good repair.")
+    banks = [o for o in store.all("orgs") if o.kind == "bank"]
+    if p.kind == "banker" and banks and any(j.org == banks[0].id for j in held):
+        k = len([o for o in _live(store, payee=banks[0].id) if o.kind == "loan"])
+        found.append(f"Whether the {k} loans on the books at {banks[0].name} are kept up.")
+    if p.kind == "software":
+        for firm in [o for o in store.all("orgs") if o.kind == "firm" and not o.outside]:
+            if firm.owner == pid:
+                inv = [o for o in _live(store, payee=firm.id) if store.has("orgs", o.payer)
+                       and store.get("orgs", o.payer).kind == "investor"]
+                if inv:
+                    found.append(f"Whether {store.get('orgs', inv[0].payer).name} keeps paying {firm.name} "
+                                 f"{money(inv[0].cents)} a week.")
+            elif any(j.org == firm.id for j in held):
+                found.append(f"Whether {firm.name} keeps its funding.")
+    if p.kind == "outside_worker":
+        outside = [j for j in held if store.get("orgs", j.org).outside]
+        if outside:
+            found.append(f"Keeping your job at {store.get('orgs', outside[0].org).name}.")
+    if p.kind == "home":
+        earners = [q for q in h.members if jobs.held(store, person=q)]
+        if earners:
+            found.append(f"Getting by on what {store.get('people', earners[0]).name.split()[0]} brings in.")
+    if shop_jobs and not any(x.startswith("You only") for x in found):
+        found.append(f"Keeping your hours at {store.get('orgs', shop_jobs[0].org).name}.")
+    if not found:
+        found.append("Keeping up with the bills.")
+    return found[:n]
 
 
 def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> list[str]:
@@ -243,7 +367,7 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
 def _work(store: Store, pid: str) -> list[str]:
     p = store.get("people", pid)
     home = p.household
-    job_line = _job_line(store, pid)
+    said = job_line(store, pid)
     held = jobs.held(store, person=pid)
     owned = [o for o in store.all("orgs") if o.owner == pid and not o.outside]
     told = False                                     # whether the job line has been said in a fuller line
@@ -253,9 +377,9 @@ def _work(store: Store, pid: str) -> list[str]:
         ob = store.get("obligations", j.wage_ob) if store.has("obligations", j.wage_ob) else None
         paid = f", paid on {_payday(ob)}" if ob is not None else ""
         mine = org.owner == pid
-        if not told and job_line and org.name in job_line:
+        if not told and said and org.name in said:
             told = True
-            head = _second_person(job_line) + (", which you own" if mine else "")
+            head = _second_person(said) + (", which you own" if mine else "")
             pay = f"drawing {money(j.weekly)} a week" if mine else f"for {money(j.weekly)} a week"
             lines.append(f"{head}: {j.hours:g} hours a week, {pay}{paid}.")
         elif mine:
@@ -263,10 +387,10 @@ def _work(store: Store, pid: str) -> list[str]:
                          f"a week{paid}.")
         else:
             lines.append(f"You work {j.hours:g} hours a week at {org.name} for {money(j.weekly)} a week{paid}.")
-    if job_line and not told:
-        lines.insert(0, _second_person(job_line) + ".")
+    if said and not told:
+        lines.insert(0, _second_person(said) + ".")
     for org in owned:
-        if not any(j.org == org.id for j in held) and org.name not in job_line:
+        if not any(j.org == org.id for j in held) and org.name not in said:
             lines.append(f"You own {org.name}.")
         staff = [store.get("people", j.person).name for j in jobs.held(store, org=org.id) if j.person != pid]
         if staff:
@@ -326,11 +450,12 @@ def who(store: Store, pid: str) -> str:
     friends_line = [f"Your friends: {_and(friends)}."] if friends else []
     beliefs = [f"What you think: {' '.join(p.beliefs)}"] if p.beliefs else []
     interests = [f"You are interested in {_and(p.interests)}."] if p.interests else []
-    worries = [f"What worries you: {' '.join(p.worries)}"] if p.worries else []
+    mind = worries(store, pid, len(p.worries))
+    worry_line = [f"What worries you: {' '.join(mind)}"] if mind else []
     voice = [_second_person(p.voice) if _verb(p.voice.split(" ")[0].lower()) else p.voice] if p.voice.strip() else []
 
     def text() -> str:
-        return "\n".join(head + debts + kin_line + friends_line + beliefs + interests + worries + voice)
+        return "\n".join(head + debts + kin_line + friends_line + beliefs + interests + worry_line + voice)
 
     for give in ("interests", "friends", "kin", "debts"):
         if _words(text()) <= WHO_WORDS:
@@ -413,7 +538,7 @@ def bank_book_rows(store: Store, pid: str) -> list[str]:
     fees: dict[str, int] = {}
     for ob in store.where("obligations", payee=bank.id):
         if ob.penalty:
-            unpaid = sum(d.cents - d.paid for d in store.where("dues", obligation=ob.id) if d.status != "paid")
+            unpaid = sum(d.cents - d.paid for d in store.where("dues", obligation=ob.id) if d.status in ("due",) + OWED)
             if unpaid > 0:
                 fees[ob.payer] = fees.get(ob.payer, 0) + unpaid
     late = [f"{name_of(store, who)}: late fees of {money(c)} unpaid" for who, c in fees.items()]

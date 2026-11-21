@@ -157,7 +157,9 @@ class Obligation:
 
 @dataclass
 class Due:
-    """One instalment of an obligation. `status` is due, paid, arrears or defaulted."""
+    """One instalment of an obligation. `status` is due, paid, arrears or defaulted; or void,
+    for one opened early by a payment by hand and then left after the obligation's end: never
+    taken or aged, and not owed (what was counted toward it stays, as `paid`, a payment made)."""
 
     id: str
     obligation: str
@@ -293,7 +295,9 @@ class Work:
 class Job:
     """`person` works `hours` a week for the organisation `org`, paid `weekly` cents by the
     wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start).
-    `ended` is the last day worked, or -1 while the job goes on."""
+    `ended` is the last day worked, or -1 while the job goes on. `paid_to` is the last Friday
+    paid by a wage obligation of the job's that a change of pay ended (-1 if none), so the
+    next is never paid on a Friday already paid."""
 
     id: str
     person: str
@@ -303,6 +307,7 @@ class Job:
     wage_ob: str
     since: int
     ended: int = -1
+    paid_to: int = -1
 
 
 @dataclass

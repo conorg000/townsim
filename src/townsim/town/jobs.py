@@ -38,9 +38,9 @@ def last_friday(day: int) -> int:
 
 
 def pay_friday(day: int) -> int:
-    """The next Friday on which a wage can still be paid: this week's, or at a weekend the
-    following one."""
-    return day + (FRIDAY - dow(day)) % 7
+    """The Friday a wage agreed on `day` is first paid: this week's from Monday to Thursday;
+    from Friday on (when that morning's wages have been taken), the following one."""
+    return day + FRIDAY - dow(day) + (7 if dow(day) >= FRIDAY else 0)
 
 
 def next_monday(day: int) -> int:

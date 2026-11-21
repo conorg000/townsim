@@ -28,7 +28,7 @@ _PRICE = re.compile(rf"^Price: ({_MONEY}) a basket$")
 _ORDER = re.compile(r"(\d+) units from (.+)$")
 _STAFF = re.compile(rf"^  ({_FULL}), [\d.]+ hours, ({_MONEY}) a week$")
 _OFFERED = re.compile(rf" offers .+ a job: ({_MONEY}) a week")
-_EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours this week")
+_EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours, paid ")
 
 
 def _cents(text: str) -> int:

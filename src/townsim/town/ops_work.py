@@ -11,7 +11,8 @@ Wages are paid on Fridays. A job offered starts on the Monday after the day it r
 person, and the offer stays open until the Sunday before it, so the date it names holds.
 A job that ends is paid for the last time on that week's Friday, or at a weekend was paid
 for the last time on the Friday just gone. Changes of pay take effect after this week's
-Friday (at a weekend, after the next).
+Friday (from Friday to Sunday, after the next); what is agreed from a Friday on is first
+paid the following Friday, and every message names the date.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from typing import Any
 from townsim.town import firms, hours, jobs, obligations
 from townsim.town import ops_core as core
 from townsim.town.acts import REGISTRY, Act, OpSpec, dollars, fits, name_of_who, register, shown, to_cents
-from townsim.town.clock import date_text, dow
+from townsim.town.clock import date_text
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
 from townsim.town.statement import quoted
@@ -36,8 +37,9 @@ MIN_EXTRA_HOURS, MAX_EXTRA_HOURS = 1, 30
 MIN_PRICE, MAX_PRICE = 100, 10_000
 WORKING_AGE = 16
 MOVED = "moved between your own accounts"
-JOB_TEXT = "A job offer."
-SHIFTS_TEXT = "An offer of extra hours."
+JOB_TEXT = "A job offer"
+SHIFTS_TEXT = "An offer of extra hours"
+SUMMARY_WORDS, SUMMARY_CHARS, SUMMARY_NAME = 60, 480, 40
 _NUMBER = re.compile(r"\d{1,6}(\.\d{1,6})?", re.ASCII)
 
 
@@ -119,11 +121,32 @@ def _job_with(store: Store, pid: str, owner: str) -> Job | None:
     return held[0] if held else None
 
 
+def _coming(store: Store, pid: str) -> list[Job]:
+    """The jobs `pid` holds today or has agreed to start, not already ending, in id order."""
+    return [j for j in store.where("jobs", person=pid) if j.ended == -1]
+
+
 def _elsewhere(store: Store, pid: str, org: str) -> list[Job]:
-    """The jobs `pid` holds at organisations other than `org` that they do not own and that
-    are not already ending."""
-    return [j for j in jobs.held(store, person=pid)
-            if j.org != org and j.ended == -1 and store.get("orgs", j.org).owner != pid]
+    """The jobs `pid` holds or has agreed to start, at organisations other than `org` that they
+    do not own, and that are not already ending: those a new job ends."""
+    return [j for j in _coming(store, pid) if j.org != org and store.get("orgs", j.org).owner != pid]
+
+
+def _cut_name(name: str) -> str:
+    return name if len(name) <= SUMMARY_NAME else name[:SUMMARY_NAME].rstrip() + "\u2026"
+
+
+def _bounded(text: str) -> str:
+    """A summary at most 60 words and 480 characters, cut at a word with `…` if it is longer."""
+    words = text.split(" ")
+    if len(words) <= SUMMARY_WORDS and len(text) <= SUMMARY_CHARS:
+        return text
+    out = ""
+    for w in words[:SUMMARY_WORDS - 1]:
+        if len(out) + len(w) + 2 > SUMMARY_CHARS:
+            break
+        out = f"{out} {w}" if out else w
+    return out + "\u2026"
 
 
 def _ending(store: Store, job: Job) -> str | None:
@@ -164,6 +187,16 @@ def _left(store: Store, job: Job, last: int, cause: str) -> str:
     return text
 
 
+def _not_started(store: Store, job: Job, cause: str) -> None:
+    """A job agreed and not yet begun ends before its first day; nothing is paid on it; its
+    owner is told."""
+    jobs.finish(store, job.id, job.since - 1, cause)
+    text = (f"{store.get('people', job.person).name} does not start at {_org_name(store, job.org)} "
+            f"on {date_text(job.since)}.")
+    for owner in _owner_of(store, job.org):
+        jobs.tell(store, owner, text, cause)
+
+
 # offer_job
 
 def _job_terms(store: Store, act: Act) -> tuple[str | None, int | None, float | None, str]:
@@ -202,14 +235,19 @@ def _start_monday(day: int) -> int:
 
 
 def job_summary(store: Store, org: str, who: str, weekly: int, h: float, monday: int) -> str:
-    """What an offer of a job says: its terms, and the jobs elsewhere accepting it ends."""
-    text = (f"{_org_name(store, org)} offers {store.get('people', who).name} a job: {money(weekly)} a week for "
-            f"{_h(h)} hours, paid Fridays, from {date_text(monday)}.")
-    others = [_org_name(store, j.org) for j in _elsewhere(store, who, org)]
-    if others:
-        plural = "s" if len(others) > 1 else ""
-        text += f" Accepting ends your job{plural} at {_names(others)} on {date_text(monday - 3)}."
-    return text
+    """What an offer of a job says: its terms, the jobs elsewhere accepting it ends and those
+    agreed elsewhere it means are not started; every name cut to 40 characters."""
+    text = (f"{_cut_name(_org_name(store, org))} offers {_cut_name(store.get('people', who).name)} a job: "
+            f"{money(weekly)} a week for {_h(h)} hours, paid Fridays, from {date_text(monday)}.")
+    ending = _elsewhere(store, who, org)
+    held = [_cut_name(_org_name(store, j.org)) for j in ending if j.since <= store.day]
+    agreed = [_cut_name(_org_name(store, j.org)) for j in ending if j.since > store.day]
+    if held:
+        plural = "s" if len(held) > 1 else ""
+        text += f" Accepting ends your job{plural} at {_names(held)} on {date_text(monday - 3)}."
+    if agreed:
+        text += f" Accepting means you do not start at {_names(agreed)}."
+    return _bounded(text)
 
 
 def _do_offer_job(store: Store, act: Act, cause: str) -> str:
@@ -234,7 +272,7 @@ def _check_job(store: Store, act: Act, rq: Request) -> str | None:
     if _has_job_at(store, pid, rq.org):
         return f"you already work at {org.name}."
     ending = {j.id for j in _elsewhere(store, pid, rq.org)}
-    kept = sum(j.hours for j in jobs.held(store, person=pid) if j.id not in ending)
+    kept = sum(j.hours for j in _coming(store, pid) if j.id not in ending)
     free = hours.WEEK_HOURS - hours.work_hours(store, pid) - kept
     if free < rq.hours:
         return (f"your week has {_h(round(max(free, 0.0), 2))} hours once your other work is done, "
@@ -246,7 +284,10 @@ def _do_job(store: Store, act: Act, rq: Request, cause: str) -> str:
     pid = act.principal
     monday = rq.first
     for job in _elsewhere(store, pid, rq.org):
-        _left(store, job, monday - 3, cause)
+        if job.since > store.day:          # agreed and not yet started: it never starts
+            _not_started(store, job, cause)
+        else:
+            _left(store, job, monday - 3, cause)
     jobs.start(store, pid, rq.org, rq.pay, rq.hours, monday + jobs.FRIDAY, cause, since=monday)
     jobs.end_benefit(store, pid, monday - 3, cause)
     return f"{store.get('people', pid).name} starts at {_org_name(store, rq.org)} on {date_text(monday)}."
@@ -267,8 +308,6 @@ def _check_offer_shifts(store: Store, act: Act) -> str | None:
     if h is None:
         return (f"'{shown(act.args.get('hours'))}' is not a number of hours from {MIN_SHIFT_HOURS} "
                 f"to {MAX_SHIFT_HOURS}.")
-    if dow(store.day) == 6:
-        return "this week ends today."
     if _shift_pay(job, h) <= 0:
         return f"{store.get('people', who).name} is paid {money(job.weekly)} a week at {_org_name(store, job.org)}."
     return None
@@ -284,10 +323,11 @@ def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
     h = _hours(act.args.get("hours"), MIN_SHIFT_HOURS, MAX_SHIFT_HOURS)
     pay = _shift_pay(job, h)
     org = _org_name(store, job.org)
-    summary = (f"{org} offers {store.get('people', who).name} {_h(h)} extra hours this week, "
-               f"paid {money(pay)} on Friday.")
+    friday = jobs.pay_friday(store.day + 1)        # what is accepted from tomorrow is paid then
+    summary = _bounded(f"{_cut_name(org)} offers {_cut_name(store.get('people', who).name)} {_h(h)} extra hours, "
+                       f"paid {money(pay)} on {date_text(friday)}.")
     rq = Request(store.new_id("rq", cause), store.day, act.actor, who, SHIFTS_TEXT, 0,
-                 store.day + 6 - dow(store.day), kind="shifts", summary=summary, org=job.org, hours=h, pay=pay)
+                 friday - 1, kind="shifts", summary=summary, org=job.org, first=friday, hours=h, pay=pay)
     store.add("requests", rq, cause)
     return f"Sent to {store.get('people', who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
 
@@ -312,7 +352,7 @@ def _do_shifts(store: Store, act: Act, rq: Request, cause: str) -> str:
     fid = _shop(store, rq.org)
     if fid is not None:
         store.set("firms", fid, cause, extra_hours=round(store.get("firms", fid).extra_hours + rq.hours, 2))
-    friday = jobs.pay_friday(store.day)
+    friday = rq.first
     org = _org_name(store, rq.org)
     worker = store.get("people", act.principal)
     obligations.create(store, kind="wage", payer=rq.org, payee=worker.household, cents=rq.pay, first=friday,
@@ -436,19 +476,23 @@ def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
     job, _ = _staff(store, act)
     weekly = _new_pay(store, act, job)
     friday = jobs.pay_friday(store.day)
-    old = job.wage_ob if store.has("obligations", job.wage_ob) else ""
-    if old and store.get("obligations", old).status in obligations.SCHEDULED:
-        obligations.end(store, old, friday, cause)
-        start = friday + 7
-    else:
-        start = friday
+    paid_to = job.paid_to
+    if store.has("obligations", job.wage_ob):
+        old = store.get("obligations", job.wage_ob)
+        if old.status in obligations.SCHEDULED:
+            if old.first <= friday:            # it pays this Friday, and is paid no further
+                paid_to = max(paid_to, friday)
+            obligations.end(store, old.id, friday, cause)
+        elif old.last is not None:
+            paid_to = max(paid_to, old.last)
+    start = max(friday, paid_to + 7) if paid_to >= 0 else friday
     org = _org_name(store, job.org)
     worker = store.get("people", job.person)
     ob = ""
     if weekly > 0:
         ob = obligations.create(store, kind="wage", payer=job.org, payee=worker.household, cents=weekly, first=start,
                                 every=7, memo=f"wages from {org}", ends="both", made_by="routine", cause=cause)
-    store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob)
+    store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob, paid_to=paid_to)
     if job.person == act.principal:
         return f"{org} pays you {money(weekly)} a week from {date_text(start)}."
     jobs.tell(store, job.person, f"{org} pays you {money(weekly)} a week from {date_text(start)}.", cause)

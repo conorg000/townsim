@@ -44,8 +44,9 @@ def _illness(store: Store, e: Event, cause: str) -> str | None:
 def _job_lost(store: Store, e: Event, cause: str) -> str | None:
     if not store.has("people", e.who):
         return "no person"
-    held = [j for j in jobs.held(store, person=e.who) if store.has("orgs", j.org) and store.get("orgs", j.org).outside]
-    if not held:                 # one who has already left the job it was dealt for has nothing to lose
+    held = [j for j in jobs.held(store, person=e.who) if store.has("orgs", j.org) and store.get("orgs", j.org).outside
+            and j.ended == -1]
+    if not held:                 # one who has left, or is leaving, the job it was dealt for has nothing to lose
         return None if store.where("jobs", person=e.who) else "no job at an outside employer for"
     job = held[0]
     last = jobs.last_friday(e.day)        # this week's Friday, or at a weekend the Friday just gone

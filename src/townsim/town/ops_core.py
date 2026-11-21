@@ -151,11 +151,8 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     memo = quoted(note) if note else f"payment to {name}"
     source, ref = _source(store, act), _pay_ref(act)
     wage = None if ref is not None else jobs.wage_paid_by_hand(store, act.principal, source, payee)
-    if wage is None:
-        matches = obligations.pay(store, source, payee, cents, memo, cause, ref=ref)
-    else:   # a wage the principal's business owes, paid from another of their accounts
-        obligations.pay(store, source, payee, cents, memo, cause, match=False)
-        matches = obligations.count_toward(store, wage, cents, cause)
+    # a wage the principal's business owes, paid from another of their accounts, counts toward it
+    matches = obligations.pay(store, source, payee, cents, memo, cause, ref=ref, toward=wage)
     told = f"Paid {money(cents)} to {name}."
     if matches:
         counted = []

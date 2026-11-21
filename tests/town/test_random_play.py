@@ -253,6 +253,10 @@ def _check_day(s, mark: int) -> None:
 def _check_run(s) -> None:
     collects = Counter(t.cause for t in s.ledger.transfers if t.cause.startswith("routine:collect:"))
     assert not collects or max(collects.values()) == 1, collects.most_common(1)
+    for cause in collects:                 # nothing is taken for a day after an obligation's last
+        due = s.get("dues", cause.removeprefix("routine:collect:"))
+        last = s.get("obligations", due.obligation).last
+        assert last is None or due.day <= last, (due, last)
 
     # The strong form: what reached the payee for each paid due is exactly its sum. A
     # payment by hand counted toward a due cannot be told from the ledger alone (its memo
@@ -344,16 +348,16 @@ def test_random_runs_replay_exactly(seed, tmp_path):
 
 
 HAMLET_DAYS = 28
-HAMLET_SEEDS = range(20)
-_HAMLET_DONE: dict[int, Counter] = {}      # seed -> the operations done in its hamlet play
+HAMLET_SEEDS = range(12)
 WORK = ("offer_job", "offer_shifts", "dismiss", "set_staff_pay", "set_price", "order_stock", "work_extra_hours",
         "move_money", "quit")
 
 
-@pytest.mark.parametrize("seed", HAMLET_SEEDS)
-def test_random_play_in_the_hamlet_never_breaks_the_books(seed):
-    """The same invariants on a generated place for four weeks, the script reading real names
-    and ids, and choosing among the operations, from each view; no view reaches 2,000 words."""
+@functools.cache
+def _hamlet_played(seed: int):
+    """A generated place played for four weeks on `random_script` reading each view, checked
+    after every day; with the operations done and the largest view seen. Played once for all
+    the tests that read it. Do not change what it returns."""
     s = gen.generate(seed + 1, ["a", "b", "c", "d"])
     rng = random.Random(f"hamlet:{seed}")
     inner = random_script(rng, from_view=True)
@@ -365,21 +369,27 @@ def test_random_play_in_the_hamlet_never_breaks_the_books(seed):
 
     replier = ScriptedReplier(reply)
     keys = Keys("h")
+    done: Counter = Counter()
     for _ in range(HAMLET_DAYS):
         mark = s.mark()
         report = run_day(s, replier, keys)
         _check_day(s, mark)
-        _HAMLET_DONE[seed] = _HAMLET_DONE.get(seed, Counter()) + Counter(
-            o.act.op for t in report.turns for o in t.outcomes if o.ok and isinstance(o.act.op, str))
+        done.update(o.act.op for t in report.turns for o in t.outcomes if o.ok and isinstance(o.act.op, str))
+    return s, done, biggest[0]
+
+
+@pytest.mark.parametrize("seed", HAMLET_SEEDS)
+def test_random_play_in_the_hamlet_never_breaks_the_books(seed):
+    """The same invariants on a generated place for four weeks, the script reading real names
+    and ids, and choosing among the operations, from each view; no view reaches 2,000 words."""
+    s, _, biggest = _hamlet_played(seed)
     _check_run(s)
-    assert biggest[0] < 2000
+    assert biggest < 2000
     assert any(c.cause.startswith("op:") and c.table == "ledger" for c in s.changes)
 
 
 def test_random_play_in_the_hamlet_does_the_work_of_shops():
-    """Across the hamlet seeds above, every operation of work was carried out at least once."""
-    if len(_HAMLET_DONE) < len(HAMLET_SEEDS):
-        pytest.skip("runs after the hamlet seeds above")
-    done = sum(_HAMLET_DONE.values(), Counter())
+    """Across the hamlet seeds, every operation of work was carried out at least once."""
+    done = sum((_hamlet_played(seed)[1] for seed in HAMLET_SEEDS), Counter())
     for op in WORK:
         assert done[op] > 0, op

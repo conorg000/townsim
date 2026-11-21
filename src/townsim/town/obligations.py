@@ -306,13 +306,16 @@ def next_instalment(store: Store, ob: Obligation) -> int | None:
 
 
 def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
-        ref: str | None = None, match: bool | Literal["arrears"] = True) -> list[Match]:
+        ref: str | None = None, match: bool | Literal["arrears"] = True, toward: str | None = None) -> list[Match]:
     """Pay `cents` from `payer` to `payee` in one transfer and count it toward what the payer
     owes the payee: arrears oldest first, then the single next instalment. With `ref`, only
     that obligation. What is left over is an ordinary payment. With `match="arrears"` it
     counts toward arrears only, never toward an instalment not yet owed. With `match=False`
     it is only the transfer: no due is touched and nothing is returned. `ref` may only be
-    given with `match=True`. Changes nothing if it raises."""
+    given with `match=True`. With `toward`, an obligation's id, it counts toward that
+    obligation alone though it is owed to `payee` from another account (a wage the payer's
+    owner pays by hand from another account of theirs). Nothing is ever counted toward an
+    instalment after an obligation's `last`. Changes nothing if it raises."""
     if match not in (True, False, "arrears"):
         raise ValueError(f"match must be True, False or 'arrears', got {match!r}")
     if ref is not None and match is not True:
@@ -331,6 +334,10 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
         store.transfer(payer, payee, cents, memo, cause)
         return []
     obs = [o for o in store.where("obligations", payer=payer) if o.payee == payee]
+    if toward is not None:
+        if ref is not None or not store.has("obligations", toward) or store.get("obligations", toward).payee != payee:
+            raise ValueError(f"{toward!r} is not an obligation owed to {payee}, or ref is given too")
+        obs = [store.get("obligations", toward)]
     if ref is not None:
         obs = [o for o in obs if o.id == ref]
         if not obs:
@@ -359,7 +366,7 @@ def _plan(store: Store, obs: list[Obligation], cents: int,
             left -= take
     if left > 0 and match is True:
         nexts = [(day, KIND_ORDER.index(o.kind), id_key(o.id), o) for o in obs
-                 if (day := next_instalment(store, o)) is not None]
+                 if (day := next_instalment(store, o)) is not None and (o.last is None or day <= o.last)]
         if nexts:
             day, _, _, ob = min(nexts, key=lambda n: n[:3])
             due = _find_due(store, ob.id, day)
@@ -448,10 +455,20 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
     if ob.every == 0 or ob.status not in SCHEDULED or (ob.last is not None and ob.last <= last_day):
         return
     with store.transaction():
+        for due in store.where("dues", obligation=ob_id):
+            if due.day > last_day and due.status != "paid":     # opened early by a payment by hand
+                store.set("dues", due.id, cause, status="void")
         if last_day < ob.first:          # no instalment ever falls
             store.set("obligations", ob_id, cause, status="finished")
             return
         store.set("obligations", ob_id, cause, last=last_day)
-        unpaid = [d for d in store.where("dues", obligation=ob_id) if d.status != "paid"]
-        if not unpaid and not instalment_days(ob, store.day, 1):
+        if not _left_to_pay(store, store.get("obligations", ob_id)):
             store.set("obligations", ob_id, cause, status="finished")
+
+
+def _left_to_pay(store: Store, ob: Obligation) -> bool:
+    """Whether anything of `ob` is still owed or still to fall due: a due not yet paid, or an
+    instalment from today with no due opened for it."""
+    if any(d.status in ("due",) + OWED for d in store.where("dues", obligation=ob.id)):
+        return True
+    return any(_find_due(store, ob.id, day) is None for day in instalment_days(ob, store.day, 2))

@@ -24,7 +24,7 @@ from datetime import timedelta
 from townsim.econ.demand import NEEDS, DemandRule, Offering, true_choice_probabilities
 from townsim.econ.demand import Household as EconHousehold
 from townsim.econ.suppliers import default_suppliers
-from townsim.town import acts, firms, hours, jobs, names
+from townsim.town import acts, facts, firms, hours, jobs, names
 from townsim.town import obligations as O
 from townsim.town.clock import DAY_ZERO, date_text
 from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie
@@ -780,18 +780,14 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
 
 def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P], home_of: dict,
                      w: dict) -> None:
-    shops, owners, crews = w["shops"], w["owners"], w["crews"]
+    shops, owners = w["shops"], w["owners"]
     shop_name = {o: s.get("orgs", o).name for o in shops}
     bank_name, firm_name, emp_name = (s.get("orgs", w[k]).name for k in ("bank", "firm", "employer"))
-    smallest = min(w["fids"], key=lambda f: (s.get("firms", f).last_units, id_key(f)))
-    smallest_org = s.get("firms", smallest).org
     stock_days = [i % 7 for i in range(PEOPLE)]
     rng.shuffle(stock_days)
     emp_lines = rng.sample(w["emp_lines"], 3)
     outs = [p for p in people if p.kind == "outside_worker"]
-    pensions = sorted(o.cents for o in s.all("obligations") if o.memo == "state pension")
     for p, day in zip(people, stock_days):
-        h = home_of[p.id]
         jobs_ = s.where("jobs", person=p.id)
         # what they do
         if p.kind == "owner":
@@ -814,74 +810,11 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
             line = "out of work"
         else:
             line = rng.choice(HOME_LINES)
-        # what they worry about, from their rows
-        worries = []
-        inn, out = weekly_in(s, h.id), weekly_out(s, h.id)
-        if inn < out:
-            worries.append(f"More goes out each week ({money(out)}) than comes in ({money(inn)}).")
-        for t in s.all("ties"):
-            if t.person == p.id and t.kind in ("creditor", "debtor"):
-                other = s.get("people", t.other)
-                payer, payee = (h.id, other.household) if t.kind == "creditor" else (other.household, h.id)
-                o = next(o for o in s.where("obligations", payer=payer) if o.payee == payee and o.kind == "agreement")
-                worries.append(f"Paying back {other.name.split()[0]}: {money(o.cents)} a week until {when(o.last)}."
-                               if t.kind == "creditor" else
-                               f"Whether {other.name.split()[0]} keeps up the {money(o.cents)} a week owed to you.")
-        for o in s.where("obligations", payer=h.id):
-            if o.kind == "loan" and not o.memo.startswith("mortgage") and p.relation in ("head", "partner", ""):
-                worries.append(f"The {o.memo} costs {money(o.cents)} a week until {when(o.last)}.")
-        if p.kind == "owner":
-            shop = shops[owners.index(p)]
-            if shop == smallest_org:
-                worries.append(f"Whether enough custom comes into {shop_name[shop]}, the smallest of the three shops.")
-            for o in s.where("obligations", payer=shop):
-                if o.kind == "loan":
-                    worries.append(f"The {o.memo} costs {shop_name[shop]} {money(o.cents)} a week.")
-                elif o.kind == "rent":
-                    worries.append(f"Whether {shop_name[shop]} takes enough to pay its rent and running costs "
-                                   f"of {money(o.cents)} a week.")
-        if p.kind == "staff" and jobs_[0].hours < 30:
-            worries.append(f"You only get {jobs_[0].hours:g} hours a week at {shop_name[jobs_[0].org]}.")
-        if p.kind == "unemployed":
-            amount = next(o.cents for o in s.where("obligations", payee=h.id) if o.memo == "jobseeker's benefit")
-            worries.append(f"Finding work; your benefit is {money(amount)} a week.")
-        if p.id in w["pension_of"]:
-            mine = s.get("obligations", w["pension_of"][p.id]).cents
-            if mine <= pensions[len(pensions) // 2]:
-                worries.append(f"Getting by on your pension of {money(mine)} a week.")
-        if s.get("households", h.id).landlord and h.tenure == "landlord":
-            rent = next(o for o in s.where("obligations", payer=h.id) if o.kind == "rent")
-            worries.append(f"Your rent of {money(rent.cents)} a week to {s.get('people', w['landlord'].id).name}.")
-        if h.tenure == "mortgage" and p.relation in ("head", "partner", ""):
-            m = next(o for o in s.where("obligations", payer=h.id) if o.memo.startswith("mortgage"))
-            worries.append(f"Your mortgage of {money(m.cents)} a week.")
-        if p.kind == "landlord":
-            worries.append("Keeping the three houses you let in good repair.")
-        if p.kind == "banker":
-            n = len([o for o in s.where("obligations", payee=w["bank"]) if o.kind == "loan"])
-            worries.append(f"Whether the {n} loans on the books at {bank_name} are kept up.")
-        if p.kind == "software":
-            inv = next(o for o in s.where("obligations", payer=w["investor"]) if o.payee == w["firm"])
-            if s.get("orgs", w["firm"]).owner == p.id:
-                worries.append(f"Whether {s.get('orgs', w['investor']).name} keeps paying {firm_name} "
-                               f"{money(inv.cents)} a week.")
-            else:
-                worries.append(f"Whether {firm_name} keeps its funding.")
-        if p.kind == "outside_worker":
-            worries.append(f"Keeping your job at {emp_name}.")
-        if p.kind == "home":
-            earners = [q for q in h.members if s.where("jobs", person=q.id)]
-            if earners:
-                worries.append(f"Getting by on what {earners[0].first} brings in.")
-        if p.kind == "staff" and not any(x.startswith("You only") for x in worries):
-            worries.append(f"Keeping your hours at {shop_name[jobs_[0].org]}.")
-        if not worries:
-            worries.append("Keeping up with the bills.")
         n = rng.randint(1, 3)
         axes = rng.sample(sorted(BELIEFS), rng.randint(2, 4))
         beliefs = [rng.choice(BELIEFS[a][rng.randrange(2)]) for a in axes]
         s.set("people", p.id, SETUP, job=line, stock_day=day, voice=rng.choice(VOICES), beliefs=beliefs,
-              interests=rng.sample(INTERESTS, rng.randint(1, 3)), worries=worries[:n])
+              interests=rng.sample(INTERESTS, rng.randint(1, 3)), worries=facts.worries(s, p.id, n))
 
 
 def _deal(s: Store, rng: random.Random, families: list[str]) -> None:

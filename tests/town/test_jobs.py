@@ -6,6 +6,7 @@ import pytest
 from townsim.town import acts, firms, jobs
 from townsim.town import obligations as O
 from townsim.town.acts import Act, apply_act
+from townsim.town.clock import date_text
 from townsim.town.entities import Event, FirmRow, Org, Work
 from townsim.town.loop import close, routine
 from townsim.town.views import view
@@ -87,13 +88,13 @@ def test_an_accepted_offer_makes_a_wage_due_on_fridays():
     set_cash(s, "org3", 500_000)
     rq = offer(s, "p01", "Megan Pryce", 440, 38)
     assert (rq.kind, rq.text, rq.cents, rq.first, rq.expires, rq.hours, rq.pay) == \
-        ("job", "A job offer.", 0, 7, 6, 38.0, 44_000)
+        ("job", "A job offer", 0, 7, 6, 38.0, 44_000)
     assert rq.summary == ("Marsh's Stores offers Megan Pryce a job: $440.00 a week for 38 hours, paid Fridays, "
                           "from Monday 9 March.")
     live(s, 1)
     out = accept(s, "p04", rq)
     assert out.ok and out.msg == "Accepted. Megan Pryce starts at Marsh's Stores on Monday 9 March."
-    assert told(s, "p01")[-1] == ('Megan Pryce accepted your request rq1 ("A job offer."). '
+    assert told(s, "p01")[-1] == ('Megan Pryce accepted your request rq1 ("A job offer"). '
                                   "Megan Pryce starts at Marsh's Stores on Monday 9 March.")
     job = job_of(s, "p04", "org3")
     ob = s.get("obligations", job.wage_ob)
@@ -193,8 +194,8 @@ def test_eight_extra_hours_at_440_for_38_pay_9263_once():
     s = work_town()
     out = do(s, "p01", "offer_shifts", to="Craig Pryce", hours=8)
     rq = s.all("requests")[-1]
-    assert out.ok and (rq.kind, rq.hours, rq.pay, rq.expires) == ("shifts", 8.0, 9_263, 6)
-    assert rq.summary == "Marsh's Stores offers Craig Pryce 8 extra hours this week, paid $92.63 on Friday."
+    assert out.ok and (rq.kind, rq.hours, rq.pay, rq.first, rq.expires) == ("shifts", 8.0, 9_263, 4, 3)
+    assert rq.summary == "Marsh's Stores offers Craig Pryce 8 extra hours, paid $92.63 on Friday 6 March."
     live(s, 1)
     out = accept(s, "p03", rq)
     assert out.msg == ("Accepted. Craig Pryce works 8 extra hours at Marsh's Stores this week, "
@@ -218,8 +219,21 @@ def test_extra_hours_need_the_hours_and_a_job_there():
         "Not done: Megan Pryce does not work at Marsh's Stores."
     assert refused(s, "p01", "offer_shifts", to="Craig Pryce", hours=21) == \
         "Not done: '21' is not a number of hours from 1 to 20."
-    live(s, 6)
-    assert refused(s, "p01", "offer_shifts", to="Craig Pryce", hours=8) == "Not done: this week ends today."
+
+
+def test_extra_hours_offered_or_accepted_from_a_friday_on_are_paid_the_friday_after():
+    s = work_town()
+    live(s, 4)                                      # Friday, after the morning's wages
+    do(s, "p01", "offer_shifts", to="Craig Pryce", hours=4)
+    rq = s.all("requests")[-1]
+    assert (rq.first, rq.expires) == (11, 10) and rq.summary.endswith("paid $46.32 on Friday 13 March.")
+    out = accept(s, "p03", rq)                     # accepted the same Friday
+    assert out.msg.endswith("paid $46.32 on Friday 13 March.")
+    to_day(s, 12)
+    assert [(d, c) for d, c in paid(s, "org3", "h2") if c == 4_632] == [(11, 4_632)]
+    live(s, 1)                                      # Sunday: an offer then is paid on the Friday after
+    do(s, "p01", "offer_shifts", 1, to="Craig Pryce", hours=4)
+    assert s.all("requests")[-1].first == 18 and s.all("requests")[-1].summary.endswith("on Friday 20 March.")
 
 
 # leaving
@@ -481,6 +495,24 @@ def test_moving_money_between_ones_own_accounts():
 SUMMARY_WORDS, SUMMARY_CHARS = 60, 480
 
 
+def test_summaries_are_bounded_by_construction():
+    s = work_town()
+    add_shop(s, "org9", "Third Shop", "p02", 100_000)
+    names = {"org3": "Marsh " * 16 + "Mark", "org4": "Lowes " * 16 + "Lowe", "org9": "Third " * 16 + "Thrd"}
+    for org, name in names.items():
+        s.set("orgs", org, T, name=name[:100])
+    s.set("people", "p04", T, name="Megan " + "Q" * 40)
+    s.set("orgs", "org9", T, owner="p04")
+    jobs.start(s, "p03", "org9", 50_000, 10, 4, T, since=-7)
+    rq = offer(s, "p05", "Craig Pryce", 500, 20)
+    assert len(rq.summary.split()) <= 60 and len(rq.summary) <= 480
+    for name in names.values():
+        assert name[:100] not in rq.summary and name[:40].rstrip() + "\u2026" in rq.summary
+    from townsim.town.ops_work import _bounded
+    assert _bounded("w " * 100).endswith("\u2026") and len(_bounded("w " * 100).split()) <= 60
+    assert len(_bounded(("x" * 39 + " ") * 30)) <= 480
+
+
 def test_summaries_are_short_even_with_the_longest_names():
     s = work_town()
     long = "Abcdefghij " * 9 + "Abcdefghi"                   # a hundred characters
@@ -492,3 +524,189 @@ def test_summaries_are_short_even_with_the_longest_names():
     for summary in (rq.summary, rq2.summary):
         assert len(summary.split()) <= SUMMARY_WORDS and len(summary) <= SUMMARY_CHARS, summary
     assert "Accepting ends your job at" in rq.summary
+
+
+# what review found: no wage paid twice or after a job ends
+
+def _hamlet():
+    import pickle
+    global _HAMLET
+    try:
+        return pickle.loads(_HAMLET)
+    except NameError:
+        from townsim.town import gen
+        _HAMLET = pickle.dumps(gen.generate(1, ["a", "b", "c", "d"]))
+        return pickle.loads(_HAMLET)
+
+
+def _gail(s, since):
+    """Wages from Lumb's Grocer to Gail Whiteley's household (h5) from `since`."""
+    return [(t.t, t.cents) for t in s.ledger.transfers if t.src == "org10" and t.dst == "h5" and t.t >= since]
+
+
+def _collected_after_last(s):
+    """Collections of a due after its obligation's last day: none may exist."""
+    bad = []
+    for t in s.ledger.transfers:
+        if t.cause.startswith("routine:collect:"):
+            due = s.get("dues", t.cause.split(":")[2])
+            ob = s.get("obligations", due.obligation)
+            if ob.last is not None and due.day > ob.last:
+                bad.append((due.id, due.day, ob.last))
+    return bad
+
+
+@pytest.mark.parametrize("act", ["set_staff_pay", "dismiss"])
+def test_a_second_payment_by_hand_then_a_change_never_pays_a_friday_twice(act):
+    s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March; Gail Whiteley's wage is $434
+    do(s, "p16", "pay", to="Gail Whiteley", amount=434)
+    out = do(s, "p16", "pay", 1, to="Gail Whiteley", amount=50)
+    assert out.msg.endswith("due Friday 20 March.")                   # opened next week's due early
+    args = dict(who="Gail Whiteley", weekly_pay=500) if act == "set_staff_pay" else dict(who="Gail Whiteley")
+    assert do(s, "p16", act, 2, **args).ok
+    close(s); live(s, 16)
+    assert _gail(s, 10) == ([(18, 50_000), (25, 50_000)] if act == "set_staff_pay" else [])
+    assert _collected_after_last(s) == [] and s.ledger.total() == 0
+    [early] = [d for d in s.where("dues", obligation="ob3") if d.day == 18]
+    assert (early.status, early.paid) == ("void", 5_000)              # what was paid stays a payment made
+    _check_run(s)
+
+
+def test_a_payment_at_a_weekend_then_a_dismissal_takes_no_further_wage():
+    s = _hamlet(); live(s, 12); routine(s)          # Saturday
+    assert do(s, "p16", "pay", to="Gail Whiteley", amount=100).msg.endswith("due Friday 20 March.")
+    assert do(s, "p16", "dismiss", 1, who="Gail Whiteley").msg.endswith("was on Friday 13 March.")
+    close(s); live(s, 14)
+    assert _gail(s, 12) == [] and _collected_after_last(s) == []
+    _check_run(s)
+
+
+def test_a_payment_reaching_into_next_week_then_quitting_takes_no_further_wage():
+    s = _hamlet(); live(s, 9); routine(s)
+    do(s, "p16", "pay", to="Gail Whiteley", amount=534)
+    assert do(s, "p9", "quit", 1).msg == "You have left Lumb's Grocer. Your last pay is on Friday 13 March."
+    close(s); live(s, 16)
+    assert _gail(s, 9) == [] and _collected_after_last(s) == []
+    _check_run(s)
+
+
+def test_nothing_is_counted_toward_an_instalment_after_the_last():
+    s = work_town()
+    ob = job_of(s, "p03", "org3").wage_ob
+    O.end(s, ob, 4, T)
+    assert [m.cents for m in O.count_toward(s, ob, 100_000, T)] == [44_000]
+    assert O.count_toward(s, ob, 100, T) == []                        # Friday 6 March is paid; nothing after
+    assert [d.day for d in s.where("dues", obligation=ob)] == [4]
+
+
+@pytest.mark.parametrize("start", [7, 9, 11, 12])
+def test_a_draw_set_to_nothing_and_back_never_pays_a_friday_twice(start):
+    s = _hamlet(); live(s, start)
+    assert do(s, "p3", "set_staff_pay", who="Rosa Sowerby", weekly_pay=0).ok
+    out = do(s, "p3", "set_staff_pay", 1, who="Rosa Sowerby", weekly_pay=300)
+    live(s, 21)
+    days = [t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.t >= start]
+    assert len(days) == len(set(days)), days
+    first_new = min(t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.cents == 30_000)
+    assert out.msg.endswith(f"from {date_text(first_new)}.")
+
+
+def test_pay_changed_twice_in_a_week_pays_each_friday_once():
+    s = _hamlet(); live(s, 9)
+    do(s, "p3", "set_staff_pay", who="Thea Ormerod", weekly_pay=450)
+    do(s, "p3", "set_staff_pay", 1, who="Thea Ormerod", weekly_pay=460)
+    do(s, "p3", "set_staff_pay", 2, who="Thea Ormerod", weekly_pay=470)
+    live(s, 21)
+    wages = [(t.t, t.cents) for t in s.ledger.transfers if t.src == "org11" and t.dst == "h9" and t.t >= 9]
+    assert wages == [(11, 39_295), (18, 47_000), (25, 47_000)]
+
+
+def test_a_second_offer_accepted_ends_the_first_before_it_starts():
+    s = _hamlet(); live(s, 8)
+    do(s, "p3", "offer_job", to="Wendy Lumb", weekly_pay=440, hours=38)
+    r1 = s.all("requests")[-1]
+    assert accept(s, "p18", r1).ok
+    do(s, "p14", "offer_job", 2, to="Wendy Lumb", weekly_pay=500, hours=38)
+    r2 = s.all("requests")[-1]
+    assert r2.summary.endswith("Accepting means you do not start at Hartcliffe Food Hall.")
+    assert accept(s, "p18", r2, 3).ok
+    assert told(s, "p3")[-1] == "Wendy Lumb does not start at Hartcliffe Food Hall on Monday 16 March."
+    live(s, 13)
+    rows = [(j.org, j.since, j.ended) for j in s.where("jobs", person="p18")]
+    assert rows == [("org11", 14, 13), ("org12", 14, -1)]
+    assert s.get("people", "p18").hours_week == 70 - 38
+    assert [t.cents for t in s.ledger.transfers if t.dst == "h9" and t.src == "org11" and t.cents == 44_000] == []
+    assert [t.t for t in s.ledger.transfers if t.dst == "h9" and t.src == "org12"] == [18]
+
+
+def test_a_job_lost_after_leaving_it_is_passed_over():
+    s = _hamlet(); live(s, 8); routine(s)
+    assert do(s, "p4", "quit").ok
+    close(s)
+    s.add("events", Event("ev999", s.day, "job_lost", "p4", 0, 0), T)
+    routine(s); close(s)
+    assert s.engine_errors == []
+
+
+def test_a_wage_paid_by_hand_says_so_in_the_payment():
+    s = work_town()
+    set_cash(s, "h1", 100_000)
+    do(s, "p01", "pay", to="Craig Pryce", amount=440)
+    assert s.ledger.transfers[-1].memo == \
+        "payment to Craig Pryce (counted toward wages from Marsh's Stores due Friday 6 March)"
+
+
+def test_end_finishes_an_obligation_with_nothing_left_to_pay():
+    s = work_town()
+    ob = job_of(s, "p03", "org3").wage_ob
+    to_day(s, 4); routine(s)                        # Friday's wage is taken
+    O.end(s, ob, 4, T)
+    assert s.get("obligations", ob).status == "finished"
+
+
+# the view follows the store
+
+def _who(s, pid):
+    from townsim.town import facts
+    return facts.who(s, pid)
+
+
+def test_someone_who_takes_a_job_is_no_longer_out_of_work_in_any_view():
+    s = _hamlet()
+    assert "You are out of work." in _who(s, "p18") and "Finding work" in _who(s, "p18")
+    live(s, 8)
+    do(s, "p16", "offer_job", to="Wendy Lumb", weekly_pay=440, hours=38)
+    assert accept(s, "p18", s.all("requests")[-1]).ok
+    live(s, 7)                                      # Monday 16 March: the job has begun
+    who = _who(s, "p18")
+    assert "out of work" not in who and "Finding work" not in who and "benefit" not in who
+    assert "You work at Lumb's Grocer: 38 hours a week, for $440.00 a week, paid on Fridays." in who
+    assert "Wendy Lumb, your child, works at Lumb's Grocer." in _who(s, "p16")
+
+
+def test_someone_who_loses_a_job_is_not_told_they_keep_it():
+    s = _hamlet()
+    [ev] = [e for e in s.all("events") if e.kind == "job_lost"]
+    assert "Keeping your job at Brackenfield Foods." in s.get("people", ev.who).worries
+    live(s, 22)                                     # past the last pay, and benefit has begun
+    who = _who(s, ev.who)
+    assert "Brackenfield" not in who
+    worries = who.split("What worries you: ")[1].split("\n")[0] if "What worries you: " in who else ""
+    assert "Keeping your job" not in worries
+
+
+def test_a_debt_that_is_settled_is_no_longer_a_worry():
+    s = _hamlet()
+    assert "Whether Rosa keeps up the $15.00 a week owed to you." in _who(s, "p16")
+    [ob] = [o for o in s.all("obligations") if o.kind == "agreement" and o.payee == "h9"]
+    s.set("obligations", ob.id, T, status="finished")
+    assert "Rosa keeps up" not in _who(s, "p16") and "paying back Martin Lumb" not in _who(s, "p16")
+
+
+def test_a_household_that_falls_behind_is_shown_so():
+    s = _hamlet()
+    p = next(p for p in s.all("people") if "More goes out" not in _who(s, p.id) and p.worries
+             and s.get("households", p.household).members[0] == p.id)
+    O.create(s, kind="bill", payer=p.household, payee="org4", cents=500_000, first=1, every=7, memo="energy",
+             ends="service", made_by="routine", cause=T)
+    assert "What worries you: More goes out each week" in _who(s, p.id)

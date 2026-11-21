@@ -54,11 +54,15 @@ def words(messages):
 
 
 @functools.cache
-def eight_weeks():
-    """Seed 1 played for eight weeks on `hamlet_script.script`, with the size of every person's view
-    on every morning (after the routine) and the time the days took."""
+def _eight_weeks_run():
+    """Seed 1 played for eight weeks on `hamlet_script.script` as a kept run (`h1`, in a
+    database of its own), with every day's report, the size of every person's view on every
+    morning (after the routine) and the time the days took. Played once for this module."""
+    import tempfile
+    import townsim.town.runs as runs_module
     s = place(1)
     sizes: dict[tuple[int, str], int] = {}
+    reports = []
 
     def script(key, messages):
         if not any(d == s.day for d, _ in sizes):
@@ -66,16 +70,33 @@ def eight_weeks():
                 sizes[(s.day, p.id)] = words(view(s, p.id)[0])
         return hamlet_script.script(key, messages)
 
+    def kept(store, replier, keys):
+        report = run_day(store, replier, keys)
+        reports.append(report)
+        return report
+
+    db = RunDB(str(Path(tempfile.mkdtemp()) / "h.sqlite"))
+    db.create_run("h1", seed=1)
     started = time.perf_counter()
-    reports = days(s, DAYS, script)
-    return s, reports, sizes, time.perf_counter() - started
+    runs_module.run_day, before = kept, runs_module.run_day
+    try:
+        final = run(db, "h1", s, ScriptedReplier(script), DAYS)
+    finally:
+        runs_module.run_day = before
+    return final, reports, sizes, time.perf_counter() - started, db
+
+
+def eight_weeks():
+    return _eight_weeks_run()[:4]
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _let_go():
     """The eight weeks are kept for this module's tests only, so later timings do not carry them."""
     yield
-    eight_weeks.cache_clear()
+    if _eight_weeks_run.cache_info().currsize:
+        _eight_weeks_run()[4].close()
+    _eight_weeks_run.cache_clear()
     _frozen.cache_clear()
 
 
@@ -86,14 +107,10 @@ def done_ops(s):
 
 # eight weeks
 
-def test_eight_weeks_in_the_hamlet_conserve_and_replay(tmp_path):
-    started = time.perf_counter()
-    with RunDB(str(tmp_path / "h.sqlite")) as db:
-        db.create_run("h1", seed=1)
-        final = run(db, "h1", place(1), ScriptedReplier(hamlet_script.script), DAYS)
-        assert final.ledger.total() == 0 and db.errors("h1") == [] and replay(db, "h1") == []
-    assert time.perf_counter() - started < 15
-    assert final.day == DAYS and final.hash() == eight_weeks()[0].hash()
+def test_eight_weeks_in_the_hamlet_conserve_and_replay():
+    final, _, _, took, db = _eight_weeks_run()
+    assert final.ledger.total() == 0 and db.errors("h1") == [] and replay(db, "h1") == []
+    assert took < 15 and final.day == DAYS
 
 
 def test_nothing_is_collected_twice_and_no_view_is_over_length():
@@ -184,15 +201,18 @@ def test_shops_have_customers_and_tills_every_week():
 
 
 def test_a_run_stopped_mid_day_and_resumed_reaches_the_same_end(tmp_path):
+    """From the kept eight weeks' snapshot of day 30: a run stopped in the middle of that day
+    and resumed reaches the same end, and replays."""
     def stopping(key, messages):
         if key.day == 30 and key.actor == "p3":
             raise StopRun
         return hamlet_script.script(key, messages)
 
+    kept = _eight_weeks_run()[4]
     with RunDB(str(tmp_path / "h.sqlite")) as db:
         db.create_run("h", seed=1)
-        stopped = run(db, "h", place(1), ScriptedReplier(stopping), DAYS)
-        assert stopped.day == 30
+        stopped = run(db, "h", kept.load_snapshot("h1", 30), ScriptedReplier(stopping), DAYS - 30)
+        assert stopped.day == 30 and db.snapshot_days("h") == [30]
         final = run(db, "h", resume(db, "h"), ScriptedReplier(hamlet_script.script), DAYS - 30)
         assert replay(db, "h") == []
     assert final.hash() == eight_weeks()[0].hash()
