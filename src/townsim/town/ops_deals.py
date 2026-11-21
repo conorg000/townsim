@@ -13,7 +13,8 @@ A proposed agreement lapses at the end of the day before it would start (or afte
 days), so it starts on the day it names. A request to end an agreement names the last day
 anything falls on it: the day before its first instalment from the day after tomorrow on,
 and what has already been paid toward the days after it, which stays with the payee. It
-stays open until that day, and is refused if what was paid ahead has changed. A loan asked
+stays open until that day, and is refused if what was paid ahead has changed. Accepted, it
+changes nothing before that day: what falls by then is still collected. A loan asked
 for stays open until the day before its first instalment, which it names.
 
 Requests code writes for a person carry no text of theirs: everything is in the summary,
@@ -86,6 +87,8 @@ def _start(store: Store, value: Any) -> tuple[int | None, str]:
         return None, f"'{shown(value)}' is not a date that can be read."
     if day == store.day:
         return None, f"{date_text(day)} is today."
+    if day == store.day + 1:
+        return None, "an agreement can start no sooner than the day after tomorrow."
     return day, ""
 
 
@@ -333,9 +336,9 @@ def _check_end(store: Store, act: Act, rq: Request) -> str | None:
 
 def _do_end(store: Store, act: Act, rq: Request, cause: str) -> str:
     ob = store.get("obligations", rq.ob)
+    # nothing changes before the stated day: what falls by then is still collected, and the
+    # agreement is finished by the ordinary path once its last instalment has been paid
     obligations.end(store, ob.id, rq.first, cause)       # what was paid ahead stays paid, and both are told
-    if store.get("obligations", ob.id).status in SCHEDULED:
-        store.set("obligations", ob.id, cause, status="finished")
     return f"Ended ({ob.id}): {memo_shown(ob.memo)}, no payment after {date_text(rq.first)}."
 
 
@@ -482,22 +485,28 @@ def _check_repay(store: Store, act: Act) -> str | None:
     cents, why = core._amount(act.args.get("amount"))
     if cents is None:
         return why
-    owed = outstanding(store, ob)
-    if cents > owed:
-        return f"that is more than the {money(owed)} still owed."
+    most = obligations.repayable(store, ob)
+    if cents > most:
+        if obligations.open_ended(ob) and ob.status in SCHEDULED:
+            return f"that is more than the {money(most)} now due on it."
+        return f"that is more than the {money(most)} still owed."
     return core._short_of(store, ob.payer, cents)
 
 
 def _do_repay(store: Store, act: Act, cause: str) -> str:
     ob, _ = _repaying(store, act)
     cents = to_cents(act.args.get("amount"))
-    obligations.repay(store, ob.id, cents, cause)
+    matches = obligations.repay(store, ob.id, cents, cause)
     ob = store.get("obligations", ob.id)
     owed = outstanding(store, ob)
     head = f"Repaid {money(cents)} to {name_of(store, ob.payee)} on {memo_shown(ob.memo)} ({ob.id})"
     payer = _side_name(store, ob.payer, act.principal)
     _tell(store, [p for p in _adults(store, ob.payee) if p != act.actor],
           f"{payer} repaid {money(cents)} on {memo_shown(ob.memo)} ({ob.id}).", cause)
+    if obligations.open_ended(ob) and ob.status in SCHEDULED:       # it goes on until ended
+        counted = "; ".join(f"{money(m.cents)} toward the payment due {date_text(store.get('dues', m.due).day)}"
+                            for m in matches)
+        return f"{head}: {counted}. It goes on every week until either side ends it."
     if owed == 0:
         return f"{head}: nothing more is owed on it."
     last = ""

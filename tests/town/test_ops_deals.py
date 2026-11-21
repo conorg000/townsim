@@ -5,6 +5,7 @@ requests they make, stand up to junk."""
 
 import functools
 import pickle
+import random
 import re
 
 import pytest
@@ -160,6 +161,10 @@ def test_terms_are_checked_again_when_accepted():
         "Not done: Monday 2 March has passed."
     assert refused(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Saturday 7 March"}) == \
         "Not done: Saturday 7 March is today."
+    assert refused(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Sunday 8 March"}) == \
+        "Not done: an agreement can start no sooner than the day after tomorrow."
+    out = ok(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Monday 9 March"})
+    assert out.msg.endswith("It stays open until Sunday 8 March.")
 
 
 def test_an_agreement_lapses_before_it_would_start():
@@ -228,11 +233,12 @@ def test_ending_a_single_payment_already_paid_toward():
     assert [t.cents for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == [500]
     # one due tomorrow has nothing after it to end
     s = deals_town()
-    ok(s, "p01", "propose_agreement", **{**SHOPPING, "per": "once", "start": "Tuesday 3 March"})
+    ok(s, "p01", "propose_agreement", **{**SHOPPING, "per": "once", "start": "Wednesday 4 March"})
     ok(s, "p04", "answer", 1, request=s.all("requests")[-1].id, answer="accept")
     once = s.all("obligations")[-1]
+    live(s, 1)
     assert refused(s, "p01", "propose_end", id=once.id) == (
-        f"Not done: {once.id} has one payment left, on Tuesday 3 March, and that is tomorrow: there is nothing "
+        f"Not done: {once.id} has one payment left, on Wednesday 4 March, and that is tomorrow: there is nothing "
         f"after it to end.")
 
 
@@ -669,3 +675,140 @@ def test_who_is_at_most_300_words_for_everyone():
     for s in stores + [s]:
         for p in s.all("people"):
             assert len(who(s, p.id).split()) <= 300, (s.seed, s.day, p.id, len(who(s, p.id).split()))
+
+
+def test_repaying_an_agreement_until_ended_never_finishes_it():
+    s = deals_town()
+    set_cash(s, "h1", 100_000)
+    ob = agreed(s, weeks=0)                                      # Fridays from Friday 6 March, until ended
+    out = ok(s, "p01", "repay", 2, id=ob.id, amount=20)
+    assert out.msg == (f'Repaid $20.00 to Pryce on "towards the shopping" ({ob.id}): $20.00 toward the payment due '
+                       f"Friday 6 March. It goes on every week until either side ends it.")
+    assert s.get("obligations", ob.id).status == "active"
+    assert refused(s, "p01", "repay", id=ob.id, amount=1) == "Not done: that is more than the $0.00 now due on it."
+    to_day(s, 2)
+    assert refused(s, "p01", "repay", id=ob.id, amount=20.01) == "Not done: that is more than the $0.00 now due on it."
+    to_day(s, 5)                                                 # Saturday: next Friday is within the week
+    assert refused(s, "p01", "repay", id=ob.id, amount=20.01) == "Not done: that is more than the $20.00 now due on it."
+    ok(s, "p01", "repay", id=ob.id, amount=5)
+    to_day(s, 19)
+    assert [(t.t, t.cents) for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == \
+        [(0, 2000), (5, 500), (11, 1500), (18, 2000)]
+    assert s.get("obligations", ob.id).status == "active"
+
+
+def test_an_end_accepted_on_the_day_it_is_asked_changes_nothing_before_its_date():
+    s = deals_town()
+    set_cash(s, "h1", 100_000)
+    ob = agreed(s)
+    to_day(s, 3)                                                 # Thursday 5 March
+    ok(s, "p01", "propose_end", id=ob.id)
+    rq = s.all("requests")[-1]
+    assert rq.first == 10 and rq.summary.endswith("no payment after Thursday 12 March.")
+    ok(s, "p03", "answer", 1, request=rq.id, answer="accept")
+    after = s.get("obligations", ob.id)
+    assert (after.status, after.last) == ("active", 10)
+    out = ok(s, "p01", "repay", 2, id=ob.id, amount=20)          # Friday's instalment, ahead: no engine error
+    assert out.msg.endswith("nothing more is owed on it.") and s.get("obligations", ob.id).status == "finished"
+    to_day(s, 30)
+    assert [(t.t, t.cents) for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == [(3, 2000)]
+    # without the repayment, Friday's instalment is collected and then it is finished
+    s = deals_town()
+    set_cash(s, "h1", 100_000)
+    ob = agreed(s)
+    to_day(s, 3)
+    ok(s, "p01", "propose_end", id=ob.id)
+    ok(s, "p03", "answer", 1, request=s.all("requests")[-1].id, answer="accept")
+    assert refused(s, "p01", "repay", id=ob.id, amount=20.01) == "Not done: that is more than the $20.00 still owed."
+    to_day(s, 30)
+    assert [(t.t, t.cents) for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == [(4, 2000)]
+    assert s.get("obligations", ob.id).status == "finished"
+
+
+# random sequences of agreements
+
+def _schedule_total(ob) -> int:
+    if ob.every == 0:
+        return ob.cents
+    n = (O.last_instalment(ob) - ob.first) // ob.every + 1
+    return ob.cents * (n - 1) + O.last_cents(ob)
+
+
+def _check_agreements(s, made: dict, ended: set) -> None:
+    assert s.engine_errors == [] and s.ledger.total() == 0
+    for ob_id, kind in made.items():
+        ob = s.get("obligations", ob_id)
+        dues = s.where("dues", obligation=ob_id)
+        for d in dues:
+            assert 0 <= d.paid <= d.cents, d
+            if ob.last is not None:
+                assert d.day <= ob.last or d.status == "void", (d, ob)
+            if d.status == "void" and d.paid:
+                kept = f"{O.money(d.paid)} already paid toward"
+                assert any(kept in n.text and O.date_text(d.day) in n.text for n in s.where("notices", to="p01")), d
+                assert any(kept in n.text and "is yours to keep" in n.text for n in s.where("notices", to="p04")), d
+        received = sum(d.paid for d in dues if d.status != "void")
+        if ob.status == "finished" and ob_id in ended and all(d.status == "void" for d in dues):
+            assert ob.first > max((r.first for r in s.where("requests", kind="end", ob=ob_id)
+                                   if r.status == "accepted"), default=ob.first)       # ended before it began
+        elif kind == "until ended" and ob.last is None and ob.status not in O.SCHEDULED:
+            raise AssertionError(("an agreement until ended was finished", ob))
+        elif kind == "until ended" and ob.last is None:
+            gone = s.day - 1                         # the checks fall before today's morning has run
+            upto = [d for d in dues if d.day <= gone]
+            still = sum(d.cents - d.paid for d in upto if d.status in ("due",) + O.OWED)
+            days = [d for d in range(ob.first, gone + 1) if (d - ob.first) % 7 == 0]
+            assert sum(d.paid for d in upto) + still == len(days) * ob.cents, (ob, dues)
+            ahead = [d for d in dues if d.day > gone]
+            assert all(d.day <= s.day + 7 for d in ahead) and len(ahead) <= 1, ahead
+        else:
+            owed = O.outstanding(s, ob) if ob.status in O.SCHEDULED else \
+                sum(d.cents - d.paid for d in dues if d.status in ("due",) + O.OWED)
+            assert received + owed == _schedule_total(ob), (ob, received, owed, dues)
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_random_sequences_of_agreements_keep_their_sums(seed):
+    rng = random.Random(f"agreements:{seed}")
+    s = deals_town()
+    set_cash(s, "h1", 30_000)
+    made: dict[str, str] = {}
+    ended: set[str] = set()
+    n = 0
+    for step in range(100):
+        roll = rng.random()
+        n += 1
+        if roll < 0.12 and len(made) < 4:
+            kind = rng.choice(["weekly", "once", "until ended"])
+            terms = {"per": "once"} if kind == "once" else {"weeks": 0} if kind == "until ended" else \
+                {"weeks": rng.randint(1, 6)}
+            out = do(s, "p01", "propose_agreement", n, **{**SHOPPING, **terms, "start": None,
+                                                          "amount": rng.choice([10, 20, 35])})
+            if out.ok and rng.random() < 0.9:
+                if rng.random() < 0.5:
+                    live(s, 1)
+                if do(s, "p04", "answer", n + 1, request=s.all("requests")[-1].id, answer="accept").ok:
+                    made[s.all("obligations")[-1].id] = kind
+        elif roll < 0.35 and made:
+            ob = rng.choice(sorted(made))
+            do(s, "p01", "repay", n, id=ob, amount=rng.choice([1, 5, 10, 20, 35, 70, 500]))
+        elif roll < 0.45 and made:
+            ob = rng.choice(sorted(made))
+            do(s, "p01", "pay", n, to="Megan Pryce", amount=rng.choice([5, 20, 40]), **{"for": ob})
+        elif roll < 0.55 and made:
+            ob = rng.choice(sorted(made))
+            asker = rng.choice(["p01", "p04"])
+            if do(s, asker, "propose_end", n, id=ob).ok:
+                rq = s.all("requests")[-1]
+                if rng.random() < 0.5:
+                    live(s, rng.choice([1, 2]))
+                if rng.random() < 0.5:
+                    do(s, "p01", "repay", n + 1, id=ob, amount=5)        # the figure may change first
+                if do(s, rq.to, "answer", n + 2, request=rq.id, answer="accept").ok:
+                    ended.add(ob)
+        elif roll < 0.62:
+            set_cash(s, "h1", rng.choice([0, 0, 2_000, 50_000]))        # arrears now and then
+        else:
+            live(s, rng.choice([1, 1, 2, 3]))
+        _check_agreements(s, made, ended)
+    assert made

@@ -572,15 +572,16 @@ def _left_to_pay(store: Store, ob: Obligation) -> bool:
 def outstanding(store: Store, ob: Obligation) -> int:
     """What is still owed on `ob`: what is unpaid on its dues not void or paid, and every
     instalment still to fall from today with no due opened for it. One that runs until ended
-    owes only its next instalment beyond what has fallen due."""
+    owes only its first instalment not yet opened beyond its open dues, so it never owes
+    nothing while it runs."""
     owed = sum(d.cents - d.paid for d in store.where("dues", obligation=ob.id) if d.status in ("due",) + OWED)
     if ob.status not in SCHEDULED:
         return owed
     for day in _instalment_days(ob, store.day):
         if _find_due(store, ob.id, day) is None:
             owed += instalment_cents(ob, day)
-        if ob.last is None:
-            break
+            if ob.last is None:          # one that runs until ended: its next instalment not yet opened
+                break
     return owed
 
 
@@ -606,37 +607,29 @@ def _forward(store: Store, ob: Obligation, cents: int) -> tuple[list[tuple[Oblig
     return plan, left
 
 
-def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
-    """Pay `cents` on `ob_id` from its payer to its payee in one transfer, ahead of its days:
-    toward its arrears oldest first, then (for a loan) its next instalment, then whole instalments taken
-    off the end of its schedule (`last` moving one period earlier each time, the last at its
-    own sum); a remainder smaller than the last instalment then remaining makes that one
-    smaller (`final_cents`). An agreement, which both sides may end early, is instead paid ahead
-    instalment by instalment from today (`_forward`), so that what was paid ahead of an ending
-    is on the dues it was for. An obligation with nothing left to pay is finished. Nothing is
-    counted toward a void due or a day after `last`. Returns what was counted toward dues.
-    Raises ValueError, changing nothing, for an unknown obligation, cents not a positive int,
-    or more than is still owed (`outstanding`); `Overdraft` if the payer cannot pay it."""
-    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
-        raise ValueError(f"no obligation {ob_id!r}")
-    if not _is_int(cents) or cents <= 0:
-        raise ValueError(f"cents must be a positive int, got {cents!r}")
-    ob = store.get("obligations", ob_id)
-    owed = outstanding(store, ob)
-    if cents > owed:
-        raise ValueError(f"{cents} is more than the {owed} still owed on {ob_id}")
-    account = store.ledger.accounts[ob.payer]
-    if account.balance < cents and not account.allow_credit:
-        raise Overdraft(f"{ob.payer} has {account.balance}, cannot repay {cents} on {ob_id}")
-    nxt = next_instalment(store, ob) if ob.status in SCHEDULED else None
-    if ob.kind == "agreement" and ob.status in SCHEDULED:
-        plan, left = _forward(store, ob, cents)
-        nxt = None                       # an agreement is paid ahead day by day, never from its end
-    else:
-        plan = _plan(store, [ob], cents, True, None) if ob.status in SCHEDULED else _plan(store, [ob], cents, "arrears")
-        left = cents - sum(take for _, _, take in plan)
+def open_ended(ob: Obligation) -> bool:
+    """Whether `ob` repeats with no last day: it runs until ended."""
+    return ob.every > 0 and ob.last is None
+
+
+def _repay_plan(store: Store, ob: Obligation, cents: int):
+    """(plan, last, final_cents, cents left over) for `cents` repaid on `ob`, as `repay`
+    describes; changes nothing. Whatever is left over cannot be counted toward anything."""
     last, final = ob.last, ob.final_cents
-    end_day = _last_instalment(ob) if ob.every > 0 and ob.last is not None and ob.status in SCHEDULED else None
+    if ob.status not in SCHEDULED:
+        plan = _plan(store, [ob], cents, "arrears")
+        plan += _open_dues(store, ob, cents - sum(take for _, _, take in plan))
+        return plan, last, final, cents - sum(take for _, _, take in plan)
+    if open_ended(ob):                   # arrears and the next instalment within the week, as by hand
+        plan = _plan(store, [ob], cents, True)
+        return plan, last, final, cents - sum(take for _, _, take in plan)
+    if ob.kind == "agreement":           # paid ahead day by day, never from its end
+        plan, left = _forward(store, ob, cents)
+        return plan, last, final, left
+    nxt = next_instalment(store, ob)
+    plan = _plan(store, [ob], cents, True, None)
+    left = cents - sum(take for _, _, take in plan)
+    end_day = _last_instalment(ob) if ob.every > 0 and ob.last is not None else None
     while left > 0 and end_day is not None and nxt is not None and end_day > nxt \
             and _find_due(store, ob.id, end_day) is None:
         sum_ = final if final > 0 else ob.cents        # only the last instalment can differ
@@ -646,14 +639,59 @@ def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
         left -= sum_
         end_day -= ob.every
         last, final = end_day, 0
+    return plan, last, final, left
+
+
+def _open_dues(store: Store, ob: Obligation, cents: int) -> list[tuple[Obligation, int, int]]:
+    """(obligation, day, cents) toward the dues of `ob` still open (`due`), oldest first."""
+    plan = []
+    for due in sorted(store.where("dues", obligation=ob.id, status="due"), key=lambda d: d.day):
+        take = min(cents, due.cents - due.paid)
+        if take > 0:
+            plan.append((ob, due.day, take))
+            cents -= take
+    return plan
+
+
+def repayable(store: Store, ob: Obligation) -> int:
+    """The most `repay` can count on `ob` today: for one that runs until ended, its arrears
+    and its next instalment within the week; for any other, all that is still owed."""
+    return MAX_REPAY - _repay_plan(store, ob, MAX_REPAY)[3]
+
+
+MAX_REPAY = 10 ** 12
+
+
+def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
+    """Pay `cents` on `ob_id` from its payer to its payee in one transfer, ahead of its days.
+    A loan: toward its arrears oldest first, then its next instalment, then whole instalments
+    taken off the end of its schedule (`last` moving one period earlier each time, the last at
+    its own sum); a remainder smaller than the last instalment then remaining makes that one
+    smaller (`final_cents`). An agreement with an end, which both sides may end early, is paid
+    ahead instalment by instalment from today (`_forward`), so that what was paid ahead of an
+    ending is on the dues it was for. One that runs until ended takes its arrears and at most
+    its next instalment within the week, as a payment by hand would, and is never finished by
+    a repayment. Any other obligation with nothing left to pay is finished. Nothing is counted
+    toward a void due or a day after `last`. Returns what was counted toward dues. Raises
+    ValueError, changing nothing, for an unknown obligation, cents not a positive int, or more
+    than `repayable`; `Overdraft` if the payer cannot pay it."""
+    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
+        raise ValueError(f"no obligation {ob_id!r}")
+    if not _is_int(cents) or cents <= 0:
+        raise ValueError(f"cents must be a positive int, got {cents!r}")
+    ob = store.get("obligations", ob_id)
+    plan, last, final, left = _repay_plan(store, ob, cents)
     if left > 0:
-        raise ValueError(f"{cents} cannot all be counted toward {ob_id}")
+        raise ValueError(f"{cents} is more than the {repayable(store, ob)} that can be repaid on {ob_id}")
+    account = store.ledger.accounts[ob.payer]
+    if account.balance < cents and not account.allow_credit:
+        raise Overdraft(f"{ob.payer} has {account.balance}, cannot repay {cents} on {ob_id}")
     with store.transaction():
         store.transfer(ob.payer, ob.payee, cents, f"repayment of {ob.memo}", cause)
         matches = _count(store, plan, cause)
         if (last, final) != (ob.last, ob.final_cents):
             store.set("obligations", ob.id, cause, last=last, final_cents=final)
         ob = store.get("obligations", ob.id)
-        if ob.status in SCHEDULED and outstanding(store, ob) == 0:
+        if ob.status in SCHEDULED and not open_ended(ob) and outstanding(store, ob) == 0:
             store.set("obligations", ob.id, cause, status="finished")
         return matches

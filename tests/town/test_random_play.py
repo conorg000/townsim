@@ -31,8 +31,8 @@ from townsim.town.runs import replay, run
 from townsim.town.thin import thin_town
 
 DAYS = 42
-SEEDS = range(28)
-REPLAYED = range(2)
+SEEDS = range(40)
+REPLAYED = range(5)
 
 NAMES = ["Ruth Ashby", "Tom Ashby", "Craig Pryce", "Megan Pryce", "Wenlow Lettings", "Northgrid Energy"]
 JUNK_NAMES = ["Edith Marsh", "Shops", "Employers", "Ashby", "Pryce", " megan pryce ", "RUTH ASHBY", "", None, 7,

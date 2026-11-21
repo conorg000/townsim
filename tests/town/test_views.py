@@ -904,7 +904,7 @@ def _check_view(s, pid):
     return total, v.steps, chars
 
 
-@pytest.mark.parametrize("seed", range(15))
+@pytest.mark.parametrize("seed", range(30))
 def test_hostile_input_never_breaks_the_view(seed):
     s = _after_three_weeks()
     low = min((j for j in s.all("jobs") if s.get("people", j.person).kind == "staff"), key=lambda j: j.weekly).person
