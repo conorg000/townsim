@@ -8,7 +8,9 @@ a late fee at 7 days, a notice at 14, default at 28.
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import Iterator, NamedTuple
+
+from townsim.econ.ledger import Overdraft
 
 from townsim.town.clock import date_text
 from townsim.town.entities import Due, Notice, Obligation, Record
@@ -21,6 +23,13 @@ LATE_FEE_CENTS = 2500
 FEE_AFTER_DAYS = 7
 NOTICE_AFTER_DAYS = 14
 DEFAULT_AFTER_DAYS = 28
+
+
+class Match(NamedTuple):
+    """Part of a payment by hand counted toward one due."""
+
+    due: str
+    cents: int
 
 
 class Upcoming(NamedTuple):
@@ -120,11 +129,15 @@ def people_of(store: Store, account: str) -> list[str]:
     return []
 
 
-def _name_of(store: Store, account: str) -> str:
+def name_of(store: Store, account: str) -> str:
+    """A household's or org's name; `outside:lettings` gives `Lettings`; anything else, its id."""
     for table in ("households", "orgs"):
         if store.has(table, account):
             return store.get(table, account).name
-    return account.removeprefix("outside:")
+    if account.startswith("outside:"):
+        rest = account.removeprefix("outside:")
+        return rest[:1].upper() + rest[1:]
+    return account
 
 
 def _tell(store: Store, account: str, text: str, cause: str) -> None:
@@ -154,7 +167,7 @@ def age_arrears(store: Store) -> None:
         if age >= DEFAULT_AFTER_DAYS:
             cause = f"routine:default:{due.id}"
             store.set("dues", due.id, cause, status="defaulted")
-            text = f"{_name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
+            text = f"{name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
             store.add("records", Record(store.new_id("rec"), store.day, "default", ob.payer, text), cause)
             if ob.status == "active" and due.day == _last_instalment(ob):
                 store.set("obligations", ob.id, cause, status="breached")
@@ -215,3 +228,109 @@ def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
         rows.append(Upcoming(day, ob_id, ob.payee if out else ob.payer, cents, ob.memo, out))
     rows.sort(key=lambda u: (u.day, KIND_ORDER.index(obs[u.obligation].kind), id_key(u.obligation)))
     return rows
+
+
+def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
+    """The days from `today` on which an instalment of an active obligation falls, in order."""
+    if ob.status != "active":
+        return
+    if ob.every == 0:
+        if ob.first >= today:
+            yield ob.first
+        return
+    day = ob.first if today <= ob.first else ob.first + -(-(today - ob.first) // ob.every) * ob.every
+    while ob.last is None or day <= ob.last:
+        yield day
+        day += ob.every
+
+
+def _next_instalment(store: Store, ob: Obligation) -> int | None:
+    """The earliest instalment of `ob` from today on not yet fully paid: an open due, or
+    else the first day it falls with no due opened yet."""
+    open_days = [d.day for d in store.all("dues")
+                 if d.obligation == ob.id and d.status == "due" and d.day >= store.day and d.paid < d.cents]
+    best = min(open_days) if open_days else None
+    for day in _instalment_days(ob, store.day):
+        if best is not None and day >= best:
+            break
+        if _find_due(store, ob.id, day) is None:
+            return day
+    return best
+
+
+def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
+        ref: str | None = None) -> list[Match]:
+    """Pay `cents` from `payer` to `payee` in one transfer and count it toward what the payer
+    owes the payee: arrears oldest first, then the single next instalment. With `ref`, only
+    that obligation. What is left over is an ordinary payment. Changes nothing if it raises."""
+    if not _is_int(cents) or cents <= 0:
+        raise ValueError(f"cents must be a positive int, got {cents!r}")
+    for account in (payer, payee):
+        if not store.ledger.has(account):
+            raise ValueError(f"no ledger account {account!r}")
+    account = store.ledger.accounts[payer]
+    if account.balance < cents and not account.allow_credit:
+        raise Overdraft(f"{payer} has {account.balance}, cannot pay {cents} to {payee} ({memo})")
+    obs = [o for o in store.all("obligations") if o.payer == payer and o.payee == payee]
+    if ref is not None:
+        obs = [o for o in obs if o.id == ref]
+        if not obs:
+            raise ValueError(f"{ref!r} is not an obligation from {payer} to {payee}")
+    by_id = {o.id: o for o in obs}
+
+    plan: list[tuple[Obligation, int, int]] = []  # (obligation, day, cents counted)
+    left = cents
+    arrears = [d for d in store.all("dues") if d.obligation in by_id and d.status == "arrears"]
+    arrears.sort(key=lambda d: (d.day, KIND_ORDER.index(by_id[d.obligation].kind), id_key(d.obligation)))
+    for due in arrears:
+        take = min(left, due.cents - due.paid)
+        if take > 0:
+            plan.append((by_id[due.obligation], due.day, take))
+            left -= take
+    if left > 0:
+        nexts = [(day, KIND_ORDER.index(o.kind), id_key(o.id), o) for o in obs
+                 if (day := _next_instalment(store, o)) is not None]
+        if nexts:
+            day, _, _, ob = min(nexts, key=lambda n: n[:3])
+            due = _find_due(store, ob.id, day)
+            owed = ob.cents if due is None else due.cents - due.paid
+            plan.append((ob, day, min(left, owed)))
+
+    if plan:
+        memo += " (counted toward " + "; ".join(f"{ob.memo} due {date_text(day)}" for ob, day, _ in plan) + ")"
+    matches = []
+    with store.transaction():
+        store.transfer(payer, payee, cents, memo, cause)
+        for ob, day, take in plan:
+            due = ensure_due(store, ob.id, day, cause)
+            store.set("dues", due.id, cause, paid=due.paid + take)
+            if due.paid >= due.cents:
+                store.set("dues", due.id, cause, status="paid")
+                if ob.status == "active" and due.day == _last_instalment(ob):
+                    store.set("obligations", ob.id, cause, status="finished")
+            matches.append(Match(due.id, take))
+    return matches
+
+
+def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
+    """End an active obligation for its payer `by`. Dues already opened still stand.
+
+    Returns `stopped` (the payer may end it), `left` (leaving a service) or `breach`
+    (an agreement both made: it is breached and a record says so). Raises ValueError,
+    changing nothing, if `by` is not the payer or the obligation is not active.
+    """
+    if not store.has("obligations", ob_id):
+        raise ValueError(f"no obligation {ob_id!r}")
+    ob = store.get("obligations", ob_id)
+    if by != ob.payer:
+        raise ValueError(f"{by!r} does not pay {ob_id}")
+    if ob.status != "active":
+        raise ValueError(f"{ob_id} is {ob.status}, not active")
+    with store.transaction():
+        if ob.ends == "both":
+            store.set("obligations", ob_id, cause, status="breached")
+            text = f"{name_of(store, ob.payer)} stopped paying {ob.memo}, an agreement with {name_of(store, ob.payee)}."
+            store.add("records", Record(store.new_id("rec"), store.day, "breach", ob.payer, text), cause)
+            return "breach"
+        store.set("obligations", ob_id, cause, status="stopped")
+        return "stopped" if ob.ends == "payer" else "left"
