@@ -15,7 +15,7 @@ from townsim.town.entities import Event, Notice
 from townsim.town.obligations import money
 from townsim.town.store import Store
 
-FRIDAY, SUNDAY = 4, 6
+SUNDAY = 6
 REPAIR_DAYS = 7
 _NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 
@@ -45,13 +45,13 @@ def _job_lost(store: Store, e: Event, cause: str) -> str | None:
     if not store.has("people", e.who):
         return "no person"
     held = [j for j in jobs.held(store, person=e.who) if store.has("orgs", j.org) and store.get("orgs", j.org).outside]
-    if not held:
-        return "no job at an outside employer for"
+    if not held:                 # one who has already left the job it was dealt for has nothing to lose
+        return None if store.where("jobs", person=e.who) else "no job at an outside employer for"
     job = held[0]
-    last = e.day + (FRIDAY - dow(e.day)) % 7        # this week's Friday, or the next if it has passed
+    last = jobs.last_friday(e.day)        # this week's Friday, or at a weekend the Friday just gone
     jobs.finish(store, job.id, last, cause)
     _tell(store, [e.who], f"{store.get('orgs', job.org).name} has ended your job. "
-                          f"Your last pay is on {date_text(last)}.", cause)
+                          f"Your last pay {jobs.last_pay_text(last, store.day)}.", cause)
     return None
 
 

@@ -1,0 +1,625 @@
+"""The operations of work: offering jobs and extra hours, quitting and dismissing, pay,
+prices, stock orders, an owner's own extra hours, and moving money between one's own
+accounts. Registered when `ops_core` is imported.
+
+An owner's business is the first organisation in the town they own, by id; its shop, the
+first shop row it trades through. A job offer and an offer of extra hours are requests
+(kinds `job` and `shifts`) whose terms are written by code in their summary and checked
+again when they are accepted (`ANSWERERS_OF_WORK`, which `ops_core.answer` hands them to).
+
+Wages are paid on Fridays. A job offered starts on the Monday after the day it reaches the
+person, and the offer stays open until the Sunday before it, so the date it names holds.
+A job that ends is paid for the last time on that week's Friday, or at a weekend was paid
+for the last time on the Friday just gone. Changes of pay take effect after this week's
+Friday (at a weekend, after the next).
+"""
+
+from __future__ import annotations
+
+import math
+import re
+from typing import Any
+
+from townsim.town import firms, hours, jobs, obligations
+from townsim.town import ops_core as core
+from townsim.town.acts import REGISTRY, Act, OpSpec, dollars, fits, name_of_who, register, shown, to_cents
+from townsim.town.clock import date_text, dow
+from townsim.town.entities import Job, Org, Request
+from townsim.town.obligations import money
+from townsim.town.store import Store
+
+TEXT_WORDS = 80
+MIN_JOB_HOURS, MAX_JOB_HOURS = 4, 60
+MIN_SHIFT_HOURS, MAX_SHIFT_HOURS = 1, 20
+MIN_EXTRA_HOURS, MAX_EXTRA_HOURS = 1, 30
+MIN_PRICE, MAX_PRICE = 100, 10_000
+WORKING_AGE = 16
+MOVED = "moved between your own accounts"
+JOB_TEXT = "A job offer."
+SHIFTS_TEXT = "An offer of extra hours."
+_NUMBER = re.compile(r"\d{1,6}(\.\d{1,6})?", re.ASCII)
+
+
+# reading arguments
+
+def _number(value: Any) -> Any:
+    """A number written as a plain string (`"38"`, `"7.5"`) read as one; anything else as it is."""
+    if isinstance(value, str) and _NUMBER.fullmatch(value.strip()):
+        return float(value.strip())
+    return value
+
+
+def _hours(value: Any, low: float, high: float) -> float | None:
+    """A number of hours from `low` to `high`, to two places; None for anything else."""
+    value = _number(value)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(value) or not low <= value <= high:
+        return None
+    return round(float(value), 2)
+
+
+def _h(h: float) -> str:
+    return f"{h:g}"
+
+
+def _whole(value: Any, low: int, high: int) -> int | None:
+    """A whole number from `low` to `high`; a float with nothing after the point counts."""
+    value = _number(value)
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        return None
+    return value
+
+
+def _text_problem(value: Any) -> str | None:
+    """Why optional words cannot be sent, or None."""
+    text = core._note(value)
+    return None if fits(text, TEXT_WORDS) else "the text is too long."
+
+
+def _person(store: Store, act: Act, key: str) -> tuple[str | None, str]:
+    """The person `key` names, or None and why not."""
+    value = act.args.get(key)
+    who = core._resolve(store, value, act.actor)
+    if who is None:
+        return None, f"no one called '{shown(value)}' is known in the town."
+    if not store.has("people", who):
+        return None, f"{name_of_who(store, who)} is not a person."
+    if who == act.principal:
+        return None, "that is you."
+    return who, ""
+
+
+def _owned(store: Store, pid: str) -> list[Org]:
+    return [o for o in store.all("orgs") if o.owner == pid and not o.outside]
+
+
+def _business(store: Store, pid: str) -> Org | None:
+    owned = _owned(store, pid)
+    return owned[0] if owned else None
+
+
+def _shop(store: Store, org: str) -> str | None:
+    rows = store.where("firms", org=org)
+    return rows[0].id if rows else None
+
+
+def _has_job_at(store: Store, pid: str, org: str) -> bool:
+    """Whether `pid` holds a job at `org`, or has one there agreed to start."""
+    return any(j.org == org and (j.ended == -1 or j.ended >= store.day) for j in store.where("jobs", person=pid))
+
+
+def _job_with(store: Store, pid: str, owner: str) -> Job | None:
+    """The first job `pid` holds at an organisation `owner` owns."""
+    owned = {o.id for o in _owned(store, owner)}
+    held = [j for j in jobs.held(store, person=pid) if j.org in owned]
+    return held[0] if held else None
+
+
+def _elsewhere(store: Store, pid: str, org: str) -> list[Job]:
+    """The jobs `pid` holds at organisations other than `org` that they do not own and that
+    are not already ending."""
+    return [j for j in jobs.held(store, person=pid)
+            if j.org != org and j.ended == -1 and store.get("orgs", j.org).owner != pid]
+
+
+def _ending(store: Store, job: Job) -> str | None:
+    """Why a job already ending cannot be ended or changed, or None."""
+    if job.ended == -1:
+        return None
+    return (f"{store.get('people', job.person).name}'s job at {_org_name(store, job.org)} ends on "
+            f"{date_text(job.ended)}.")
+
+
+def _org_name(store: Store, org: str) -> str:
+    return store.get("orgs", org).name
+
+
+def _names(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _too_little(weekly: int, h: float) -> str | None:
+    if weekly < round(jobs.MIN_HOURLY * h):
+        return (f"{money(weekly)} a week for {_h(h)} hours is less than {money(jobs.MIN_HOURLY)} an hour.")
+    return None
+
+
+def _owner_of(store: Store, org: str) -> list[str]:
+    owner = store.get("orgs", org).owner
+    return [owner] if owner else []
+
+
+def _left(store: Store, job: Job, last: int, cause: str) -> str:
+    """End `job` with its last pay on `last` and tell its owner; return what they are told."""
+    jobs.finish(store, job.id, last, cause)
+    name = store.get("people", job.person).name
+    text = f"{name} has left {_org_name(store, job.org)}. Their last pay {jobs.last_pay_text(last, store.day)}."
+    for owner in _owner_of(store, job.org):
+        if owner != job.person:
+            jobs.tell(store, owner, text, cause)
+    return text
+
+
+# offer_job
+
+def _job_terms(store: Store, act: Act) -> tuple[str | None, int | None, float | None, str]:
+    """(org, weekly cents, hours, why not) for an offer of a job."""
+    org = _business(store, act.principal)
+    if org is None:
+        return None, None, None, "you own no business in the town."
+    weekly = to_cents(act.args.get("weekly_pay"))
+    if weekly is None:
+        return None, None, None, f"'{shown(act.args.get('weekly_pay'))}' is not an amount of money that can be paid."
+    h = _hours(act.args.get("hours"), MIN_JOB_HOURS, MAX_JOB_HOURS)
+    if h is None:
+        return None, None, None, (f"'{shown(act.args.get('hours'))}' is not a number of hours a week from "
+                                  f"{MIN_JOB_HOURS} to {MAX_JOB_HOURS}.")
+    return org.id, weekly, h, ""
+
+
+def _check_offer_job(store: Store, act: Act) -> str | None:
+    who, why = _person(store, act, "to")
+    if who is None:
+        return why
+    org, weekly, h, why = _job_terms(store, act)
+    if org is None:
+        return why
+    person = store.get("people", who)
+    if person.age < WORKING_AGE:
+        return f"{person.name} is {person.age}."
+    if _has_job_at(store, who, org):
+        return f"{person.name} already works at {_org_name(store, org)}."
+    return _too_little(weekly, h) or _text_problem(act.args.get("text"))
+
+
+def _start_monday(day: int) -> int:
+    """The Monday a job offered on `day` starts: the Monday after the day it reaches them."""
+    return jobs.next_monday(day + 1)
+
+
+def job_summary(store: Store, org: str, who: str, weekly: int, h: float, monday: int) -> str:
+    """What an offer of a job says: its terms, and the jobs elsewhere accepting it ends."""
+    text = (f"{_org_name(store, org)} offers {store.get('people', who).name} a job: {money(weekly)} a week for "
+            f"{_h(h)} hours, paid Fridays, from {date_text(monday)}.")
+    others = [_org_name(store, j.org) for j in _elsewhere(store, who, org)]
+    if others:
+        plural = "s" if len(others) > 1 else ""
+        text += f" Accepting ends your job{plural} at {_names(others)} on {date_text(monday - 3)}."
+    return text
+
+
+def _do_offer_job(store: Store, act: Act, cause: str) -> str:
+    who, _ = _person(store, act, "to")
+    org, weekly, h, _ = _job_terms(store, act)
+    monday = _start_monday(store.day)
+    rq = Request(store.new_id("rq", cause), store.day, act.actor, who, core._note(act.args.get("text")) or JOB_TEXT,
+                 0, monday - 1, kind="job", summary=job_summary(store, org, who, weekly, h, monday),
+                 org=org, first=monday, hours=h, pay=weekly)
+    store.add("requests", rq, cause)
+    return f"Sent to {store.get('people', who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+
+
+def _check_job(store: Store, act: Act, rq: Request) -> str | None:
+    org = store.get("orgs", rq.org)
+    if org.owner != rq.sender or org.outside:
+        return f"{name_of_who(store, rq.sender)} no longer owns {org.name}."
+    why = _too_little(rq.pay, rq.hours)
+    if why is not None:
+        return why
+    pid = act.principal
+    if _has_job_at(store, pid, rq.org):
+        return f"you already work at {org.name}."
+    ending = {j.id for j in _elsewhere(store, pid, rq.org)}
+    kept = sum(j.hours for j in jobs.held(store, person=pid) if j.id not in ending)
+    free = hours.WEEK_HOURS - hours.work_hours(store, pid) - kept
+    if free < rq.hours:
+        return (f"your week has {_h(round(max(free, 0.0), 2))} hours once your other work is done, "
+                f"and this job is {_h(rq.hours)}.")
+    return None
+
+
+def _do_job(store: Store, act: Act, rq: Request, cause: str) -> str:
+    pid = act.principal
+    monday = rq.first
+    for job in _elsewhere(store, pid, rq.org):
+        _left(store, job, monday - 3, cause)
+    jobs.start(store, pid, rq.org, rq.pay, rq.hours, monday + jobs.FRIDAY, cause, since=monday)
+    jobs.end_benefit(store, pid, monday - 3, cause)
+    return f"{store.get('people', pid).name} starts at {_org_name(store, rq.org)} on {date_text(monday)}."
+
+
+# offer_shifts
+
+def _check_offer_shifts(store: Store, act: Act) -> str | None:
+    who, why = _person(store, act, "to")
+    if who is None:
+        return why
+    if _business(store, act.principal) is None:
+        return "you own no business in the town."
+    job = _job_with(store, who, act.principal)
+    if job is None:
+        return f"{store.get('people', who).name} does not work at {_business(store, act.principal).name}."
+    h = _hours(act.args.get("hours"), MIN_SHIFT_HOURS, MAX_SHIFT_HOURS)
+    if h is None:
+        return (f"'{shown(act.args.get('hours'))}' is not a number of hours from {MIN_SHIFT_HOURS} "
+                f"to {MAX_SHIFT_HOURS}.")
+    if dow(store.day) == 6:
+        return "this week ends today."
+    if _shift_pay(job, h) <= 0:
+        return f"{store.get('people', who).name} is paid {money(job.weekly)} a week at {_org_name(store, job.org)}."
+    return None
+
+
+def _shift_pay(job: Job, h: float) -> int:
+    return round(h * job.weekly / job.hours) if job.hours > 0 else 0
+
+
+def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
+    who, _ = _person(store, act, "to")
+    job = _job_with(store, who, act.principal)
+    h = _hours(act.args.get("hours"), MIN_SHIFT_HOURS, MAX_SHIFT_HOURS)
+    pay = _shift_pay(job, h)
+    org = _org_name(store, job.org)
+    summary = (f"{org} offers {store.get('people', who).name} {_h(h)} extra hours this week, "
+               f"paid {money(pay)} on Friday.")
+    rq = Request(store.new_id("rq", cause), store.day, act.actor, who, SHIFTS_TEXT, 0,
+                 store.day + 6 - dow(store.day), kind="shifts", summary=summary, org=job.org, hours=h, pay=pay)
+    store.add("requests", rq, cause)
+    return f"Sent to {store.get('people', who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+
+
+def _check_shifts(store: Store, act: Act, rq: Request) -> str | None:
+    org = store.get("orgs", rq.org)
+    if org.owner != rq.sender or org.outside:
+        return f"{name_of_who(store, rq.sender)} no longer owns {org.name}."
+    if not jobs.held(store, person=act.principal, org=rq.org):
+        return f"you no longer work at {org.name}."
+    left = store.get("people", act.principal).hours_left
+    if act.actor == act.principal:              # answering takes its own time too
+        left -= REGISTRY["answer"].hours
+    if left < rq.hours:
+        return f"you have {_h(round(max(left, 0.0), 2))} hours left this week, and this is {_h(rq.hours)}."
+    return None
+
+
+def _do_shifts(store: Store, act: Act, rq: Request, cause: str) -> str:
+    person = store.get("people", act.principal)
+    store.set("people", act.principal, cause, hours_left=round(person.hours_left - rq.hours, 2))
+    fid = _shop(store, rq.org)
+    if fid is not None:
+        store.set("firms", fid, cause, extra_hours=round(store.get("firms", fid).extra_hours + rq.hours, 2))
+    friday = jobs.pay_friday(store.day)
+    org = _org_name(store, rq.org)
+    worker = store.get("people", act.principal)
+    obligations.create(store, kind="wage", payer=rq.org, payee=worker.household, cents=rq.pay, first=friday,
+                       memo=f"extra hours at {org}", ends="both", made_by="routine", cause=cause)
+    return (f"{worker.name} works {_h(rq.hours)} extra hours at {org} this week, "
+            f"paid {money(rq.pay)} on {date_text(friday)}.")
+
+
+# quit
+
+def _quitting(store: Store, act: Act) -> tuple[Job | None, str]:
+    """The job `quit` leaves, or None and why not."""
+    pid = act.principal
+    held = jobs.held(store, person=pid)
+    value = act.args.get("from")
+    if not core._blank(value):
+        who = core._resolve(store, value, act.actor)
+        mine = [j for j in held if j.org == who]
+        if not mine:
+            return None, f"you have no job at '{shown(value)}'."
+        held = mine
+    leaving = [j for j in held if store.get("orgs", j.org).owner != pid]
+    if not leaving:
+        if held:
+            return None, f"you own {_org_name(store, held[0].org)}."
+        return None, "you have no job."
+    lasting = [j for j in leaving if j.ended == -1]
+    if not lasting:
+        return None, f"your job at {_org_name(store, leaving[0].org)} ends on {date_text(leaving[0].ended)}."
+    leaving = lasting
+    if len(leaving) > 1:
+        return None, f"you have jobs at {_names([_org_name(store, j.org) for j in leaving])}."
+    return leaving[0], ""
+
+
+def _check_quit(store: Store, act: Act) -> str | None:
+    job, why = _quitting(store, act)
+    return why if job is None else None
+
+
+def _do_quit(store: Store, act: Act, cause: str) -> str:
+    job, _ = _quitting(store, act)
+    last = jobs.last_friday(store.day)
+    _left(store, job, last, cause)
+    return f"You have left {_org_name(store, job.org)}. Your last pay {jobs.last_pay_text(last, store.day)}."
+
+
+# dismiss
+
+def _check_dismiss(store: Store, act: Act) -> str | None:
+    who, why = _person(store, act, "who")
+    if who is None:
+        return why
+    if _business(store, act.principal) is None:
+        return "you own no business in the town."
+    job = _job_with(store, who, act.principal)
+    if job is None:
+        return f"{store.get('people', who).name} does not work at {_business(store, act.principal).name}."
+    return _ending(store, job) or _text_problem(act.args.get("text"))
+
+
+def _do_dismiss(store: Store, act: Act, cause: str) -> str:
+    who, _ = _person(store, act, "who")
+    job = _job_with(store, who, act.principal)
+    last = jobs.last_friday(store.day)
+    jobs.finish(store, job.id, last, cause)
+    org = _org_name(store, job.org)
+    paid = jobs.last_pay_text(last, store.day)
+    text = f"{org} has ended your job. Your last pay {paid}."
+    note = core._note(act.args.get("text"))
+    if note:
+        text += f" {store.get('people', act.actor).name} wrote: {note}"
+    jobs.tell(store, who, text, cause)
+    return f"{store.get('people', who).name} has left {org}. Their last pay {paid}."
+
+
+# set_staff_pay
+
+def _staff(store: Store, act: Act) -> tuple[Job | None, str]:
+    """The job whose pay is set: someone's at the principal's business, or their own."""
+    value = act.args.get("who")
+    who = core._resolve(store, value, act.actor)
+    if who is None:
+        return None, f"no one called '{shown(value)}' is known in the town."
+    if not store.has("people", who):
+        return None, f"{name_of_who(store, who)} is not a person."
+    if _business(store, act.principal) is None:
+        return None, "you own no business in the town."
+    job = _job_with(store, who, act.principal)
+    if job is None:
+        return None, f"{store.get('people', who).name} does not work at {_business(store, act.principal).name}."
+    return job, ""
+
+
+def _new_pay(store: Store, act: Act, job: Job) -> int | None:
+    value = act.args.get("weekly_pay")
+    if job.person == act.principal and dollars(value) == 0:
+        return 0
+    return to_cents(value)
+
+
+def _check_staff_pay(store: Store, act: Act) -> str | None:
+    job, why = _staff(store, act)
+    if job is None:
+        return why
+    why = _ending(store, job)
+    if why is not None:
+        return why
+    weekly = _new_pay(store, act, job)
+    if weekly is None:
+        return f"'{shown(act.args.get('weekly_pay'))}' is not an amount of money that can be paid."
+    name = store.get("people", job.person).name
+    if weekly == job.weekly:
+        return f"{name} is paid {money(weekly)} a week already."
+    if job.person != act.principal:
+        return _too_little(weekly, job.hours)
+    return None
+
+
+def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
+    job, _ = _staff(store, act)
+    weekly = _new_pay(store, act, job)
+    friday = jobs.pay_friday(store.day)
+    old = job.wage_ob if store.has("obligations", job.wage_ob) else ""
+    if old and store.get("obligations", old).status in obligations.SCHEDULED:
+        obligations.end(store, old, friday, cause)
+        start = friday + 7
+    else:
+        start = friday
+    org = _org_name(store, job.org)
+    worker = store.get("people", job.person)
+    ob = ""
+    if weekly > 0:
+        ob = obligations.create(store, kind="wage", payer=job.org, payee=worker.household, cents=weekly, first=start,
+                                every=7, memo=f"wages from {org}", ends="both", made_by="routine", cause=cause)
+    store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob)
+    if job.person == act.principal:
+        return f"{org} pays you {money(weekly)} a week from {date_text(start)}."
+    jobs.tell(store, job.person, f"{org} pays you {money(weekly)} a week from {date_text(start)}.", cause)
+    return f"{org} pays {worker.name} {money(weekly)} a week from {date_text(start)}."
+
+
+# set_price
+
+def _own_shop(store: Store, act: Act) -> tuple[str | None, str]:
+    org = _business(store, act.principal)
+    if org is None:
+        return None, "you own no business in the town."
+    fid = _shop(store, org.id)
+    if fid is None:
+        return None, f"{org.name} is not a shop."
+    return fid, ""
+
+
+def _price(value: Any) -> int | None:
+    cents = to_cents(value)
+    return cents if cents is not None and MIN_PRICE <= cents <= MAX_PRICE else None
+
+
+def _check_price(store: Store, act: Act) -> str | None:
+    fid, why = _own_shop(store, act)
+    if fid is None:
+        return why
+    if _price(act.args.get("price")) is None:
+        return (f"'{shown(act.args.get('price'))}' is not a price from {money(MIN_PRICE)} "
+                f"to {money(MAX_PRICE)}.")
+    return None
+
+
+def _do_price(store: Store, act: Act, cause: str) -> str:
+    fid, _ = _own_shop(store, act)
+    cents = _price(act.args.get("price"))
+    store.set("firms", fid, cause, price=cents)
+    return f"The price at {_org_name(store, store.get('firms', fid).org)} is now {money(cents)} a basket."
+
+
+# order_stock
+
+def _supplier(store: Store, value: Any) -> str | None:
+    if not isinstance(value, str) or len(value) > core.LONGEST_NAME:
+        return None
+    wanted = value.strip().casefold()
+    for sp in store.all("suppliers"):
+        if store.has("orgs", sp.org) and store.get("orgs", sp.org).name.casefold() == wanted:
+            return sp.id
+    return None
+
+
+def _check_order(store: Store, act: Act) -> str | None:
+    fid, why = _own_shop(store, act)
+    if fid is None:
+        return why
+    if _supplier(store, act.args.get("supplier")) is None:
+        return f"'{shown(act.args.get('supplier'))}' is not a supplier."
+    if _whole(act.args.get("units"), 0, firms.MAX_ORDER) is None:
+        return f"'{shown(act.args.get('units'))}' is not a whole number of units from 0 to {firms.MAX_ORDER:,}."
+    return None
+
+
+def _do_order(store: Store, act: Act, cause: str) -> str:
+    fid, _ = _own_shop(store, act)
+    sid = _supplier(store, act.args.get("supplier"))
+    units = _whole(act.args.get("units"), 0, firms.MAX_ORDER)
+    firms.place_order(store, fid, sid, units, cause)
+    monday = jobs.next_monday(store.day)
+    if units == 0:
+        return f"Nothing is ordered for {date_text(monday)}, and nothing is repeated after it."
+    sp = store.get("suppliers", sid)
+    return (f"Ordered {units:,} units from {_org_name(store, sp.org)} at {money(sp.unit_cents)} a unit, "
+            f"for {date_text(monday)}.")
+
+
+# work_extra_hours
+
+def _extra(act: Act) -> float | None:
+    return _hours(act.args.get("hours"), MIN_EXTRA_HOURS, MAX_EXTRA_HOURS) if isinstance(act.args, dict) else None
+
+
+def _extra_hours_of(store: Store, act: Act) -> float:
+    """The hours the act takes: those it names, or none if it names none that can be worked."""
+    return _extra(act) or 0.0
+
+
+def _check_extra(store: Store, act: Act) -> str | None:
+    fid, why = _own_shop(store, act)
+    if fid is None:
+        return why
+    if _extra(act) is None:
+        return (f"'{shown(act.args.get('hours'))}' is not a number of hours from {MIN_EXTRA_HOURS} "
+                f"to {MAX_EXTRA_HOURS}.")
+    return None
+
+
+def _do_extra(store: Store, act: Act, cause: str) -> str:
+    fid, _ = _own_shop(store, act)
+    h = _extra(act)
+    store.set("firms", fid, cause, extra_hours=round(store.get("firms", fid).extra_hours + h, 2))
+    return f"You work {_h(h)} extra hours at {_org_name(store, store.get('firms', fid).org)} this week."
+
+
+# move_money
+
+def _own_account(store: Store, act: Act, key: str) -> tuple[str | None, str]:
+    """The account `key` names: `household` or the household's name, or a business the
+    principal owns in the town; or None and why not."""
+    value = act.args.get(key)
+    household = store.get("people", act.principal).household
+    if isinstance(value, str) and len(value) <= core.LONGEST_NAME:
+        wanted = value.strip().casefold()
+        if wanted in ("household", store.get("households", household).name.casefold()):
+            return household, "your household"
+        for org in _owned(store, act.principal):
+            if org.name.casefold() == wanted:
+                return org.id, org.name
+    return None, f"'{shown(value)}' is not an account of yours."
+
+
+def _check_move(store: Store, act: Act) -> str | None:
+    if _business(store, act.principal) is None:
+        return "you own no business in the town."
+    source, why = _own_account(store, act, "from")
+    if source is None:
+        return why
+    dest, why = _own_account(store, act, "to")
+    if dest is None:
+        return why
+    if source == dest:
+        return "that is the same account twice."
+    cents, why = core._amount(act.args.get("amount"))
+    if cents is None:
+        return why
+    return core._short_of(store, source, cents)
+
+
+def _do_move(store: Store, act: Act, cause: str) -> str:
+    source, src_name = _own_account(store, act, "from")
+    dest, dst_name = _own_account(store, act, "to")
+    cents = to_cents(act.args.get("amount"))
+    obligations.pay(store, source, dest, cents, MOVED, cause, match=False)
+    return f"Moved {money(cents)} from {src_name} to {dst_name}."
+
+
+ANSWERERS_OF_WORK: dict[str, core.Answerer] = {"job": (_check_job, _do_job), "shifts": (_check_shifts, _do_shifts)}
+core.ANSWERERS.update(ANSWERERS_OF_WORK)
+
+for _spec in (
+    OpSpec("offer_job", '{"op": "offer_job", "to": "<name>", "weekly_pay": <dollars>, "hours": <hours a week>, '
+                        '"text": "<optional words>"}',
+           "Offer someone a job at your business.", 0.5, _check_offer_job, _do_offer_job, 90, who="owner"),
+    OpSpec("offer_shifts", '{"op": "offer_shifts", "to": "<name>", "hours": <extra hours this week>}',
+           "Offer someone who works for you extra hours this week.", 0.25, _check_offer_shifts, _do_offer_shifts,
+           100, who="owner"),
+    OpSpec("dismiss", '{"op": "dismiss", "who": "<name>", "text": "<optional words>"}',
+           "End the job of someone who works for you.", 0.5, _check_dismiss, _do_dismiss, 110, who="owner"),
+    OpSpec("set_staff_pay", '{"op": "set_staff_pay", "who": "<name>", "weekly_pay": <dollars>}',
+           "Change the weekly pay of someone at your business, or your own.", 0.1, _check_staff_pay,
+           _do_staff_pay, 120, who="owner"),
+    OpSpec("set_price", '{"op": "set_price", "price": <dollars>}',
+           "Change your shop's price.", 0.1, _check_price, _do_price, 130, who="owner"),
+    OpSpec("order_stock", '{"op": "order_stock", "supplier": "<name>", "units": <number; 0 for no delivery>}',
+           "Order stock for Monday.", 0.5, _check_order, _do_order, 140, who="owner"),
+    OpSpec("work_extra_hours", '{"op": "work_extra_hours", "hours": <number>}',
+           "Work extra hours in your shop this week.", 0.0, _check_extra, _do_extra, 150, who="owner",
+           hours_of=_extra_hours_of),
+    OpSpec("move_money", '{"op": "move_money", "from": "household" | "<your business>", '
+                         '"to": "household" | "<your business>", "amount": <dollars>}',
+           "Move money between your own accounts.", 0.1, _check_move, _do_move, 160, who="owner"),
+    OpSpec("quit", '{"op": "quit", "from": "<employer, if you have more than one job>"}',
+           "Leave a job.", 0.1, _check_quit, _do_quit, 170, who="employed"),
+):
+    register(_spec)

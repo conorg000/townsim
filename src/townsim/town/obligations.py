@@ -315,9 +315,20 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
         obs = [o for o in obs if o.id == ref]
         if not obs:
             raise ValueError(f"{ref!r} is not an obligation from {payer} to {payee}")
-    by_id = {o.id: o for o in obs}
+    plan = _plan(store, obs, cents, match)
+    if plan:
+        memo += " (counted toward " + "; ".join(f"{ob.memo} due {date_text(day)}" for ob, day, _ in plan) + ")"
+    with store.transaction():
+        store.transfer(payer, payee, cents, memo, cause)
+        return _count(store, plan, cause)
 
-    plan: list[tuple[Obligation, int, int]] = []  # (obligation, day, cents counted)
+
+def _plan(store: Store, obs: list[Obligation], cents: int,
+          match: bool | Literal["arrears"]) -> list[tuple[Obligation, int, int]]:
+    """(obligation, day, cents counted) for `cents` paid toward `obs`: arrears oldest first,
+    then, unless `match` is `arrears`, the single next instalment. Changes nothing."""
+    by_id = {o.id: o for o in obs}
+    plan: list[tuple[Obligation, int, int]] = []
     left = cents
     arrears = [d for ob_id in by_id for d in owed_dues(store, ob_id)]
     arrears.sort(key=lambda d: (d.day, KIND_ORDER.index(by_id[d.obligation].kind), id_key(d.obligation)))
@@ -334,21 +345,36 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
             due = _find_due(store, ob.id, day)
             owed = ob.cents if due is None else due.cents - due.paid
             plan.append((ob, day, min(left, owed)))
+    return plan
 
-    if plan:
-        memo += " (counted toward " + "; ".join(f"{ob.memo} due {date_text(day)}" for ob, day, _ in plan) + ")"
+
+def _count(store: Store, plan: list[tuple[Obligation, int, int]], cause: str) -> list[Match]:
+    """Mark each planned part as paid on its due, opening the due if need be."""
     matches = []
-    with store.transaction():
-        store.transfer(payer, payee, cents, memo, cause)
-        for ob, day, take in plan:
-            due = ensure_due(store, ob.id, day, cause)
-            store.set("dues", due.id, cause, paid=due.paid + take)
-            if due.paid >= due.cents:
-                store.set("dues", due.id, cause, status="paid")
-                if ob.status == "active" and due.day == _last_instalment(ob):
-                    store.set("obligations", ob.id, cause, status="finished")
-            matches.append(Match(due.id, take))
+    for ob, day, take in plan:
+        due = ensure_due(store, ob.id, day, cause)
+        store.set("dues", due.id, cause, paid=due.paid + take)
+        if due.paid >= due.cents:
+            store.set("dues", due.id, cause, status="paid")
+            if ob.status == "active" and due.day == _last_instalment(ob):
+                store.set("obligations", ob.id, cause, status="finished")
+        matches.append(Match(due.id, take))
     return matches
+
+
+def count_toward(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
+    """Count `cents` already paid by other means toward the obligation `ob_id`, as `pay`
+    would count a payment toward it: arrears oldest first, then the single next instalment,
+    nothing beyond. No money moves here; the caller has moved it, in a transfer with the
+    same cause. Raises ValueError, changing nothing, for an unknown obligation or cents not
+    a positive int."""
+    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
+        raise ValueError(f"no obligation {ob_id!r}")
+    if not _is_int(cents) or cents <= 0:
+        raise ValueError(f"cents must be a positive int, got {cents!r}")
+    plan = _plan(store, [store.get("obligations", ob_id)], cents, True)
+    with store.transaction():
+        return _count(store, plan, cause)
 
 
 def stop(store: Store, ob_id: str, by: str, cause: str) -> str:

@@ -40,6 +40,9 @@ JUNK_NAMES = ["Edith Marsh", "Shops", "Employers", "Ashby", "Pryce", " megan pry
 # the town goes quiet; paying is commoner, so households run short and fall into arrears.
 WEIGHTS = {"pay": 5, "standing_payment": 2, "stop": 0.5, "message": 1, "request": 2, "answer": 3, "read": 1,
            "write_notes": 1}
+# Operations past the first eight are for positions no one holds in the thin town; there they
+# are not drawn (so its play is as it was), and the hamlet draws them from each view.
+RARE = 0
 _IDS = re.compile(r"\b(?:ob|rq)\d+\b")
 
 
@@ -85,6 +88,26 @@ def view_names(messages: list[dict]) -> list[str]:
     return list(dict.fromkeys(found))
 
 
+_SUPPLIER = re.compile(r"\d+ units from (.+)$")
+
+
+def view_suppliers(messages: list[dict]) -> list[str]:
+    """The suppliers a view names, in the order it names them."""
+    return list(dict.fromkeys(m.group(1) for line in messages[-1].get("content", "").split("\n")
+                              if line.startswith(("On order", "Nothing ordered")) and (m := _SUPPLIER.search(line))))
+
+
+_STAFF = re.compile(r"^  (.+?), [\d.]+ hours, \$[\d,]+\.\d\d a week$")
+
+
+def view_business(messages: list[dict]) -> tuple[list[str], list[str]]:
+    """The businesses a view shows the reader owning, and the staff it lists for them."""
+    lines = messages[-1].get("content", "").split("\n")
+    names = [lines[i + 1] for i, line in enumerate(lines[:-1]) if line == "YOUR BUSINESS"]
+    staff = [m.group(1) for line in lines if (m := _STAFF.match(line))]
+    return names, staff
+
+
 def view_ops(messages: list[dict]) -> list[str]:
     """The operations the view offers, in order."""
     return [m.group(1) for line in messages[-1].get("content", "").split("\n") if (m := _OP.match(line))]
@@ -97,7 +120,7 @@ def random_script(rng: random.Random, from_view: bool = False):
     negative sums, missing keys), and now and then text that is not JSON at all.
     All of its randomness comes from `rng`. With `from_view`, the names and the operations
     it chooses among are read from each view, as in a generated place."""
-    seen = {"names": NAMES, "ops": list(REGISTRY)}
+    seen = {"names": NAMES, "ops": list(REGISTRY), "suppliers": ["Vale Wholesale"], "business": [], "staff": []}
 
     def pick(sensible: list, junk: list, p: float = 0.7):
         return rng.choice(sensible) if sensible and rng.random() < p else rng.choice(junk)
@@ -115,6 +138,16 @@ def random_script(rng: random.Random, from_view: bool = False):
 
     def name():
         return pick(seen["names"], JUNK_NAMES)
+
+    def hours(sensible: list, junk: list):
+        return pick(sensible, junk + [None, "lots", True, float("nan"), -1, 10 ** 9, [8], "8 hours"])
+
+    def account():
+        return pick(["household", " Household ", *seen["business"], *seen["business"]] if rng.random() < 0.8
+                    else seen["names"], JUNK_NAMES, 0.8)
+
+    def worker():
+        return pick(seen["staff"], [name()], 0.6)
 
     def args(op: str, obs: list[str], rqs: list[str], owed: list[tuple[str, str, str]]) -> dict:
         if op == "pay" and owed and rng.random() < 0.5:        # toward something owed, in full or in part
@@ -141,6 +174,26 @@ def random_script(rng: random.Random, from_view: bool = False):
             a = {"request": pick(rqs, ["rq999", "", None, 1, "ob1"]),
                  "answer": pick(["accept", "decline", " ACCEPT ", "Decline"], ["maybe", "", None, True, "yes"]),
                  "note": text()}
+        elif op == "offer_job":
+            a = {"to": name(), "weekly_pay": pick([amount(), rng.randint(300, 900)], [amount()]),
+                 "hours": hours([38, 20, 4, 60, 12.5, "30"], [0, 3.9, 61]), "text": text()}
+        elif op == "offer_shifts":
+            a = {"to": worker(), "hours": hours([1, 6, 8, 20, "4"], [0, 21, 0.5])}
+        elif op == "dismiss":
+            a = {"who": worker(), "text": text()}
+        elif op == "set_staff_pay":
+            a = {"who": worker(), "weekly_pay": pick([rng.randint(450, 900), 0, "0", amount()], [amount()])}
+        elif op == "set_price":
+            a = {"price": pick([rng.randint(100, 2000) / 100, "10.50", 1, 100, "$9"], [0, 0.99, 100.01, "free", None])}
+        elif op == "order_stock":
+            a = {"supplier": pick(seen["suppliers"], JUNK_NAMES),
+                 "units": hours([0, 50, 300, 5000, "120", 80.0], [-1, 5001, 2.5, "0.5"])}
+        elif op == "work_extra_hours":
+            a = {"hours": hours([1, 5, 30, "2", 7.5], [0, 31, 0.99])}
+        elif op == "move_money":
+            a = {"from": account(), "to": account(), "amount": amount()}
+        elif op == "quit":
+            a = {"from": pick(seen["names"], JUNK_NAMES, 0.3)} if rng.random() < 0.5 else {}
         elif op == "read":
             a = {"what": pick(["account", "account in full", "agreements", " Account "],
                               ["everything", "", None, ["account"], 1])}
@@ -160,7 +213,7 @@ def random_script(rng: random.Random, from_view: bool = False):
         if roll < 0.12:
             op = rng.choice(["fly", "", None, 7, "PAY", " Pay ", "write notes", "borrow", ["pay"]])
         else:
-            op = rng.choices(seen["ops"], [WEIGHTS.get(n, 1) for n in seen["ops"]])[0]
+            op = rng.choices(seen["ops"], [WEIGHTS.get(n, 1 if from_view else RARE) for n in seen["ops"]])[0]
         a = args(op.strip().lower() if isinstance(op, str) else "", obs, rqs, owed)
         return {"op": op, **a} if rng.random() > 0.03 else {**a}
 
@@ -174,6 +227,8 @@ def random_script(rng: random.Random, from_view: bool = False):
         if from_view:
             seen["names"] = view_names(messages) or NAMES
             seen["ops"] = view_ops(messages) or list(REGISTRY)
+            seen["suppliers"] = view_suppliers(messages) or ["Vale Wholesale"]
+            seen["business"], seen["staff"] = view_business(messages)
         obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages, seen["names"])
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
         body = json.dumps({"thoughts": text() if rng.random() < 0.5 else "", "acts": acts})
@@ -290,6 +345,9 @@ def test_random_runs_replay_exactly(seed, tmp_path):
 
 HAMLET_DAYS = 28
 HAMLET_SEEDS = range(20)
+_HAMLET_DONE: dict[int, Counter] = {}      # seed -> the operations done in its hamlet play
+WORK = ("offer_job", "offer_shifts", "dismiss", "set_staff_pay", "set_price", "order_stock", "work_extra_hours",
+        "move_money", "quit")
 
 
 @pytest.mark.parametrize("seed", HAMLET_SEEDS)
@@ -309,8 +367,19 @@ def test_random_play_in_the_hamlet_never_breaks_the_books(seed):
     keys = Keys("h")
     for _ in range(HAMLET_DAYS):
         mark = s.mark()
-        run_day(s, replier, keys)
+        report = run_day(s, replier, keys)
         _check_day(s, mark)
+        _HAMLET_DONE[seed] = _HAMLET_DONE.get(seed, Counter()) + Counter(
+            o.act.op for t in report.turns for o in t.outcomes if o.ok and isinstance(o.act.op, str))
     _check_run(s)
     assert biggest[0] < 2000
     assert any(c.cause.startswith("op:") and c.table == "ledger" for c in s.changes)
+
+
+def test_random_play_in_the_hamlet_does_the_work_of_shops():
+    """Across the hamlet seeds above, every operation of work was carried out at least once."""
+    if len(_HAMLET_DONE) < len(HAMLET_SEEDS):
+        pytest.skip("runs after the hamlet seeds above")
+    done = sum(_HAMLET_DONE.values(), Counter())
+    for op in WORK:
+        assert done[op] > 0, op

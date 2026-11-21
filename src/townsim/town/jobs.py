@@ -3,18 +3,58 @@
 A job is a `Job` row and its wage, an obligation of kind `wage` from the employer's account
 into the person's household account, ended only by both. A job that ends keeps its row:
 `ended` is the last day worked, and from the day after it the job no longer counts (see
-`current`)."""
+`current`). A job agreed to start later counts from its `since`.
+
+Wages are paid on Fridays. A job that ends in the week is paid for the last time on that
+week's Friday; one that ends at a weekend was paid for the last time on the Friday just
+gone (`last_friday`). A person under pension age whose job has ended and who holds no
+other is paid jobseeker's benefit from the Friday of the following week (`pay_benefit`).
+"""
 
 from __future__ import annotations
 
 from townsim.town import obligations
-from townsim.town.entities import Job
-from townsim.town.store import Store
+from townsim.town.clock import date_text, dow
+from townsim.town.entities import Job, Notice
+from townsim.town.obligations import SCHEDULED, money
+from townsim.town.store import Store, id_key
+
+MIN_HOURLY = 1100            # cents an hour: the least a job may pay anyone but its owner
+BENEFIT_WEEKLY = 14_000      # cents a week of jobseeker's benefit
+BENEFIT_MEMO = "jobseeker's benefit"
+PENSION_AGE = 66
+FRIDAY = 4
 
 
 def current(job: Job, day: int) -> bool:
-    """Whether `job` is held on `day`: it has not ended, or ends on or after that day."""
-    return job.ended == -1 or job.ended >= day
+    """Whether `job` is held on `day`: it has begun (`since`) and has not ended, or ends on
+    or after that day."""
+    return job.since <= day and (job.ended == -1 or job.ended >= day)
+
+
+def last_friday(day: int) -> int:
+    """The Friday of `day`'s week: this week's, or at a weekend the Friday just gone."""
+    return day - dow(day) + FRIDAY
+
+
+def pay_friday(day: int) -> int:
+    """The next Friday on which a wage can still be paid: this week's, or at a weekend the
+    following one."""
+    return day + (FRIDAY - dow(day)) % 7
+
+
+def next_monday(day: int) -> int:
+    """The Monday after `day`."""
+    return day + 7 - dow(day)
+
+
+def last_pay_text(day: int, today: int) -> str:
+    """`is on <date>`, or `was on <date>` for a day already gone."""
+    return f"{'was' if day < today else 'is'} on {date_text(day)}"
+
+
+def tell(store: Store, pid: str, text: str, cause: str) -> None:
+    store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
 
 
 def held(store: Store, **where: str) -> list[Job]:
@@ -44,16 +84,83 @@ def start(store: Store, pid: str, org: str, weekly: int, hours: float, first_pay
 
 def finish(store: Store, job_id: str, last_pay_day: int, cause: str) -> None:
     """End a job: its wage is paid for the last time on `last_pay_day`, which is the last day
-    worked. Raises ValueError, changing nothing, for an unknown or already ended job or a
-    `last_pay_day` before today."""
+    worked. A `last_pay_day` already gone this week (a Friday, at the weekend) means no wage
+    falls from today. Raises ValueError, changing nothing, for an unknown or already ended
+    job or a `last_pay_day` more than six days before today."""
     if not isinstance(job_id, str) or not store.has("jobs", job_id):
         raise ValueError(f"no job {job_id!r}")
     job = store.get("jobs", job_id)
     if job.ended != -1:
         raise ValueError(f"{job_id} already ended on day {job.ended}")
+    if not isinstance(last_pay_day, int) or isinstance(last_pay_day, bool) or last_pay_day < store.day - 6:
+        raise ValueError(f"last_pay_day must be an int >= {store.day - 6}, got {last_pay_day!r}")
     with store.transaction():
         if store.has("obligations", job.wage_ob):
-            obligations.end(store, job.wage_ob, last_pay_day, cause)
-        elif not isinstance(last_pay_day, int) or last_pay_day < store.day:
-            raise ValueError(f"last_pay_day must be an int >= today ({store.day}), got {last_pay_day!r}")
+            obligations.end(store, job.wage_ob, max(last_pay_day, store.day), cause)
         store.set("jobs", job_id, cause, ended=last_pay_day)
+
+
+def benefit_held(store: Store, pid: str) -> str | None:
+    """The person's jobseeker's benefit, if one still falls due from today; else None."""
+    ob_id = store.get("people", pid).benefit
+    if not ob_id or not store.has("obligations", ob_id):
+        return None
+    ob = store.get("obligations", ob_id)
+    if ob.status not in SCHEDULED or (ob.last is not None and ob.last < store.day):
+        return None
+    return ob.id
+
+
+def end_benefit(store: Store, pid: str, last_day: int, cause: str) -> None:
+    """End the person's benefit after `last_day` (today, if that has gone), and tell them."""
+    ob_id = benefit_held(store, pid)
+    if ob_id is None:
+        return
+    obligations.end(store, ob_id, max(last_day, store.day), cause)
+    tell(store, pid, f"Jobseeker's benefit is not paid after {date_text(last_day)}.", cause)
+
+
+def _region(store: Store) -> str | None:
+    found = [o.id for o in store.all("orgs") if o.kind == "region"]
+    return found[0] if found else None
+
+
+def pay_benefit(store: Store) -> None:
+    """Monday: everyone under pension age whose job has ended, who holds no job (nor one
+    agreed to start) and has no benefit, is paid `BENEFIT_WEEKLY` a week by the regional
+    office into their household, from the Friday of the week after their last pay."""
+    if dow(store.day) != 0:
+        return
+    region = _region(store)
+    if region is None:
+        return
+    for p in store.all("people"):
+        rows = store.where("jobs", person=p.id)
+        if p.age >= PENSION_AGE or not rows or benefit_held(store, p.id) is not None:
+            continue
+        if any(j.ended == -1 or j.ended >= store.day for j in rows):
+            continue
+        last = max(j.ended for j in rows)
+        first = max(last - dow(last) + 7 + FRIDAY, pay_friday(store.day))
+        cause = f"routine:benefit:{p.id}"
+        ob = obligations.create(store, kind="wage", payer=region, payee=p.household, cents=BENEFIT_WEEKLY,
+                                first=first, every=7, memo=BENEFIT_MEMO, ends="both", made_by="routine",
+                                cause=cause)
+        store.set("people", p.id, cause, benefit=ob)
+        tell(store, p.id, f"Jobseeker's benefit of {money(BENEFIT_WEEKLY)} a week starts on {date_text(first)}.",
+             cause)
+
+
+def wage_paid_by_hand(store: Store, owner: str, source: str, payee: str) -> str | None:
+    """The wage a payment from `source` to the household `payee` counts toward when paid by
+    `owner` by hand: when nothing is owed between the two accounts themselves, the first (by
+    id) wage still owed to `payee` by an organisation in the town `owner` owns; else None."""
+    if not store.has("households", payee):
+        return None
+    for o in store.where("obligations", payer=source):
+        if o.payee == payee and (o.status in SCHEDULED or obligations.owed_dues(store, o.id)):
+            return None
+    owned = {o.id for o in store.all("orgs") if o.owner == owner and not o.outside and o.id != source}
+    wages = [o for o in store.where("obligations", payee=payee) if o.kind == "wage" and o.payer in owned
+             and (o.status in SCHEDULED or obligations.owed_dues(store, o.id))]
+    return min(wages, key=lambda o: id_key(o.id)).id if wages else None

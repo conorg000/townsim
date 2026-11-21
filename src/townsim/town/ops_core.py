@@ -1,5 +1,7 @@
 """The first eight operations: paying, standing payments, stopping, letters, requests and
-their answers, reading the account, and notes. Registered when this module is imported.
+their answers, reading the account, and notes. Registered when this module is imported,
+together with the operations of work in `ops_work`, whose requests `answer` hands to the
+checks and changes in `ANSWERERS`.
 
 Each `check` refuses anything its arguments do not support, so each `do` only acts.
 Arguments come from a reply and may be any JSON value.
@@ -13,9 +15,9 @@ and notes are the actor's own. Names are resolved as the actor knows people.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Callable
 
-from townsim.town import obligations
+from townsim.town import jobs, obligations
 from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
                                from_account, knows, name_of_who, register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
@@ -33,6 +35,12 @@ NOTES_WORDS = 150
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
 _READS = ("account", "account in full", "agreements")
+
+# Requests of kinds other than `ask`, by kind: `check(store, act, request)` says why it
+# cannot be accepted now (without `Not done:`) or None, and `do(store, act, request, cause)`
+# carries out its terms and returns what both sides are told. Each checks the terms again.
+Answerer = tuple[Callable[[Store, Act, Request], str | None], Callable[[Store, Act, Request, str], str]]
+ANSWERERS: dict[str, Answerer] = {}
 
 
 # reading arguments
@@ -140,7 +148,13 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     payee, name = _payee(store, act)
     cents = to_cents(act.args.get("amount"))
     memo = _note(act.args.get("note")) or f"payment to {name}"
-    matches = obligations.pay(store, _source(store, act), payee, cents, memo, cause, ref=_pay_ref(act))
+    source, ref = _source(store, act), _pay_ref(act)
+    wage = None if ref is not None else jobs.wage_paid_by_hand(store, act.principal, source, payee)
+    if wage is None:
+        matches = obligations.pay(store, source, payee, cents, memo, cause, ref=ref)
+    else:   # a wage the principal's business owes, paid from another of their accounts
+        obligations.pay(store, source, payee, cents, memo, cause, match=False)
+        matches = obligations.count_toward(store, wage, cents, cause)
     told = f"Paid {money(cents)} to {name}."
     if matches:
         counted = []
@@ -375,6 +389,8 @@ def _check_answer(store: Store, act: Act) -> str | None:
         return f"'{shown(act.args.get('answer'))}' is not an answer to a request."
     if _too_long(_note(act.args.get("note"))):
         return "the note is too long."
+    if answer == "accept" and rq.kind in ANSWERERS:
+        return ANSWERERS[rq.kind][0](store, act, rq)
     if answer == "accept" and rq.cents > 0:
         payer, payee = _request_accounts(store, rq)
         if rq.ob and not controls(store, act.principal, payer):
@@ -399,7 +415,10 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     accepted = _answer(act) == "accept"
     store.set("requests", rq.id, cause, status="accepted" if accepted else "declined")
     told = "Accepted." if accepted else "Declined."
-    if accepted and rq.cents > 0:
+    done = ANSWERERS[rq.kind][1](store, act, rq, cause) if accepted and rq.kind in ANSWERERS else ""
+    if done:
+        told += " " + done
+    elif accepted and rq.cents > 0:
         payer, payee = _request_accounts(store, rq)
         if rq.ob:
             obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
@@ -410,6 +429,8 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     asked = cut(rq.text)
     text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
             f"your request {rq.id} ({asked}).")
+    if done:
+        text += " " + done
     note = _note(act.args.get("note"))
     if note:
         text += f" They wrote: {note}"
@@ -482,3 +503,10 @@ for _spec in (
            "Replace your own notes.", 0.1, _check_notes, _do_notes, 80),
 ):
     register(_spec)
+
+
+# the operations of work register themselves, and their kinds of request, from `ops_work`;
+# after a reload of this module the kinds are registered again from there
+from townsim.town import ops_work as _ops_work  # noqa: E402
+
+ANSWERERS.update(getattr(_ops_work, "ANSWERERS_OF_WORK", {}))

@@ -75,9 +75,11 @@ def test_forms_depend_on_position_only():
 
 def test_only_paying_and_reading_take_a_from():
     s = town_with_shop()
-    taking = [f.split('"')[3] for f in forms(s, "p01") if '"from"' in f]
+    own = ("move_money", "quit")                    # operations whose own form names a from
+    taking = [f.split('"')[3] for f in forms(s, "p01") if '"from"' in f and f.split('"')[3] not in own]
     assert taking == ["pay", "standing_payment", "read"]
-    assert all(f.endswith('"from": "household" | "<your business>"}') for f in forms(s, "p01") if '"from"' in f)
+    assert all(f.endswith('"from": "household" | "<your business>"}') for f in forms(s, "p01")
+               if '"from"' in f and f.split('"')[3] not in own)
     assert not any('"from"' in f for f in forms(s, "p02"))
 
 

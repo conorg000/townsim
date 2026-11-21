@@ -153,6 +153,25 @@ def test_the_script_lives_a_full_life():
     assert any(r.op == "(no operation named)" for r in results)
     assert any(r.op == "(more)" and r.text == "Not done: 4 more operations were written than the eight carried out in a day."
                for r in results)
+    # the levers of work: each done and each refused
+    work = ("offer_job", "offer_shifts", "dismiss", "set_staff_pay", "set_price", "order_stock", "work_extra_hours",
+            "move_money", "quit")
+    for op in work:
+        assert any(o.ok and o.act.op == op for o in acted), op
+        assert any(not o.ok and o.act.op == op and o.msg.startswith("Not done:") for o in acted), op
+    offers = [r for r in rqs if r.kind == "job"]
+    assert {"accepted", "declined"} <= {r.status for r in offers}
+    assert any(r.kind == "shifts" and r.status == "accepted" for r in rqs)
+    assert any(o.memo.startswith("extra hours at") and o.status == "finished" for o in s.all("obligations"))
+    assert any(j.ended != -1 and s.has("orgs", j.org) and not s.get("orgs", j.org).outside for j in s.all("jobs"))
+    assert any(o.memo == "jobseeker's benefit" and o.ends == "both" for o in s.all("obligations"))   # paid on its own
+    assert any(c.table == "firms" and c.field == "price" and c.cause.startswith("op:") for c in s.changes)
+    ordered = [o.act.args.get("units") for o in acted if o.ok and o.act.op == "order_stock"]
+    assert 0 in ordered and any(u for u in ordered)
+    moved = [o.act.args.get("from") for o in acted if o.ok and o.act.op == "move_money"]
+    assert "household" in moved and any(m != "household" for m in moved)
+    assert any(o.ok and o.act.op == "pay" and "counted toward wages from" in o.msg and "from" not in o.act.args
+               for o in acted)                                                    # a wage paid by hand
 
 
 def test_shops_have_customers_and_tills_every_week():

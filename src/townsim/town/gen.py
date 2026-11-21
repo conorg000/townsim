@@ -574,8 +574,9 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
         elif p.kind == "landlord" and rng.random() < LANDLORD_JOB_CHANCE:
             job(p, employer, "outside_worker", LANDLORD_JOB_HOURS)
         elif p.kind == "unemployed":
-            _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*BENEFIT, 100), FRIDAY, "jobseeker's benefit",
-                    "service")
+            benefit = _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*BENEFIT, 100), FRIDAY,
+                              jobs.BENEFIT_MEMO, "service")
+            s.set("people", p.id, SETUP, benefit=benefit)
 
     # the shops' rows, rent and running costs, a loan, and the owner's recurring work
     spec = NEEDS["food"]

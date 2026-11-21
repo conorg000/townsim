@@ -19,6 +19,16 @@ _ASKED = re.compile(rf"^They ask you for ({_MONEY})\.$")
 _OWED_TO_ME = re.compile(r"^(ob\d+): (.+?), (\$[\d,]+\.\d\d) a week from ")
 _STANDING_NOTE = "towards the week"
 _NO_ONE = "Edith Marsh"
+_FULL = r"[A-Z][\w'-]+ [A-Z][\w'-]+"
+_IDLE = re.compile(rf"^({_FULL}), [^.]*?(?:is out of work|has no work at present)\.$", re.M)
+_WORKS = re.compile(rf"^({_FULL}), [^,\n]+, works ", re.M)
+_MY_PAY = re.compile(rf"^You work [^\n]*?, for ({_MONEY}) a week", re.M)
+_HOURS_LEFT = re.compile(r"^You have ([\d.]+) hours left this week\.$", re.M)
+_PRICE = re.compile(rf"^Price: ({_MONEY}) a basket$")
+_ORDER = re.compile(r"(\d+) units from (.+)$")
+_STAFF = re.compile(rf"^  ({_FULL}), [\d.]+ hours, ({_MONEY}) a week$")
+_OFFERED = re.compile(rf" offers .+ a job: ({_MONEY}) a week")
+_EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours this week")
 
 
 def _cents(text: str) -> int:
@@ -67,17 +77,31 @@ class _Seen:
                        for line in out if (m := _COMING.match(line))]
         self.people = [line.split(", ", 1) for line in self.sections.get("PEOPLE YOU KNOW", []) if ", " in line]
         self.requests = []           # (id, from, cents asked): each request's head, then what it asks for
+        self.summaries: dict[str, str] = {}      # request id -> the offer code wrote of it, if any
         for line in self.sections.get("WAITING FOR YOUR ANSWER", []):
             if m := _REQUEST.match(line):
                 self.requests.append((m.group(1), m.group(2), 0))
             elif (m := _ASKED.match(line)) and self.requests:
                 self.requests[-1] = self.requests[-1][:2] + (_cents(m.group(1)),)
+            elif self.requests and not line.startswith("  ") and (_OFFERED.search(line) or _EXTRA.search(line)):
+                self.summaries[self.requests[-1][0]] = line
         self.owed = self.sections.get("WHAT IS OWED", [])
         business = self.sections.get("YOUR BUSINESS", [])
         self.business = business[0] if business else ""
+        self.price = next((_cents(m.group(1)) for line in business if (m := _PRICE.match(line))), None)
+        self.order = next(((int(m.group(1)), m.group(2)) for line in business
+                           if line.startswith(("On order", "Nothing ordered")) and (m := _ORDER.search(line))), None)
+        self.staff = [(m.group(1), _cents(m.group(2))) for line in business if (m := _STAFF.match(line))]
+        self.idle = _IDLE.findall(system)
+        self.house_workers = _WORKS.findall(system)
+        found = _MY_PAY.search(system)
+        self.my_pay = _cents(found.group(1)) if found else None
+        found = _HOURS_LEFT.search(user)
+        self.hours_left = float(found.group(1)) if found else 0.0
         mine = {self.business, self.name}
         self.places = [p for p in dict.fromkeys(_AT.findall(system)) if p not in mine and " " in p]
         self.minded = "ON YOUR MIND" in self.sections
+        self.notes = "\n".join(self.sections.get("YOUR NOTES", []))
 
     def known(self, *words: str) -> list[str]:
         """The full names of people known whose line has any of `words`."""
@@ -90,6 +114,74 @@ def _reply(aims: list[str] | None, acts: list) -> str:
         body["aims"] = aims
     body["acts"] = acts
     return json.dumps(body)
+
+
+def _done_mark(day: int) -> str:
+    return f"Business seen to in week {day // 7 + 1}."
+
+
+def _work(me: _Seen, day: int, num: int) -> list[dict]:
+    """What an owner does with their business, week by week, and an employee's leaving; with
+    a slip now and then that is refused."""
+    week, wd = day // 7 + 1, day % 7
+    acts: list[dict] = []
+    if _done_mark(day) in me.notes:          # this week's business is done
+        return acts
+    if not me.business:
+        if week == 5 and num % 9 == 6 and me.my_pay is not None:
+            acts.append({"op": "quit"})
+        return acts
+    staff = [(name, pay) for name, pay in me.staff if name != me.name]
+    friends = [f for f in me.known("friend") if f not in dict(staff)]
+    if week == 2:
+        if me.idle:
+            acts += [{"op": "offer_job", "to": me.idle[0], "weekly_pay": 100, "hours": 20},
+                     {"op": "offer_job", "to": me.idle[0], "weekly_pay": 440, "hours": 38,
+                      "text": "There is a place on the till if you want it."}]
+        if me.price is not None:
+            acts.append({"op": "set_price", "price": _dollars(me.price + 20)})
+            if num % 3 == 2:
+                acts.append({"op": "set_price", "price": 0.5})
+        if me.order is not None:
+            units, supplier = me.order
+            acts.append({"op": "order_stock", "supplier": supplier, "units": units})
+            if num % 4 == 0:
+                acts.append({"op": "order_stock", "supplier": supplier, "units": 6000})
+    elif week == 3:
+        if staff:
+            acts.append({"op": "offer_shifts", "to": staff[0][0], "hours": 6})
+        if friends and num % 2 == 0:
+            acts.append({"op": "offer_shifts", "to": friends[0], "hours": 6})
+        if num % 7 == 0 and me.house_workers:
+            acts.append({"op": "offer_job", "to": me.house_workers[0], "weekly_pay": 253, "hours": 22})
+    elif week == 4:
+        if staff:
+            name, pay = staff[0]
+            if num % 2 == 0:
+                acts.append({"op": "set_staff_pay", "who": name, "weekly_pay": 50})
+            acts.append({"op": "set_staff_pay", "who": name, "weekly_pay": _dollars(pay + 1000)})
+            if wd <= 3 and me.balance > 2 * staff[-1][1]:          # this week's wage, by hand, before Friday
+                acts.append({"op": "pay", "to": staff[-1][0], "amount": _dollars(staff[-1][1]), "note": "wages"})
+    elif week == 5:
+        if me.price is not None:
+            acts.append({"op": "work_extra_hours", "hours": 40 if num % 2 == 1 else 6})
+            if num % 2 == 1:
+                acts.append({"op": "work_extra_hours", "hours": 6})
+        if num % 8 == 0:
+            acts.append({"op": "quit"})
+    elif week == 6:
+        if num % 3 == 0 and staff:
+            acts.append({"op": "dismiss", "who": staff[0][0], "text": "Trade has been slow."})
+            if friends:
+                acts.append({"op": "dismiss", "who": friends[0]})
+        acts.append({"op": "move_money", "from": me.business, "to": "household", "amount": 100})
+        if num % 2 == 0:
+            acts.append({"op": "move_money", "from": "household", "to": "household", "amount": 100})
+    elif week == 7 and me.balance > 30_000:
+        acts.append({"op": "move_money", "from": "household", "to": me.business, "amount": 100})
+    elif week == 8 and num % 7 == 0 and me.order is not None:
+        acts.append({"op": "order_stock", "supplier": me.order[1], "units": 0})
+    return acts
 
 
 def script(key: ReplyKey, messages: list[dict]) -> str:
@@ -110,7 +202,14 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
     close = me.known("partner", "child", "parent", "brother", "sister", "family", "friend")
     friends = me.known("friend")
     for rq, sender, cents in me.requests:
-        yes = rng.random() < 0.8 and (cents == 0 or cents * 3 <= me.balance)
+        summary = me.summaries.get(rq, "")
+        offered, extra = _OFFERED.search(summary), _EXTRA.search(summary)
+        if offered:            # a job: taken if it pays more than the one they have
+            yes = me.my_pay is None or _cents(offered.group(1)) > me.my_pay
+        elif extra:            # extra hours: taken if the week has room for them
+            yes = me.hours_left >= float(extra.group(1)) + 1
+        else:
+            yes = rng.random() < 0.8 and (cents == 0 or cents * 3 <= me.balance)
         acts.append({"op": "answer", "request": rq, "answer": "accept" if yes else "decline",
                      "note": "Glad to help." if yes else "Not this time, sorry."})
     if me.arrears and me.balance >= 500:
@@ -154,13 +253,19 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
     if me.business and staff and rng.random() < 0.12:
         acts.append({"op": "pay", "to": rng.choice(staff), "amount": 20, "note": "a thank-you for the extra effort",
                      "from": me.business})
+    work = _work(me, day, num)
+    acts += work
+    mark = _done_mark(day) if work or _done_mark(day) in me.notes else ""
     roll = rng.random()
     if roll < 0.06:
         acts.append({"op": "read", "what": "account in full"})
     elif roll < 0.10:
         acts.append({"op": "read", "what": "account"})
     if rng.random() < 0.15:
-        acts.append({"op": "write_notes", "text": f"Day {day}: the account held ${me.balance / 100:,.2f}."})
+        acts.append({"op": "write_notes",
+                     "text": f"Day {day}: the account held ${me.balance / 100:,.2f}. {mark}".strip()})
+    elif work:
+        acts.append({"op": "write_notes", "text": mark})
     if 22 <= day < 25 and num % 7 == 3:
         acts += [{"op": "pay", "to": 7, "amount": "lots"}, {"op": "message", "to": ["someone"], "text": None},
                  {"amount": 5}]

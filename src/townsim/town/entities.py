@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Person:
+    """`benefit` is the obligation that pays them jobseeker's benefit, if they have had one."""
+
     id: str
     name: str
     household: str
@@ -26,6 +28,7 @@ class Person:
     interests: list[str] = field(default_factory=list)
     worries: list[str] = field(default_factory=list)
     ill_until: int = -1
+    benefit: str = ""
 
 
 @dataclass
@@ -70,7 +73,10 @@ class Message:
 class Request:
     """A request, with or without money. `status` is open, accepted, declined or lapsed.
     `ob` is the obligation the money asked for is owed on, if the request names one.
-    `org`, `every`, `first`, `times` and `hours` are the terms of kinds that carry them."""
+    `org`, `every`, `first`, `times`, `hours` and `pay` are the terms of kinds that carry them:
+    an offer of a job (`job`) has the organisation, the Monday it starts, the hours a week and
+    the weekly pay in cents; an offer of extra hours (`shifts`) the organisation, the hours and
+    what they pay."""
 
     id: str
     day: int
@@ -89,6 +95,7 @@ class Request:
     first: int = -1
     times: int = 0
     hours: float = 0.0
+    pay: int = 0
 
 
 @dataclass
