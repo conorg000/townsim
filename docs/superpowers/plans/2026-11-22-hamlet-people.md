@@ -25,7 +25,7 @@ This is the second of the plans for design step 2a. It ends with a hamlet that r
 - Nothing in generation is tuned toward how a run turns out. Checks on a generated place are about its structure only.
 - A person's view is about 1,200 words on an ordinary day and never over 2,000, system and user messages together, and building it changes nothing.
 - Do not import from `spikes/`. No real names, email addresses or local paths in the repository. Commits are authored `conorg000 <20813490+conorg000@users.noreply.github.com>` and end with `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`.
-- Run the suite with `uv run pytest -q`. It must pass at every commit and stay under one minute.
+- Run the suite with `uv run pytest -q`. It must pass at every commit and stay under ninety seconds.
 
 ## Decisions already made
 
