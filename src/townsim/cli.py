@@ -12,7 +12,8 @@ import typer
 
 app = typer.Typer(help="Run the thin town or a generated hamlet and replay it, or run the small economy's skill test.")
 
-_FAMILIES = str(Path(__file__).resolve().parents[2] / "config" / "families.yaml")
+_ROOT = Path(__file__).resolve().parents[2]
+_FAMILIES = str(_ROOT / "config" / "families.yaml")
 
 Db = Annotated[str, typer.Option("--db", help="SQLite file holding the runs.")]
 
@@ -131,7 +132,7 @@ def town_hamlet_cmd(
     _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet_script.script)
 
 
-_PRICES = str(Path(__file__).resolve().parents[2] / "config" / "prices.yaml")
+_PRICES = str(_ROOT / "config" / "prices.yaml")
 _KEY = "OPENROUTER_API_KEY"
 
 
@@ -146,6 +147,14 @@ def _cap(cap: float, most: float) -> None:
         _fail(f"the cap must be above $0 and at most ${most:g}, got ${cap:g}")
 
 
+def _shown(path: str) -> str:
+    """A path inside the repository as relative to its root; any other as given."""
+    try:
+        return str(Path(path).resolve().relative_to(_ROOT))
+    except ValueError:
+        return path
+
+
 def _load_families(families: str, prices: str):
     """The families and the prices, or one plain line and exit code 1."""
     from townsim.estimate import load_prices
@@ -154,7 +163,7 @@ def _load_families(families: str, prices: str):
     try:
         return fam.load(families, prices), load_prices(prices)
     except (OSError, ValueError) as e:
-        _fail(f"cannot read the families from {families} and {prices}: {e}")
+        _fail(f"cannot read the families from {_shown(families)} and {_shown(prices)}: {e}")
 
 
 def _litellm():
@@ -173,8 +182,10 @@ def town_live_cmd(
     cap: Annotated[float, typer.Option("--cap", help="Dollars the run may spend in all, at most 5.")],
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "live",
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
-    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.")] = _FAMILIES,
-    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.")] = _PRICES,
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
+                                          show_default="config/families.yaml")] = _FAMILIES,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -205,6 +216,57 @@ def town_live_cmd(
         if got.stopped and got.stopped.startswith("cap: "):
             typer.echo(f"stopped by the cap of ${cap:g} after {got.days_done} days; run again with a larger cap to go on")
         if errors or (got.stopped and not got.stopped.startswith("cap: ")):
+            raise typer.Exit(code=1)
+
+
+_PROBE_OUT = "runs/probe.json"
+
+
+@app.command("town-probe")
+def town_probe_cmd(
+    cap: Annotated[float, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
+                                          show_default="config/families.yaml")] = _FAMILIES,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    n: Annotated[int, typer.Option("--n", min=1, help="Times each family is asked each case.")] = 3,
+    out: Annotated[str, typer.Option("--out", help="JSON file the rows and replies are written to.")] = _PROBE_OUT,
+) -> None:
+    """Show every family the same four views of a scripted hamlet, n times each, behind a
+    spending cap; write the rows and replies to --out and print a table. CALLS MODELS AND
+    SPENDS MONEY. Exits 1 if it stopped other than at the cap."""
+    import dataclasses
+
+    from townsim.town import probe
+
+    _cap(cap, probe.MAX_CAP)
+    _need_key("town-probe")
+    fams, price_list = _load_families(families, prices)
+    try:
+        cs = probe.cases(seed, list(fams))
+    except (ValueError, RuntimeError) as e:
+        _fail(f"cannot make the cases: {e}")
+    completion_fn, cost_fn = _litellm()
+    stopped = None
+    try:
+        rows = probe.run(cs, fams, price_list, completion_fn, cap, n=n, cost_fn=cost_fn)
+    except probe.ProbeStopped as e:
+        rows, stopped = e.rows, str(e)
+    kept = {"seed": seed, "n": n, "cap": cap, "stopped": stopped,
+            "families": {name: f.model for name, f in fams.items()},
+            "cases": [{"label": c.label, "pid": c.pid, "kind": c.kind, "day": c.day} for c in cs],
+            "rows": [dataclasses.asdict(r) for r in rows]}
+    try:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(kept, indent=1, ensure_ascii=False), encoding="utf-8")
+    except OSError as e:
+        _fail(f"cannot write {out}: {e.strerror or e}")
+    typer.echo(probe.table(rows) if rows else "no replies")
+    typer.echo(f"spent ${sum(r.cost for r in rows):.4f}; rows written to {out}")
+    if stopped:
+        typer.echo(f"stopped: {stopped}")
+        if not stopped.startswith("cap: "):
             raise typer.Exit(code=1)
 
 
