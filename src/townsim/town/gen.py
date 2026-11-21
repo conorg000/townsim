@@ -78,13 +78,13 @@ LOAN_PURPOSES = ("car loan", "loan for a new kitchen", "loan for a van", "loan f
                  "loan for the roof")
 
 VOICES = [
-    "Writes short, plain sentences.", "Writes at length and wanders off the point.",
-    "Writes politely and a little formally.", "Writes in a hurry, with few full stops.",
-    "Writes warmly and asks after people.", "Writes bluntly and gets to the point.",
-    "Writes carefully, checking figures twice.", "Writes with a dry sense of humour.",
-    "Writes in lowercase, like a text message.", "Writes as little as possible.",
-    "Writes cheerfully, with exclamation marks.", "Writes anxiously, apologising often.",
-    "Writes in a businesslike way, with lists.", "Writes the way they talk, with local sayings.",
+    "You write short, plain sentences.", "You write at length and wander off the point.",
+    "You write politely and a little formally.", "You write in a hurry, with few full stops.",
+    "You write warmly and ask after people.", "You write bluntly and get to the point.",
+    "You write carefully, checking figures twice.", "You write with a dry sense of humour.",
+    "You write in lowercase, like a text message.", "You write as little as possible.",
+    "You write cheerfully, with exclamation marks.", "You write anxiously, apologising often.",
+    "You write in a businesslike way, with lists.", "You write the way you talk, with local sayings.",
 ]
 
 INTERESTS = [
@@ -100,9 +100,9 @@ INTERESTS = [
 BELIEFS: dict[str, tuple[list[str], list[str]]] = {
     "institutions": (
         ["Banks and councils mostly do right by people.", "The people in charge generally know what they are doing.",
-         "You can usually trust what the council says.", "Most officials do their jobs honestly."],
+         "The council can usually be trusted.", "Most officials do their jobs honestly."],
         ["The council looks after its own.", "Banks are out for themselves.", "Official letters are best read twice.",
-         "Those in charge rarely tell you the whole story."]),
+         "Those in charge rarely tell the whole story."]),
     "change": (
         ["Things should change faster round here.", "New ways are usually better ways.",
          "A place that stands still goes backwards.", "It does people good to try new things."],
@@ -111,7 +111,7 @@ BELIEFS: dict[str, tuple[list[str], list[str]]] = {
     "technology": (
         ["New gadgets make life easier.", "Computers save more time than they waste.",
          "Most new inventions are worth having.", "Phones and computers have made life better."],
-        ["Gadgets always break just when you need them.", "Computers make more work than they save.",
+        ["Gadgets always break just when they are needed.", "Computers make more work than they save.",
          "Nothing beats a proper conversation over the counter.", "Too much is done on screens now."]),
     "religion": (
         ["Church is the best part of the week.", "Faith matters a great deal.", "A prayer never did anyone harm.",
@@ -126,7 +126,7 @@ BELIEFS: dict[str, tuple[list[str], list[str]]] = {
     "risk": (
         ["Nothing ventured, nothing gained.", "A good chance is worth a gamble.", "Better to try and fail than never try.",
          "Fortune favours the bold."],
-        ["Better safe than sorry.", "Borrowing what you cannot pay back is asking for trouble.", "It pays to keep something put by for a rainy day.",
+        ["Better safe than sorry.", "Borrowing more than can be paid back is asking for trouble.", "It pays to keep something put by for a rainy day.",
          "Putting all your eggs in one basket is foolish."]),
 }
 
@@ -833,7 +833,7 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
                 o = next(o for o in s.where("obligations", payer=payer) if o.payee == payee and o.kind == "agreement")
                 worries.append(f"Paying back {other.name.split()[0]}: {money(o.cents)} a week until {when(o.last)}."
                                if t.kind == "creditor" else
-                               f"Whether {other.name.split()[0]} keeps up the {money(o.cents)} a week owed to them.")
+                               f"Whether {other.name.split()[0]} keeps up the {money(o.cents)} a week owed to you.")
         for o in s.where("obligations", payer=h.id):
             if o.kind == "loan" and not o.memo.startswith("mortgage") and p.relation in ("head", "partner", ""):
                 worries.append(f"The {o.memo} costs {money(o.cents)} a week until {when(o.last)}.")
@@ -848,22 +848,22 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
                     worries.append(f"Whether {shop_name[shop]} takes enough to pay its rent and running costs "
                                    f"of {money(o.cents)} a week.")
         if p.kind == "staff" and jobs_[0].hours < 30:
-            worries.append(f"Only getting {jobs_[0].hours:g} hours a week at {shop_name[jobs_[0].org]}.")
+            worries.append(f"You only get {jobs_[0].hours:g} hours a week at {shop_name[jobs_[0].org]}.")
         if p.kind == "unemployed":
             amount = next(o.cents for o in s.where("obligations", payee=h.id) if o.memo == "jobseeker's benefit")
-            worries.append(f"Finding work; the benefit is {money(amount)} a week.")
+            worries.append(f"Finding work; your benefit is {money(amount)} a week.")
         if p.id in w["pension_of"]:
             mine = s.get("obligations", w["pension_of"][p.id]).cents
             if mine <= pensions[len(pensions) // 2]:
-                worries.append(f"Getting by on a pension of {money(mine)} a week.")
+                worries.append(f"Getting by on your pension of {money(mine)} a week.")
         if s.get("households", h.id).landlord and h.tenure == "landlord":
             rent = next(o for o in s.where("obligations", payer=h.id) if o.kind == "rent")
-            worries.append(f"The rent of {money(rent.cents)} a week to {s.get('people', w['landlord'].id).name}.")
+            worries.append(f"Your rent of {money(rent.cents)} a week to {s.get('people', w['landlord'].id).name}.")
         if h.tenure == "mortgage" and p.relation in ("head", "partner", ""):
             m = next(o for o in s.where("obligations", payer=h.id) if o.memo.startswith("mortgage"))
-            worries.append(f"The mortgage of {money(m.cents)} a week.")
+            worries.append(f"Your mortgage of {money(m.cents)} a week.")
         if p.kind == "landlord":
-            worries.append("Keeping the three houses they let in good repair.")
+            worries.append("Keeping the three houses you let in good repair.")
         if p.kind == "banker":
             n = len([o for o in s.where("obligations", payee=w["bank"]) if o.kind == "loan"])
             worries.append(f"Whether the {n} loans on the books at {bank_name} are kept up.")
@@ -875,13 +875,13 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
             else:
                 worries.append(f"Whether {firm_name} keeps its funding.")
         if p.kind == "outside_worker":
-            worries.append(f"Keeping their job at {emp_name}.")
+            worries.append(f"Keeping your job at {emp_name}.")
         if p.kind == "home":
             earners = [q for q in h.members if s.where("jobs", person=q.id)]
             if earners:
                 worries.append(f"Getting by on what {earners[0].first} brings in.")
-        if p.kind == "staff" and not any(x.startswith("Only") for x in worries):
-            worries.append(f"Keeping their hours at {shop_name[jobs_[0].org]}.")
+        if p.kind == "staff" and not any(x.startswith("You only") for x in worries):
+            worries.append(f"Keeping your hours at {shop_name[jobs_[0].org]}.")
         if not worries:
             worries.append("Keeping up with the bills.")
         n = rng.randint(1, 3)

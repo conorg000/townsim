@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "c853b3afb92f45eb36b5cd7af5c69ff42b14ceb3ff7952b35953fc9ccbd3adbb"
+SEED_1_HASH = "8fd57da3eb5d3004c59b4f840b5b08cdf506f67ec7bc864fce06fc4d217c4f8f"
 
 
 @functools.lru_cache(maxsize=None)
@@ -341,7 +341,7 @@ def test_a_landlord_under_pension_age_lives_on_the_rents_and_pensions_are_each_t
         assert len(pensions) == len(retired)
         for p in s.all("people"):
             for w in p.worries:
-                if w.startswith("Getting by on a pension"):
+                if w.startswith("Getting by on your pension"):
                     assert p.kind == "retired" or (p.kind == "landlord" and p.age >= 66)
 
 
@@ -371,6 +371,27 @@ def test_no_wording_is_an_instruction_or_says_what_the_place_is_for():
         low = w.lower()
         assert not any(low == i or low.startswith(i + " ") for i in IMPERATIVES), w
         assert not any(re.search(rf"\b{u}\b", low) for u in UNSAID), w
+
+
+ADDRESSING = ("you can", "you should", "you may", "you could", "you might", "you need to", "try to", "make sure",
+              "remember to", "ought to", "role", "scenario")
+
+
+def test_wordings_shown_as_a_person_s_own_are_in_the_second_person_and_ask_nothing():
+    beliefs = [w for poles in gen.BELIEFS.values() for pole in poles for w in pole]
+    worries = [w for seed in range(1, 11) for p in place(seed).all("people") for w in p.worries]
+    voices = list(gen.VOICES) + [p.voice for p in place(1).all("people")]
+    for w in beliefs + list(gen.INTERESTS) + worries:
+        low = f" {w.lower()} "
+        assert not any(f" {a}" in low for a in ADDRESSING), w
+    for w in beliefs:
+        assert not re.search(r"\byou\b", w.lower()), w
+    for w in worries + voices:
+        assert not re.search(r"\b(their|them|they)\b", w.lower()) or "they are" in w, w
+    assert all(v.startswith("You write ") for v in voices)
+    text = gen.describe(place(1))
+    for p in place(1).all("people"):
+        assert f"Worries: {' '.join(p.worries)}" in text
 
 
 def test_the_number_of_families_changes_nothing_else():
