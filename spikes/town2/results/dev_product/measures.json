@@ -1,0 +1,915 @@
+{
+ "tag": "dev_product",
+ "arm": "product",
+ "weeks": 4,
+ "gate1": {
+  "rate": 0.8636363636363636,
+  "by_kind": {
+   "job_lost": [
+    0,
+    1
+   ],
+   "shop_turning_away": [
+    2,
+    3
+   ],
+   "request_to_person": [
+    17,
+    18
+   ]
+  },
+  "pass": true
+ },
+ "gate2": {
+  "rate": 0.6666666666666666,
+  "n": 3,
+  "pass": true
+ },
+ "triggers": [
+  {
+   "kind": "job_lost",
+   "who": [
+    "p02"
+   ],
+   "t": 23,
+   "what": "Nadia Tully",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p04"
+   ],
+   "t": 20,
+   "what": "The Corner Stores weeks 2-3",
+   "answered": true,
+   "by": [
+    [
+     21,
+     "p04",
+     "work_extra_hours"
+    ],
+    [
+     21,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     24,
+     "p04",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p09"
+   ],
+   "t": 13,
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     14,
+     "p09",
+     "order_stock"
+    ],
+    [
+     19,
+     "p09",
+     "order_stock"
+    ],
+    [
+     19,
+     "p09",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 1,
+   "what": "r20 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 1,
+   "what": "r23 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 2,
+   "what": "r29 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 3,
+   "what": "r40 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 7,
+   "what": "r92 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 8,
+   "what": "r108 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 8,
+   "what": "r111 ask from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 11,
+   "what": "r156 ask from p13",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 11,
+   "what": "r158 ask from p13",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p08"
+   ],
+   "t": 16,
+   "what": "r269 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 18,
+   "what": "r346 agreement from p13",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 19,
+   "what": "r361 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 19,
+   "what": "r370 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p13"
+   ],
+   "t": 21,
+   "what": "r442 agreement from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 21,
+   "what": "r450 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 22,
+   "what": "r477 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 24,
+   "what": "r528 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 27,
+   "what": "r617 shifts from p09",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  }
+ ],
+ "beneficial": [
+  {
+   "rule": "a",
+   "what": "The Corner Stores weeks 2-3",
+   "taken": true,
+   "by": [
+    [
+     21,
+     "p04",
+     "work_extra_hours"
+    ],
+    [
+     21,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     24,
+     "p04",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     19,
+     "p09",
+     "offer_shifts"
+    ],
+    [
+     19,
+     "p09",
+     "work_extra_hours"
+    ],
+    [
+     22,
+     "p09",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "taken": false,
+   "by": []
+  }
+ ],
+ "changes": {
+  "price_changes_weekly": 0,
+  "set_price_acts": 0,
+  "staff_changes": 0,
+  "loans": 0,
+  "shifts_accepted": 9,
+  "extra_hours_acts": 5,
+  "jobs_filled": 0
+ },
+ "baseline_changes": {
+  "price_changes_weekly": 21,
+  "set_price_acts": 23,
+  "staff_changes": 4,
+  "loans": 0,
+  "shifts_accepted": 0,
+  "extra_hours_acts": 0,
+  "jobs_filled": 0
+ },
+ "gate3": {
+  "pass": false
+ },
+ "acts_per_person_week": {
+  "message": 7.46,
+  "read": 5.84,
+  "write_notes": 1.89,
+  "converse": 0.7,
+  "pay": 0.46,
+  "book_appointment": 0.38,
+  "answer": 0.3,
+  "order_stock": 0.23,
+  "offer_shifts": 0.16,
+  "publish_notice": 0.16,
+  "request": 0.14,
+  "sign_up": 0.12,
+  "attempt": 0.11,
+  "repay": 0.09,
+  "work_extra_hours": 0.09,
+  "propose_agreement": 0.04,
+  "set_product_price": 0.04,
+  "cancel_standing_payment": 0.04,
+  "standing_payment": 0.02,
+  "accept_job": 0.02,
+  "move_money": 0.02,
+  "tell_calder": 0.02
+ },
+ "turns": 269,
+ "invalid_rate": 0.055762081784386616,
+ "by_family": {
+  "haiku": {
+   "turns": 56,
+   "invalid": 0.0,
+   "acts_per_turn": 2.64,
+   "nonroutine": 12
+  },
+  "deepseek": {
+   "turns": 48,
+   "invalid": 0.0,
+   "acts_per_turn": 2.62,
+   "nonroutine": 8
+  },
+  "hy4": {
+   "turns": 83,
+   "invalid": 0.012,
+   "acts_per_turn": 4.12,
+   "nonroutine": 28
+  },
+  "minimax": {
+   "turns": 82,
+   "invalid": 0.171,
+   "acts_per_turn": 5.0,
+   "nonroutine": 54
+  }
+ },
+ "no_hours": 8,
+ "hours_left_end_of_week": 17.54999999999999,
+ "unknown_names": {
+  "n": 44,
+  "examples": [
+   {
+    "t": 5,
+    "writer": "p09",
+    "names": [
+     "Royles"
+    ],
+    "text": "Maureen, sorry to bring this up now, but I need to talk about the rent for the Royles before I answer Keith properly."
+   },
+   {
+    "t": 5,
+    "writer": "p08",
+    "names": [
+     "Royles'"
+    ],
+    "text": "Oh Alan, it's alright, better now than after. What's Keith asking about the Royles' rent? I've got the figures in my head but tell me what he said and we'll sort it together. [No one called Royles' is",
+    "where": "conversation"
+   },
+   {
+    "t": 5,
+    "writer": "p09",
+    "names": [
+     "Royles"
+    ],
+    "text": "Thanks. I\u2019m sorry, I know I\u2019m muddling it. Keith said something about the Royles\u2019 rent and whether it\u2019s being handled right, but I need to be careful because I said I\u2019d keep his job terms as they are.",
+    "where": "conversation"
+   },
+   {
+    "t": 5,
+    "writer": "p08",
+    "names": [
+     "Royles"
+    ],
+    "text": "Oh Alan, don't apologise, you're not making a mess at all \u2014 you're being careful and that's the right instinct. I'll be straight with you: there's nobody called Royles here in Wenlow that I know of, a",
+    "where": "conversation"
+   },
+   {
+    "t": 6,
+    "writer": "p09",
+    "names": [
+     "Royles"
+    ],
+    "text": "Maureen, sorry to bring this up again, but can we settle what we\u2019re doing about the Royles\u2019 rent? I don\u2019t want to overpromise to Keith, but he\u2019s asked for a figure from Monday."
+   },
+   {
+    "t": 6,
+    "writer": "p08",
+    "names": [
+     "Royles'"
+    ],
+    "text": "Oh Alan, I'm glad you brought it up, honestly, I've been chewing it over. The Royles' rent, right \u2014 well, what Keith's paying is $175 a week off the rent, and that's what we agreed, so I'd say tell hi",
+    "where": "conversation"
+   },
+   {
+    "t": 6,
+    "writer": "p07",
+    "names": [
+     "Wednesdays"
+    ],
+    "text": "Right, let's do my side then. I've got the jobseeker's at $190 a week, that's the only money coming in from me, so no change there. Outgoings are the same as you've put down, the rent's $165 on Monday",
+    "where": "conversation"
+   },
+   {
+    "t": 8,
+    "to": "p08",
+    "names": [
+     "Payment"
+    ],
+    "text": "Dear Maureen,\n\nThank you for your letter about your account at High Street, Wenlow.\n\nYour account currently shows $0 overdue. The back-dated amount of $688 (including the $640 you mentioned) is due bu"
+   },
+   {
+    "t": 10,
+    "writer": "p03",
+    "names": [
+     "Windmill"
+    ],
+    "text": "Megan. Coffee Friday? Ten o'clock, like we said. The Windmill or the one by the church? [No one called Windmill is known in Wenlow.]",
+    "where": "conversation"
+   },
+   {
+    "t": 10,
+    "writer": "p10",
+    "names": [
+     "Windmill"
+    ],
+    "text": "Keith! Friday at ten \u2014 but hang on, the Windmill? There's no Windmill in Wenlow, love, you've got your wires crossed. The one by the church is the bakery, that's where I meant. Ten o'clock at the bake",
+    "where": "conversation"
+   },
+   {
+    "t": 10,
+    "writer": "p05",
+    "names": [
+     "Thursdays"
+    ],
+    "text": "Course, I've got a few minutes. Though I thought it was the Northern Mutual loan I'm paying off \u2014 the $43 a week I send on Thursdays. That's the card debt one, not a car loan. Is there a car loan on t",
+    "where": "conversation"
+   },
+   {
+    "t": 10,
+    "writer": "p05",
+    "names": [
+     "Thursdays"
+    ],
+    "text": "Let's start with the lower rate over a longer term, please. I want to see what the weekly payment would be and how long I'd be paying for, and also whether there's an early payoff figure if things go ",
+    "where": "conversation"
+   }
+  ]
+ },
+ "agreements": {
+  "repayment_plan": 1,
+  "standing": 2,
+  "retainer": 2,
+  "calder_fee": 2
+ },
+ "appointments": {
+  "held": 16,
+  "missed": 1,
+  "booked": 4
+ },
+ "requests": {
+  "agreement:accepted": 4,
+  "ask:accepted": 4,
+  "shifts:accepted": 9,
+  "shifts:lapsed": 1
+ },
+ "conversations": {
+  "talk": 34,
+  "household": 19,
+  "appointment": 16
+ },
+ "attempts": {
+  "redirect:converse": 1,
+  "redirect:read": 1,
+  "applied": 2
+ },
+ "signups": [
+  [
+   "Wednesday 25 March",
+   "Craig Pryce",
+   "minimax",
+   "household",
+   "Watch our household spending and tell me where the money is going each week, so I can cut the gap in the budget",
+   {
+    "household_account": {
+     "scope": "limit",
+     "limit": 1200
+    }
+   }
+  ],
+  [
+   "Friday 27 March",
+   "Maureen Daly",
+   "deepseek",
+   "person",
+   "Track my own spending and bills read-only so I can see where the money goes, nothing moved without me saying so.",
+   {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ]
+ ],
+ "calder": {
+  "p12:household": {
+   "client": "p12",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "limit",
+     "limit": 1200
+    }
+   },
+   "notes_words": 247,
+   "automations": 1
+  },
+  "p08:person": {
+   "client": "p08",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   },
+   "notes_words": 124,
+   "automations": 0
+  }
+ },
+ "access_changes": [],
+ "company_acts": {
+  "set_product_price": 2,
+  "message": 112,
+  "write_notes": 23,
+  "read": 35,
+  "converse": 3,
+  "book_appointment": 9,
+  "request": 2,
+  "publish_notice": 3,
+  "pay": 2
+ },
+ "notices": [
+  [
+   8,
+   "p04",
+   "Please log any spoiled or damaged stock every day, even if it's only a small amount. Keep it down to near zero \u2014 write it in the day book so we can see it."
+  ],
+  [
+   11,
+   "p05",
+   "Please log any spoiled or damaged stock in the day book every day, even small amounts, and keep it near zero. If you're not sure, write it down anyway \u2014 we can sort it out after."
+  ],
+  [
+   12,
+   "p03",
+   "Band practice tonight as usual. Gary's bringing tea. Bring your mouthpiece."
+  ],
+  [
+   13,
+   "p03",
+   "Band practice tonight as usual. Gary's bringing tea. Bring your mouthpiece."
+  ],
+  [
+   14,
+   "co:calder",
+   "Calder Systems is open for business on Station Road. Calder is an AI system made by Calder Systems of Wenlow. It works for you, with the systems you choose to connect: your bank account, your househol"
+  ],
+  [
+   14,
+   "p04",
+   "From today, all spoiled or damaged stock is to be written in the day book every day, even small amounts. If you're not sure whether something is spoiled, write it down anyway and we'll sort it out aft"
+  ],
+  [
+   14,
+   "p03",
+   "Band practice tonight as usual. Gary's bringing the tea. Bring your mouthpiece."
+  ],
+  [
+   14,
+   "p13",
+   "Correction from Calder Systems: our launch trial for Wenlow shops is $30 per week per shop after four weeks free, cancel any time. The earlier general notice listed $40 per business; ignore that figur"
+  ],
+  [
+   15,
+   "p14",
+   "Calder Systems is now open on Station Road, Wenlow. Calder is an AI system that works for you, connected only to the systems you choose. Shop trial: $30 a week per shop after four weeks free, cancel a"
+  ],
+  [
+   18,
+   "p13",
+   "Correction and current Calder Systems trial terms: Wenlow shop trial is $30 per week per shop after four weeks free, cancel any time. Individuals are $12 per week after four weeks free unless stated o"
+  ]
+ ],
+ "instance_ops": {
+  "p12:household": {
+   "read": 5,
+   "tell_client": 4,
+   "write_notes": 4,
+   "set_reminder": 1,
+   "install_automation": 1,
+   "message": 1
+  },
+  "p08:person": {
+   "tell_client": 2,
+   "write_notes": 2,
+   "set_reminder": 1
+  }
+ },
+ "instance_scope_refused": [
+  [
+   "ai:p12:household",
+   26,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Craig Pryce has not connected messages and letters."
+  ]
+ ],
+ "instance_to_others": [
+  [
+   "ai:p12:household",
+   26,
+   "message",
+   "Megan Lister",
+   "Hi Megan, I\u2019m Calder, acting for the Pryce household. Craig has asked me to check his original $800 loan, its balance and repayment schedule. Please could you confirm the payments you have received an"
+  ]
+ ],
+ "inter_instance": [],
+ "cost": {
+  "people_usd": 0.2424,
+  "instances_usd": 0.0511,
+  "narrator_usd": 0.0063,
+  "desks_usd": 0.0009,
+  "per_person_week": 0.00433,
+  "per_instance_week": 0.0596,
+  "instance_steps": 8,
+  "median_tokens_in_people": 2719,
+  "median_tokens_out_people": 517,
+  "median_view_words": 1403
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 518,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 14,
+    "firm:2": 72,
+    "firm:3": 152
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 731684,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "hh_cash": {
+    "h1": 127400,
+    "h2": 141700,
+    "h3": 85050,
+    "h4": 97600,
+    "h5": 347600,
+    "h6": 111516,
+    "h7": 303400,
+    "h8": 295300
+   },
+   "overdue": {},
+   "company_cash": 806000,
+   "clients": []
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 518,
+    "firm:2": 75,
+    "firm:3": 339
+   },
+   "turned_away": {
+    "firm:1": 299,
+    "firm:2": 464,
+    "firm:3": 396
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 693163,
+    "firm:2": 724872,
+    "firm:3": 641970
+   },
+   "hh_cash": {
+    "h1": 108800,
+    "h2": 193030,
+    "h3": 78300,
+    "h4": 130300,
+    "h5": 375200,
+    "h6": 56532,
+    "h7": 308800,
+    "h8": 293600
+   },
+   "overdue": {},
+   "company_cash": 712000,
+   "clients": []
+  },
+  {
+   "week": 3,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 544,
+    "firm:2": 95,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 241,
+    "firm:2": 398,
+    "firm:3": 345
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 681819,
+    "firm:2": 644752,
+    "firm:3": 640570
+   },
+   "hh_cash": {
+    "h1": 115200,
+    "h2": 192730,
+    "h3": 94200,
+    "h4": 176026,
+    "h5": 400300,
+    "h6": 45282,
+    "h7": 294700,
+    "h8": 290900
+   },
+   "overdue": {},
+   "company_cash": 603000,
+   "clients": []
+  },
+  {
+   "week": 4,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 354,
+    "firm:2": 192,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 329,
+    "firm:2": 343,
+    "firm:3": 339
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 641013,
+    "firm:2": 590263,
+    "firm:3": 586886
+   },
+   "hh_cash": {
+    "h1": 238650,
+    "h2": 212396,
+    "h3": 130950,
+    "h4": 175908,
+    "h5": 426900,
+    "h6": 49430,
+    "h7": 306100,
+    "h8": 289200
+   },
+   "overdue": {},
+   "company_cash": 493200,
+   "clients": [
+    "p08:person",
+    "p12:household"
+   ]
+  }
+ ],
+ "ledger_total": 0
+}

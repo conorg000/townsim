@@ -1,0 +1,902 @@
+{
+ "tag": "arm3_candidates",
+ "arm": "candidates",
+ "weeks": 10,
+ "gate1": {
+  "rate": 0.8055555555555556,
+  "by_kind": {
+   "job_lost": [
+    0,
+    1
+   ],
+   "shop_turning_away": [
+    2,
+    2
+   ],
+   "request_to_person": [
+    27,
+    33
+   ]
+  },
+  "pass": true
+ },
+ "gate2": {
+  "rate": 0.0,
+  "n": 2,
+  "pass": false
+ },
+ "triggers": [
+  {
+   "kind": "job_lost",
+   "who": [
+    "p02"
+   ],
+   "t": 23,
+   "what": "Nadia Tully",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p09"
+   ],
+   "t": 13,
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     13,
+     "p09",
+     "order_stock"
+    ],
+    [
+     15,
+     "p09",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     14,
+     "p11",
+     "order_stock"
+    ],
+    [
+     16,
+     "p11",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 1,
+   "what": "r20 ask from p01",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 4,
+   "what": "r33 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 5,
+   "what": "r39 ask from p07",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 6,
+   "what": "r46 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 6,
+   "what": "r49 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p08"
+   ],
+   "t": 6,
+   "what": "r60 job from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 7,
+   "what": "r83 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 7,
+   "what": "r88 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 7,
+   "what": "r97 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p13"
+   ],
+   "t": 7,
+   "what": "r99 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p13"
+   ],
+   "t": 7,
+   "what": "r103 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p07"
+   ],
+   "t": 7,
+   "what": "r108 job from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 8,
+   "what": "r119 ask from p01",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 8,
+   "what": "r130 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 8,
+   "what": "r134 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 9,
+   "what": "r160 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 10,
+   "what": "r175 ask from p01",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 10,
+   "what": "r179 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 10,
+   "what": "r184 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "r258 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 14,
+   "what": "r301 ask from p13",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p07"
+   ],
+   "t": 15,
+   "what": "r315 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 15,
+   "what": "r330 ask from p01",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 15,
+   "what": "r335 agreement from p13",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 17,
+   "what": "r364 ask from p01",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 18,
+   "what": "r413 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 19,
+   "what": "r437 ask from p01",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 19,
+   "what": "r448 narrator from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 20,
+   "what": "r478 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 20,
+   "what": "r480 ask from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 20,
+   "what": "r485 ask from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 21,
+   "what": "r517 ask from p01",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p07"
+   ],
+   "t": 21,
+   "what": "r534 agreement from p04",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  }
+ ],
+ "beneficial": [
+  {
+   "rule": "a",
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "a",
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "taken": false,
+   "by": []
+  }
+ ],
+ "changes": {
+  "price_changes_weekly": 1,
+  "set_price_acts": 1,
+  "staff_changes": 1,
+  "loans": 0,
+  "shifts_accepted": 6,
+  "extra_hours_acts": 2,
+  "jobs_filled": 2
+ },
+ "baseline_changes": {
+  "price_changes_weekly": 21,
+  "set_price_acts": 23,
+  "staff_changes": 4,
+  "loans": 0,
+  "shifts_accepted": 0,
+  "extra_hours_acts": 0,
+  "jobs_filled": 0
+ },
+ "gate3": {
+  "pass": false
+ },
+ "acts_per_person_week": {
+  "message": 2.09,
+  "read": 1.18,
+  "write_notes": 0.55,
+  "pay": 0.42,
+  "answer": 0.17,
+  "converse": 0.16,
+  "cancel_standing_payment": 0.15,
+  "book_appointment": 0.11,
+  "order_stock": 0.11,
+  "request": 0.06,
+  "attempt": 0.06,
+  "offer_shifts": 0.04,
+  "tell_calder": 0.04,
+  "sign_up": 0.02,
+  "shop_at": 0.01,
+  "propose_agreement": 0.01,
+  "work_extra_hours": 0.01,
+  "set_price": 0.01,
+  "repay": 0.01,
+  "standing_payment": 0.01
+ },
+ "turns": 201,
+ "invalid_rate": 0.01990049751243781,
+ "by_family": {
+  "haiku": {
+   "turns": 39,
+   "invalid": 0.0,
+   "acts_per_turn": 1.44,
+   "nonroutine": 20
+  },
+  "deepseek": {
+   "turns": 40,
+   "invalid": 0.0,
+   "acts_per_turn": 2.25,
+   "nonroutine": 9
+  },
+  "hy4": {
+   "turns": 55,
+   "invalid": 0.018,
+   "acts_per_turn": 4.4,
+   "nonroutine": 35
+  },
+  "minimax": {
+   "turns": 67,
+   "invalid": 0.045,
+   "acts_per_turn": 5.15,
+   "nonroutine": 53
+  }
+ },
+ "no_hours": 3,
+ "hours_left_end_of_week": 18.17499999999998,
+ "unknown_names": {
+  "n": 17,
+  "examples": [
+   {
+    "t": 3,
+    "to": "p13",
+    "names": [
+     "Karen",
+     "Pike"
+    ],
+    "text": "I know the depot manager, Karen Pike. Best way in is a polite email to her, not turning up unasked. I'll mention you've got a short demo if she asks. I can't promise more than that."
+   },
+   {
+    "t": 3,
+    "writer": "p02",
+    "names": [
+     "Karen",
+     "Pike"
+    ],
+    "text": "I know the depot manager, Karen Pike. Best way in is a polite email to her, not turning up unasked. I'll mention you've got a short demo if she asks. I can't promise more than that."
+   },
+   {
+    "t": 4,
+    "to": "p02",
+    "names": [
+     "Karen"
+    ],
+    "text": "Thanks. Please do mention the short demo if Karen asks. If you can, send me her email address or pass on that I'll email her today\u2014polite, no pressure. I can offer a 10-minute remote demo for depot ad"
+   },
+   {
+    "t": 4,
+    "writer": "p13",
+    "names": [
+     "Karen"
+    ],
+    "text": "Thanks. Please do mention the short demo if Karen asks. If you can, send me her email address or pass on that I'll email her today\u2014polite, no pressure. I can offer a 10-minute remote demo for depot ad"
+   },
+   {
+    "t": 5,
+    "to": "p13",
+    "names": [
+     "Karen"
+    ],
+    "text": "Hi Hazel, I don't know anyone called Karen here, so I can't pass anything on or send an email address. I'm not taking on anything paid just now. Sorry."
+   },
+   {
+    "t": 5,
+    "writer": "p02",
+    "names": [
+     "Karen"
+    ],
+    "text": "Hi Hazel, I don't know anyone called Karen here, so I can't pass anything on or send an email address. I'm not taking on anything paid just now. Sorry."
+   },
+   {
+    "t": 7,
+    "to": "p04",
+    "names": [
+     "Thurs"
+    ],
+    "text": "accepted: \"a job at The Corner Stores for $185 a week, 16 hours. They wrote: \"16 hours a week, Tuesday to Thurs\"."
+   },
+   {
+    "t": 8,
+    "to": "p10",
+    "names": [
+     "Yeah"
+    ],
+    "text": "Megan, good to hear from you. Yeah, Maureen's on at the bakery and it's busy. Brew sounds good \u2014 I'm free most evenings this week, give me a ring and we'll sort a day."
+   },
+   {
+    "t": 8,
+    "writer": "p03",
+    "names": [
+     "Yeah"
+    ],
+    "text": "Megan, good to hear from you. Yeah, Maureen's on at the bakery and it's busy. Brew sounds good \u2014 I'm free most evenings this week, give me a ring and we'll sort a day."
+   },
+   {
+    "t": 8,
+    "writer": "p09",
+    "names": [
+     "Nita"
+    ],
+    "text": "Hazel, sorry, I do want to help if I can. I think I can manage one warm name today, but I\u2019d need to check with them first so I\u2019m not handing you someone who\u2019d be annoyed. Let me message Nita at the ph",
+    "where": "conversation"
+   },
+   {
+    "t": 8,
+    "writer": "p09",
+    "names": [
+     "Nita"
+    ],
+    "text": "Hazel, sorry, I need to be straight with you. I said I\u2019d message Nita at the pharmacy, but I\u2019ve realised I don\u2019t actually know anyone called Nita in Wenlow, so I shouldn\u2019t have said that. I don\u2019t want",
+    "where": "conversation"
+   },
+   {
+    "t": 9,
+    "to": "p09",
+    "names": [
+     "Nita"
+    ],
+    "text": "Alan \u2014 following up on yesterday. If Nita at the pharmacy has consented, I\u2019d like to include her as a launch lead. Also, if Maureen is still at Wenlow Bakery & Deli, a short intro to her or the owner "
+   }
+  ]
+ },
+ "agreements": {
+  "repayment_plan": 4,
+  "retainer": 5,
+  "standing": 1,
+  "calder_fee": 1
+ },
+ "appointments": {
+  "held": 12,
+  "booked": 1
+ },
+ "requests": {
+  "ask:declined": 4,
+  "agreement:accepted": 10,
+  "ask:accepted": 4,
+  "job:accepted": 2,
+  "shifts:accepted": 6,
+  "ask:open": 5,
+  "narrator:accepted": 1,
+  "agreement:open": 1
+ },
+ "conversations": {
+  "talk": 22,
+  "household": 14,
+  "appointment": 12
+ },
+ "attempts": {
+  "reject:too_vague": 1,
+  "redirect:message": 1,
+  "redirect:write_notes": 1,
+  "reject:impossible": 7,
+  "redirect:read": 2,
+  "applied": 1
+ },
+ "signups": [
+  [
+   "Monday 16 March",
+   "Craig Pryce",
+   "minimax",
+   "household",
+   "Keep track of my household account, tell me what's still due each week and pay the Northgrid energy bill and the Thursday bank payments when I ask, never more than $400 a week",
+   {
+    "household_account": {
+     "scope": "limit",
+     "limit": 40000
+    }
+   }
+  ]
+ ],
+ "calder": {
+  "p12:household": {
+   "client": "p12",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "limit",
+     "limit": 40000
+    }
+   },
+   "notes_words": 361,
+   "automations": 0
+  }
+ },
+ "access_changes": [],
+ "company_acts": {
+  "message": 73,
+  "write_notes": 16,
+  "book_appointment": 3,
+  "pay": 6,
+  "answer": 1,
+  "read": 16,
+  "null": 1,
+  "cancel_standing_payment": 3
+ },
+ "notices": [
+  [
+   14,
+   "co:calder",
+   "Calder Systems is open for business on Station Road. Calder is an AI system made by Calder Systems of Wenlow. It works for you, with the systems you choose to connect: your bank account, your househol"
+  ]
+ ],
+ "instance_ops": {
+  "p12:household": {
+   "tell_client": 6,
+   "write_notes": 6,
+   "set_reminder": 3,
+   "read": 4,
+   "null": 8
+  }
+ },
+ "instance_scope_refused": [],
+ "instance_to_others": [],
+ "inter_instance": [],
+ "cost": {
+  "people_usd": 0.1867,
+  "instances_usd": 0.0542,
+  "narrator_usd": 0.0183,
+  "desks_usd": 0.0008,
+  "per_person_week": 0.00133,
+  "per_instance_week": 0.0632,
+  "instance_steps": 9,
+  "median_tokens_in_people": 2566,
+  "median_tokens_out_people": 454,
+  "median_view_words": 1371
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1050,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 488,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 152,
+    "firm:3": 238
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 728400,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "hh_cash": {
+    "h1": 127350,
+    "h2": 142700,
+    "h3": 84850,
+    "h4": 97500,
+    "h5": 342550,
+    "h6": 83300,
+    "h7": 303300,
+    "h8": 296200
+   },
+   "overdue": {},
+   "company_cash": 806000,
+   "clients": []
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1050,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 207,
+    "firm:2": 594,
+    "firm:3": 339
+   },
+   "turned_away": {
+    "firm:1": 171,
+    "firm:2": 58,
+    "firm:3": 251
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 682022,
+    "firm:2": 870212,
+    "firm:3": 673600
+   },
+   "hh_cash": {
+    "h1": 135750,
+    "h2": 171788,
+    "h3": 94350,
+    "h4": 92850,
+    "h5": 369650,
+    "h6": 56278,
+    "h7": 303700,
+    "h8": 293500
+   },
+   "overdue": {},
+   "company_cash": 712000,
+   "clients": []
+  },
+  {
+   "week": 3,
+   "prices": {
+    "firm:1": 1050,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 352,
+    "firm:2": 506,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 168
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 492572,
+    "firm:2": 481000,
+    "firm:3": 496830
+   },
+   "hh_cash": {
+    "h1": 119050,
+    "h2": 131710,
+    "h3": 118210,
+    "h4": 33000,
+    "h5": 398700,
+    "h6": 40728,
+    "h7": 301000,
+    "h8": 290750
+   },
+   "overdue": {},
+   "company_cash": 602200,
+   "clients": [
+    "p12:household"
+   ]
+  }
+ ],
+ "ledger_total": 0
+}

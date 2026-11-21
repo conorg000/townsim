@@ -1,0 +1,2412 @@
+[
+ [
+  "ai:p05:household",
+  16,
+  "Please check this possible duplicate with Northgrid; I won\u2019t send another payment."
+ ],
+ [
+  "ai:p05:household",
+  16,
+  "Please check whether Wednesday knitting or Saturday football conflicts with your work rota; I won\u2019t move either."
+ ],
+ [
+  "ai:p05:household",
+  17,
+  "Please check for an automatic second debit today."
+ ],
+ [
+  "ai:p05:household",
+  17,
+  "Please ask Northgrid whether the $57 debits on Monday and Wednesday are a duplicate and whether a refund is due."
+ ],
+ [
+  "ai:p05:household",
+  18,
+  "Please clarify today\u2019s rota with him today."
+ ],
+ [
+  "ai:p05:household",
+  18,
+  "Please check whether the loan is collected automatically so we can avoid another duplicate."
+ ],
+ [
+  "ai:p03:household",
+  19,
+  "Please let me know about any such spending, and I\u2019ll flag it as it approaches the limit."
+ ],
+ [
+  "ai:p05:household",
+  19,
+  "Please check for other payments before payday, including whether Saturday\u2019s $460 Daly payment was one-off."
+ ],
+ [
+  "ai:p05:household",
+  19,
+  "Please contact its billing or payments team with your account details and the $57 debit dates, Monday 16 and Wednesday 18 March."
+ ],
+ [
+  "ai:p05:household",
+  19,
+  "Please clarify the rota and appointment date with Lewis and Sian; bring your card balances to the appointment."
+ ],
+ [
+  "ai:p04:household",
+  20,
+  "Please check which arrangements should remain."
+ ],
+ [
+  "ai:p04:shop",
+  20,
+  "Please check what funds can be made available and whether any commitments need to be rearranged."
+ ],
+ [
+  "ai:p04:shop",
+  20,
+  "Please provide those details or connect those systems if you want a more precise warning."
+ ],
+ [
+  "ai:p05:household",
+  20,
+  "Please check with Daly or the bank, and check for any other payments due before payday."
+ ],
+ [
+  "ai:p05:household",
+  20,
+  "Please check with the bank before Thursday; don\u2019t make an extra payment in the meantime."
+ ],
+ [
+  "ai:p04:household",
+  21,
+  "Please check with Keith or the paying bank before Wednesday how to prevent another double payment while preserving your instructions."
+ ],
+ [
+  "ai:p04:shop",
+  21,
+  "Please check available funding and contact the relevant suppliers or payees urgently."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please check the bank\u2019s upcoming payments, including anything else due before Friday."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please verify the actual schedule with the bank."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please check before Thursday."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please check with the bank that both won\u2019t be paid."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please contact Northgrid\u2019s billing and payments team with both dates and amounts, and keep the statement lines."
+ ],
+ [
+  "ai:p05:household",
+  21,
+  "Please check these premature, duplicate-looking charges with the bank and Calder Systems, including whether they should be refunded and how to prevent further i"
+ ],
+ [
+  "ai:p03:household",
+  22,
+  "Please investigate the two $15 household fees charged on 23 March, although their descriptions say fees start 14 April 2026."
+ ],
+ [
+  "ai:p03:household",
+  22,
+  "Please explain and correct any premature or duplicate charges."
+ ],
+ [
+  "ai:p03:household",
+  22,
+  "Do not take any further fee payment until this has been checked, as Keith has requested."
+ ],
+ [
+  "ai:p03:household",
+  22,
+  "Please urgently check whether repayment plan a137 and standing payment a473 could both result in $120 payments to Dave Royle on Wednesday 25 March."
+ ],
+ [
+  "ai:p03:household",
+  22,
+  "Please also explain whether the $268.73 projected balance includes either Dave payment and the basis of the $118.73 projection Keith has seen."
+ ],
+ [
+  "ai:p04:household",
+  22,
+  "Please check with Keith or the paying bank today to avoid another duplicate; I haven\u2019t changed anything."
+ ],
+ [
+  "ai:p04:shop",
+  22,
+  "Please urgently check available funding and the amounts and due dates of outstanding stock orders; the account cannot cover all commitments as projected, but I "
+ ],
+ [
+  "ai:p04:shop",
+  22,
+  "Please also confirm the wages/draw split and whether the $1,544.81 is included."
+ ],
+ [
+  "ai:p05:household",
+  22,
+  "Please check the bank\u2019s full upcoming-payment schedule for anything else due before payday."
+ ],
+ [
+  "ai:p05:household",
+  22,
+  "Please check before Thursday so the loan is paid on time without a duplicate."
+ ],
+ [
+  "ai:p05:household",
+  22,
+  "Don\u2019t send an extra energy payment."
+ ],
+ [
+  "ai:p05:household",
+  22,
+  "Please check the actual schedule and the two $15 fees already taken on 23 March despite their listed 14 April start; a refund is not confirmed."
+ ],
+ [
+  "ai:p03:household",
+  23,
+  "Please urgently confirm whether a473 exists or is already inactive, whether a137 causes an automatic payment, and whether exactly one $120 payment has been or w"
+ ],
+ [
+  "ai:p03:household",
+  23,
+  "Please prevent any duplicate without stopping the intended payment."
+ ],
+ [
+  "ai:p03:household",
+  23,
+  "Please update us on the two $15 household fees charged on 23 March: were they duplicates, what dates did each cover, and when do fees start?"
+ ],
+ [
+  "ai:p04:household",
+  23,
+  "Please connect the shop account if available, or send me transaction updates; I can review them when I\u2019m called, but can\u2019t promise a real-time alert."
+ ],
+ [
+  "ai:p04:shop",
+  23,
+  "Please check available funding and payment dates now; a stock order may not be covered."
+ ],
+ [
+  "ai:p04:shop",
+  23,
+  "Please send the outstanding stock amounts and due dates, expected incoming payments, the wages/draw split, and whether the unpaid $1,544.81 is included in the p"
+ ],
+ [
+  "ai:p05:household",
+  23,
+  "Please check all payments due before wages arrive."
+ ],
+ [
+  "ai:p05:household",
+  23,
+  "Don\u2019t send another energy payment."
+ ],
+ [
+  "ai:p05:household",
+  23,
+  "Please check with the bank before they fall due and ensure each is paid exactly once."
+ ],
+ [
+  "ai:p03:household",
+  24,
+  "Please urgently confirm whether the $120 due to Dave Royle under repayment plan a137 has been paid or is pending, and on what date."
+ ],
+ [
+  "ai:p03:household",
+  24,
+  "Please identify each transaction and whether any were duplicates."
+ ],
+ [
+  "ai:p03:household",
+  24,
+  "Please respond urgently."
+ ],
+ [
+  "ai:p03:household",
+  24,
+  "Please urgently investigate the two $15 household fees charged on 23 March."
+ ],
+ [
+  "ai:p03:household",
+  24,
+  "Please confirm whether one fee was charged twice, which dates each charge covered, whether any further fee is scheduled or has been taken, and how any premature"
+ ],
+ [
+  "ai:p04:household",
+  24,
+  "Please tell me about any such spending; the review point is $96, and you said you\u2019d tell Keith before nearing the cap."
+ ],
+ [
+  "ai:p04:shop",
+  24,
+  "Please urgently check available funding and contact the bank and suppliers as needed."
+ ],
+ [
+  "ai:p05:household",
+  24,
+  "Please check the bank\u2019s upcoming payments and wage timing."
+ ],
+ [
+  "ai:p05:household",
+  24,
+  "Please check both transactions and the active bank and lender instructions urgently."
+ ],
+ [
+  "ai:p05:household",
+  24,
+  "Please verify with Dave and the bank."
+ ],
+ [
+  "ai:p05:household",
+  24,
+  "Please give billing your account details and statement lines for those dates and 25 March, and check the active payment instructions with the bank."
+ ],
+ [
+  "ai:p05:household",
+  24,
+  "Please verify the actual schedules, especially the possible duplicates."
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Please confirm whether any $120 payment to Dave Royle is scheduled, pending or sent, including under repayment plan a137 or standing payment a473, and whether t"
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Please also update us on the inquiry into the three $57 Northgrid Energy debits on 25 March."
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Do not make or alter a payment or standing payment on this request."
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Please update us on the two $15 fees charged on 23 March: whether they duplicate one household fee, the dates each covers, and why they were charged when the st"
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Do not collect further fees while this is being checked."
+ ],
+ [
+  "ai:p03:household",
+  25,
+  "Please let me know this week\u2019s recreation and eating-out spending when you have it."
+ ],
+ [
+  "ai:p04:household",
+  25,
+  "Please check that payment and what is still due with your bank as soon as possible, so you can address the projected shortfall."
+ ],
+ [
+  "ai:p04:household",
+  25,
+  "Please tell me about any cash, off-account or unclassified spending; I'll flag recreation spending at $96, before the cap."
+ ],
+ [
+  "ai:p04:household",
+  25,
+  "Please also continue checking the previously flagged possible duplicate energy, loan and fee debits with the bank and payees."
+ ],
+ [
+  "ai:p04:shop",
+  25,
+  "Please urgently confirm expected receipts and their timing, outstanding stock amounts and due dates, whether today\u2019s wages and draw have been paid and their spl"
+ ],
+ [
+  "ai:p05:household",
+  25,
+  "Please check both issues with the bank, and the fees with Calder Systems."
+ ],
+ [
+  "ai:p05:household",
+  25,
+  "Please check the forecast\u2019s components and timing before settling it."
+ ],
+ [
+  "ai:p05:household",
+  25,
+  "Please check the bank and lender instructions and transactions; I have not sent extra payments."
+ ],
+ [
+  "ai:p05:household",
+  25,
+  "Please give billing the actual statement lines and check the bank\u2019s active instructions."
+ ],
+ [
+  "ai:p05:household",
+  25,
+  "Please check the timing of bills and payday."
+ ],
+ [
+  "ai:p03:household",
+  26,
+  "Please update us on the check of Dave Royle\u2019s $120 Wednesday payments: was one paid, is one pending or scheduled, and what are the statuses of a137 and standing"
+ ],
+ [
+  "ai:p03:household",
+  26,
+  "Please help ensure only one $120 payment is made next Wednesday, 1 April, without changing the standing payment without Keith\u2019s approval."
+ ],
+ [
+  "ai:p03:household",
+  26,
+  "Please also update us on the three $57 energy debits on 25 March and clarify whether the current -$525.90 after-commitments projection includes Dave\u2019s payment."
+ ],
+ [
+  "ai:p03:household",
+  26,
+  "Please update Keith\u2019s query about both $15 fees charged on 23 March: were they duplicates, which dates did each cover, and how will any premature charges be cor"
+ ],
+ [
+  "ai:p03:household",
+  26,
+  "Please ensure no further fees are collected before 17 April or while the charges remain under investigation, and confirm the applicable start date and action ta"
+ ],
+ [
+  "ai:p04:household",
+  26,
+  "Please check the upcoming payments and available funds urgently; the spending targets are not necessarily affordable at the current balance."
+ ],
+ [
+  "ai:p04:household",
+  26,
+  "Please tell me about any such purchases; I\u2019ll flag recreation spending at $96, before the cap."
+ ],
+ [
+  "ai:p04:household",
+  26,
+  "Please check the actual payments and intended arrangement."
+ ],
+ [
+  "ai:p04:shop",
+  26,
+  "Please urgently check the $2,440.97 in unpaid wages or costs."
+ ],
+ [
+  "ai:p04:shop",
+  26,
+  "Please confirm the arrears\u2019 inclusion and due dates, outstanding stock amounts and dates, expected receipts, and whether Friday\u2019s wages and draw and today\u2019s ren"
+ ],
+ [
+  "ai:p05:household",
+  26,
+  "Please check upcoming payments and funds with the bank urgently."
+ ],
+ [
+  "ai:p05:household",
+  26,
+  "Please also verify the $1,530 debit labelled \u2018owner\u2019s money put in\u2019 on 27 March."
+ ],
+ [
+  "ai:p05:household",
+  26,
+  "Please verify the transactions and active instructions with the bank and lender so that Thursday\u2019s instalment is taken exactly once."
+ ],
+ [
+  "ai:p01:household",
+  27,
+  "You may want to check those entries with Dunmore Lettings."
+ ],
+ [
+  "ai:p03:household",
+  27,
+  "Please confirm whether standing order a473 to Dave Royle went through on Wednesday 25 March, failed, was missed, or remains pending, and whether any payment und"
+ ],
+ [
+  "ai:p03:household",
+  27,
+  "Please do not change the standing order."
+ ],
+ [
+  "ai:p03:household",
+  27,
+  "Please also update us on the three $57 Northgrid debits on 25 March and the two $43 loan debits on 26 March."
+ ],
+ [
+  "ai:p03:household",
+  27,
+  "Please update us on the two $15 fees charged on 23 March: whether one household fee was duplicated, the period each covered, and how any improper charges will b"
+ ],
+ [
+  "ai:p03:household",
+  27,
+  "Please do not collect further fees while the checks are unresolved or before 17 April, and confirm the outcome."
+ ],
+ [
+  "ai:p04:shop",
+  27,
+  "Please confirm the arrears\u2019 due dates and whether they are included, outstanding stock amounts and payment dates, expected receipts, and the wages/draw split an"
+ ],
+ [
+  "ai:p05:household",
+  27,
+  "Please check funding, upcoming payments and wage timing with the bank urgently."
+ ],
+ [
+  "ai:p05:household",
+  27,
+  "Please confirm with the bank and lender that exactly one payment is scheduled for 2 April."
+ ],
+ [
+  "ai:p05:household",
+  27,
+  "Please ensure billing has the statement and bank lines for 16, 18 and 25 March, including all three bank debits on 25 March, and ask the bank to trace them and "
+ ],
+ [
+  "ai:p05:household",
+  27,
+  "Please check this week\u2019s work rota before planning around them; don\u2019t move the activities."
+ ],
+ [
+  "ai:p09:shop",
+  27,
+  "Please confirm the intended start date and year."
+ ],
+ [
+  "ai:p01:household",
+  28,
+  "Please check whether the overdue bill is included in the projection."
+ ],
+ [
+  "ai:p03:household",
+  28,
+  "Please urgently confirm whether Dave Royle\u2019s standing order a473 was paid, failed, missed, scheduled or pending on 25 March, and whether a137 could create a sec"
+ ],
+ [
+  "ai:p03:household",
+  28,
+  "Please do not change the standing order."
+ ],
+ [
+  "ai:p03:household",
+  28,
+  "Please urgently investigate all three charges, confirm whether any were duplicates and the coverage dates, clarify the stated start dates of 14 and 17 April, an"
+ ],
+ [
+  "ai:p03:household",
+  28,
+  "Do not collect further fees while checks remain unresolved or before 17 April."
+ ],
+ [
+  "ai:p03:household",
+  28,
+  "Please update me on this week\u2019s recreation and eating-out spending."
+ ],
+ [
+  "ai:p04:household",
+  28,
+  "Please contact Alan promptly to agree how to handle the rent and check what funds are available."
+ ],
+ [
+  "ai:p04:household",
+  28,
+  "Please tell me about any such purchases."
+ ],
+ [
+  "ai:p04:household",
+  28,
+  "Please confirm the start dates and free-week arrangements for the $15 weekly household fee and $40 weekly shop fee."
+ ],
+ [
+  "ai:p04:household",
+  28,
+  "Please investigate whether these were early or duplicate charges and arrange correction or refund if taken in error."
+ ],
+ [
+  "ai:p04:household",
+  28,
+  "Please confirm the outcome to Dave."
+ ],
+ [
+  "ai:p04:shop",
+  28,
+  "Please confirm when the unpaid amounts are due and whether they\u2019re included, any outstanding stock amounts and payment dates, expected receipts, and the wages/d"
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please check the earlier week with the bank and Alan, and agree a payment date with Alan."
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please check funding and all outgoing payments through payday with the bank urgently."
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please ask the bank and lender to confirm exactly one payment will be taken Thursday; also verify that exactly one rent-share payment is scheduled and reaches D"
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please ask its billing team for a written answer before Wednesday and ensure it reviews the 16, 18 and 25 March debits; ask the bank to trace them too."
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please query these and any refund."
+ ],
+ [
+  "ai:p05:household",
+  28,
+  "Please check the timing of bills and payday."
+ ],
+ [
+  "ai:p01:household",
+  29,
+  "Please check the rent entries: the account shows two $235 payments on 23 March and two on 30 March, including entries described as rent from 30 March."
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please urgently confirm whether standing payment a473 or plan a137 paid Dave $120 on 25 March, and whether exactly one $120 payment is scheduled or pending for "
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please also explain the $0 balance and -$1,310.11 projection, including whether the projection includes Dave, the $17.45 rent remainder and other commitments."
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please update us on the three $57 energy debits and two $43 loan debits."
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please hold further fees pending the investigation and do not collect before 17 April as Keith was told."
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please urgently investigate the two $15 debits on 23 March and the further $15 debit on 30 March, explain whether any are duplicates and what dates each covers,"
+ ],
+ [
+  "ai:p03:household",
+  29,
+  "Please keep recreation and eating out under $120 this week and tell me if spending approaches the cap."
+ ],
+ [
+  "ai:p04:household",
+  29,
+  "Please check funds urgently for Wednesday and Thursday; I won't count Keith's $120 while it is on hold."
+ ],
+ [
+  "ai:p04:household",
+  29,
+  "Please check with Alan and the bank whether these refer to the same rent and whether anything remains due."
+ ],
+ [
+  "ai:p04:household",
+  29,
+  "Please tell me about purchases outside the identified entries."
+ ],
+ [
+  "ai:p04:household",
+  29,
+  "Please connect it read-only or send the current statement."
+ ],
+ [
+  "ai:p04:shop",
+  29,
+  "Please check the $2,440.97 in unpaid wages or costs: if all of it is additional to the projection and falls due this week, the account would be $2,120.97 overdr"
+ ],
+ [
+  "ai:p04:shop",
+  29,
+  "Please send the arrears due dates and whether they\u2019re included, any outstanding stock amounts and payment dates, expected receipts, and the wages/draw split."
+ ],
+ [
+  "ai:p05:household",
+  29,
+  "Please check funding, all payments before payday and wage timing with the bank urgently."
+ ],
+ [
+  "ai:p05:household",
+  29,
+  "Please confirm with the bank that one of each will be paid and that funds are available; I haven\u2019t sent extras."
+ ],
+ [
+  "ai:p05:household",
+  29,
+  "Please reconcile these with Alan and the bank before paying more."
+ ],
+ [
+  "ai:p01:household",
+  30,
+  "Please check whether the $403.88 forecast includes those payments before subtracting them again."
+ ],
+ [
+  "ai:p03:household",
+  30,
+  "Please urgently confirm whether Wednesday's $120 standing order a473 to Dave was paid, pending, failed or missed, and whether the reported failed a137 payment i"
+ ],
+ [
+  "ai:p03:household",
+  30,
+  "Do not create, retry or change any payment."
+ ],
+ [
+  "ai:p03:household",
+  30,
+  "Please also update us on the three $57 energy debits on 25 March and two $43 loan debits on 26 March."
+ ],
+ [
+  "ai:p03:household",
+  30,
+  "Please confirm the hold and investigate the three $15 charges on 23 and 30 March, including whether any were duplicates, the dates each covered, and the stated "
+ ],
+ [
+  "ai:p03:household",
+  30,
+  "Please correct any improper charges and report the outcome."
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please check the actual balance and arrange funds or contact Northgrid and the lender; I cannot make payments from the read-only account."
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please confirm with Alan whether these concern the same week and what, if anything, remains due."
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please give me the food and eating-out amounts in that entry, plus any other purchases."
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please provide the shop bank statement, arrears ledger showing periods, due dates and payments, and the Brook order price, payment due date and any other commit"
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please provide itemised household and shop fee ledgers: each weekly charge, period covered, due date, outstanding balance and payments or credits already made."
+ ],
+ [
+  "ai:p04:household",
+  30,
+  "Please investigate and correct or refund any errors, and confirm the outcome."
+ ],
+ [
+  "ai:p04:shop",
+  30,
+  "Please check this today and tell me the outstanding stock orders and payment dates, expected receipts and their dates, the wages/draw split, and whether the unp"
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please arrange funding and check with the bank and lender urgently; also tell Dave if his share will be late."
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please confirm exactly one of each is active; I haven\u2019t sent additional payments."
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please ask Northgrid to confirm receipt, the current balance and whether the $25 fee was valid."
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please provide those and request a written investigation, including all three 25 March debits."
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please reconcile the current balance with Alan and the bank before paying more."
+ ],
+ [
+  "ai:p05:household",
+  30,
+  "Please also query the three $15 Calder fees taken before the stated 14 April start and the separate $12 instruction."
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Please confirm whether a473 is active, whether it is the same as a137, whether the 1 April payment failed and why, and whether any payment is pending."
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Do not make a manual payment or change the standing order."
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Please also confirm the status of the $43 loan due 2 April and $15 late charge: the account shows a $58 debit, but the loan was reported overdue."
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Please clarify the rent balance after the $157.55 payment, what the -$1,033.11 projection includes, and the outstanding investigations into the three $57 energy"
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Please continue to hold all Calder fees before 17 April and while the investigation remains unresolved."
+ ],
+ [
+  "ai:p03:household",
+  31,
+  "Please provide an update on the three $15 charges, their coverage dates, possible duplication and the 14/17 April start-date discrepancy, and correct any improp"
+ ],
+ [
+  "ai:p04:household",
+  31,
+  "Please send the amounts in those categories and any other purchases, including cash purchases."
+ ],
+ [
+  "ai:p04:household",
+  31,
+  "Please send an itemised arrears and fee ledger, current bank statement and the calculation behind the $1,850 projection, including whether it already reflects t"
+ ],
+ [
+  "ai:p04:household",
+  31,
+  "Please also clarify whether today\u2019s $140 draw is part of that $380."
+ ],
+ [
+  "ai:p04:shop",
+  31,
+  "Please arrange funding or discuss payment timing urgently; I can\u2019t confirm when the account will go overdrawn or whether stock orders are covered when due."
+ ],
+ [
+  "ai:p04:shop",
+  31,
+  "Please confirm whether that draw is included in the Friday figure."
+ ],
+ [
+  "ai:p04:shop",
+  31,
+  "Please confirm their dates and inclusion, expected receipts, outstanding stock amounts and payment dates, and the wages/draw split."
+ ],
+ [
+  "ai:p05:household",
+  31,
+  "Please tell Dave his share has not been confirmed paid."
+ ],
+ [
+  "ai:p05:household",
+  31,
+  "Please ask Sian to verify those instructions and whether the $58 loan line posted or is only due."
+ ],
+ [
+  "ai:p05:household",
+  31,
+  "Please check all outgoings and wage timing with Sian."
+ ],
+ [
+  "ai:p05:household",
+  31,
+  "Please also ask the bank and Calder Systems to investigate the three $15 fees taken before the stated 14 April start, any refund, and the separate $12 instructi"
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Please also explain the $82 overdue energy debit on 2 April."
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Please explain the $15 loan late fee included in the $58 debit on 2 April and refund it if incorrectly charged."
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Please also update us on the two $43 loan debits on 26 March."
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Do not change the standing order."
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Please confirm that no further Calder fees will be collected before 17 April or while the fee investigation remains unresolved."
+ ],
+ [
+  "ai:p03:household",
+  32,
+  "Please update us on the two $15 charges on 23 March and the $15 charge on 30 March, including their coverage, any duplication, the stated 14 April start date ve"
+ ],
+ [
+  "ai:p04:household",
+  32,
+  "Please check whether these are the same rent and whether anything remains due."
+ ],
+ [
+  "ai:p04:household",
+  32,
+  "Please confirm whether that $140 is part of the same week\u2019s draw."
+ ],
+ [
+  "ai:p04:shop",
+  32,
+  "Please arrange funding or discuss payment timing urgently; the projected shortfall is $6,754 before any additional receipts or costs."
+ ],
+ [
+  "ai:p04:shop",
+  32,
+  "Please confirm expected receipts and dates, outstanding stock order amounts and payment dates, whether the wages and draw have been fully paid, and whether the "
+ ],
+ [
+  "ai:p05:household",
+  32,
+  "Please ask Sian for a dated cash-flow breakdown, including any pending or duplicate payments."
+ ],
+ [
+  "ai:p05:household",
+  32,
+  "Please update Dave; the late fee\u2019s handling is not yet confirmed."
+ ],
+ [
+  "ai:p05:household",
+  32,
+  "Please add bank references if Sian can provide them."
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please investigate the three $57 debits on 25 March and the $82 debit on 2 April."
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please explain the debits, confirm whether any $57 payments were duplicates, and arrange a refund of any overpayment if confirmed."
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please update our outstanding request to confirm whether Wednesday standing order a473 is the $120 payment to Dave Royle under plan a137, its status on 1 April,"
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please also clarify the account's current projection of -$365.19 after this week's commitments: list the amounts and due dates included, and reconcile the $175 "
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please make no payment or standing-order change."
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please urgently confirm that no household Calder fees will be collected before 17 April or while the disputed charges are being checked, including on Monday 6 A"
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please update us on the two $15 charges on 23 March and the further $15 charge on 30 March, including whether improper charges will be refunded."
+ ],
+ [
+  "ai:p03:household",
+  33,
+  "Please review the projected shortfall urgently."
+ ],
+ [
+  "ai:p04:household",
+  33,
+  "Please itemise the food and eating-out portions of the $518 entries on 28 March and 4 April, plus any purchases not on the account."
+ ],
+ [
+  "ai:p04:household",
+  33,
+  "Please check the remaining commitments and arrange enough funds to avoid the projected overdraft."
+ ],
+ [
+  "ai:p04:household",
+  33,
+  "Please send the arrears and fee ledger, current balance, projection calculation and both Brook invoices, including amounts payable on delivery."
+ ],
+ [
+  "ai:p04:shop",
+  33,
+  "Please arrange or confirm at least $624 of additional cover, or discuss payment timing, before commitments fall due."
+ ],
+ [
+  "ai:p04:shop",
+  33,
+  "Please confirm what is included and when it is due."
+ ],
+ [
+  "ai:p04:shop",
+  33,
+  "Please send the expected receipts and dates, outstanding stock amounts and payment dates, the wages/draw split and status, and whether today\u2019s rent and the unpa"
+ ],
+ [
+  "ai:p05:household",
+  33,
+  "Please obtain Sian\u2019s dated cash-flow breakdown urgently, including pending and duplicate payments."
+ ],
+ [
+  "ai:p05:household",
+  33,
+  "Please also ensure billing reviews the 25 March debits, the $25 fee and the conflicting $82 receipt messages, supplying bank references when available."
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please provide your written account statement and position on the rent entries dated 23 and 30 March, including transaction references, amounts, dates, and whet"
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please also confirm in writing the rent amount due Monday 6 April and explain any credit or arrears."
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please provide your written account statement and position, with available transaction references, for the two $57 energy entries dated 1 April and the $20.50 p"
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please clarify whether the $57 entries are separate payments or a duplicate and confirm the payment-plan balance."
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please provide a fuller statement for 23 March through 3 April, including available transaction references, posting dates and statuses, particularly for rent on"
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please clarify whether matching entries are separate transactions or duplicate displays if your records allow."
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Please use a secure channel and tell us if account-holder authorization is needed."
+ ],
+ [
+  "ai:p01:household",
+  34,
+  "Do not make payments or change the account."
+ ],
+ [
+  "ai:p03:household",
+  34,
+  "Please update us on the requested confirmation of Wednesday standing order a473, including whether it went through and why any payment failed."
+ ],
+ [
+  "ai:p03:household",
+  34,
+  "Please also update us on the rent reconciliation and explain the $175 still shown as overdue and the current $333.26 projected balance after commitments."
+ ],
+ [
+  "ai:p03:household",
+  34,
+  "Please make no changes or payments."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please confirm whether the same $518 split applies to the 28 March entry too."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please check the next rent date: 7 April 2026 is Tuesday; Monday is 6 April."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please send the creditors, amounts, periods and due dates, payments already made, and explain the $810 difference from the earlier $2,440.97 figure."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please also confirm whether the $1,530 contribution and $4,320 Dales debit are reflected in the projection."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please send the revised quantities and prices for both Brook orders, their delivery/payment dates, and current available shop cash so coverage can be checked be"
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please follow up on my request for the household and Corner Stores fee ledgers and confirmed start dates."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please investigate and correct or refund any errors."
+ ],
+ [
+  "ai:p04:household",
+  34,
+  "Please also confirm the start date for the shop\u2019s $40 weekly fee."
+ ],
+ [
+  "ai:p04:shop",
+  34,
+  "Please send expected receipts, outstanding stock amounts and dates, the wages/draw split, and whether the unpaid amounts are included in the forecast and when t"
+ ],
+ [
+  "ai:p05:household",
+  34,
+  "Please ask Sian for a dated cash-flow and pending-payment breakdown, including the disputed $12 and $15 instructions and any duplicate debits."
+ ],
+ [
+  "ai:p05:household",
+  34,
+  "Please reconcile the date and the bank\u2019s overdue listing with them; don\u2019t pay an extra $175."
+ ],
+ [
+  "ai:p05:household",
+  34,
+  "Please get Sian\u2019s confirmation of which loan and rent-share instructions are live and whether the 2 April $58 loan debit and your $58.33 share settled or are pe"
+ ],
+ [
+  "ai:p05:household",
+  34,
+  "Please send the prepared written chaser to Northgrid\u2019s billing and complaints team, quoting your account details and the 16, 18 and 25 March debit dates, and re"
+ ],
+ [
+  "ai:p05:household",
+  34,
+  "Please also send the prepared Calder Systems chaser about the three early $15 fees and separate $12 instruction."
+ ],
+ [
+  "ai:p09:shop",
+  34,
+  "Please share the relevant household transactions and rent messages, including dates, amounts and references; I can then compare them read-only."
+ ],
+ [
+  "ai:p01:household",
+  35,
+  "Please forward any replies, or connect messages and letters, if you want me to show them."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please urgently explain the $143.26 balance and -$1,185.18 projected balance, including a full breakdown of commitments."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please also confirm the status and direction of standing order a473, why the Wednesday payment bounced, and how it relates to a1181, recorded as Dave-to-Keith."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please provide information only; do not make any payments or changes on my request."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please urgently report on the requested fee hold and investigation: another $15 fee appears to have been debited on 6 April despite Keith's instruction against "
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please explain all charges and the status of any correction."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Do not make account changes on this message's authority."
+ ],
+ [
+  "ai:p03:household",
+  35,
+  "Please tell me if you want any intervention, particularly before Wednesday."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please confirm whether your $122 figure is a budget or money already spent, and whether there were other purchases."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please treat the projected overdraft as urgent."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please check his notice and payment records before paying again."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please send the creditor-by-creditor amounts, periods, due dates and payments made, plus the projection showing whether the $1,530 contribution and $4,320 Dales"
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please confirm each order\u2019s current status, any revised quantities, unit prices, invoice amounts and payment due dates, and whether anything is currently payabl"
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please follow up on the requested itemised household and shop fee ledgers, including periods, payments and agreed start dates."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please investigate and explain or correct any erroneous charges."
+ ],
+ [
+  "ai:p04:household",
+  35,
+  "Please also confirm the $40 weekly shop fee start and any unpaid shop fees by period and due date."
+ ],
+ [
+  "ai:p04:shop",
+  35,
+  "Please confirm the amounts and payment dates for outstanding stock orders, expected receipts, the wages/draw split, and when the unpaid costs are due and whethe"
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please ask Sian urgently for a dated cash-flow and pending-payment breakdown through Friday 10 April, including any duplicates and the disputed fees."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please ask Sian to confirm the funding and status of each instruction now; do not assume automatic payments are stopped."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please also confirm whether the 2 April $58 loan debit and your previous share actually settled, and whether the 9 April payments are already pending, so neithe"
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please ask Alan and Sian to reconcile the rent weeks, both debits and their settlement, and obtain Alan\u2019s written statement."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Do not send another $175 until the position is agreed."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please supply references and account details through a verified Northgrid channel and ask for a written response."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Don\u2019t send extra energy money."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please send or update the prepared Calder Systems chaser: the bank also shows a $15 fee today, before the stated 14 April start."
+ ],
+ [
+  "ai:p05:household",
+  35,
+  "Please check the timing of bills and payday."
+ ],
+ [
+  "ai:p01:household",
+  36,
+  "Please forward both items or connect messages so I can show you what they say."
+ ],
+ [
+  "ai:p03:household",
+  36,
+  "Please confirm whether standing order a473 is active, its payer, payee, amount and Wednesday schedule, and why the previous payment failed."
+ ],
+ [
+  "ai:p03:household",
+  36,
+  "Please check the two $175 rent debits dated 6 April and confirm whether both settled and whether either is a duplicate."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please clarify the food accounting: your earlier categories already add to the full $518 without $30 food."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please clarify what the $624 measures and whether the arrears, remaining $160 draw and Saturday Dales order are included in the forecast."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please provide each creditor, amount, period, due date and payments made so we can identify urgent cover."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please check the shop account by name and confirm the status of the 300- and 500-unit orders due 6 April: quantities delivered or outstanding, revised quantitie"
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please confirm the status, quantity, unit price, invoice total and payment due date for the reported 500-unit order for Saturday delivery."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please let me know if you need an account reference."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please confirm the $15 weekly household fee start of 14 April 2026, including the Tuesday start versus the Monday schedule, and the $40 weekly shop fee start."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please provide itemised household and shop fee ledgers showing periods, charges, payments and credits."
+ ],
+ [
+  "ai:p04:household",
+  36,
+  "Please investigate all early charges and confirm any correction or refund."
+ ],
+ [
+  "ai:p04:shop",
+  36,
+  "Please arrange cover or discuss payment timing urgently."
+ ],
+ [
+  "ai:p04:shop",
+  36,
+  "Please send the outstanding stock amounts and due dates, expected receipts and dates, the wages/draw split, and when the unpaid $1,630.97 is due and whether it "
+ ],
+ [
+  "ai:p05:household",
+  36,
+  "Please urgently ask Sian for a dated cash-flow and pending-payment breakdown, and arrange funding if needed."
+ ],
+ [
+  "ai:p05:household",
+  36,
+  "Please check whether last Thursday\u2019s loan debit and rent share settled, and whether this Thursday\u2019s payments are pending."
+ ],
+ [
+  "ai:p05:household",
+  36,
+  "Please also ask Sian and Alan to reconcile the two $175 rent debits on 6 April and Alan\u2019s conflicting overdue notice; don\u2019t send extra rent until agreed."
+ ],
+ [
+  "ai:p05:household",
+  36,
+  "Please send the updated draft in \u2018Unsent chasers for Northgrid and Calder Systems\u2019 directly to Northgrid billing and complaints, with dates and bank references,"
+ ],
+ [
+  "ai:p05:household",
+  36,
+  "Please also send the updated Calder Systems chaser about the early $15 fees and separate $12 instruction."
+ ],
+ [
+  "ai:p01:household",
+  37,
+  "Please paste or forward both items to me, or connect messages, so I can summarise them and give you their exact wording."
+ ],
+ [
+  "ai:p03:household",
+  37,
+  "Please urgently confirm whether standing order a473 is active, its direction and Wednesday amount, and whether it ran today or failed."
+ ],
+ [
+  "ai:p03:household",
+  37,
+  "Please also investigate the two $175 rent debits on 6 April and two $57 energy debits today, and explain the projected -$1,107.18 balance and remaining commitme"
+ ],
+ [
+  "ai:p03:household",
+  37,
+  "Please confirm the hold on future collections and investigate the 6 April debit and the earlier fees already reported."
+ ],
+ [
+  "ai:p03:household",
+  37,
+  "Please report your findings; do not make an account change on this request."
+ ],
+ [
+  "ai:p04:household",
+  37,
+  "Please also tell me about any further spending."
+ ],
+ [
+  "ai:p04:household",
+  37,
+  "Please ask the bank to confirm what happened and whether the earlier bounced payment cleared."
+ ],
+ [
+  "ai:p04:household",
+  37,
+  "Please send me those details so I can obtain the order and payment information; neither supplier has confirmed it yet."
+ ],
+ [
+  "ai:p04:shop",
+  37,
+  "Please arrange cover or discuss payment timing with the relevant parties now; I cannot make payments or transfers."
+ ],
+ [
+  "ai:p04:shop",
+  37,
+  "Please give me the household bank\u2019s name and a way to check the two $175 entries with it, or ask the bank to confirm whether one is a duplicate before any furth"
+ ],
+ [
+  "ai:p04:shop",
+  37,
+  "Please also confirm expected shop receipts and their dates, the other stock amounts and payment dates, and when the $1,630.97 falls due and whether it is in the"
+ ],
+ [
+  "ai:p05:household",
+  37,
+  "Please urgently ask Sian for a dated cash-flow and pending-payment breakdown through payday, and arrange funding if needed."
+ ],
+ [
+  "ai:p05:household",
+  37,
+  "Please ask her to confirm whether either is already pending or settled, and the status of the previous payments, to prevent duplicates."
+ ],
+ [
+  "ai:p05:household",
+  37,
+  "Please ask Sian to verify whether both settled and raise any duplicate with Northgrid\u2019s billing and complaints team."
+ ],
+ [
+  "ai:p05:household",
+  37,
+  "Please also send the prepared Calder Systems chaser about the early fees and separate $12 instruction."
+ ],
+ [
+  "ai:p05:household",
+  37,
+  "Please ask Sian and Alan to reconcile the two $175 rent debits listed on 6 April and Alan\u2019s conflicting overdue notice before any extra rent is paid."
+ ],
+ [
+  "ai:p03:household",
+  38,
+  "Please provide an information-only update on a473\u2019s active status, direction and 8 April outcome; the failed-payment notices and a1181\u2019s direction; and the two "
+ ],
+ [
+  "ai:p03:household",
+  38,
+  "Please also check whether the two $43 loan debits on 9 April are duplicates, reconcile the 9 April entries with the $63.26 balance, and explain the commitments "
+ ],
+ [
+  "ai:p03:household",
+  38,
+  "Do not change either standing order or make any payment."
+ ],
+ [
+  "ai:p04:household",
+  38,
+  "Please check with the bank whether the two $175 rent debits on 6 April, two $57 energy debits on 8 April, two $43 loan debits and two $58.33 rent-share credits "
+ ],
+ [
+  "ai:p04:household",
+  38,
+  "Don\u2019t pay again solely on these displays."
+ ],
+ [
+  "ai:p04:household",
+  38,
+  "Please send any bank or billing replies and the supplier account details requested earlier."
+ ],
+ [
+  "ai:p04:shop",
+  38,
+  "Please arrange cover or discuss stock-payment timing now; don\u2019t rely on unconfirmed receipts."
+ ],
+ [
+  "ai:p04:shop",
+  38,
+  "Please send the Dales invoice and payment date when confirmed, expected receipt amounts and dates, and the arrears breakdown, due dates and forecast inclusion w"
+ ],
+ [
+  "ai:p05:household",
+  38,
+  "Please ask Sian urgently for a dated cash-flow and pending-payment breakdown through Friday, and arrange funding if needed."
+ ],
+ [
+  "ai:p05:household",
+  38,
+  "Please ask Sian to confirm both payments and prevent any automatic duplicates."
+ ],
+ [
+  "ai:p05:household",
+  38,
+  "Don\u2019t pay 30 March again."
+ ],
+ [
+  "ai:p05:household",
+  38,
+  "Please send the updated draft to its billing and complaints team, requesting a written response and reference."
+ ],
+ [
+  "ai:p05:household",
+  38,
+  "Please also send the Calder Systems fee chaser."
+ ],
+ [
+  "ai:p09:shop",
+  38,
+  "Please send the ledger entries and dates, and the current shop balance and dated commitments, if you want me to compare them."
+ ],
+ [
+  "ai:p01:household",
+  39,
+  "Please confirm in writing the rent account balance, any arrears and amounts and dates due, including the next Monday rent."
+ ],
+ [
+  "ai:p01:household",
+  39,
+  "Please provide transaction references and explain the $235 rent entries shown on 30 March and 6 April, including those described as rent from 30 March, and conf"
+ ],
+ [
+  "ai:p01:household",
+  39,
+  "Please also confirm the 23 March rent status."
+ ],
+ [
+  "ai:p03:household",
+  39,
+  "Please update the information-only investigation into the two $175 rent debits on 6 April, two $43 loan debits on 9 April and two $57 energy debits on 8 April."
+ ],
+ [
+  "ai:p03:household",
+  39,
+  "Please also confirm a473's active status, direction and 8 April outcome; explain a1181's recorded direction and the previously reported bounced attempts; and pr"
+ ],
+ [
+  "ai:p03:household",
+  39,
+  "Please do not make any payment or change either order."
+ ],
+ [
+  "ai:p04:household",
+  39,
+  "Please send me any purchases as they happen."
+ ],
+ [
+  "ai:p04:household",
+  39,
+  "Please check with the bank whether the duplicate-looking rent, energy, loan and Owen-share entries were all real."
+ ],
+ [
+  "ai:p04:household",
+  39,
+  "Please send the supplier account details requested, and any itemised arrears or billing replies, including the shop fee start date."
+ ],
+ [
+  "ai:p04:shop",
+  39,
+  "Please arrange cover or discuss payment timing urgently; we don\u2019t have a reliable incoming-receipts figure."
+ ],
+ [
+  "ai:p04:shop",
+  39,
+  "Please confirm the invoice, payment date, expected receipts and forecast inclusion, and discuss timing with Dales if necessary."
+ ],
+ [
+  "ai:p05:household",
+  39,
+  "Please ask her to confirm settlement and prevent further duplicates."
+ ],
+ [
+  "ai:p05:household",
+  39,
+  "Please ask Sian for a dated breakdown through the next wages, including any automatic payments and corrections."
+ ],
+ [
+  "ai:p05:household",
+  39,
+  "Don\u2019t pay either rent week again without checking."
+ ],
+ [
+  "ai:p05:household",
+  39,
+  "Please send the prepared written chasers to Northgrid billing and complaints and Calder Systems; my message access is read-only."
+ ],
+ [
+  "ai:p05:household",
+  39,
+  "Please ask Sian or the bank to enable immediate failed-payment and low-balance notifications; I\u2019ll check again at my next reminder."
+ ],
+ [
+  "ai:p09:shop",
+  39,
+  "Please review the listing, which reportedly still shows 30 March unpaid and a duplicate 6 April debit."
+ ],
+ [
+  "ai:p01:household",
+  40,
+  "Please forward any replies or connect messages."
+ ],
+ [
+  "ai:p03:household",
+  40,
+  "Please update us on the information-only checks: whether a473 is active and its direction; why a1181 is recorded Dave-to-Keith and which order is live; the repo"
+ ],
+ [
+  "ai:p03:household",
+  40,
+  "Please also explain the commitments behind today's $747.98 balance and projected -$8.80."
+ ],
+ [
+  "ai:p03:household",
+  40,
+  "Do not make any payment or change either order."
+ ],
+ [
+  "ai:p04:household",
+  40,
+  "Please confirm whether any food is also included in today\u2019s $518 entry so I don\u2019t double-count it."
+ ],
+ [
+  "ai:p04:household",
+  40,
+  "Please check the outstanding commitments and available funds."
+ ],
+ [
+  "ai:p04:household",
+  40,
+  "Please also let me know about the Dales delivery and payment, supplier account details, and any arrears or billing replies."
+ ],
+ [
+  "ai:p04:shop",
+  40,
+  "Please confirm the invoice and payment date, and whether it is included in the $1,953.23 forecast."
+ ],
+ [
+  "ai:p04:shop",
+  40,
+  "Please check cover or discuss payment timing with Dales before delivery."
+ ],
+ [
+  "ai:p04:shop",
+  40,
+  "Please confirm expected receipts, what the forecast includes, and whether any Friday wages or Saturday costs are counted again."
+ ],
+ [
+  "ai:p05:household",
+  40,
+  "Please ask Sian or the bank for a dated breakdown through Friday 17 April and arrange funding if needed."
+ ],
+ [
+  "ai:p05:household",
+  40,
+  "Please ask Sian to verify settlement and the intended recipient before anything further is paid."
+ ],
+ [
+  "ai:p05:household",
+  40,
+  "Please contact its billing and complaints team directly with your account details and their letter, and ask for a written complaint reference, the March duplica"
+ ],
+ [
+  "ai:p05:household",
+  40,
+  "Don\u2019t send extra energy money."
+ ],
+ [
+  "ai:p05:household",
+  40,
+  "Please also follow up with Calder Systems about the early fees and separate $12 instruction."
+ ],
+ [
+  "ai:p09:shop",
+  40,
+  "Please check the entries and correct the listing if appropriate."
+ ],
+ [
+  "ai:p01:household",
+  41,
+  "Please do not treat the change as confirmation that all bills are settled."
+ ],
+ [
+  "ai:p01:household",
+  41,
+  "Please forward any you receive."
+ ],
+ [
+  "ai:p03:household",
+  41,
+  "Please update us on whether a473 is active as Keith-to-Dave $120 each Wednesday, why a1181 is recorded Dave-to-Keith, and whether either order is scheduled to r"
+ ],
+ [
+  "ai:p03:household",
+  41,
+  "Please also update us on the bounced attempts and the possible duplicate $175 rent, $57 energy and $43 loan debits."
+ ],
+ [
+  "ai:p03:household",
+  41,
+  "Please tell me if you want any intervention before then."
+ ],
+ [
+  "ai:p04:household",
+  41,
+  "Please confirm its split and any other spending."
+ ],
+ [
+  "ai:p04:household",
+  41,
+  "Please check the duplicate-looking rent, energy, loan and Owen-share entries with the bank; don\u2019t make extra payments on that basis."
+ ],
+ [
+  "ai:p04:shop",
+  41,
+  "Please check urgently and arrange cover or discuss payment timing if needed."
+ ],
+ [
+  "ai:p04:shop",
+  41,
+  "Please confirm the Dales invoice and forecast inclusion, expected receipts, the wage/arrears figures, and the reason for the $250 forecast change."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please ask for it urgently before Monday\u2019s payments, and request the failed-payment and balance history."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please ask the bank for immediate low-balance and failed-payment alerts; my existing low-balance alert repeats only weekly."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please arrange funding if Sian\u2019s breakdown shows a shortfall before wages."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please have her check settlement, duplicates and the intended recipient before anything further is paid."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please contact its billing complaints team directly, include your account details, the $57 debits on 16, 18 and 25 March and your 27 March report, and ask for a"
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Don\u2019t send extra energy money."
+ ],
+ [
+  "ai:p05:household",
+  41,
+  "Please also follow up with Calder Systems about the early $15 fees and separate $12 instruction; my message access is read-only."
+ ],
+ [
+  "ai:p09:shop",
+  41,
+  "Please review these items and correct the listing if appropriate."
+ ],
+ [
+  "ai:p01:household",
+  42,
+  "Please forward any you receive or connect messages."
+ ],
+ [
+  "ai:p03:household",
+  42,
+  "Please tell me if you want any intervention."
+ ],
+ [
+  "ai:p03:household",
+  42,
+  "Please provide information only: confirm whether a473 is active and scheduled for 15 April, explain the direction and status of a1181, and report any failed or "
+ ],
+ [
+  "ai:p03:household",
+  42,
+  "Please investigate the two $175 rent debits on each of 6 and 13 April, the two $57 energy debits on 8 April, and the two $43 loan debits on 9 April."
+ ],
+ [
+  "ai:p03:household",
+  42,
+  "Please also explain the current $72.01 balance and -$1,256.43 projected balance, including all pending commitments, and confirm the scheduling of the existing $"
+ ],
+ [
+  "ai:p03:household",
+  42,
+  "Do not make any payment or change any order on this request."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please verify the actual posted transactions, rather than apparent duplicate descriptions: the two $175 rent debits on 6 April and two on 13 April; the two $57 "
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please also confirm the current Owen-share and Keith $120 standing instructions and whether Keith's bounced payment has cleared."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please explain the commitments behind the projected \u2212$1,256.43 balance."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please confirm the start date and provide an itemised household fee ledger, including the apparent $15 debits on 6 and 13 April and earlier charges, and any cor"
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please also confirm the shop fee start date and provide its ledger."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please check whether a 500-unit order at $3,625 is on the shop's account, its status and any payment due."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please let us know what account reference or authority you need."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please confirm its status, total, delivery and payment due, and whether the earlier 300- and 500-unit orders remain open."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please let us know what account details you need."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please confirm Saturday's actual split."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please send their account references if needed, and a shop ledger or order listing so we can check Dales is not on the books."
+ ],
+ [
+  "ai:p04:household",
+  42,
+  "Please send the $1,630.97 arrears ledger by creditor, amount, period, due date and payments already made."
+ ],
+ [
+  "ai:p04:shop",
+  42,
+  "Please arrange cover or discuss payment timing promptly; allow a buffer as well."
+ ],
+ [
+  "ai:p04:shop",
+  42,
+  "Please confirm whether the forecast has removed that paid debit, and the amounts and payment dates of any remaining stock orders."
+ ],
+ [
+  "ai:p04:shop",
+  42,
+  "Please also confirm expected receipts and whether this week\u2019s wages and draw are unchanged."
+ ],
+ [
+  "ai:p05:household",
+  42,
+  "Please contact Sian or the bank urgently for a dated breakdown through Friday 17 April and arrange funding."
+ ],
+ [
+  "ai:p05:household",
+  42,
+  "Please ask Sian and Alan urgently to confirm what actually settled and whether anything was duplicated or needs returning."
+ ],
+ [
+  "ai:p05:household",
+  42,
+  "Please obtain them, including the refund method and date, from Northgrid billing and complaints; ask about the duplicate March and 8 April debits too."
+ ],
+ [
+  "ai:p05:household",
+  42,
+  "Please also chase Calder Systems about the early $15 fees and separate $12 instruction."
+ ],
+ [
+  "ai:p09:shop",
+  42,
+  "Please let Alan know if the listing needs correction."
+ ],
+ [
+  "ai:p05:household",
+  42,
+  "Please check the timing of bills and payday."
+ ],
+ [
+  "ai:p01:household",
+  43,
+  "Please forward any replies."
+ ],
+ [
+  "ai:p03:household",
+  43,
+  "Please urgently confirm whether you can hold only the $43 loan debit due 16 April and any second $15 Calder fee due 15 April, without cancelling the recurring a"
+ ],
+ [
+  "ai:p03:household",
+  43,
+  "Please confirm the status of any holds, which $120 Wednesday order is live and its direction, and whether Wednesday\u2019s payments can clear."
+ ],
+ [
+  "ai:p03:household",
+  43,
+  "Do not change the Dave order."
+ ],
+ [
+  "ai:p03:household",
+  43,
+  "Please also explain the projected balance and investigate the apparent duplicate debits previously reported."
+ ],
+ [
+  "ai:p04:household",
+  43,
+  "Please confirm its actual split."
+ ],
+ [
+  "ai:p04:household",
+  43,
+  "Please check directly with Brook urgently whether it was received and will be delivered and payable, so no unexpected stock bill arises."
+ ],
+ [
+  "ai:p04:household",
+  43,
+  "Please provide the shop ledger, due dates and payment allocations, and confirm whether the $1,530 contribution and $4,320 Dales debit were included in the proje"
+ ],
+ [
+  "ai:p04:shop",
+  43,
+  "Please confirm expected receipts and their dates, the remaining stock amounts and payment dates, and whether the forecast excludes the paid Dales debit."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Please arrange funding and ask the bank for a dated breakdown and immediate failed-payment and low-balance alerts."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Please confirm it with Keith and the bank."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Please check that both Thursday payments settle and reconcile Sian\u2019s account of the $58 loan debit with the two $43 entries listed on 9 April."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Please ask Sian and Alan to reconcile the two $175 entries and $310.97 Daly debit on 13 April."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Please obtain the reference, refund method and date."
+ ],
+ [
+  "ai:p05:household",
+  43,
+  "Don\u2019t send an extra energy payment."
+ ],
+ [
+  "ai:p09:shop",
+  43,
+  "Please send the current rent listing and relevant account entries if you\u2019d like me to compare them."
+ ],
+ [
+  "ai:p01:household",
+  44,
+  "Please forward any replies."
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Please confirm in writing whether a473 or a1181 is the live Wednesday $120 order to Dave, the recorded direction of each, and whether any payment to Dave succee"
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Do not make a payment or change either Dave order on this request."
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Please also confirm whether the requested one-off holds on the $43 loan debit due 16 April and any second $15 Calder fee on 15 April are in place."
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Please confirm the current balance and the breakdown of the projected balance after commitments."
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Please confirm whether the requested one-off hold on any second $15 Calder fee on 15 April is in place."
+ ],
+ [
+  "ai:p03:household",
+  44,
+  "Please do not take another fee today."
+ ],
+ [
+  "ai:p04:household",
+  44,
+  "Please confirm what else is in that forecast, whether the $250 is a payment or a forecast change, and whether the $100 transfer and Brook payment are included."
+ ],
+ [
+  "ai:p04:household",
+  44,
+  "Please let me know Brook\u2019s response and whether the order has been placed or delivered."
+ ],
+ [
+  "ai:p04:shop",
+  44,
+  "Please arrange sufficient cover or discuss payment timing promptly; the dates of the stock payments still need checking."
+ ],
+ [
+  "ai:p04:shop",
+  44,
+  "Please also confirm expected receipts and their dates, the amounts and payment dates of remaining stock orders, and whether the forecast excludes the Dales debi"
+ ],
+ [
+  "ai:p05:household",
+  44,
+  "Please ask the bank and Northgrid to confirm what settled and whether anything remains due; don\u2019t send an extra payment while that is unclear."
+ ],
+ [
+  "ai:p05:household",
+  44,
+  "Please urgently obtain a dated forecast through payday, check failed-payment history, arrange funding if needed, and ask the bank for immediate low-balance and "
+ ],
+ [
+  "ai:p05:household",
+  44,
+  "Please check with Keith and the bank."
+ ],
+ [
+  "ai:p05:household",
+  44,
+  "Please also reconcile the Daly debits with Sian."
+ ],
+ [
+  "ai:p09:shop",
+  44,
+  "Please provide the dated listing and household account entries, including descriptions and allocations, if available, for a fuller comparison."
+ ],
+ [
+  "ai:p01:household",
+  45,
+  "Please contact Dunmore promptly about the overdue rent."
+ ],
+ [
+  "ai:p01:household",
+  45,
+  "Please forward any you receive."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please confirm in writing whether a473 or a1181 is the live $120 Wednesday standing order, including the payer, recipient, status and most recent outcome of eac"
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please also clarify the failed $120 attempts on 15 April and whether any Dave payment remains pending."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Do not make a payment or change either order while this is being checked."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please investigate the two $43 loan debits on both 9 and 16 April, including whether the requested one-off hold for 16 April was applied, and identify any faile"
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please also investigate the two $175 rent debits on each of 6 and 13 April and explain the projected balance after commitments of -$887.43."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please provide a written response."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please investigate the two $57 energy debits on 8 April and update us in writing on the requested refund of any duplicate charge, including its expected timing."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please investigate and respond in writing about the $15 fees debited on 6 and 13 April: the account description says the free week ran to 14 April."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Please review whether both charges should be refunded, and confirm the status of the requested one-off hold on any 15 April fee."
+ ],
+ [
+  "ai:p03:household",
+  45,
+  "Do not change the recurring arrangement without further instruction."
+ ],
+ [
+  "ai:p04:household",
+  45,
+  "Please let me know about any missing or duplicated food entries."
+ ],
+ [
+  "ai:p04:shop",
+  45,
+  "Please arrange cover or discuss payment timing today, before obligations fall due."
+ ],
+ [
+  "ai:p04:shop",
+  45,
+  "Please confirm the remaining stock amounts and due dates, expected receipts and when they arrive, whether the forecast includes the paid Dales bill, and whether"
+ ],
+ [
+  "ai:p05:household",
+  45,
+  "Please ask the bank urgently for a dated forecast, payment and failure status, and immediate alerts."
+ ],
+ [
+  "ai:p05:household",
+  45,
+  "Please ask the bank to prevent outgoing payments during your hold and reconcile those entries and the Dave instruction."
+ ],
+ [
+  "ai:p05:household",
+  45,
+  "Don\u2019t send an extra payment."
+ ],
+ [
+  "ai:p05:household",
+  45,
+  "Please check the balance and any pending payments."
+ ],
+ [
+  "ai:p01:household",
+  46,
+  "Please forward any replies you receive."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please confirm in writing whether that cancellation succeeded, and identify all live or pending $120 orders involving Dave, including a137, a473 and a1181, thei"
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please do not make any further order changes or payments on this request."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please investigate the two $43 loan debits on 9 April and the two on 16 April, including whether either pair was duplicated."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please also provide the breakdown of the current after-commitments projection and the status of our previous duplicate-rent queries."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please investigate the two $57 energy debits both dated 8 April and advise whether one was duplicated."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please tell me if you need further account details to identify the account securely."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please check whether a1181 exists and, if it is a live standing order, cancel that exact order only and confirm the result in writing."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Do not cancel or change a137 or any other order."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please also confirm the status of a473 and the requested loan hold and investigation."
+ ],
+ [
+  "ai:p03:household",
+  46,
+  "Please forward it to the appropriate team and confirm in writing, or provide that team's direct contact details so I can raise it there."
+ ],
+ [
+  "ai:p04:household",
+  46,
+  "Please continue holding off on repeat payments until the bank confirms them."
+ ],
+ [
+  "ai:p04:household",
+  46,
+  "Please verify which of the following household-account entries actually settled and whether any are duplicate postings: the two $175 rent entries on 13 April; t"
+ ],
+ [
+  "ai:p04:household",
+  46,
+  "Please also clarify the payee on the $310.97 entry on 13 April, the status of the $300 shop draw credit on 17 April, and the dates and status of the household C"
+ ],
+ [
+  "ai:p04:shop",
+  46,
+  "Please check whether the forecast still counts any of these payments: if so, the projected shortfall may be overstated."
+ ],
+ [
+  "ai:p04:shop",
+  46,
+  "Please confirm the remaining stock payment amounts and dates, expected incoming payments and dates, and whether today\u2019s wages and draw are still included in the"
+ ],
+ [
+  "ai:p05:household",
+  46,
+  "Please ask the bank whether it failed, remains pending or will be retried, and when it might leave."
+ ],
+ [
+  "ai:p05:household",
+  46,
+  "Please ask the bank urgently to prevent outgoings during the hold, confirm every live instruction and the status of the two listed $43 loan entries and Dave sha"
+ ],
+ [
+  "ai:p05:household",
+  46,
+  "Please ask its complaints team and your bank to stop further collection during the hold and confirm the 8 and 15 April transactions and the $82 refund."
+ ],
+ [
+  "ai:p05:household",
+  46,
+  "Do not send an extra payment."
+ ],
+ [
+  "ai:p09:shop",
+  46,
+  "Please provide the dated household-account and rent-listing entries if you want the comparison checked."
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please provide written confirmation of the rent account balance, allocation of the two $235 debits shown on 6 April (one labelled rent from 30 March), the $260 "
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please also confirm whether any further rent is due."
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please provide a written, reconciled account statement, including transaction dates and references around 30 March and 1 April, amounts currently due and overdu"
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please explain the plan balance and reconcile it with the customer desk\u2019s 5 April statement."
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please confirm the next payment dates and amounts."
+ ],
+ [
+  "ai:p01:household",
+  47,
+  "Please confirm in writing whether the $75 school trip debit shown on 6 April was received and allocated, and whether any school payment remains due."
+ ],
+ [
+  "ai:p03:household",
+  47,
+  "Please disregard my earlier request to cancel a1181 if it is live; do not cancel or change it or any other order."
+ ],
+ [
+  "ai:p03:household",
+  47,
+  "Please confirm in writing whether a473 is the only live $120 Wednesday order to Dave Royle and whether a1181 exists, and clarify the status of a137."
+ ],
+ [
+  "ai:p03:household",
+  47,
+  "Please also confirm the outcomes of Wednesday\u2019s Dave payment attempts, any other failed payments, and the dates and amounts of upcoming payments and the commitm"
+ ],
+ [
+  "ai:p03:household",
+  47,
+  "Please check the potentially duplicated rent debits of $175 on 13 April, the $310.97 Daly debit, the two $57 Northgrid debits on 8 April, and the loan debits on"
+ ],
+ [
+  "ai:p04:shop",
+  47,
+  "Please check the source of that increase, the remaining stock amounts and payment dates, expected receipts, and whether the forecast still includes Friday\u2019s pay"
+ ],
+ [
+  "ai:p05:household",
+  47,
+  "Please urgently ask the bank for a dated forecast through payday, payment and failure status, and immediate alerts."
+ ],
+ [
+  "ai:p05:household",
+  47,
+  "Please forward her the saved \u2018Draft request to Sian\u2019."
+ ],
+ [
+  "ai:p05:household",
+  47,
+  "Please ask the bank to reconcile the two listed $43 loan entries on 16 April and the Dave share."
+ ],
+ [
+  "ai:p05:household",
+  47,
+  "Please contact its complaints team directly."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please provide a written rent statement and reconcile the two $235 debits listed on 6 April, including the entry labelled rent from 30 March."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please confirm whether they were received and whether they relate to distinct periods or are duplicates; confirm the current rent balance, the $25 late fee repo"
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please formally submit this request through your account statement and billing review process and provide a written reconciled statement: transaction dates and "
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please confirm the next dates and amounts due separately for regular energy and the plan."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please tell us securely if further account details are needed to match the records."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please confirm in writing whether you received the $75 school trip payment listed on 6 April, what it covers, and whether any further school payment is due and "
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please let Gary know if further identifying details are needed."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please forward any confirmations you receive."
+ ],
+ [
+  "ai:p01:household",
+  48,
+  "Please contact the customer desk to request them formally, and quote the account details so they can be matched to the correct records."
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please confirm in writing whether a473 is the sole live $120 Wednesday standing order to Dave Royle, whether a1181 exists on the account, and how a137 relates t"
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please also investigate the reported failed Wednesday 15 April payments, including their amounts, reasons and current status, and the suspected duplicate $43 lo"
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please identify upcoming scheduled payments and explain the change in the after-commitments projection."
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please forward this to billing or provide its direct contact: Keith Royle says he has given signed household authority for me to discuss the possible duplicate "
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please tell me how to submit that authority securely if you need the signed document, investigate the two debits, and explain the findings and available remedie"
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Please also confirm the next scheduled payment; we understand there is nothing overdue."
+ ],
+ [
+  "ai:p03:household",
+  48,
+  "Do not initiate any payment or change the arrangement."
+ ],
+ [
+  "ai:p04:household",
+  48,
+  "Please confirm the actual split; holding recreation spending meanwhile is prudent."
+ ],
+ [
+  "ai:p04:household",
+  48,
+  "Please confirm whether the extra hours are included."
+ ],
+ [
+  "ai:p04:household",
+  48,
+  "Please provide that breakdown, including whether Craig\u2019s extra hours, both draws and the shop fee are included."
+ ],
+ [
+  "ai:p04:shop",
+  48,
+  "Please send me the outstanding stock amounts and payment dates, expected receipts and dates, and clarify which posted payments are still included in the forecas"
+ ],
+ [
+  "ai:p05:household",
+  48,
+  "Don\u2019t send extra rent while he reconciles it."
+ ],
+ [
+  "ai:p05:household",
+  48,
+  "Please double-check whether knitting is Wednesday 22 or Thursday 23 April at 8pm at the library."
+ ],
+ [
+  "ai:p09:shop",
+  48,
+  "Please provide them, and the relevant dated account and rent-listing entries if you want a fuller comparison."
+ ]
+]

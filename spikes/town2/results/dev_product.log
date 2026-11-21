@@ -1,0 +1,5 @@
+[dev_product] week 1 done; fresh $0.0277; calls 90 fresh / 15 cached
+[dev_product] week 2 done; fresh $0.0939; calls 267 fresh / 15 cached
+[dev_product] week 3 done; fresh $0.1656; calls 440 fresh / 15 cached
+[dev_product] week 4 done; fresh $0.2966; calls 621 fresh / 15 cached
+run stats: {'fresh_usd': 0.296591945638, 'cached_usd': 0.0040444850000000004, 'fresh_calls': 621, 'cached_calls': 15}

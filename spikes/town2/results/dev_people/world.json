@@ -1,0 +1,5849 @@
+{
+ "seed": 1,
+ "arm": "people",
+ "weeks": 1,
+ "t_end": 7,
+ "people": {
+  "p01": {
+   "id": "p01",
+   "name": "Gary Tully",
+   "sex": "m",
+   "age": 37,
+   "household": "h1",
+   "role": "unemployed",
+   "model": "hy4",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "care work"
+   ],
+   "ties": {
+    "p02": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "walking the fells",
+    "cars"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "finding work",
+    "the rent going up"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well",
+   "kind": "in_debt_or_out_of_work"
+  },
+  "p02": {
+   "id": "p02",
+   "name": "Nadia Tully",
+   "sex": "f",
+   "age": 31,
+   "household": "h1",
+   "role": "outside",
+   "model": "hy4",
+   "firm": null,
+   "employer": "Calder Logistics depot",
+   "job_title": "warehouse operative at Calder Logistics depot, out of town",
+   "pay": 61000,
+   "skills": [
+    "forklift driving"
+   ],
+   "ties": {
+    "p01": [
+     "partner"
+    ],
+    "p06": [
+     "sibling"
+    ],
+    "p13": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "football",
+    "the brass band"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well",
+   "kind": "employee"
+  },
+  "p03": {
+   "id": "p03",
+   "name": "Keith Royle",
+   "sex": "m",
+   "age": 56,
+   "household": "h2",
+   "role": "employee",
+   "model": "minimax",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "works at Wenlow Bakery & Deli",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p04": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p09": [
+     "employer",
+     "landlord",
+     "friend"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You trust banks and the council to be fair, mostly.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "the allotment",
+    "the brass band"
+   ],
+   "worries": [
+    "keeping your hours",
+    "the rent going up",
+    "your health"
+   ],
+   "voice": "plain and short; you don't waste words",
+   "health": "well",
+   "kind": "employee"
+  },
+  "p04": {
+   "id": "p04",
+   "name": "Dave Royle",
+   "sex": "m",
+   "age": 49,
+   "household": "h2",
+   "role": "owner",
+   "model": "minimax",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "owner of The Corner Stores",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p03": [
+     "partner"
+    ],
+    "p05": [
+     "child"
+    ],
+    "p08": [
+     "employee"
+    ],
+    "p12": [
+     "employee"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p11": [
+     "rival trader"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "cars",
+    "baking"
+   ],
+   "worries": [
+    "whether the shop is paying its way",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well",
+   "kind": "owner"
+  },
+  "p05": {
+   "id": "p05",
+   "name": "Owen Royle",
+   "sex": "m",
+   "age": 22,
+   "household": "h2",
+   "role": "employee",
+   "model": "minimax",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "works at Quarry Road Food Hall",
+   "pay": 42000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p03": [
+     "parent"
+    ],
+    "p04": [
+     "parent"
+    ],
+    "p11": [
+     "employer"
+    ],
+    "p09": [
+     "landlord"
+    ],
+    "p06": [
+     "your bank manager",
+     "friend"
+    ],
+    "p12": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "knitting",
+    "football"
+   ],
+   "worries": [
+    "the bank loan",
+    "keeping your hours",
+    "the rent going up"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well",
+   "kind": "in_debt_or_out_of_work"
+  },
+  "p06": {
+   "id": "p06",
+   "name": "Sian Bevan",
+   "sex": "f",
+   "age": 28,
+   "household": "h3",
+   "role": "banker",
+   "model": "deepseek",
+   "firm": null,
+   "employer": null,
+   "job_title": "manager of the Wenlow branch of the Northern Mutual Bank",
+   "pay": 72000,
+   "skills": [
+    "lending",
+    "accounts"
+   ],
+   "ties": {
+    "p07": [
+     "partner"
+    ],
+    "p02": [
+     "sibling"
+    ],
+    "p01": [
+     "friend"
+    ],
+    "p04": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ],
+    "p13": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "knitting"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the rent going up",
+    "the children's costs"
+   ],
+   "voice": "careful and polite; you choose words like you're writing a letter",
+   "health": "well",
+   "kind": "office"
+  },
+  "p07": {
+   "id": "p07",
+   "name": "Pete Bevan",
+   "sex": "m",
+   "age": 23,
+   "household": "h3",
+   "role": "unemployed",
+   "model": "haiku",
+   "firm": null,
+   "employer": null,
+   "job_title": "out of work",
+   "pay": 19000,
+   "skills": [
+    "gardening"
+   ],
+   "ties": {
+    "p06": [
+     "partner"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p11": [
+     "friend"
+    ],
+    "p12": [
+     "friend"
+    ],
+    "p10": [
+     "you hold a grudge"
+    ]
+   },
+   "grudge": {
+    "p10": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You go along with change once others have tried it.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "crosswords",
+    "knitting"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "finding work",
+    "the rent going up"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well",
+   "kind": "in_debt_or_out_of_work"
+  },
+  "p08": {
+   "id": "p08",
+   "name": "Maureen Daly",
+   "sex": "f",
+   "age": 30,
+   "household": "h4",
+   "role": "employee",
+   "model": "deepseek",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 46000,
+   "skills": [
+    "serving customers"
+   ],
+   "ties": {
+    "p09": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p12": [
+     "coworker"
+    ],
+    "p11": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "walking the fells",
+    "fishing"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "keeping your hours"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well",
+   "kind": "in_debt_or_out_of_work"
+  },
+  "p09": {
+   "id": "p09",
+   "name": "Alan Daly",
+   "sex": "m",
+   "age": 28,
+   "household": "h4",
+   "role": "owner",
+   "model": "hy4",
+   "firm": "firm:2",
+   "employer": null,
+   "job_title": "owner of Wenlow Bakery & Deli",
+   "pay": 38000,
+   "skills": [
+    "baking",
+    "serving customers"
+   ],
+   "ties": {
+    "p08": [
+     "partner"
+    ],
+    "p03": [
+     "employee",
+     "tenant",
+     "friend"
+    ],
+    "p04": [
+     "tenant"
+    ],
+    "p05": [
+     "tenant"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You will take a chance if the odds look fair."
+   },
+   "interests": [
+    "the parish council",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "whether the shop is paying its way"
+   ],
+   "voice": "worried-sounding; you hedge and apologise",
+   "health": "well",
+   "kind": "owner"
+  },
+  "p10": {
+   "id": "p10",
+   "name": "Megan Lister",
+   "sex": "f",
+   "age": 35,
+   "household": "h5",
+   "role": "outside",
+   "model": "deepseek",
+   "firm": null,
+   "employer": "Brennock General Hospital",
+   "job_title": "porter at Brennock General Hospital, out of town",
+   "pay": 58000,
+   "skills": [
+    "lifting and carrying"
+   ],
+   "ties": {
+    "p12": [
+     "they owe you money"
+    ],
+    "p09": [
+     "friend"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p03": [
+     "friend"
+    ],
+    "p02": [
+     "you hold a grudge"
+    ],
+    "p14": [
+     "friend"
+    ]
+   },
+   "grudge": {
+    "p02": "fell out with you over a boundary fence"
+   },
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like things the way they have always been done.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "baking",
+    "football"
+   ],
+   "worries": [
+    "nothing much, for now"
+   ],
+   "voice": "chatty; you run on and ask after people",
+   "health": "well",
+   "kind": "employee"
+  },
+  "p11": {
+   "id": "p11",
+   "name": "Lewis Pryce",
+   "sex": "m",
+   "age": 57,
+   "household": "h6",
+   "role": "owner",
+   "model": "haiku",
+   "firm": "firm:3",
+   "employer": null,
+   "job_title": "owner of Quarry Road Food Hall",
+   "pay": 35000,
+   "skills": [
+    "buying stock",
+    "keeping books"
+   ],
+   "ties": {
+    "p12": [
+     "partner"
+    ],
+    "p05": [
+     "employee"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p08": [
+     "friend"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p04": [
+     "rival trader"
+    ],
+    "p14": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "crosswords"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "whether the shop is paying its way"
+   ],
+   "voice": "blunt; you say what you think and expect the same",
+   "health": "well",
+   "kind": "owner"
+  },
+  "p12": {
+   "id": "p12",
+   "name": "Craig Pryce",
+   "sex": "m",
+   "age": 62,
+   "household": "h6",
+   "role": "employee",
+   "model": "minimax",
+   "firm": "firm:1",
+   "employer": null,
+   "job_title": "works at The Corner Stores",
+   "pay": 44000,
+   "skills": [
+    "shelf stacking",
+    "driving"
+   ],
+   "ties": {
+    "p11": [
+     "partner"
+    ],
+    "p04": [
+     "employer"
+    ],
+    "p08": [
+     "coworker"
+    ],
+    "p06": [
+     "your bank manager"
+    ],
+    "p10": [
+     "you owe them money"
+    ],
+    "p07": [
+     "friend"
+    ],
+    "p05": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You think banks and the council look after their own.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You are careful with money and hate owing anything."
+   },
+   "interests": [
+    "walking the fells",
+    "darts at the Plough"
+   ],
+   "worries": [
+    "money is tight from week to week",
+    "the bank loan",
+    "the money you owe Megan"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well",
+   "kind": "in_debt_or_out_of_work"
+  },
+  "p13": {
+   "id": "p13",
+   "name": "Hazel Shah",
+   "sex": "f",
+   "age": 29,
+   "household": "h7",
+   "role": "company",
+   "model": "hy4",
+   "firm": null,
+   "employer": "Calder Systems",
+   "job_title": "founder of Calder Systems, which makes and sells Calder, an AI system",
+   "pay": 52000,
+   "skills": [
+    "software",
+    "selling"
+   ],
+   "ties": {
+    "p14": [
+     "works with you"
+    ],
+    "p06": [
+     "friend"
+    ],
+    "p02": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "the parish council",
+    "quizzes"
+   ],
+   "worries": [
+    "whether Calder Systems will find customers before the money runs out"
+   ],
+   "voice": "brisk and businesslike; figures first",
+   "health": "well",
+   "kind": "office"
+  },
+  "p14": {
+   "id": "p14",
+   "name": "Ruth Ashby",
+   "sex": "f",
+   "age": 37,
+   "household": "h8",
+   "role": "company",
+   "model": "haiku",
+   "firm": null,
+   "employer": "Calder Systems",
+   "job_title": "sales and support at Calder Systems",
+   "pay": 42000,
+   "skills": [
+    "selling",
+    "customer support"
+   ],
+   "ties": {
+    "p13": [
+     "works with you"
+    ],
+    "p11": [
+     "friend"
+    ],
+    "p10": [
+     "friend"
+    ]
+   },
+   "grudge": {},
+   "beliefs": {
+    "institutions": "You have no strong view of banks or the council.",
+    "change": "You like trying new ways of doing things.",
+    "risk": "You have taken big chances before and would again."
+   },
+   "interests": [
+    "football",
+    "the parish council"
+   ],
+   "worries": [
+    "whether Calder Systems will find customers before the money runs out"
+   ],
+   "voice": "careful and polite; you choose words like you're writing a letter",
+   "health": "well",
+   "kind": "office"
+  }
+ },
+ "households": {
+  "h1": {
+   "id": "h1",
+   "members": [
+    "p01",
+    "p02"
+   ],
+   "children": 1,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 21000,
+   "running_cost": 42600,
+   "savings": 120000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 5700,
+    "water and council tax": 5200,
+    "transport": 7800,
+    "phone and internet": 1500,
+    "clothing": 3200,
+    "household goods and repairs": 4000,
+    "recreation, eating out and other": 15200
+   }
+  },
+  "h2": {
+   "id": "h2",
+   "members": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "children": 0,
+   "street": "Mill Street",
+   "tenure": "rent",
+   "landlord": "p09",
+   "rent": 17500,
+   "running_cost": 57500,
+   "savings": 101000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 5700,
+    "water and council tax": 7500,
+    "transport": 7600,
+    "phone and internet": 1500,
+    "clothing": 5000,
+    "household goods and repairs": 6300,
+    "recreation, eating out and other": 23900
+   }
+  },
+  "h3": {
+   "id": "h3",
+   "members": [
+    "p06",
+    "p07"
+   ],
+   "children": 2,
+   "street": "High Street",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 16500,
+   "running_cost": 45300,
+   "savings": 73000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 6600,
+    "water and council tax": 6200,
+    "transport": 5500,
+    "phone and internet": 1500,
+    "clothing": 3600,
+    "household goods and repairs": 4600,
+    "recreation, eating out and other": 17300
+   }
+  },
+  "h4": {
+   "id": "h4",
+   "members": [
+    "p08",
+    "p09"
+   ],
+   "children": 0,
+   "street": "High Street",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 21000,
+   "running_cost": 39900,
+   "savings": 67000,
+   "owns_let": "h2",
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 4800,
+    "water and council tax": 5000,
+    "transport": 5000,
+    "phone and internet": 1500,
+    "clothing": 3400,
+    "household goods and repairs": 4200,
+    "recreation, eating out and other": 16000
+   }
+  },
+  "h5": {
+   "id": "h5",
+   "members": [
+    "p10"
+   ],
+   "children": 0,
+   "street": "Station Road",
+   "tenure": "own",
+   "landlord": null,
+   "rent": 0,
+   "running_cost": 31400,
+   "savings": 317000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 3900,
+    "water and council tax": 3300,
+    "transport": 6500,
+    "phone and internet": 1500,
+    "clothing": 2300,
+    "household goods and repairs": 2900,
+    "recreation, eating out and other": 11000
+   }
+  },
+  "h6": {
+   "id": "h6",
+   "members": [
+    "p11",
+    "p12"
+   ],
+   "children": 0,
+   "street": "Church Lane",
+   "tenure": "mortgage",
+   "landlord": "bank",
+   "rent": 24000,
+   "running_cost": 38000,
+   "savings": 118000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 4800,
+    "water and council tax": 4800,
+    "transport": 4700,
+    "phone and internet": 1500,
+    "clothing": 3200,
+    "household goods and repairs": 4000,
+    "recreation, eating out and other": 15000
+   }
+  },
+  "h7": {
+   "id": "h7",
+   "members": [
+    "p13"
+   ],
+   "children": 0,
+   "street": "Station Road",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 18500,
+   "running_cost": 26100,
+   "savings": 300000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 3900,
+    "water and council tax": 3000,
+    "transport": 3100,
+    "phone and internet": 1500,
+    "clothing": 2100,
+    "household goods and repairs": 2600,
+    "recreation, eating out and other": 9900
+   }
+  },
+  "h8": {
+   "id": "h8",
+   "members": [
+    "p14"
+   ],
+   "children": 0,
+   "street": "Station Road",
+   "tenure": "rent",
+   "landlord": "outside:lettings",
+   "rent": 18500,
+   "running_cost": 22200,
+   "savings": 300000,
+   "owns_let": null,
+   "house_value": 0,
+   "budget": {
+    "energy (Northgrid Energy, Wednesdays)": 3900,
+    "water and council tax": 2500,
+    "transport": 2500,
+    "phone and internet": 1500,
+    "clothing": 1700,
+    "household goods and repairs": 2100,
+    "recreation, eating out and other": 8000
+   }
+  }
+ },
+ "firms": {
+  "firm:1": {
+   "name": "The Corner Stores",
+   "owner": "p04",
+   "pay": {
+    "p04": 38000,
+    "p08": 46000,
+    "p12": 44000
+   },
+   "hours": {
+    "p08": 38,
+    "p12": 38
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 440,
+     "revenue": 440000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 677000,
+     "stock_left": 0
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 518,
+     "revenue": 518000,
+     "turned_away": 14,
+     "turned_away_stock": 0,
+     "turned_away_queue": 14,
+     "spoiled": 0,
+     "cash": 731684,
+     "stock_left": 2,
+     "staff": 3,
+     "extra": 8.0
+    }
+   ],
+   "employees": [
+    "p08",
+    "p12"
+   ],
+   "open": true
+  },
+  "firm:2": {
+   "name": "Wenlow Bakery & Deli",
+   "owner": "p09",
+   "pay": {
+    "p09": 38000,
+    "p03": 46000
+   },
+   "hours": {
+    "p03": 38
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 777000,
+     "stock_left": 0
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 72,
+     "turned_away_stock": 0,
+     "turned_away_queue": 72,
+     "spoiled": 3,
+     "cash": 798000,
+     "stock_left": 17,
+     "staff": 2,
+     "extra": 0
+    }
+   ],
+   "employees": [
+    "p03"
+   ],
+   "open": true
+  },
+  "firm:3": {
+   "name": "Quarry Road Food Hall",
+   "owner": "p11",
+   "pay": {
+    "p11": 35000,
+    "p05": 42000
+   },
+   "hours": {
+    "p05": 38
+   },
+   "history": [
+    {
+     "week": 0,
+     "price": 1000,
+     "sold": 300,
+     "revenue": 300000,
+     "turned_away": 0,
+     "spoiled": 25,
+     "cash": 634000,
+     "stock_left": 0
+    },
+    {
+     "week": 1,
+     "price": 1000,
+     "sold": 340,
+     "revenue": 340000,
+     "turned_away": 152,
+     "turned_away_stock": 0,
+     "turned_away_queue": 152,
+     "spoiled": 3,
+     "cash": 662000,
+     "stock_left": 17,
+     "staff": 2,
+     "extra": 0
+    }
+   ],
+   "employees": [
+    "p05"
+   ],
+   "open": true
+  }
+ },
+ "debts": {
+  "d1": {
+   "id": "d1",
+   "debtor": "p08",
+   "creditor": "bank",
+   "balance": 16359000,
+   "weekly": 21000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed": 0
+  },
+  "d2": {
+   "id": "d2",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 18696000,
+   "weekly": 24000,
+   "what": "mortgage on the house",
+   "arrears": 0,
+   "missed": 0
+  },
+  "d3": {
+   "id": "d3",
+   "debtor": "p12",
+   "creditor": "bank",
+   "balance": 395700,
+   "weekly": 4300,
+   "what": "loan for the car",
+   "arrears": 0,
+   "missed": 0
+  },
+  "d4": {
+   "id": "d4",
+   "debtor": "p05",
+   "creditor": "bank",
+   "balance": 595700,
+   "weekly": 4300,
+   "what": "loan to consolidate card debts",
+   "arrears": 0,
+   "missed": 0
+  },
+  "d5": {
+   "id": "d5",
+   "debtor": "p11",
+   "creditor": "bank",
+   "balance": 893500,
+   "weekly": 6500,
+   "what": "business loan for the shop's chiller",
+   "arrears": 0,
+   "missed": 0
+  },
+  "d6": {
+   "id": "d6",
+   "debtor": "p12",
+   "creditor": "p10",
+   "balance": 75000,
+   "weekly": 0,
+   "what": "money borrowed privately, to be paid back when possible",
+   "arrears": 0,
+   "missed": 0
+  }
+ },
+ "bills": {
+  "b1": {
+   "id": "b1",
+   "hid": "h1",
+   "creditor": "outside:lettings",
+   "amount": 21000,
+   "what": "rent",
+   "due": 0,
+   "status": "paid",
+   "paid_on": 0,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b2": {
+   "id": "b2",
+   "hid": "h1",
+   "creditor": "outside:bills",
+   "amount": 5700,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b3": {
+   "id": "b3",
+   "hid": "h2",
+   "creditor": "p09",
+   "amount": 17500,
+   "what": "rent",
+   "due": 0,
+   "status": "paid",
+   "paid_on": 0,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b4": {
+   "id": "b4",
+   "hid": "h2",
+   "creditor": "outside:bills",
+   "amount": 5700,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b5": {
+   "id": "b5",
+   "hid": "h2",
+   "creditor": "bank",
+   "amount": 4300,
+   "what": "loan to consolidate card debts",
+   "due": 3,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": "d4"
+  },
+  "b6": {
+   "id": "b6",
+   "hid": "h3",
+   "creditor": "outside:lettings",
+   "amount": 16500,
+   "what": "rent",
+   "due": 0,
+   "status": "paid",
+   "paid_on": 0,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b7": {
+   "id": "b7",
+   "hid": "h3",
+   "creditor": "outside:bills",
+   "amount": 6600,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b8": {
+   "id": "b8",
+   "hid": "h4",
+   "creditor": "outside:bills",
+   "amount": 4800,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b9": {
+   "id": "b9",
+   "hid": "h4",
+   "creditor": "bank",
+   "amount": 21000,
+   "what": "mortgage on the house",
+   "due": 3,
+   "status": "paid",
+   "paid_on": 3,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": "d1"
+  },
+  "b10": {
+   "id": "b10",
+   "hid": "h5",
+   "creditor": "outside:bills",
+   "amount": 3900,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b11": {
+   "id": "b11",
+   "hid": "h6",
+   "creditor": "outside:bills",
+   "amount": 4800,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b12": {
+   "id": "b12",
+   "hid": "h6",
+   "creditor": "bank",
+   "amount": 24000,
+   "what": "mortgage on the house",
+   "due": 3,
+   "status": "paid",
+   "paid_on": 3,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": "d2"
+  },
+  "b13": {
+   "id": "b13",
+   "hid": "h6",
+   "creditor": "bank",
+   "amount": 4300,
+   "what": "loan for the car",
+   "due": 3,
+   "status": "paid",
+   "paid_on": 3,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": "d3"
+  },
+  "b14": {
+   "id": "b14",
+   "hid": "h6",
+   "creditor": "bank",
+   "amount": 6500,
+   "what": "business loan for the shop's chiller",
+   "due": 3,
+   "status": "paid",
+   "paid_on": 3,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": "d5"
+  },
+  "b15": {
+   "id": "b15",
+   "hid": "h7",
+   "creditor": "outside:lettings",
+   "amount": 18500,
+   "what": "rent",
+   "due": 0,
+   "status": "paid",
+   "paid_on": 0,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b16": {
+   "id": "b16",
+   "hid": "h7",
+   "creditor": "outside:bills",
+   "amount": 3900,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b17": {
+   "id": "b17",
+   "hid": "h8",
+   "creditor": "outside:lettings",
+   "amount": 18500,
+   "what": "rent",
+   "due": 0,
+   "status": "paid",
+   "paid_on": 0,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  },
+  "b18": {
+   "id": "b18",
+   "hid": "h8",
+   "creditor": "outside:bills",
+   "amount": 3900,
+   "what": "energy bill",
+   "due": 2,
+   "status": "paid",
+   "paid_on": 2,
+   "fee": 0,
+   "notice_on": null,
+   "collection_on": null,
+   "debt": null
+  }
+ },
+ "requests": {
+  "r20": {
+   "id": "r20",
+   "sender": "p12",
+   "to": "p10",
+   "kind": "agreement",
+   "text": "repayment plan: Repaying the $800 I borrowed, starting next week, until it is cleared",
+   "summary": "If Megan accepts: Craig Pryce pays Megan Lister $25 every Tuesday for 30 weeks.",
+   "made": 1,
+   "expires": 15,
+   "amount": 2500,
+   "weeks": 30,
+   "hours": 0,
+   "firm": null,
+   "on_accept": [],
+   "status": "accepted",
+   "answered": 2,
+   "terms": {
+    "kind": "repayment_plan",
+    "proposer": "p12",
+    "who_pays": "them",
+    "what": "Repaying the $800 I borrowed, starting next week, until it is cleared"
+   }
+  },
+  "r23": {
+   "id": "r23",
+   "sender": "p12",
+   "to": "p04",
+   "kind": "ask",
+   "text": "Any extra shifts available this week or next? I could take a couple to cover costs.",
+   "summary": "If Dave accepts, Craig Pryce is told they agreed; nothing else happens by itself.",
+   "made": 1,
+   "expires": 15,
+   "amount": 0,
+   "weeks": 0,
+   "hours": 0,
+   "firm": null,
+   "on_accept": [],
+   "status": "accepted",
+   "answered": 2,
+   "terms": {}
+  },
+  "r29": {
+   "id": "r29",
+   "sender": "p04",
+   "to": "p12",
+   "kind": "shifts",
+   "text": "2 extra hours this week at The Corner Stores, at $11.58 an hour",
+   "summary": "If you accept, you work 2 more hours this week and are paid $23.16 on Friday.",
+   "made": 2,
+   "expires": 6,
+   "amount": 2316,
+   "weeks": 0,
+   "hours": 2.0,
+   "firm": "firm:1",
+   "on_accept": [],
+   "status": "accepted",
+   "answered": 3,
+   "terms": {}
+  }
+ },
+ "agreements": {
+  "a25": {
+   "id": "a25",
+   "kind": "repayment_plan",
+   "payer": "p12",
+   "payee": "p10",
+   "amount": 2500,
+   "day": 2,
+   "weeks_left": 30,
+   "what": "Repaying the $800 I borrowed, starting next week, until it is cleared",
+   "parties": [
+    "p12",
+    "p10"
+   ],
+   "made": 2,
+   "status": "active",
+   "start": 3,
+   "debt": "d6"
+  },
+  "a46": {
+   "id": "a46",
+   "kind": "standing",
+   "payer": "p12",
+   "payee": "p10",
+   "amount": 2500,
+   "day": 2,
+   "weeks_left": 30,
+   "what": "Weekly repayment on money borrowed privately, per a25 \u2014 $25 a week until the $80",
+   "parties": [
+    "p12",
+    "p10"
+   ],
+   "made": 6,
+   "status": "active",
+   "start": 7,
+   "debt": "d6"
+  }
+ },
+ "appointments": {
+  "ap41": {
+   "id": "ap41",
+   "a": "p03",
+   "b": "p09",
+   "t": 7,
+   "about": "Shop hours, workload and my hours at Wenlow Bakery & Deli",
+   "status": "booked"
+  }
+ },
+ "notices": [
+  {
+   "t": 2,
+   "by": "co:calder",
+   "text": "Calder now costs $12 a week for a person or household (it was $12)."
+  },
+  {
+   "t": 2,
+   "by": "co:calder",
+   "text": "Calder now costs $30 a week for a shop (it was $30)."
+  },
+  {
+   "t": 5,
+   "by": "p04",
+   "text": "From Monday: check the chill and dry shelves first thing and last thing each day. Anything past its date or looking tired goes in the waste bin, and the number of units goes on the spoilage sheet so I can see exactly what we're losing. No more stock sitting and going off \u2014 it's our margin, not the supermarket's."
+  }
+ ],
+ "facts": [],
+ "new_orgs": {},
+ "events": [
+  {
+   "kind": "energy_backbill",
+   "hh": "h4",
+   "t": 7,
+   "amount": 64000
+  },
+  {
+   "kind": "car_repair",
+   "who": "p12",
+   "t": 7,
+   "amount": 46000
+  },
+  {
+   "kind": "council_tax",
+   "hh": "h4",
+   "t": 7,
+   "amount": 900
+  },
+  {
+   "kind": "rent_rise",
+   "hh": "h1",
+   "t": 10
+  },
+  {
+   "kind": "chiller",
+   "firm": "firm:1",
+   "t": 15,
+   "amount": 65000
+  },
+  {
+   "kind": "job_lost",
+   "who": "p02",
+   "t": 23
+  },
+  {
+   "kind": "illness",
+   "who": "p11",
+   "t": 28
+  },
+  {
+   "kind": "supplier_fail",
+   "firm": "firm:1",
+   "t": 30
+  },
+  {
+   "kind": "school_trip",
+   "hh": "h1",
+   "t": 31,
+   "amount": 7500
+  },
+  {
+   "kind": "boiler",
+   "hh": "h4",
+   "t": 40,
+   "amount": 38000
+  }
+ ],
+ "stats_weeks": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 518,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 14,
+    "firm:2": 72,
+    "firm:3": 152
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 731684,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "open": {
+    "firm:1": true,
+    "firm:2": true,
+    "firm:3": true
+   },
+   "hh_cash": {
+    "h1": 127400,
+    "h2": 141700,
+    "h3": 85050,
+    "h4": 97600,
+    "h5": 347600,
+    "h6": 111516,
+    "h7": 303400,
+    "h8": 295300
+   },
+   "overdue": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 0,
+    "h4": 0,
+    "h5": 0,
+    "h6": 0,
+    "h7": 0,
+    "h8": 0
+   },
+   "employment": {
+    "p01": [
+     "unemployed",
+     null
+    ],
+    "p02": [
+     "outside",
+     "Calder Logistics depot"
+    ],
+    "p03": [
+     "employee",
+     "firm:2"
+    ],
+    "p04": [
+     "owner",
+     "firm:1"
+    ],
+    "p05": [
+     "employee",
+     "firm:3"
+    ],
+    "p06": [
+     "banker",
+     null
+    ],
+    "p07": [
+     "unemployed",
+     null
+    ],
+    "p08": [
+     "employee",
+     "firm:1"
+    ],
+    "p09": [
+     "owner",
+     "firm:2"
+    ],
+    "p10": [
+     "outside",
+     "Brennock General Hospital"
+    ],
+    "p11": [
+     "owner",
+     "firm:3"
+    ],
+    "p12": [
+     "employee",
+     "firm:1"
+    ],
+    "p13": [
+     "company",
+     "Calder Systems"
+    ],
+    "p14": [
+     "company",
+     "Calder Systems"
+    ]
+   },
+   "loans_from_bank": 5,
+   "company_cash": 806000,
+   "clients": [],
+   "food": {
+    "wants": 1548,
+    "bought_in_town": 1198,
+    "bought_outside": 3,
+    "went_without": 347,
+    "by_provider": {
+     "firm:1": 518,
+     "firm:2": 340,
+     "firm:3": 340
+    }
+   },
+   "ledger_total": 0
+  }
+ ],
+ "log": [
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Craig Pryce",
+    "text": "Hiya Craig, how's things at the Corner Stores? Haven't seen you in ages. Just wondering if there's any chance of chipping away at that $800 when you can \u2014 no rush, but thought I'd ask. Take care, Megan"
+   },
+   "ok": true,
+   "msg": "Your message to Craig Pryce was delivered.",
+   "unknown": [],
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $835 now; $94.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)",
+   "unknown": null,
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 0
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $990 now; $441.88 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,180 now; $365.48 after what is still due this week.",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $4,000 left)",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "repay",
+    "debt": "d6",
+    "amount": 50
+   },
+   "ok": true,
+   "msg": "Repaid $50 on the money borrowed privately, to be paid back when possible; $750 is still owed.",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "propose_agreement",
+    "to": "Megan Lister",
+    "kind": "repayment_plan",
+    "terms": {
+     "amount": 25,
+     "per": "week",
+     "weeks": 30,
+     "hours": 0,
+     "what": "Repaying the $800 I borrowed, starting next week, until it is cleared"
+    }
+   },
+   "ok": true,
+   "msg": "Your proposed agreement (r20) went to Megan Lister.",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Hiya Megan. Things are tight with the bank bills this week, but I've paid $50 today. I propose $25 every week for 30 weeks to clear the $800. I'll set it up and confirm the first payment date."
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "unknown": [],
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "request",
+    "to": "Dave Royle",
+    "text": "Any extra shifts available this week or next? I could take a couple to cover costs.",
+    "amount": 0
+   },
+   "ok": true,
+   "msg": "Your request (r23) went to Dave Royle; it stays open for two weeks.",
+   "unknown": [],
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $845 now; $149.48 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)",
+   "unknown": null,
+   "t": 1
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Megan Lister: $3,181 now; $2,858 after what is still due this week.\n  Tuesday 3 March: +$50 repayment on money borrowed privately, to be paid back when possible (the Pryce household)\n  Wednesday 4 March: -$39 energy bill (Northgrid Energy)",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "answer",
+    "request": "r20",
+    "answer": "accept",
+    "note": "Fine, Craig \u2014 $25 a week it is. Just keep it coming regular and we're square."
+   },
+   "ok": true,
+   "msg": "Accepted Craig Pryce's request. Agreement a25: Craig Pryce pays Megan Lister $25 every Wednesday.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Hiya Keith, how's things at the bakery? Megan here \u2014 just checking in, haven't seen you in a bit. Anything new with you and Alan?"
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "unknown": [],
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $778 now; $94.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $3,690 now; $2,160 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$3,080 440 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "answer",
+    "request": "r23",
+    "answer": "accept",
+    "note": "Yes, Craig \u2014 two extra hours would help this week. Let's do that."
+   },
+   "ok": true,
+   "msg": "Accepted Craig Pryce's request.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "offer_shifts",
+    "to": "Craig Pryce",
+    "hours": 2
+   },
+   "ok": true,
+   "msg": "You offered Craig Pryce 2 extra hours (r29).",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "pay",
+    "to": "Northern Mutual Bank",
+    "amount": 43,
+    "note": "Loan to consolidate card debts, due Thursday 5 March"
+   },
+   "ok": true,
+   "msg": "Paid the bank $43.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Alan Daly",
+    "opening": "Morning Alan, I hope you're well. Can I ask how you're getting on with the shop and the bakery? I was also wondering whether you were thinking of putting the rent up on Mill Street. I just want to understand where things stand, that's all \u2014 I've a few costs to juggle at the moment."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": [],
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "set_product_price",
+    "for": "person",
+    "weekly": 12
+   },
+   "ok": true,
+   "msg": "Calder's price for a person or household is now $12 a week.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "set_product_price",
+    "for": "shop",
+    "weekly": 30
+   },
+   "ok": true,
+   "msg": "Calder's price for a shop is now $30 a week.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Ruth Ashby",
+    "text": "Let's lock launch for Mon 16 Mar. Price stays $12/week household, $30/week shop, first four weeks free. Can you draft a one-page sales pitch and a list of 20 local prospects by Friday? Figures first: 8 weeks runway, so we need paid users quickly."
+   },
+   "ok": true,
+   "msg": "Your message to Ruth Ashby was delivered.",
+   "unknown": [],
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Priority this week: launch prep, prospect list, product page copy, 3 local shop conversations, 1 parish council/community angle. Watch cash: household has $2,506 after this week's dues; business has 8 weeks runway."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $499 now; -$43.95 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "You have no agreements or standing payments.",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Check household account and any agreements. After this week's dues the household account is heading to about -$44. Need to find some slack: either trim spending, or bring in extra, or both. Rent $165 due Monday."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $3,690 now; $2,160 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$3,080 440 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Alan Daly: rent on Mill Street staying at $175/week for now \u2014 no increase. Alan says shop 'paying its way' but shelves emptied early in week. Ask him for bakery supplier contacts."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Dave Royle is sorting bakery supplier and spoilage checks. Keep rent at $175. Watch stock/spoilage; shop has 360 units on shelves now."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "answer",
+    "request": "r23",
+    "answer": "accept",
+    "note": "Good lad \u2014 I could do with the extra shifts this week."
+   },
+   "ok": false,
+   "msg": "Request r23 is no longer open (accepted).",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 500
+   },
+   "ok": true,
+   "msg": "Ordered 500 units from Dales Wholesale at $7 each, for delivery on Monday (paid on delivery).",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Check spoilage daily from now on \u2014 25 units wasted last week. Keep an eye on shop margins and Saturday's stock order."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Dave has ordered 500 units from Dales Wholesale at $7 each for delivery Monday, paid on delivery. That should help avoid empty shelves, but shop still needs stock for Saturday. Household mortgage $210 due Thursday 5 March; keep rent at $175."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 2
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Quarry Road Food Hall account: $4,240 now; $3,220 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$2,100 300 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Owen Royle works at Quarry Road Food Hall for $420 a week, 38 hours\n- d2: Lewis Pryce repays the Northern Mutual Bank $240 every Thursday (mortgage on the house; $186,960 left)\n- d5: Lewis Pryce repays the Northern Mutual Bank $65 every Thursday (business loan for the shop's chiller; $8,935 left)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p14",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p14",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Hazel Shah",
+    "text": "Hazel, I can have the one-page pitch and a prospect list ready by Friday. Before I write, could you send me a plain description of what Calder does for a household and for a shop, and whether the four free weeks apply to both? I want the pitch to be accurate, and I don't want to promise anything we haven't built yet. Thank you, Ruth."
+   },
+   "ok": true,
+   "msg": "Your message to Hazel Shah was delivered.",
+   "unknown": [],
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p14",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Hi Lewis, it's Ruth. I'm working on a local launch for Calder, an AI system for small shops, and you came to mind. Would you have fifteen minutes this week to hear what it does and tell me honestly whether it would be any use to Quarry Road Food Hall?"
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": [],
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $735 now; $94.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Megan Lister",
+    "text": "Hiya Megan. Things fine at the bakery, same as always really. Alan and I are having a chat about the shop and a few arrangements, nothing dramatic. How are you doing up in Brennock? Give us a ring when you're back."
+   },
+   "ok": true,
+   "msg": "Your message to Megan Lister was delivered.",
+   "unknown": [],
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Alan Daly",
+    "opening": "Alan, can we have a quick word? I've seen the rent going up and I wanted to talk about my hours as well \u2014 both together, if that's alright."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": [],
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $734 now; $315.48 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "answer",
+    "request": "r29",
+    "answer": "accept",
+    "note": "Two extra hours this week, $23.16 on Friday. I'll take them."
+   },
+   "ok": true,
+   "msg": "Accepted Dave Royle's request. You work 2 extra hours this week at $11.58 an hour, paid on Friday.",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Lewis Pryce",
+    "opening": "Right, quick figures before Friday. After this week's bills we're down to $365.48. I'm taking two extra hours at Dave's for $23.16 \u2014 that's free money, no strings. Megan's $25 a week starts next Wednesday, so I need that in the budget from now on. Anything you want to flag before the pay comes in?"
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": [],
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Thu 5 Mar: accepted r29, 2 extra hours, +$23.16 Friday. Megan plan r20 live: $25/wk from Wed 12 Mar, 30 weeks (total $750 on $800 balance \u2014 check final week). Bank $43 due Thursday. Household $365.48 after this week's bills. Friday in: $350 Lewis + $440 me = $790. Plough darts + fell walk to be fitted into recreation $150."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Keith Royle works at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $735 now; $94.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Keith Royle works at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $734 now; $315.48 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Quarry Road Food Hall account: $4,240 now; $3,220 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$2,100 300 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $734 now; $315.48 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Quarry Road Food Hall account: $4,240 now; $3,220 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$2,100 300 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $734 now; $315.48 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Owen Royle works at Quarry Road Food Hall for $420 a week, 38 hours\n- d2: Lewis Pryce repays the Northern Mutual Bank $240 every Thursday (mortgage on the house; $186,960 left)\n- d5: Lewis Pryce repays the Northern Mutual Bank $65 every Thursday (business loan for the shop's chiller; $8,935 left)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Quarry Road Food Hall account: $4,240 now; $3,220 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$2,100 300 units from Dales Wholesale (suppliers)",
+   "unknown": null,
+   "t": 3
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Thanks for sorting the bakery supplier and spoilage checks, Dave. I really appreciate it. Please keep an eye on stock levels this weekend and the Dales delivery on Monday \u2014 I\u2019ll keep the rent at $175 for now."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Keith, sorry about the awkwardness earlier. I don\u2019t want you thinking the rent\u2019s being changed without warning \u2014 I\u2019m keeping it at $175. Can we have a proper chat soon about the shop hours and how we\u2019re coping?"
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Wenlow Bakery & Deli account: $4,830 now; $3,740 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Monday 2 March: -$2,100 300 units from Dales Wholesale (suppliers)\n  Friday 6 March: -$460 wages from Wenlow Bakery & Deli (the Royle household)\n  Friday 6 March: -$380 draw from Wenlow Bakery & Deli (the Daly household)",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $1,427 now; $989.48 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Megan Lister: $3,761 now; $3,438 after what is still due this week.\n  Tuesday 3 March: +$50 repayment on money borrowed privately, to be paid back when possible (the Pryce household)\n  Wednesday 4 March: -$39 energy bill (Northgrid Energy)\n  Friday 6 March: +$580 pay from Brennock General Hospital (outside:employers)",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p10",
+   "source": "turn",
+   "act": {
+    "op": "converse",
+    "with": "Keith Royle",
+    "opening": "Hiya Keith, it's Megan \u2014 just got your message, sorry it's taken a couple of days, you know how it is. How's things at the bakery then? You said you and Alan were having a chat about the shop \u2014 nothing I need to worry about, is there?"
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,733 now; $1,241.88 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "a notice or page"
+   },
+   "ok": false,
+   "msg": "There is nothing called 'a notice or page' to read.",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Ruth Ashby",
+    "text": "Thanks, Ruth. Plain description for the pitch:\n\nCalder is an AI assistant a household can use to keep everyday admin and decisions organised: answering practical questions, helping draft messages and lists, summarising information, and reminding the household what needs attention. It is not a human adviser and we should not promise it will pay bills, make bookings, or act autonomously unless we have built and tested that.\n\nFor a shop, Calder helps with customer questions, product information, stock/admin lists, drafting replies, and summarising enquiries so staff spend less time on routine back-and-forth. Again, do not promise automatic ordering, payments, accounting, or full staff replacement.\n\nThe first four weeks free apply to both households and shops. After that: $12/week per household and $30/week per shop. Please make the pitch clear that launch is Monday 16 March and the product page goes live that day."
+   },
+   "ok": true,
+   "msg": "Your message to Ruth Ashby was delivered.",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Sian Bevan",
+    "text": "Sian, quick one: I\u2019m lining up launch activity for Calder Systems on 16 March. If you know any local shops or community groups who might trial a practical AI assistant, I\u2019d be glad of an intro. No hard sell \u2014 4 weeks free, then $30/week for shops if useful."
+   },
+   "ok": true,
+   "msg": "Your message to Sian Bevan was delivered.",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Nadia Tully",
+    "text": "Nadia, we launch Calder on 16 March. If you hear anyone at the depot or around Wenlow who runs a small shop or does a lot of admin, send them my way. Four weeks free for shops, then $30/week. Trying to get three local conversations this week."
+   },
+   "ok": true,
+   "msg": "Your message to Nadia Tully was delivered.",
+   "unknown": [],
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p13",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Launch prep week: send Ruth accurate copy done; product page must state first 4 weeks free for both, $12 household, $30 shop, no unsupported claims. Target: 3 local shop conversations, 1 parish council/community angle. Watch runway: 7 weeks."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 4
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $307.55 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $782.88 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $776.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: you work at Wenlow Bakery & Deli for $460 a week, 38 hours",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "That's a relief on the rent, Alan, thanks for telling me straight. Yes, let's have that proper chat about shop hours and how we're coping. I'm free Monday morning before I go in, or we could do it after work. You set a time."
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "unknown": [],
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "book_appointment",
+    "with": "Alan Daly",
+    "day": "Monday 9 March",
+    "about": "Shop hours, workload and my hours at Wenlow Bakery & Deli"
+   },
+   "ok": true,
+   "msg": "Appointment ap41 with Alan Daly on Monday 9 March about Shop hours, workload and my hours at Wenlow Bakery & Deli.",
+   "unknown": [],
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "turn",
+   "act": {
+    "op": "attempt",
+    "text": "Look for an allotment plot in Wenlow \u2014 find out where applications go, cost and waiting list"
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p14",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Saturday 7 March: Household ended the week down $47 (in $420, out $467), account at $2,953. Calder has ~7 weeks of runway on $8,060. Launch Mon 16 March. Next: wait for Hazel to confirm product details, draft one-page pitch (no promises of autonomous payments/bookings), start 20-name prospect list, then book Lewis before launch."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $307.55 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "You have no agreements or standing payments.",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Saturday 7 March: household holds $850.50; after remaining dues about $307.55. Rent $165 due Monday. Need to close weekly shortfall. Check account and agreements first, then consider trimming spending or extra income."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $7,316.84 now; $3,566.84 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Lister household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Royle household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $776.88 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Dales Wholesale",
+    "units": 50
+   },
+   "ok": true,
+   "msg": "Ordered 50 units from Dales Wholesale at $6.96 each, for delivery on Monday (paid on delivery).",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Brook Cash & Carry",
+    "units": 30
+   },
+   "ok": true,
+   "msg": "Ordered 30 units from Brook Cash & Carry at $6.65 each, for delivery on Monday (paid on delivery).",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "publish_notice",
+    "text": "From Monday: check the chill and dry shelves first thing and last thing each day. Anything past its date or looking tired goes in the waste bin, and the number of units goes on the spoilage sheet so I can see exactly what we're losing. No more stock sitting and going off \u2014 it's our margin, not the supermarket's."
+   },
+   "ok": true,
+   "msg": "Your notice is up where everyone can see it.",
+   "unknown": [],
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Morning Alan \u2014 thanks for holding the rent at $175, that's a real help. Stock levels are covered: 500 units from Dales on Monday, plus a smaller top-up so the shelves won't be bare. I've also put the staff on daily spoilage checks and we're logging the waste, since 25 units last week was too many to lose. Shout if you see anything going off in the deliveries and I'll chase Dales."
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "unknown": [],
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sat 7 Mar: shop margin is thin \u2014 518 baskets at $10 = $5,180 against wages, running costs and stock. Dales $6.96/unit vs Brook $6.65. Reorder for next week: 50 Dales + 30 Brook on top of Monday's 500. Watch spoilage daily; 25 units wasted last week. Craig's two extra shifts accepted \u2014 check they show up on the rota. Household $1,417, after dues $776.88, no borrowing needed."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 5
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Wenlow Bakery & Deli account: $7,980 now; $5,726 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Keith Royle",
+    "text": "Hi Keith, thanks \u2014 sorry to be awkward, but could we do Monday morning before the shop opens, say 8.30? I\u2019d rather get it sorted while it\u2019s fresh. We can go through hours, workload and how we\u2019re coping. Sorry again, and thanks for being flexible."
+   },
+   "ok": true,
+   "msg": "Your message to Keith Royle was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Morning Dave, thank you \u2014 that\u2019s a real help with the rent and with the stock. Sorry to trouble you, but can you confirm the Monday delivery and the smaller top-up, and let me know when the spoilage sheet is in place? I just want us covered for the weekend and not over-ordering if we can help it."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sunday 8 March: Keep rent at $175. Confirm Monday delivery/top-up and spoilage checks with Dave. Keith chat Monday 8.30 re shop hours/workload/my hours. Watch shop cash: account tight after committed costs. Consider small Brook top-up only if Dales delivery looks short; avoid overcommitting. Check queues and stock daily."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "read",
+    "what": "notice from Calder Systems"
+   },
+   "ok": false,
+   "msg": "There is nothing called 'notice from Calder Systems' to read.",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "standing_payment",
+    "to": "Megan Lister",
+    "amount": 25,
+    "day": "Wednesday",
+    "weeks": 30,
+    "note": "Weekly repayment on money borrowed privately, per a25 \u2014 $25 a week until the $800 is cleared"
+   },
+   "ok": true,
+   "msg": "Standing payment a46: $25 to Megan Lister every Wednesday for 30 weeks.",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Dave Royle",
+    "text": "Right \u2014 chill and dry shelves checked first thing and last thing, past-date stock in the waste bin, units on the spoilage sheet. Fine by me. Two questions: where's the sheet kept, and does the waste collection charge count as our cost or the shop's? I'll start Monday."
+   },
+   "ok": true,
+   "msg": "Your message to Dave Royle was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "message",
+    "to": "Lewis Pryce",
+    "text": "Figures: household $1,115.16 now. Mortgage $240 and the bank $43 come Thursday, energy $48 Wednesday, so we'll be down near $315 after what's left this week. I'm starting Megan's $25 a week on Wednesday as agreed, 30 weeks. Buffer first, then walks and darts."
+   },
+   "ok": true,
+   "msg": "Your message to Lewis Pryce was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "book_appointment",
+    "with": "Sian Bevan",
+    "day": "Tuesday 11 March",
+    "about": "Review the car loan balance, the $43 Thursday repayment, and whether a smaller weekly payment would release the account sooner"
+   },
+   "ok": false,
+   "msg": "'Tuesday 11 March' is not a day that can be booked; name a day and date, such as Monday 9 March.",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "turn",
+   "act": {
+    "op": "write_notes",
+    "text": "Sun 8 Mar: household $1,115.16. Wed 10 Mar: energy $48, Megan $25. Thu 11 Mar: mortgage $240, bank $43. Buffer target after weekly bills. Check waste standing payment \u2014 Calder $12 household / $30 shop. Fell walk + darts at the Plough this week. Watch spoilage sheet at Dave's from Monday."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $1,274 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $1,274 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $1,274 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p02",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $1,274 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p01",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Gary Tully, Nadia Tully: $1,274 now; $1,274 after what is still due this week.\n  Monday 2 March: -$210 rent (Dunmore Lettings)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Friday 6 March: +$610 pay from Calder Logistics depot (outside:employers)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$369 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $1,417 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $1,417 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $7,316.84 now; $3,269.34 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Lister household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Royle household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "order_stock",
+    "supplier": "Brook Cash & Carry",
+    "units": 12
+   },
+   "ok": true,
+   "msg": "Ordered 12 units from Brook Cash & Carry at $6.65 each, for delivery on Monday (paid on delivery).",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Sunday 8 March: check household and shop accounts. Modest 12-unit stock top-up ordered with Brook Cash & Carry. Check spoilage and log waste daily; no spoiled units reported this week. Confirm Alan has received the stock and spoilage update."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Hi Alan \u2014 quick update from The Corner Stores: stock levels are very low, so I\u2019ve put in a modest top-up order for next week. No spoilage this week; I\u2019ll keep checking and logging waste daily. I\u2019m also expecting to talk about the rent, so I\u2019ll give you a proper update once I\u2019ve reviewed the figures."
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $1,417 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $1,417 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $7,316.84 now; $3,189.54 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Lister household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Royle household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Maureen Daly works at The Corner Stores for $460 a week, 38 hours\n- job terms: Craig Pryce works at The Corner Stores for $440 a week, 38 hours",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Hi Alan, just a quick update from The Corner Stores: we\u2019re ordering 12 units from Brook Cash & Carry for Monday delivery. No spoilage recorded last week, and I\u2019ll keep checking waste daily and send you any updates. The shop is trading fine, but the rent increase is a concern we\u2019re working through."
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Keith Royle, Dave Royle, Owen Royle: $1,417 now; $1,417 after what is still due this week.\n  Monday 2 March: -$175 rent (the Daly household)\n  Wednesday 4 March: -$57 energy bill (Northgrid Energy)\n  Wednesday 4 March: -$43 Loan to consolidate card debts, due Thursday 5 March (the Northern Mutual Bank)\n  Friday 6 March: +$380 draw from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$460 wages from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Friday 6 March: +$420 wages from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$518 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p03",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": false,
+   "msg": "You have no shop of your own.",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "The Corner Stores account: $7,316.84 now; $3,189.54 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Lister household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Royle household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "message",
+    "to": "Alan Daly",
+    "text": "Hi Alan, quick stock and spoilage update from The Corner Stores: 518 sold last week, no spoilage recorded, and 12 units are on order from Brook Cash & Carry for Monday delivery. We had 14 customers turn away because the queue was too long, so I\u2019m keeping an eye on stock levels and waste from now on."
+   },
+   "ok": true,
+   "msg": "Your message to Alan Daly was delivered.",
+   "unknown": [],
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p04",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Check household and shop accounts with Keith. Confirm what remains after Monday\u2019s $175 rent and all outstanding bills. Review margins after Craig\u2019s extra shifts, keep daily spoilage checks and waste log, and chase Alan to confirm he received the stock and spoilage update."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $850.50 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $850.50 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "write_notes",
+    "text": "Weekly: in $910. Essentials $609. Recreation/eating out $173 puts us ~$34 over. Rent $165 Mon, Northgrid $66 Wed. Agree food budget and extras budget with Pete."
+   },
+   "ok": true,
+   "msg": "",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $850.50 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p06",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $850.50 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p07",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Sian Bevan, Pete Bevan: $850.50 now; $850.50 after what is still due this week.\n  Monday 2 March: -$165 rent (Dunmore Lettings)\n  Wednesday 4 March: -$66 energy bill (Northgrid Energy)\n  Friday 6 March: +$720 salary from the Northern Mutual Bank (the Northern Mutual Bank)\n  Friday 6 March: +$190 jobseeker's benefit (outside:gov)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$11.50 food out of town (shops and services)\n  Saturday 7 March: -$387 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "shop account"
+   },
+   "ok": true,
+   "msg": "Wenlow Bakery & Deli account: $7,980 now; $5,726 after what is already committed this week (stock on order, wages and draw on Friday, rent and running costs on Saturday).\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Pryce household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Shah household)\n  Saturday 7 March: +$10 food x1 (the Daly household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: +$10 food x1 (the Ashby household)\n  Saturday 7 March: +$10 food x1 (the Tully household)\n  Saturday 7 March: +$10 food x1 (the Bevan household)\n  Saturday 7 March: -$250 shop rent and running costs (outside:landlords)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p08",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p09",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Maureen Daly, Alan Daly: $976 now; $976 after what is still due this week.\n  Monday 2 March: +$175 rent (the Royle household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$210 mortgage on the house (the Northern Mutual Bank)\n  Friday 6 March: +$460 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$380 draw from Wenlow Bakery & Deli (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$351 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- a46 (standing): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Weekly repayment on money borrowed privately, per a25 \u2014 $25 a week until the $80\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Owen Royle works at Quarry Road Food Hall for $420 a week, 38 hours\n- d2: Lewis Pryce repays the Northern Mutual Bank $240 every Thursday (mortgage on the house; $186,960 left)\n- d5: Lewis Pryce repays the Northern Mutual Bank $65 every Thursday (business loan for the shop's chiller; $8,935 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- a46 (standing): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Weekly repayment on money borrowed privately, per a25 \u2014 $25 a week until the $80\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p11",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- job terms: Owen Royle works at Quarry Road Food Hall for $420 a week, 38 hours\n- d2: Lewis Pryce repays the Northern Mutual Bank $240 every Thursday (mortgage on the house; $186,960 left)\n- d5: Lewis Pryce repays the Northern Mutual Bank $65 every Thursday (business loan for the shop's chiller; $8,935 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "agreements"
+   },
+   "ok": true,
+   "msg": "- a25 (repayment plan): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Repaying the $800 I borrowed, starting next week, until it is cleared\n- a46 (standing): Craig Pryce pays Megan Lister $25 every Wednesday, 30 more weeks \u2014 Weekly repayment on money borrowed privately, per a25 \u2014 $25 a week until the $80\n- job terms: you work at The Corner Stores for $440 a week, 38 hours\n- d3: Craig Pryce repays the Northern Mutual Bank $43 every Thursday (loan for the car; $3,957 left)",
+   "unknown": null,
+   "t": 6
+  },
+  {
+   "kind": "act",
+   "pid": "p12",
+   "source": "conversation",
+   "act": {
+    "op": "read",
+    "what": "household account"
+   },
+   "ok": true,
+   "msg": "Household account of Lewis Pryce, Craig Pryce: $1,115.16 now; $1,115.16 after what is still due this week.\n  Tuesday 3 March: -$50 repayment on money borrowed privately, to be paid back when possible (the Lister household)\n  Wednesday 4 March: -$48 energy bill (Northgrid Energy)\n  Thursday 5 March: -$240 mortgage on the house (the Northern Mutual Bank)\n  Thursday 5 March: -$43 loan for the car (the Northern Mutual Bank)\n  Thursday 5 March: -$65 business loan for the shop's chiller (the Northern Mutual Bank)\n  Friday 6 March: +$463.16 wages from The Corner Stores (The Corner Stores)\n  Friday 6 March: +$350 draw from Quarry Road Food Hall (Quarry Road Food Hall)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (Wenlow Bakery & Deli)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$10 food x1 (The Corner Stores)\n  Saturday 7 March: -$332 other regular spending (water, council tax, transport, phone, clothes, household) (shops and services)",
+   "unknown": null,
+   "t": 6
+  }
+ ],
+ "aims": {
+  "p01": [
+   {
+    "text": "Pay energy bill",
+    "since": 1
+   },
+   {
+    "text": "Find paid work",
+    "since": 1
+   },
+   {
+    "text": "Keep rent covered",
+    "since": 1
+   },
+   {
+    "text": "Cut weekly spending",
+    "since": 1
+   },
+   {
+    "text": "Check account balance",
+    "since": 1
+   }
+  ],
+  "p02": [
+   {
+    "text": "Check household money",
+    "since": 4
+   },
+   {
+    "text": "Keep rent covered",
+    "since": 4
+   },
+   {
+    "text": "Avoid new debt",
+    "since": 4
+   },
+   {
+    "text": "Check Calder details if needed",
+    "since": 4
+   }
+  ],
+  "p03": [
+   {
+    "text": "Check what's paid and what's left this week",
+    "since": 0
+   },
+   {
+    "text": "Talk to Alan about shop hours and my hours",
+    "since": 0
+   },
+   {
+    "text": "Find an allotment plot",
+    "since": 0
+   },
+   {
+    "text": "Keep band practice going",
+    "since": 0
+   }
+  ],
+  "p04": [
+   {
+    "text": "Check shop and household accounts",
+    "since": 5
+   },
+   {
+    "text": "Order a modest stock top-up for next week",
+    "since": 5
+   },
+   {
+    "text": "Keep spoilage checks and log waste daily",
+    "since": 5
+   },
+   {
+    "text": "Watch margins after Craig's extra shifts",
+    "since": 5
+   },
+   {
+    "text": "Confirm Alan has the stock and spoilage update",
+    "since": 5
+   }
+  ],
+  "p05": [],
+  "p06": [
+   {
+    "text": "Get a clear picture of household money",
+    "since": 2
+   },
+   {
+    "text": "Find ways to close the weekly shortfall",
+    "since": 2
+   },
+   {
+    "text": "Review Hazel's AI trial offer for local shops",
+    "since": 5
+   }
+  ],
+  "p07": [
+   {
+    "text": "Keep the household account covering rent and energy next week",
+    "since": 5
+   },
+   {
+    "text": "Find gardening work locally",
+    "since": 5
+   },
+   {
+    "text": "Check whether Keith or Craig have any shifts or jobs to pass on",
+    "since": 5
+   }
+  ],
+  "p08": [
+   {
+    "text": "Check household account and cover this week's bills",
+    "since": 1
+   },
+   {
+    "text": "Find a bit of extra income or smarter way to manage money",
+    "since": 1
+   },
+   {
+    "text": "Catch up with Lewis about how he runs the Food Hall",
+    "since": 1
+   }
+  ],
+  "p09": [
+   {
+    "text": "Keep shop stocked",
+    "since": 4
+   },
+   {
+    "text": "Control spoilage",
+    "since": 4
+   },
+   {
+    "text": "Keep rent at $175",
+    "since": 4
+   },
+   {
+    "text": "Watch cash flow",
+    "since": 4
+   },
+   {
+    "text": "Settle Keith conversation",
+    "since": 4
+   }
+  ],
+  "p10": [
+   {
+    "text": "Catch up with Keith about the bakery chat",
+    "since": 2
+   },
+   {
+    "text": "Confirm Craig's first payment lands Wednesday",
+    "since": 4
+   },
+   {
+    "text": "Keep an eye on the energy bill",
+    "since": 0
+   }
+  ],
+  "p11": [
+   {
+    "text": "Keep Quarry Road Food Hall paying its way after wages and rent",
+    "since": 3
+   },
+   {
+    "text": "Pay the mortgage and chiller loan on Thursdays without strain",
+    "since": 3
+   },
+   {
+    "text": "Cut stock costs by sourcing cheaper where reliable",
+    "since": 3
+   },
+   {
+    "text": "Cut spoilage on the shelves",
+    "since": 3
+   },
+   {
+    "text": "Keep an eye on the Friday wages and Saturday rent",
+    "since": 3
+   }
+  ],
+  "p12": [
+   {
+    "text": "Start Megan's $25 weekly repayments on time",
+    "since": 3
+   },
+   {
+    "text": "Protect a cash buffer after Thursday's bills",
+    "since": 1
+   },
+   {
+    "text": "Check waste and standing payments, incl. Calder",
+    "since": 6
+   },
+   {
+    "text": "Get the spoilage routine running at Dave's",
+    "since": 6
+   },
+   {
+    "text": "Walk the fells and play darts at the Plough",
+    "since": 1
+   }
+  ],
+  "p13": [
+   {
+    "text": "Prepare 16 March launch",
+    "since": 2
+   },
+   {
+    "text": "Build prospect list",
+    "since": 2
+   },
+   {
+    "text": "Get early shop users",
+    "since": 2
+   },
+   {
+    "text": "Keep cash runway",
+    "since": 2
+   },
+   {
+    "text": "Explore parish council link",
+    "since": 2
+   }
+  ],
+  "p14": [
+   {
+    "text": "Draft one-page pitch once Hazel confirms details (due Fri)",
+    "since": 3
+   },
+   {
+    "text": "Build list of 20 local prospects (due Fri)",
+    "since": 3
+   },
+   {
+    "text": "Confirm pricing and free-week terms with Hazel (due Mon)",
+    "since": 3
+   },
+   {
+    "text": "Talk to Lewis Pryce before 16 March launch",
+    "since": 3
+   },
+   {
+    "text": "Keep Calder's runway in view (~7 weeks)",
+    "since": 5
+   }
+  ]
+ },
+ "unknown_flags": [],
+ "product_price": {
+  "person": 1200,
+  "firm": 3000
+ },
+ "lines": [
+  [
+   0,
+   "firm:1",
+   "outside:suppliers",
+   308000,
+   "440 units from Dales Wholesale"
+  ],
+  [
+   0,
+   "firm:2",
+   "outside:suppliers",
+   210000,
+   "300 units from Dales Wholesale"
+  ],
+  [
+   0,
+   "firm:3",
+   "outside:suppliers",
+   210000,
+   "300 units from Dales Wholesale"
+  ],
+  [
+   0,
+   "h1",
+   "outside:lettings",
+   21000,
+   "rent"
+  ],
+  [
+   0,
+   "h2",
+   "h4",
+   17500,
+   "rent"
+  ],
+  [
+   0,
+   "h3",
+   "outside:lettings",
+   16500,
+   "rent"
+  ],
+  [
+   0,
+   "h7",
+   "outside:lettings",
+   18500,
+   "rent"
+  ],
+  [
+   0,
+   "h8",
+   "outside:lettings",
+   18500,
+   "rent"
+  ],
+  [
+   1,
+   "h6",
+   "h5",
+   5000,
+   "repayment on money borrowed privately, to be paid back when possible"
+  ],
+  [
+   2,
+   "h1",
+   "outside:bills",
+   5700,
+   "energy bill"
+  ],
+  [
+   2,
+   "h2",
+   "outside:bills",
+   5700,
+   "energy bill"
+  ],
+  [
+   2,
+   "h3",
+   "outside:bills",
+   6600,
+   "energy bill"
+  ],
+  [
+   2,
+   "h4",
+   "outside:bills",
+   4800,
+   "energy bill"
+  ],
+  [
+   2,
+   "h5",
+   "outside:bills",
+   3900,
+   "energy bill"
+  ],
+  [
+   2,
+   "h6",
+   "outside:bills",
+   4800,
+   "energy bill"
+  ],
+  [
+   2,
+   "h7",
+   "outside:bills",
+   3900,
+   "energy bill"
+  ],
+  [
+   2,
+   "h8",
+   "outside:bills",
+   3900,
+   "energy bill"
+  ],
+  [
+   2,
+   "h2",
+   "bank",
+   4300,
+   "Loan to consolidate card debts, due Thursday 5 March"
+  ],
+  [
+   3,
+   "h4",
+   "bank",
+   21000,
+   "mortgage on the house"
+  ],
+  [
+   3,
+   "h6",
+   "bank",
+   24000,
+   "mortgage on the house"
+  ],
+  [
+   3,
+   "h6",
+   "bank",
+   4300,
+   "loan for the car"
+  ],
+  [
+   3,
+   "h6",
+   "bank",
+   6500,
+   "business loan for the shop's chiller"
+  ],
+  [
+   4,
+   "firm:1",
+   "h4",
+   46000,
+   "wages from The Corner Stores"
+  ],
+  [
+   4,
+   "firm:1",
+   "h6",
+   46316,
+   "wages from The Corner Stores"
+  ],
+  [
+   4,
+   "firm:1",
+   "h2",
+   38000,
+   "draw from The Corner Stores"
+  ],
+  [
+   4,
+   "firm:2",
+   "h2",
+   46000,
+   "wages from Wenlow Bakery & Deli"
+  ],
+  [
+   4,
+   "firm:2",
+   "h4",
+   38000,
+   "draw from Wenlow Bakery & Deli"
+  ],
+  [
+   4,
+   "firm:3",
+   "h2",
+   42000,
+   "wages from Quarry Road Food Hall"
+  ],
+  [
+   4,
+   "firm:3",
+   "h6",
+   35000,
+   "draw from Quarry Road Food Hall"
+  ],
+  [
+   4,
+   "outside:gov",
+   "h1",
+   19000,
+   "jobseeker's benefit"
+  ],
+  [
+   4,
+   "outside:employers",
+   "h1",
+   61000,
+   "pay from Calder Logistics depot"
+  ],
+  [
+   4,
+   "bank",
+   "h3",
+   72000,
+   "salary from the Northern Mutual Bank"
+  ],
+  [
+   4,
+   "outside:gov",
+   "h3",
+   19000,
+   "jobseeker's benefit"
+  ],
+  [
+   4,
+   "outside:employers",
+   "h5",
+   58000,
+   "pay from Brennock General Hospital"
+  ],
+  [
+   4,
+   "co:calder",
+   "h7",
+   52000,
+   "salary from Calder Systems"
+  ],
+  [
+   4,
+   "co:calder",
+   "h8",
+   42000,
+   "salary from Calder Systems"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:000",
+   17672,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:001",
+   9817,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:002",
+   17060,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:003",
+   9285,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:004",
+   25522,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:005",
+   26514,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:006",
+   25470,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:007",
+   29203,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:008",
+   9133,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:009",
+   10215,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:010",
+   9478,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:011",
+   17748,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:012",
+   10226,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:013",
+   18510,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:014",
+   34064,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:015",
+   9289,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:016",
+   10389,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:017",
+   10678,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:018",
+   19610,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:019",
+   18186,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:020",
+   18685,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:021",
+   9978,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:022",
+   9193,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:023",
+   19984,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:024",
+   17426,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:025",
+   17713,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:026",
+   10053,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:027",
+   36413,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:028",
+   10539,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:029",
+   10179,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:030",
+   22149,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:031",
+   17067,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:032",
+   16650,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:033",
+   16265,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:034",
+   17982,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:035",
+   34109,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:036",
+   8937,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:037",
+   23494,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:038",
+   34393,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:039",
+   25478,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:040",
+   24586,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:041",
+   33253,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:042",
+   35231,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:043",
+   32466,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:044",
+   17990,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:045",
+   18028,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:046",
+   30270,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:047",
+   19817,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:048",
+   25094,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:049",
+   16613,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:050",
+   17722,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:051",
+   26501,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:052",
+   18033,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:053",
+   18938,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:054",
+   26196,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:055",
+   18443,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:056",
+   10476,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:057",
+   18410,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:058",
+   32457,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:059",
+   23201,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:060",
+   27874,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:061",
+   19105,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:062",
+   34348,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:063",
+   16515,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:064",
+   18161,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:065",
+   39703,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:066",
+   17315,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:067",
+   34893,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:068",
+   34021,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:069",
+   19045,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:070",
+   19262,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:071",
+   34083,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:072",
+   8904,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:073",
+   28169,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:074",
+   17504,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:075",
+   26960,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:076",
+   35498,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:077",
+   42502,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:078",
+   40544,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:079",
+   27071,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:080",
+   10488,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:081",
+   23745,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:082",
+   18835,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:083",
+   16244,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:084",
+   16480,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:085",
+   23733,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:086",
+   18600,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:087",
+   10941,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:088",
+   27794,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:089",
+   16717,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:090",
+   27208,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:091",
+   10633,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:092",
+   17033,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:093",
+   17917,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:094",
+   10432,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:095",
+   25703,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:096",
+   29800,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:097",
+   16845,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:098",
+   16889,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:099",
+   18387,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:100",
+   9268,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:101",
+   18071,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:102",
+   27189,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:103",
+   19918,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:104",
+   24154,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:105",
+   29867,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:106",
+   35156,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:107",
+   41386,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:108",
+   9754,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:109",
+   17356,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:110",
+   9381,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:111",
+   19584,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:112",
+   11047,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:113",
+   22249,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:114",
+   10924,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:115",
+   38306,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:116",
+   26802,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:117",
+   17951,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:118",
+   8886,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:119",
+   11167,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:120",
+   18383,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:121",
+   41511,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:122",
+   23972,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:123",
+   39985,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:124",
+   10972,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:125",
+   11279,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:126",
+   42740,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:127",
+   18319,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:128",
+   9605,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:129",
+   24681,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:130",
+   34935,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:131",
+   9444,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:132",
+   18264,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:133",
+   10238,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:134",
+   9014,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:135",
+   19481,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:136",
+   19691,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:137",
+   16349,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:138",
+   17543,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:139",
+   10523,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:140",
+   11005,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:141",
+   18031,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:142",
+   9507,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:143",
+   33925,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:144",
+   18548,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:145",
+   17510,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:146",
+   16851,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:147",
+   32772,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:148",
+   22391,
+   "income"
+  ],
+  [
+   4,
+   "outside:employers",
+   "bg:149",
+   26583,
+   "income"
+  ],
+  [
+   5,
+   "h8",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h8",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h8",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h7",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h8",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h5",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h7",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:3",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h6",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h7",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h4",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h8",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h2",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h8",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h1",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "firm:2",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h7",
+   "firm:1",
+   1000,
+   "food x1"
+  ],
+  [
+   5,
+   "h3",
+   "outside:market",
+   1150,
+   "food out of town"
+  ],
+  [
+   5,
+   "h1",
+   "outside:market",
+   36900,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h2",
+   "outside:market",
+   51800,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h3",
+   "outside:market",
+   38700,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h4",
+   "outside:market",
+   35100,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h5",
+   "outside:market",
+   27500,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h6",
+   "outside:market",
+   33200,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h7",
+   "outside:market",
+   22200,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "h8",
+   "outside:market",
+   18300,
+   "other regular spending (water, council tax, transport, phone, clothes, household)"
+  ],
+  [
+   5,
+   "firm:1",
+   "outside:landlords",
+   25000,
+   "shop rent and running costs"
+  ],
+  [
+   5,
+   "firm:2",
+   "outside:landlords",
+   25000,
+   "shop rent and running costs"
+  ],
+  [
+   5,
+   "firm:3",
+   "outside:landlords",
+   25000,
+   "shop rent and running costs"
+  ]
+ ],
+ "calder": {},
+ "run_stats": {
+  "fresh_usd": 0.0186679585,
+  "cached_usd": 0.012040237499999999,
+  "fresh_calls": 47,
+  "cached_calls": 33
+ },
+ "ledger_total": 0
+}

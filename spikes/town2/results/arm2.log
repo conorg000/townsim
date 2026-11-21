@@ -1,0 +1,9 @@
+[arm2_product] week 1 done; fresh $0.0000; calls 0 fresh / 90 cached
+[arm2_product] week 2 done; fresh $0.0000; calls 0 fresh / 269 cached
+[arm2_product] week 3 done; fresh $0.0000; calls 0 fresh / 512 cached
+[arm2_product] week 4 done; fresh $0.2876; calls 180 fresh / 618 cached
+[arm2_product] week 5 done; fresh $0.7785; calls 390 fresh / 618 cached
+[arm2_product] week 6 done; fresh $1.3294; calls 629 fresh / 618 cached
+[arm2_product] week 7 done; fresh $1.9597; calls 880 fresh / 618 cached
+STOPPED: spend $3.984 + this call would pass $4.0
+run stats: {'fresh_usd': 1.967838873788, 'cached_usd': 0.5030019179979996, 'fresh_calls': 892, 'cached_calls': 618}

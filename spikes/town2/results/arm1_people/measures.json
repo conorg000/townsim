@@ -1,0 +1,2992 @@
+{
+ "tag": "arm1_people",
+ "arm": "people",
+ "weeks": 10,
+ "gate1": {
+  "rate": 0.9316239316239316,
+  "by_kind": {
+   "bill_uncovered": [
+    26,
+    26
+   ],
+   "notice": [
+    14,
+    14
+   ],
+   "job_lost": [
+    0,
+    1
+   ],
+   "shop_turning_away": [
+    3,
+    4
+   ],
+   "request_to_person": [
+    66,
+    72
+   ]
+  },
+  "pass": true
+ },
+ "gate2": {
+  "rate": 0.15384615384615385,
+  "n": 26,
+  "pass": false
+ },
+ "triggers": [
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 24,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     24,
+     "p12",
+     "message"
+    ],
+    [
+     25,
+     "p11",
+     "move_money"
+    ],
+    [
+     25,
+     "p11",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 31,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     32,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p12",
+     "pay"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 35,
+   "what": "rent 175 (h2)",
+   "answered": true,
+   "by": [
+    [
+     35,
+     "p03",
+     "message"
+    ],
+    [
+     35,
+     "p05",
+     "message"
+    ],
+    [
+     35,
+     "p05",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 37,
+   "what": "energy bill (moved to a payment plan) 48 (h6)",
+   "answered": true,
+   "by": [
+    [
+     37,
+     "p12",
+     "message"
+    ],
+    [
+     38,
+     "p12",
+     "pay"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 44,
+   "what": "energy bill (moved to a payment plan) 48 (h6)",
+   "answered": true,
+   "by": [
+    [
+     44,
+     "p11",
+     "message"
+    ],
+    [
+     44,
+     "p12",
+     "message"
+    ],
+    [
+     44,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p12",
+     "pay"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p12",
+     "pay"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ],
+    [
+     38,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "mortgage on the house 175 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "mortgage on the house 175 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ],
+    [
+     46,
+     "p11",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 49,
+   "what": "rent 175 (h2)",
+   "answered": true,
+   "by": [
+    [
+     49,
+     "p05",
+     "message"
+    ],
+    [
+     49,
+     "p05",
+     "message"
+    ],
+    [
+     50,
+     "p03",
+     "pay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 51,
+   "what": "energy bill (moved to a payment plan) 48 (h6)",
+   "answered": true,
+   "by": [
+    [
+     51,
+     "p11",
+     "message"
+    ],
+    [
+     51,
+     "p11",
+     "message"
+    ],
+    [
+     51,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "mortgage on the house 215 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "mortgage on the house 215 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 52,
+   "what": "Northgrid payment plan (moved to a payment plan) 6 (h6)",
+   "answered": true,
+   "by": [
+    [
+     53,
+     "p12",
+     "pay"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ],
+    [
+     53,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 56,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     56,
+     "p01",
+     "message"
+    ],
+    [
+     56,
+     "p01",
+     "message"
+    ],
+    [
+     56,
+     "p02",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 63,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     63,
+     "p02",
+     "message"
+    ],
+    [
+     63,
+     "p02",
+     "message"
+    ],
+    [
+     63,
+     "p02",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 58,
+   "what": "energy bill 57 (h1)",
+   "answered": true,
+   "by": [
+    [
+     58,
+     "p02",
+     "message"
+    ],
+    [
+     59,
+     "p01",
+     "message"
+    ],
+    [
+     59,
+     "p01",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 65,
+   "what": "energy bill 57 (h1)",
+   "answered": true,
+   "by": [
+    [
+     65,
+     "p02",
+     "message"
+    ],
+    [
+     65,
+     "p01",
+     "message"
+    ],
+    [
+     65,
+     "p01",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "message"
+    ],
+    [
+     59,
+     "p12",
+     "repay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 63,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     63,
+     "p02",
+     "message"
+    ],
+    [
+     63,
+     "p02",
+     "message"
+    ],
+    [
+     63,
+     "p02",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 65,
+   "what": "energy bill 57 (h1)",
+   "answered": true,
+   "by": [
+    [
+     65,
+     "p02",
+     "message"
+    ],
+    [
+     65,
+     "p01",
+     "message"
+    ],
+    [
+     65,
+     "p01",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "Northgrid payment plan 6 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "Northgrid payment plan 13 (h6)",
+   "answered": true,
+   "by": [
+    [
+     66,
+     "p12",
+     "message"
+    ],
+    [
+     66,
+     "p12",
+     "propose_agreement"
+    ],
+    [
+     66,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "job_lost",
+   "who": [
+    "p02"
+   ],
+   "t": 23,
+   "what": "Nadia Tully",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p04"
+   ],
+   "t": 20,
+   "what": "The Corner Stores weeks 2-3",
+   "answered": true,
+   "by": [
+    [
+     22,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     26,
+     "p04",
+     "work_extra_hours"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p04"
+   ],
+   "t": 55,
+   "what": "The Corner Stores weeks 7-8",
+   "answered": true,
+   "by": [
+    [
+     56,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     63,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     64,
+     "p04",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p09"
+   ],
+   "t": 13,
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     14,
+     "p11",
+     "order_stock"
+    ],
+    [
+     18,
+     "p11",
+     "offer_shifts"
+    ],
+    [
+     22,
+     "p11",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 6,
+   "what": "r44 shifts from p11",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 6,
+   "what": "r46 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 6,
+   "what": "r53 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 7,
+   "what": "r77 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 7,
+   "what": "r85 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 7,
+   "what": "r87 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 8,
+   "what": "r105 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 8,
+   "what": "r118 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 8,
+   "what": "r120 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 8,
+   "what": "r124 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 10,
+   "what": "r184 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 10,
+   "what": "r187 agreement from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 14,
+   "what": "r309 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 16,
+   "what": "r346 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 17,
+   "what": "r382 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 17,
+   "what": "r397 agreement from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 18,
+   "what": "r403 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 18,
+   "what": "r410 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 18,
+   "what": "r431 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 18,
+   "what": "r434 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 18,
+   "what": "r436 shifts from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 20,
+   "what": "r483 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 21,
+   "what": "r508 agreement from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 22,
+   "what": "r545 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 23,
+   "what": "r566 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p01"
+   ],
+   "t": 25,
+   "what": "r607 agreement from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 25,
+   "what": "r610 agreement from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 25,
+   "what": "r620 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 25,
+   "what": "r627 agreement from p03",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 26,
+   "what": "r654 ask from p13",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 27,
+   "what": "r701 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 28,
+   "what": "r753 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p01"
+   ],
+   "t": 28,
+   "what": "r755 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p01"
+   ],
+   "t": 29,
+   "what": "r790 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 32,
+   "what": "r848 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 34,
+   "what": "r905 loan from p04",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 36,
+   "what": "r971 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 36,
+   "what": "r1000 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 36,
+   "what": "r1005 agreement from p05",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p08"
+   ],
+   "t": 37,
+   "what": "r1018 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 38,
+   "what": "r1073 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 38,
+   "what": "r1078 agreement from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 38,
+   "what": "r1080 agreement from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 39,
+   "what": "r1098 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 39,
+   "what": "r1113 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 39,
+   "what": "r1115 ask from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 41,
+   "what": "r1175 shifts from p11",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 42,
+   "what": "r1216 ask from p12",
+   "answered": true,
+   "by": [
+    "failed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p01"
+   ],
+   "t": 44,
+   "what": "r1294 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 46,
+   "what": "r1335 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 46,
+   "what": "r1343 ask from p05",
+   "answered": true,
+   "by": [
+    "failed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 49,
+   "what": "r1456 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 51,
+   "what": "r1505 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 53,
+   "what": "r1554 ask from p05",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 56,
+   "what": "r1619 agreement from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 56,
+   "what": "r1639 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p08"
+   ],
+   "t": 56,
+   "what": "r1643 ask from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 57,
+   "what": "r1672 ask from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 58,
+   "what": "r1677 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 60,
+   "what": "r1738 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 60,
+   "what": "r1754 agreement from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 62,
+   "what": "r1830 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 63,
+   "what": "r1878 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 66,
+   "what": "r1973 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 66,
+   "what": "r1978 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 66,
+   "what": "r1980 ask from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 67,
+   "what": "r1990 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p01"
+   ],
+   "t": 67,
+   "what": "r1992 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 67,
+   "what": "r1995 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 67,
+   "what": "r2009 ask from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 67,
+   "what": "r2020 ask from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 69,
+   "what": "r2082 ask from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  }
+ ],
+ "beneficial": [
+  {
+   "rule": "a",
+   "what": "The Corner Stores weeks 2-3",
+   "taken": true,
+   "by": [
+    [
+     22,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     26,
+     "p04",
+     "work_extra_hours"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "The Corner Stores weeks 7-8",
+   "taken": true,
+   "by": [
+    [
+     56,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     63,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     67,
+     "p04",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "a",
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     18,
+     "p11",
+     "offer_shifts"
+    ],
+    [
+     23,
+     "p11",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 24",
+   "taken": true,
+   "by": [
+    [
+     25,
+     "p11",
+     "move_money"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 135 due day 31",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "rent 175 due day 35",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill (moved to a payment plan) 48 due day 37",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 135 due day 38",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 40 due day 38",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 175 due day 45",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 40 due day 45",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "rent 175 due day 49",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill (moved to a payment plan) 48 due day 51",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 215 due day 52",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 52",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 40 due day 52",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "Northgrid payment plan (moved to a payment plan) 6 due day 52",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 240 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 240 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "Northgrid payment plan 6 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "Northgrid payment plan 13 due day 66",
+   "taken": false,
+   "by": []
+  }
+ ],
+ "changes": {
+  "price_changes_weekly": 0,
+  "set_price_acts": 0,
+  "staff_changes": 1,
+  "loans": 0,
+  "shifts_accepted": 27,
+  "extra_hours_acts": 6,
+  "jobs_filled": 0
+ },
+ "baseline_changes": {
+  "price_changes_weekly": 21,
+  "set_price_acts": 23,
+  "staff_changes": 4,
+  "loans": 0,
+  "shifts_accepted": 0,
+  "extra_hours_acts": 0,
+  "jobs_filled": 0
+ },
+ "gate3": {
+  "pass": false
+ },
+ "acts_per_person_week": {
+  "message": 10.09,
+  "read": 7.44,
+  "write_notes": 2.14,
+  "pay": 0.71,
+  "answer": 0.58,
+  "converse": 0.45,
+  "cancel_standing_payment": 0.45,
+  "order_stock": 0.39,
+  "book_appointment": 0.36,
+  "shop_at": 0.22,
+  "offer_shifts": 0.18,
+  "propose_agreement": 0.18,
+  "attempt": 0.18,
+  "move_money": 0.1,
+  "standing_payment": 0.07,
+  "repay": 0.06,
+  "request": 0.06,
+  "work_extra_hours": 0.04,
+  "publish_notice": 0.04,
+  "borrow": 0.01,
+  "set_staff_pay": 0.01,
+  "accept_job": 0.01
+ },
+ "turns": 777,
+ "invalid_rate": 0.029601029601029602,
+ "by_family": {
+  "haiku": {
+   "turns": 143,
+   "invalid": 0.035,
+   "acts_per_turn": 2.41,
+   "nonroutine": 35
+  },
+  "deepseek": {
+   "turns": 133,
+   "invalid": 0.0,
+   "acts_per_turn": 2.39,
+   "nonroutine": 5
+  },
+  "hy4": {
+   "turns": 247,
+   "invalid": 0.012,
+   "acts_per_turn": 4.42,
+   "nonroutine": 63
+  },
+  "minimax": {
+   "turns": 254,
+   "invalid": 0.059,
+   "acts_per_turn": 6.18,
+   "nonroutine": 203
+  }
+ },
+ "no_hours": 17,
+ "hours_left_end_of_week": 18.64999999999999,
+ "unknown_names": {
+  "n": 84,
+  "examples": [
+   {
+    "t": 8,
+    "to": "p09",
+    "names": [
+     "Payment"
+    ],
+    "text": "Dear Mr Daly,\n\nThank you for getting in touch before the due date, and for letting us know about the pressure on your finances. We're glad to help.\n\nYour account currently shows $0 overdue and $688 du"
+   },
+   {
+    "t": 10,
+    "writer": "p11",
+    "names": [
+     "Fill"
+    ],
+    "text": "Right, Ruth, here's the plain version. Seven weeks of cash, Calder not paying till they sell, and you've already decided to tell Hazel the truth. Good. So say it in that order: 'We have about seven we",
+    "where": "conversation"
+   },
+   {
+    "t": 14,
+    "writer": "p04",
+    "names": [
+     "Mary"
+    ],
+    "text": "Alan! Just the man. Look, I wanted to catch you today while I've got the paperwork in front of me \u2014 Keith and I have been talking about the rent, and I think it's only fair we put it down in writing, ",
+    "where": "conversation"
+   },
+   {
+    "t": 14,
+    "writer": "p09",
+    "names": [
+     "Mary"
+    ],
+    "text": "Oh \u2014 Dave, sorry, I was just checking a few things in my head. Mary? I\u2019m not sure who you mean, there\u2019s no Mary here at ours. Maureen\u2019s alright, just tired, I think. As for the rent, yes, $175 a week ",
+    "where": "conversation"
+   },
+   {
+    "t": 15,
+    "writer": "p13",
+    "names": [
+     "Depot"
+    ],
+    "text": "Ruth, numbers first: company account $7,120, burn $1,090 a week, so roughly six weeks. No users yet, and Calder isn't sellable, so outreach has to be honest: discovery and pilot interest only, not a p",
+    "where": "conversation"
+   },
+   {
+    "t": 17,
+    "writer": "p02",
+    "names": [
+     "Data"
+    ],
+    "text": "Delay words in depot emails are usually \u201crunning behind,\u201d \u201cawaiting stock,\u201d and \u201cdispatch later than planned.\u201d On the floor, supervisors say \u201chold,\u201d \u201cshort pick,\u201d and \u201crecheck.\u201d Data exists in the dep",
+    "where": "conversation"
+   },
+   {
+    "t": 22,
+    "to": "p05",
+    "names": [
+     "Manager"
+    ],
+    "text": "Dear Owen, Thank you for your message. I am pleased to set out the full schedule for the card consolidation loan, as follows.\n\nOpening balance: $5,828. Weekly payment: $43, of which $36 is principal a"
+   },
+   {
+    "t": 22,
+    "writer": "p06",
+    "names": [
+     "Manager"
+    ],
+    "text": "Dear Owen, Thank you for your message. I am pleased to set out the full schedule for the card consolidation loan, as follows.\n\nOpening balance: $5,828. Weekly payment: $43, of which $36 is principal a"
+   },
+   {
+    "t": 22,
+    "to": "p12",
+    "names": [
+     "Manager"
+    ],
+    "text": "Dear Craig, Thank you for your message. I can confirm the following payments are scheduled for Thursday 26 March: mortgage $240, car loan $43, chiller loan $65 \u2014 a total of $348.\n\nAs to the balance af"
+   },
+   {
+    "t": 22,
+    "writer": "p06",
+    "names": [
+     "Manager"
+    ],
+    "text": "Dear Craig, Thank you for your message. I can confirm the following payments are scheduled for Thursday 26 March: mortgage $240, car loan $43, chiller loan $65 \u2014 a total of $348.\n\nAs to the balance af"
+   },
+   {
+    "t": 23,
+    "to": "p06",
+    "names": [
+     "Confirm"
+    ],
+    "text": "I have booked to see you on Wednesday 25 March about: Confirm Thursday's $348 in payments (mortgage $240, car loan $43, chiller $65) and the $108 double-payment credit on my account."
+   },
+   {
+    "t": 23,
+    "writer": "p12",
+    "names": [
+     "Confirm"
+    ],
+    "text": "Confirm Thursday's $348 in payments (mortgage $240, car loan $43, chiller $65) and the $108 double-payment credit on my account"
+   }
+  ]
+ },
+ "agreements": {
+  "repayment_plan": 8,
+  "standing": 13,
+  "retainer": 2
+ },
+ "appointments": {
+  "held": 39,
+  "missed": 2
+ },
+ "requests": {
+  "shifts:lapsed": 2,
+  "agreement:accepted": 16,
+  "shifts:accepted": 27,
+  "agreement:declined": 9,
+  "shifts:declined": 1,
+  "ask:accepted": 9,
+  "ask:declined": 2,
+  "loan:lapsed": 1,
+  "ask:failed": 2,
+  "ask:open": 3
+ },
+ "conversations": {
+  "talk": 60,
+  "household": 45,
+  "appointment": 39
+ },
+ "attempts": {
+  "reject:too_vague": 4,
+  "redirect:converse": 1,
+  "redirect:pay": 1,
+  "applied": 1,
+  "reject:impossible": 1,
+  "redirect:read": 1,
+  "redirect:book_appointment": 1,
+  "all_invalid": 1,
+  "redirect:request": 1
+ },
+ "signups": [],
+ "calder": {},
+ "access_changes": [],
+ "company_acts": {
+  "read": 56,
+  "message": 242,
+  "write_notes": 81,
+  "book_appointment": 9,
+  "pay": 6,
+  "converse": 8,
+  "null": 4,
+  "request": 1,
+  "shop_at": 2,
+  "answer": 1
+ },
+ "notices": [
+  [
+   8,
+   "p09",
+   "Pre-order baskets are available for busy hours. Please ask at the counter \u2014 we\u2019re also opening a quicker queue so we can serve everyone as fast as we can."
+  ],
+  [
+   8,
+   "p09",
+   "Pre-order baskets are available at Wenlow Bakery & Deli. One basket only. Please order before the daily cut-off time and collect from the separate pickup point during busy hours. We will review the tr"
+  ],
+  [
+   20,
+   "p12",
+   "Saturday delivery \u2014 stock check on shelves before open. We've had empty shelves this week; if you want the basics, come in early Saturday morning."
+  ],
+  [
+   24,
+   "p04",
+   "Saturday stock check: we'll be restocking early Saturday morning with bread, milk, eggs and everyday tinned and long-life basics. Come in early Saturday if you need those, and if something is missing "
+  ],
+  [
+   26,
+   "p04",
+   "We had empty shelves this week and we're sorry. Stock is being put out early Saturday morning \u2014 bread, milk, eggs, everyday tinned and long-life basics. If something you need isn't on the shelf, tell "
+  ],
+  [
+   31,
+   "p04",
+   "Saturday stock is going out early \u2014 bread, milk, eggs, everyday tinned and long-life basics. If something you need isn't on the shelf, tell us at the counter and we'll get it on the order."
+  ],
+  [
+   56,
+   "p04",
+   "Fresh stock arriving Thursday \u2014 bread, milk, eggs and tinned basics all being restocked this week. If a shelf is empty, please ask at the counter and we'll point you to it or get it in for you."
+  ]
+ ],
+ "instance_ops": {},
+ "instance_scope_refused": [],
+ "instance_to_others": [],
+ "inter_instance": [],
+ "cost": {
+  "people_usd": 0.7276,
+  "instances_usd": 0,
+  "narrator_usd": 0.0244,
+  "desks_usd": 0.0094,
+  "per_person_week": 0.0052,
+  "per_instance_week": null,
+  "instance_steps": 0,
+  "median_tokens_in_people": 2741,
+  "median_tokens_out_people": 553,
+  "median_view_words": 1423
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 520,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 12,
+    "firm:2": 71,
+    "firm:3": 150
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 736000,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "hh_cash": {
+    "h1": 127400,
+    "h2": 141700,
+    "h3": 85200,
+    "h4": 97600,
+    "h5": 342600,
+    "h6": 114200,
+    "h7": 303400,
+    "h8": 295300
+   },
+   "overdue": {},
+   "company_cash": 806000,
+   "clients": []
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 180,
+    "firm:2": 314,
+    "firm:3": 317
+   },
+   "turned_away": {
+    "firm:1": 533,
+    "firm:2": 406,
+    "firm:3": 471
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 610140,
+    "firm:2": 812036,
+    "firm:3": 583440
+   },
+   "hh_cash": {
+    "h1": 110800,
+    "h2": 142024,
+    "h3": 95650,
+    "h4": 166300,
+    "h5": 376200,
+    "h6": 118360,
+    "h7": 305900,
+    "h8": 293600
+   },
+   "overdue": {},
+   "company_cash": 712000,
+   "clients": []
+  },
+  {
+   "week": 3,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 460,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 81,
+    "firm:2": 103,
+    "firm:3": 180
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 588000,
+    "firm:2": 722908,
+    "firm:3": 595340
+   },
+   "hh_cash": {
+    "h1": 116200,
+    "h2": 51912,
+    "h3": 109700,
+    "h4": 214166,
+    "h5": 405800,
+    "h6": 49960,
+    "h7": 311800,
+    "h8": 290900
+   },
+   "overdue": {},
+   "company_cash": 603000,
+   "clients": []
+  },
+  {
+   "week": 4,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 295,
+    "firm:2": 340,
+    "firm:3": 357
+   },
+   "turned_away": {
+    "firm:1": 254,
+    "firm:2": 208,
+    "firm:3": 234
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 468140,
+    "firm:2": 849620,
+    "firm:3": 531340
+   },
+   "hh_cash": {
+    "h1": 240100,
+    "h2": 80500,
+    "h3": 122450,
+    "h4": 264662,
+    "h5": 439400,
+    "h6": 25610,
+    "h7": 317200,
+    "h8": 285300
+   },
+   "overdue": {},
+   "company_cash": 494000,
+   "clients": []
+  },
+  {
+   "week": 5,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 471,
+    "firm:3": 170
+   },
+   "turned_away": {
+    "firm:1": 11,
+    "firm:2": 0,
+    "firm:3": 232
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 486720,
+    "firm:2": 807820,
+    "firm:3": 376980
+   },
+   "hh_cash": {
+    "h1": 175884,
+    "h2": 0,
+    "h3": 142650,
+    "h4": 306009,
+    "h5": 482000,
+    "h6": 3870,
+    "h7": 320600,
+    "h8": 282600
+   },
+   "overdue": {
+    "h6": 25500
+   },
+   "company_cash": 385000,
+   "clients": []
+  },
+  {
+   "week": 6,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 415,
+    "firm:2": 428,
+    "firm:3": 314
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 83
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 390000,
+    "firm:2": 901794,
+    "firm:3": 545882
+   },
+   "hh_cash": {
+    "h1": 99472,
+    "h2": 0,
+    "h3": 145350,
+    "h4": 266610,
+    "h5": 505600,
+    "h6": 0,
+    "h7": 303500,
+    "h8": 282900
+   },
+   "overdue": {
+    "h6": 66300
+   },
+   "company_cash": 276000,
+   "clients": []
+  },
+  {
+   "week": 7,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 331,
+    "firm:3": 124
+   },
+   "turned_away": {
+    "firm:1": 137,
+    "firm:2": 194,
+    "firm:3": 358
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 515000,
+    "firm:2": 941210,
+    "firm:3": 487158
+   },
+   "hh_cash": {
+    "h1": 60908,
+    "h2": 34653,
+    "h3": 102300,
+    "h4": 199713,
+    "h5": 537200,
+    "h6": 0,
+    "h7": 310900,
+    "h8": 282200
+   },
+   "overdue": {
+    "h6": 88500
+   },
+   "company_cash": 167000,
+   "clients": []
+  },
+  {
+   "week": 8,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 397,
+    "firm:2": 421,
+    "firm:3": 292
+   },
+   "turned_away": {
+    "firm:1": 49,
+    "firm:2": 0,
+    "firm:3": 58
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 509614,
+    "firm:2": 914362,
+    "firm:3": 463706
+   },
+   "hh_cash": {
+    "h1": 0,
+    "h2": 83426,
+    "h3": 110500,
+    "h4": 326358,
+    "h5": 569800,
+    "h6": 17696,
+    "h7": 313300,
+    "h8": 277500
+   },
+   "overdue": {
+    "h6": 126209
+   },
+   "company_cash": 58000,
+   "clients": []
+  },
+  {
+   "week": 9,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 220,
+    "firm:2": 400,
+    "firm:3": 128
+   },
+   "turned_away": {
+    "firm:1": 458,
+    "firm:2": 364,
+    "firm:3": 499
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 419634,
+    "firm:2": 1003338,
+    "firm:3": 396586
+   },
+   "hh_cash": {
+    "h1": 0,
+    "h2": 120881,
+    "h3": 123700,
+    "h4": 340205,
+    "h5": 606400,
+    "h6": 0,
+    "h7": 314700,
+    "h8": 261800
+   },
+   "overdue": {
+    "h1": 34200,
+    "h6": 135100
+   },
+   "company_cash": 0,
+   "clients": []
+  },
+  {
+   "week": 10,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 490,
+    "firm:2": 461,
+    "firm:3": 80
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 217
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 465000,
+    "firm:2": 601422,
+    "firm:3": 316026
+   },
+   "hh_cash": {
+    "h1": 0,
+    "h2": 0,
+    "h3": 100900,
+    "h4": 371105,
+    "h5": 642000,
+    "h6": 0,
+    "h7": 325100,
+    "h8": 213200
+   },
+   "overdue": {
+    "h1": 68400,
+    "h6": 142011
+   },
+   "company_cash": 0,
+   "clients": []
+  }
+ ],
+ "ledger_total": 0
+}

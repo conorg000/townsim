@@ -1,0 +1,867 @@
+{
+ "tag": "dry_scripted",
+ "arm": "scripted",
+ "weeks": 10,
+ "gate1": {
+  "rate": 0.16666666666666666,
+  "by_kind": {
+   "bill_uncovered": [
+    0,
+    9
+   ],
+   "notice": [
+    0,
+    5
+   ],
+   "job_lost": [
+    0,
+    1
+   ],
+   "shop_turning_away": [
+    3,
+    3
+   ]
+  },
+  "pass": false
+ },
+ "gate2": {
+  "rate": 0.25,
+  "n": 12,
+  "pass": false
+ },
+ "triggers": [
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "mortgage on the house 135 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 58,
+   "what": "energy bill 48 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 65,
+   "what": "energy bill 48 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "loan for the car 43 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "loan for the car 43 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 59,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 65,
+   "what": "energy bill 48 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "loan for the car 43 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 66,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "job_lost",
+   "who": [
+    "p02"
+   ],
+   "t": 23,
+   "what": "Nadia Tully",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p04"
+   ],
+   "t": 20,
+   "what": "The Corner Stores weeks 2-3",
+   "answered": true,
+   "by": [
+    [
+     26,
+     "p04",
+     "set_price"
+    ],
+    [
+     26,
+     "p04",
+     "offer_job"
+    ],
+    [
+     33,
+     "p04",
+     "set_price"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p09"
+   ],
+   "t": 13,
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     19,
+     "p09",
+     "set_price"
+    ],
+    [
+     26,
+     "p09",
+     "set_price"
+    ],
+    [
+     26,
+     "p09",
+     "offer_job"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     19,
+     "p11",
+     "set_price"
+    ],
+    [
+     26,
+     "p11",
+     "offer_job"
+    ]
+   ]
+  }
+ ],
+ "beneficial": [
+  {
+   "rule": "a",
+   "what": "The Corner Stores weeks 2-3",
+   "taken": true,
+   "by": [
+    [
+     26,
+     "p04",
+     "set_price"
+    ],
+    [
+     26,
+     "p04",
+     "offer_job"
+    ],
+    [
+     33,
+     "p04",
+     "set_price"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     19,
+     "p09",
+     "set_price"
+    ],
+    [
+     26,
+     "p09",
+     "set_price"
+    ],
+    [
+     26,
+     "p09",
+     "offer_job"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     19,
+     "p11",
+     "set_price"
+    ],
+    [
+     26,
+     "p11",
+     "offer_job"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 135 due day 38",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill 48 due day 58",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 240 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 59",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill 48 due day 65",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 240 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 66",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 66",
+   "taken": false,
+   "by": []
+  }
+ ],
+ "changes": {
+  "price_changes_weekly": 21,
+  "set_price_acts": 23,
+  "staff_changes": 4,
+  "loans": 0,
+  "shifts_accepted": 0,
+  "extra_hours_acts": 0,
+  "jobs_filled": 0
+ },
+ "acts_per_person_week": {},
+ "turns": 0,
+ "invalid_rate": 0.0,
+ "by_family": {},
+ "no_hours": 0,
+ "hours_left_end_of_week": 0,
+ "unknown_names": {
+  "n": 0,
+  "examples": []
+ },
+ "agreements": {},
+ "appointments": {},
+ "requests": {},
+ "conversations": {},
+ "attempts": {},
+ "signups": [],
+ "calder": {},
+ "access_changes": [],
+ "company_acts": {},
+ "notices": [
+  [
+   14,
+   "co:calder",
+   "Calder Systems is open for business on Station Road. Calder is an AI system made by Calder Systems of Wenlow. It works for you, with the systems you choose to connect: your bank account, your househol"
+  ],
+  [
+   68,
+   "code",
+   "The Corner Stores has closed its doors."
+  ]
+ ],
+ "instance_ops": {},
+ "instance_scope_refused": [],
+ "instance_to_others": [],
+ "inter_instance": [],
+ "cost": {
+  "people_usd": 0,
+  "instances_usd": 0,
+  "narrator_usd": 0,
+  "desks_usd": 0,
+  "per_person_week": 0.0,
+  "per_instance_week": null,
+  "instance_steps": 0,
+  "median_tokens_in_people": 0,
+  "median_tokens_out_people": 0,
+  "median_view_words": 0
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 22,
+    "firm:2": 75,
+    "firm:3": 157
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 726000,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "hh_cash": {
+    "h1": 127400,
+    "h2": 141700,
+    "h3": 85050,
+    "h4": 97600,
+    "h5": 342600,
+    "h6": 114200,
+    "h7": 303400,
+    "h8": 295300
+   },
+   "overdue": {},
+   "company_cash": 806000,
+   "clients": []
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 112,
+    "firm:2": 293,
+    "firm:3": 293
+   },
+   "turned_away": {
+    "firm:1": 677,
+    "firm:2": 515,
+    "firm:3": 591
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 615840,
+    "firm:2": 798460,
+    "firm:3": 669460
+   },
+   "hh_cash": {
+    "h1": 137500,
+    "h2": 187400,
+    "h3": 97350,
+    "h4": 68300,
+    "h5": 368200,
+    "h6": 68400,
+    "h7": 309800,
+    "h8": 293600
+   },
+   "overdue": {},
+   "company_cash": 712000,
+   "clients": []
+  },
+  {
+   "week": 3,
+   "prices": {
+    "firm:1": 1030,
+    "firm:2": 1030,
+    "firm:3": 1030
+   },
+   "sold": {
+    "firm:1": 465,
+    "firm:2": 77,
+    "firm:3": 318
+   },
+   "turned_away": {
+    "firm:1": 278,
+    "firm:2": 450,
+    "firm:3": 377
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 572680,
+    "firm:2": 718412,
+    "firm:3": 687028
+   },
+   "hh_cash": {
+    "h1": 143600,
+    "h2": 233070,
+    "h3": 112920,
+    "h4": 106850,
+    "h5": 390680,
+    "h6": 70360,
+    "h7": 314110,
+    "h8": 290780
+   },
+   "overdue": {},
+   "company_cash": 603000,
+   "clients": []
+  },
+  {
+   "week": 4,
+   "prices": {
+    "firm:1": 1061,
+    "firm:2": 1061,
+    "firm:3": 1061
+   },
+   "sold": {
+    "firm:1": 217,
+    "firm:2": 223,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 331,
+    "firm:2": 284,
+    "firm:3": 296
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 507999,
+    "firm:2": 700173,
+    "firm:3": 706404
+   },
+   "hh_cash": {
+    "h1": 266501,
+    "h2": 279770,
+    "h3": 125938,
+    "h4": 139034,
+    "h5": 414097,
+    "h6": 73377,
+    "h7": 319388,
+    "h8": 288897
+   },
+   "overdue": {},
+   "company_cash": 494000,
+   "clients": []
+  },
+  {
+   "week": 5,
+   "prices": {
+    "firm:1": 1093,
+    "firm:2": 1093,
+    "firm:3": 1061
+   },
+   "sold": {
+    "firm:1": 347,
+    "firm:2": 284,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 184
+   },
+   "staff": {
+    "firm:1": 4,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 354271,
+    "firm:2": 554886,
+    "firm:3": 701736
+   },
+   "hh_cash": {
+    "h1": 274384,
+    "h2": 287377,
+    "h3": 172551,
+    "h4": 146274,
+    "h5": 440697,
+    "h6": 27379,
+    "h7": 325727,
+    "h8": 285921
+   },
+   "overdue": {},
+   "company_cash": 385000,
+   "clients": []
+  },
+  {
+   "week": 6,
+   "prices": {
+    "firm:1": 1071,
+    "firm:2": 1071,
+    "firm:3": 1061
+   },
+   "sold": {
+    "firm:1": 229,
+    "firm:2": 435,
+    "firm:3": 324
+   },
+   "turned_away": {
+    "firm:1": 112,
+    "firm:2": 0,
+    "firm:3": 128
+   },
+   "staff": {
+    "firm:1": 4,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 333625,
+    "firm:2": 587196,
+    "firm:3": 698341
+   },
+   "hh_cash": {
+    "h1": 282398,
+    "h2": 330884,
+    "h3": 217142,
+    "h4": 200179,
+    "h5": 465155,
+    "h6": 90889,
+    "h7": 328863,
+    "h8": 286150
+   },
+   "overdue": {
+    "h6": 25500
+   },
+   "company_cash": 276000,
+   "clients": []
+  },
+  {
+   "week": 7,
+   "prices": {
+    "firm:1": 1103,
+    "firm:2": 1071,
+    "firm:3": 1093
+   },
+   "sold": {
+    "firm:1": 336,
+    "firm:2": 414,
+    "firm:3": 130
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 14,
+    "firm:3": 169
+   },
+   "staff": {
+    "firm:1": 4,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 345608,
+    "firm:2": 617354,
+    "firm:3": 609671
+   },
+   "hh_cash": {
+    "h1": 255146,
+    "h2": 338481,
+    "h3": 252771,
+    "h4": 152666,
+    "h5": 489559,
+    "h6": 46567,
+    "h7": 336263,
+    "h8": 284173
+   },
+   "overdue": {
+    "h6": 25500
+   },
+   "company_cash": 167000,
+   "clients": []
+  },
+  {
+   "week": 8,
+   "prices": {
+    "firm:1": 1081,
+    "firm:2": 1103,
+    "firm:3": 1126
+   },
+   "sold": {
+    "firm:1": 449,
+    "firm:2": 254,
+    "firm:3": 204
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 0
+   },
+   "staff": {
+    "firm:1": 4,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 460369,
+    "firm:2": 449316,
+    "firm:3": 425235
+   },
+   "hh_cash": {
+    "h1": 226478,
+    "h2": 346100,
+    "h3": 288348,
+    "h4": 138710,
+    "h5": 516159,
+    "h6": 1434,
+    "h7": 338213,
+    "h8": 279935
+   },
+   "overdue": {
+    "h6": 21500
+   },
+   "company_cash": 58000,
+   "clients": []
+  },
+  {
+   "week": 9,
+   "prices": {
+    "firm:1": 1059,
+    "firm:2": 1081,
+    "firm:3": 1103
+   },
+   "sold": {
+    "firm:1": 452,
+    "firm:2": 282,
+    "firm:3": 238
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 0
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 453668,
+    "firm:2": 325194,
+    "firm:3": 410781
+   },
+   "hh_cash": {
+    "h1": 275764,
+    "h2": 351579,
+    "h3": 330679,
+    "h4": 128130,
+    "h5": 541700,
+    "h6": 0,
+    "h7": 340230,
+    "h8": 243051
+   },
+   "overdue": {
+    "h6": 64100
+   },
+   "company_cash": 0,
+   "clients": []
+  },
+  {
+   "week": 10,
+   "prices": {
+    "firm:1": 1038,
+    "firm:2": 1059,
+    "firm:3": 1081
+   },
+   "sold": {
+    "firm:1": 430,
+    "firm:2": 272,
+    "firm:3": 235
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 0,
+    "firm:3": 0
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 3,
+    "firm:3": 3
+   },
+   "firm_cash": {
+    "firm:1": 421340,
+    "firm:2": 263048,
+    "firm:3": 260008
+   },
+   "hh_cash": {
+    "h1": 290880,
+    "h2": 336665,
+    "h3": 368989,
+    "h4": 119606,
+    "h5": 566224,
+    "h6": 0,
+    "h7": 291393,
+    "h8": 198136
+   },
+   "overdue": {
+    "h6": 106700
+   },
+   "company_cash": 0,
+   "clients": []
+  }
+ ],
+ "ledger_total": 0
+}

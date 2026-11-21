@@ -1,0 +1,5 @@
+[arm3_candidates] week 1 done; fresh $0.0000; calls 0 fresh / 69 cached
+[arm3_candidates] week 2 done; fresh $0.0000; calls 0 fresh / 240 cached
+[arm3_candidates] week 3 done; fresh $0.0000; calls 0 fresh / 449 cached
+STOPPED: spend $3.984 + this call would pass $4.0
+run stats: {'fresh_usd': 0.0, 'cached_usd': 0.260015248874, 'fresh_calls': 0, 'cached_calls': 464}

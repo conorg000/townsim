@@ -1,0 +1,11 @@
+[arm1_people] week 1 done; fresh $0.0146; calls 48 fresh / 11 cached
+[arm1_people] week 2 done; fresh $0.0894; calls 234 fresh / 11 cached
+[arm1_people] week 3 done; fresh $0.1649; calls 409 fresh / 11 cached
+[arm1_people] week 4 done; fresh $0.2376; calls 549 fresh / 11 cached
+[arm1_people] week 5 done; fresh $0.3040; calls 681 fresh / 11 cached
+[arm1_people] week 6 done; fresh $0.4063; calls 897 fresh / 11 cached
+[arm1_people] week 7 done; fresh $0.4968; calls 1074 fresh / 11 cached
+[arm1_people] week 8 done; fresh $0.5731; calls 1211 fresh / 11 cached
+[arm1_people] week 9 done; fresh $0.6607; calls 1378 fresh / 11 cached
+[arm1_people] week 10 done; fresh $0.7593; calls 1583 fresh / 11 cached
+run stats: {'fresh_usd': 0.7593300401399994, 'cached_usd': 0.002019593, 'fresh_calls': 1583, 'cached_calls': 11}

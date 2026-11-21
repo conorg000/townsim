@@ -1,0 +1,11 @@
+[arm0_scripted] week 1 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 2 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 3 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 4 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 5 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 6 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 7 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 8 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 9 done; fresh $0.0000; calls 0 fresh / 0 cached
+[arm0_scripted] week 10 done; fresh $0.0000; calls 0 fresh / 0 cached
+run stats: {'fresh_usd': 0.0, 'cached_usd': 0.0, 'fresh_calls': 0, 'cached_calls': 0}

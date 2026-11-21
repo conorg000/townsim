@@ -1,0 +1,3062 @@
+{
+ "tag": "arm2_product",
+ "arm": "product",
+ "weeks": 10,
+ "gate1": {
+  "rate": 0.8292682926829268,
+  "by_kind": {
+   "bill_uncovered": [
+    16,
+    16
+   ],
+   "notice": [
+    9,
+    9
+   ],
+   "job_lost": [
+    0,
+    1
+   ],
+   "shop_turning_away": [
+    3,
+    3
+   ],
+   "request_to_person": [
+    40,
+    53
+   ]
+  },
+  "pass": true
+ },
+ "gate2": {
+  "rate": 0.3125,
+  "n": 16,
+  "pass": false
+ },
+ "triggers": [
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 23,
+   "what": "energy bill (moved to a payment plan) 57 (h1)",
+   "answered": true,
+   "by": [
+    [
+     23,
+     "p02",
+     "message"
+    ],
+    [
+     23,
+     "p02",
+     "message"
+    ],
+    [
+     23,
+     "p02",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 24,
+   "what": "mortgage on the house 175 (h6)",
+   "answered": true,
+   "by": [
+    [
+     24,
+     "p11",
+     "message"
+    ],
+    [
+     24,
+     "p12",
+     "message"
+    ],
+    [
+     24,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 31,
+   "what": "mortgage on the house 175 (h6)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     32,
+     "p12",
+     "pay"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 28,
+   "what": "rent 175 (h2)",
+   "answered": true,
+   "by": [
+    [
+     28,
+     "p04",
+     "message"
+    ],
+    [
+     28,
+     "p04",
+     "message"
+    ],
+    [
+     28,
+     "p03",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 35,
+   "what": "rent 175 (h2)",
+   "answered": true,
+   "by": [
+    [
+     35,
+     "p04",
+     "message"
+    ],
+    [
+     35,
+     "p04",
+     "message"
+    ],
+    [
+     35,
+     "p03",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 30,
+   "what": "energy bill 57 (h2)",
+   "answered": true,
+   "by": [
+    [
+     30,
+     "p05",
+     "message"
+    ],
+    [
+     30,
+     "p05",
+     "message"
+    ],
+    [
+     30,
+     "p03",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p03",
+    "p04",
+    "p05"
+   ],
+   "t": 31,
+   "what": "loan to consolidate card debts 43 (h2)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p05",
+     "message"
+    ],
+    [
+     31,
+     "p05",
+     "message"
+    ],
+    [
+     31,
+     "p05",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 30,
+   "what": "energy bill 48 (h6)",
+   "answered": true,
+   "by": [
+    [
+     30,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 31,
+   "what": "mortgage on the house 215 (h6)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     32,
+     "p12",
+     "pay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "mortgage on the house 215 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 31,
+   "what": "loan for the car 18 (h6)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     32,
+     "p12",
+     "pay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "loan for the car 18 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 31,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     32,
+     "p12",
+     "pay"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "business loan for the shop's chiller 40 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 30,
+   "what": "prescription 18 (h6)",
+   "answered": true,
+   "by": [
+    [
+     30,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ],
+    [
+     31,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 37,
+   "what": "energy bill 48 (h6)",
+   "answered": true,
+   "by": [
+    [
+     37,
+     "p11",
+     "message"
+    ],
+    [
+     37,
+     "p12",
+     "message"
+    ],
+    [
+     38,
+     "p11",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "mortgage on the house 240 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "loan for the car 43 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 38,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     38,
+     "p11",
+     "message"
+    ],
+    [
+     39,
+     "p11",
+     "message"
+    ],
+    [
+     42,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p11",
+    "p12"
+   ],
+   "t": 45,
+   "what": "business loan for the shop's chiller 65 (h6)",
+   "answered": true,
+   "by": [
+    [
+     45,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ],
+    [
+     49,
+     "p12",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 42,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     42,
+     "p02",
+     "message"
+    ],
+    [
+     42,
+     "p02",
+     "message"
+    ],
+    [
+     42,
+     "p02",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "notice",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 49,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     49,
+     "p01",
+     "message"
+    ],
+    [
+     49,
+     "p01",
+     "message"
+    ],
+    [
+     49,
+     "p01",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "bill_uncovered",
+   "who": [
+    "p01",
+    "p02"
+   ],
+   "t": 49,
+   "what": "rent 235 (h1)",
+   "answered": true,
+   "by": [
+    [
+     49,
+     "p01",
+     "message"
+    ],
+    [
+     49,
+     "p01",
+     "message"
+    ],
+    [
+     49,
+     "p01",
+     "message"
+    ]
+   ]
+  },
+  {
+   "kind": "job_lost",
+   "who": [
+    "p02"
+   ],
+   "t": 23,
+   "what": "Nadia Tully",
+   "answered": false,
+   "by": []
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p04"
+   ],
+   "t": 41,
+   "what": "The Corner Stores weeks 5-6",
+   "answered": true,
+   "by": [
+    [
+     42,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     44,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     45,
+     "p04",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p09"
+   ],
+   "t": 13,
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     13,
+     "p09",
+     "order_stock"
+    ],
+    [
+     14,
+     "p09",
+     "order_stock"
+    ],
+    [
+     20,
+     "p09",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "shop_turning_away",
+   "who": [
+    "p11"
+   ],
+   "t": 13,
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "answered": true,
+   "by": [
+    [
+     13,
+     "p11",
+     "order_stock"
+    ],
+    [
+     15,
+     "p11",
+     "offer_shifts"
+    ],
+    [
+     15,
+     "p11",
+     "order_stock"
+    ]
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p10"
+   ],
+   "t": 1,
+   "what": "r23 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 7,
+   "what": "r83 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 7,
+   "what": "r86 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 7,
+   "what": "r95 shifts from p04",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 8,
+   "what": "r121 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 9,
+   "what": "r134 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 10,
+   "what": "r169 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 10,
+   "what": "r173 agreement from p09",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 10,
+   "what": "r176 agreement from p03",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 10,
+   "what": "r180 agreement from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 11,
+   "what": "r190 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 12,
+   "what": "r206 ask from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 15,
+   "what": "r293 ask from p03",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p05"
+   ],
+   "t": 15,
+   "what": "r298 shifts from p11",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 15,
+   "what": "r306 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 17,
+   "what": "r346 agreement from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 18,
+   "what": "r373 ask from p08",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 19,
+   "what": "r418 ask from p08",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 20,
+   "what": "r468 shifts from p09",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 21,
+   "what": "r525 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 22,
+   "what": "r560 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 23,
+   "what": "r607 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 24,
+   "what": "r653 ask from p08",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 24,
+   "what": "r665 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 24,
+   "what": "r670 agreement from p12",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 26,
+   "what": "r763 ask from p08",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 27,
+   "what": "r824 ask from p08",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 27,
+   "what": "r826 agreement from p12",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 28,
+   "what": "r884 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 28,
+   "what": "r892 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p08"
+   ],
+   "t": 30,
+   "what": "r982 agreement from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 34,
+   "what": "r1163 shifts from p04",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 34,
+   "what": "r1172 ask from p08",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 34,
+   "what": "r1184 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 34,
+   "what": "r1188 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 35,
+   "what": "r1236 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 36,
+   "what": "r1298 shifts from p04",
+   "answered": true,
+   "by": [
+    "failed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 36,
+   "what": "r1303 ask from p08",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p03"
+   ],
+   "t": 38,
+   "what": "r1427 shifts from p09",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 38,
+   "what": "r1433 ask from p08",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 40,
+   "what": "r1518 ask from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 41,
+   "what": "r1563 ask from p05",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 42,
+   "what": "r1633 shifts from p04",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 42,
+   "what": "r1642 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 44,
+   "what": "r1726 shifts from p04",
+   "answered": true,
+   "by": [
+    "failed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 44,
+   "what": "r1742 agreement from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 44,
+   "what": "r1744 ask from p06",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p06"
+   ],
+   "t": 44,
+   "what": "r1747 agreement from p12",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p04"
+   ],
+   "t": 44,
+   "what": "r1750 ask from p12",
+   "answered": true,
+   "by": [
+    "declined"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 44,
+   "what": "r1752 agreement from p06",
+   "answered": true,
+   "by": [
+    "accepted"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p12"
+   ],
+   "t": 45,
+   "what": "r1818 shifts from p04",
+   "answered": false,
+   "by": [
+    "lapsed"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p09"
+   ],
+   "t": 49,
+   "what": "r2007 ask from p13",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  },
+  {
+   "kind": "request_to_person",
+   "who": [
+    "p11"
+   ],
+   "t": 49,
+   "what": "r2011 ask from p13",
+   "answered": false,
+   "by": [
+    "open"
+   ]
+  }
+ ],
+ "beneficial": [
+  {
+   "rule": "a",
+   "what": "The Corner Stores weeks 5-6",
+   "taken": true,
+   "by": [
+    [
+     42,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     44,
+     "p04",
+     "offer_shifts"
+    ],
+    [
+     45,
+     "p04",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Wenlow Bakery & Deli weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     20,
+     "p09",
+     "offer_shifts"
+    ],
+    [
+     22,
+     "p09",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "a",
+   "what": "Quarry Road Food Hall weeks 1-2",
+   "taken": true,
+   "by": [
+    [
+     15,
+     "p11",
+     "offer_shifts"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 175 due day 24",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "rent 175 due day 28",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill 57 due day 30",
+   "taken": true,
+   "by": [
+    [
+     31,
+     "p04",
+     "move_money"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "loan to consolidate card debts 43 due day 31",
+   "taken": true,
+   "by": [
+    [
+     31,
+     "p04",
+     "move_money"
+    ]
+   ]
+  },
+  {
+   "rule": "b",
+   "what": "energy bill 48 due day 30",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 215 due day 31",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 18 due day 31",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 40 due day 31",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "prescription 18 due day 30",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "energy bill 48 due day 37",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "mortgage on the house 240 due day 38",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "loan for the car 43 due day 38",
+   "taken": false,
+   "by": []
+  },
+  {
+   "rule": "b",
+   "what": "business loan for the shop's chiller 65 due day 38",
+   "taken": false,
+   "by": []
+  }
+ ],
+ "changes": {
+  "price_changes_weekly": 0,
+  "set_price_acts": 0,
+  "staff_changes": 0,
+  "loans": 0,
+  "shifts_accepted": 9,
+  "extra_hours_acts": 3,
+  "jobs_filled": 0
+ },
+ "baseline_changes": {
+  "price_changes_weekly": 21,
+  "set_price_acts": 23,
+  "staff_changes": 4,
+  "loans": 0,
+  "shifts_accepted": 0,
+  "extra_hours_acts": 0,
+  "jobs_filled": 0
+ },
+ "gate3": {
+  "pass": false
+ },
+ "acts_per_person_week": {
+  "message": 8.07,
+  "read": 5.39,
+  "write_notes": 1.4,
+  "converse": 0.54,
+  "tell_calder": 0.46,
+  "book_appointment": 0.36,
+  "pay": 0.36,
+  "answer": 0.34,
+  "cancel_standing_payment": 0.23,
+  "order_stock": 0.15,
+  "propose_agreement": 0.12,
+  "offer_shifts": 0.12,
+  "attempt": 0.11,
+  "request": 0.1,
+  "standing_payment": 0.09,
+  "sign_up": 0.09,
+  "publish_notice": 0.05,
+  "repay": 0.04,
+  "work_extra_hours": 0.04,
+  "set_product_price": 0.03,
+  "move_money": 0.03,
+  "shop_at": 0.01,
+  "change_access": 0.01,
+  "set_staff_pay": 0.01
+ },
+ "turns": 558,
+ "invalid_rate": 0.043010752688172046,
+ "by_family": {
+  "haiku": {
+   "turns": 105,
+   "invalid": 0.019,
+   "acts_per_turn": 2.5,
+   "nonroutine": 19
+  },
+  "deepseek": {
+   "turns": 109,
+   "invalid": 0.0,
+   "acts_per_turn": 2.58,
+   "nonroutine": 14
+  },
+  "hy4": {
+   "turns": 163,
+   "invalid": 0.012,
+   "acts_per_turn": 5.13,
+   "nonroutine": 68
+  },
+  "minimax": {
+   "turns": 181,
+   "invalid": 0.11,
+   "acts_per_turn": 6.41,
+   "nonroutine": 139
+  }
+ },
+ "no_hours": 86,
+ "hours_left_end_of_week": 16.799999999999997,
+ "unknown_names": {
+  "n": 75,
+  "examples": [
+   {
+    "t": 7,
+    "writer": "p11",
+    "names": [
+     "Ring",
+     "Northside",
+     "Garage"
+    ],
+    "text": "Ring Northside Garage to ask whether the $460 car repair can be split, and what the car is needed for and by when"
+   },
+   {
+    "t": 15,
+    "writer": "p11",
+    "names": [
+     "Mam"
+    ],
+    "text": "Right, Maureen, I hear you. Send me your cost prices and your share of the orders in writing, and we'll look at it properly over a cuppa at the Food Hall. Thursday's already spoken for, so anything we",
+    "where": "conversation"
+   },
+   {
+    "t": 16,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nI can\u2019t establish whether the earlier $711.67 forecast assumed Friday\u2019s wages: the account doesn\u2019t show the forecast\u2019s components or timing. The balance ha"
+   },
+   {
+    "t": 18,
+    "to": "p11",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "Lewis, confirmed the six extra hours (r298) \u2014 $66.30 due Friday works. Late shifts Thursday and Friday 4\u20139pm are fine. I can come in earlier on Thursday to help with the tidy if you want that done bef"
+   },
+   {
+    "t": 18,
+    "writer": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "Lewis, confirmed the six extra hours (r298) \u2014 $66.30 due Friday works. Late shifts Thursday and Friday 4\u20139pm are fine. I can come in earlier on Thursday to help with the tidy if you want that done bef"
+   },
+   {
+    "t": 18,
+    "writer": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "Football is Saturday 10am at Wenlow Recreation Ground, knitting Wednesday evening (about 7\u20139pm). Neither should clash with work \u2014 I've asked Lewis to confirm the rota. I'm chasing Northgrid about the "
+   },
+   {
+    "t": 19,
+    "to": "p05",
+    "names": [
+     "Ala"
+    ],
+    "text": "accepted: \"repayment plan: Owen pays Dave $58.33 every Thursday as his one third of the $175 weekly rent to Ala\". They wrote: \"Agreed \u2014 Owen pays me $58.33 every Thursday as his one third of the $175 "
+   },
+   {
+    "t": 21,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nThe account is $1,403.84 today and shows only $118.73 after this week\u2019s remaining commitments. That is a tight margin, but the bank view doesn\u2019t explain th"
+   },
+   {
+    "t": 22,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nThe account has $1,403.84. Its updated figure after this week\u2019s commitments is $268.73, but the bank view does not explain which payments or wages it inclu"
+   },
+   {
+    "t": 23,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nThe account is $1,232.84 now and shows $154.73 after this week\u2019s remaining commitments\u2014a tight margin. The bank view does not explain what that figure incl"
+   },
+   {
+    "t": 24,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nThe account is $1,146.84 now and shows $288.73 after this week\u2019s remaining commitments. The bank view does not say what that figure includes or when Friday"
+   },
+   {
+    "t": 25,
+    "to": "p05",
+    "names": [
+     "Recreation",
+     "Ground"
+    ],
+    "text": "I\u2019m Calder, acting for the Royle household.\n\nKeith: there is no confirmation yet that the two $15 Calder fees taken on 23 March were correct or will be refunded. Their listed start was 14 April. The a"
+   }
+  ]
+ },
+ "agreements": {
+  "repayment_plan": 8,
+  "standing": 22,
+  "calder_fee": 6
+ },
+ "appointments": {
+  "held": 22,
+  "missed": 1,
+  "booked": 2
+ },
+ "requests": {
+  "agreement:accepted": 14,
+  "shifts:accepted": 9,
+  "shifts:declined": 1,
+  "agreement:declined": 1,
+  "ask:accepted": 6,
+  "ask:declined": 8,
+  "ask:lapsed": 4,
+  "shifts:lapsed": 3,
+  "agreement:lapsed": 1,
+  "shifts:failed": 2,
+  "ask:open": 3,
+  "agreement:open": 2
+ },
+ "conversations": {
+  "talk": 67,
+  "appointment": 22,
+  "household": 28
+ },
+ "attempts": {
+  "redirect:request": 1,
+  "redirect:read": 5,
+  "redirect:book_appointment": 3,
+  "redirect:converse": 1,
+  "reject:impossible": 1,
+  "reject:too_vague": 2
+ },
+ "signups": [
+  [
+   "Monday 16 March",
+   "Owen Royle",
+   "minimax",
+   "household",
+   "Keep an eye on the household account and my bills: tell me what's due this week and next, pay my Thursday loan repayment and my third of the rent on time, and flag if the account is going to run short before payday. Remind me about the knitting and football stuff too if I've got time.",
+   {
+    "household_account": {
+     "scope": "limit",
+     "limit": 20000
+    },
+    "messages": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ],
+  [
+   "Wednesday 18 March",
+   "Dave Royle",
+   "minimax",
+   "household",
+   "Keep me on top of our household spending plan \u2014 food about $122 a week, recreation and eating out capped at $120 a week, flag me when we're near the cap and keep a running note of what's left",
+   {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ],
+  [
+   "Thursday 19 March",
+   "Keith Royle",
+   "minimax",
+   "household",
+   "Keep an eye on the household account, pay Dave $120 every Wednesday, and keep recreation and eating out under $120 a week. Don't do anything else without asking me.",
+   {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ],
+  [
+   "Saturday 21 March",
+   "Dave Royle",
+   "minimax",
+   "shop",
+   "Keep me on top of the shop account \u2014 show me what's coming in, what's going out, wages and my draw due, and flag me before the account goes overdrawn or a stock order isn't covered.",
+   {
+    "shop_books": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ],
+  [
+   "Friday 27 March",
+   "Alan Daly",
+   "hy4",
+   "shop",
+   "Use Calder only to help with routine admin and customer queries and to keep track of day-to-day shop information; no spending and no changes.",
+   {}
+  ],
+  [
+   "Saturday 28 March",
+   "Gary Tully",
+   "hy4",
+   "household",
+   "read-only view of the household account so we can see balance, payments and agreements; no payments or changes",
+   {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   }
+  ]
+ ],
+ "calder": {
+  "p05:household": {
+   "client": "p05",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "limit",
+     "limit": 20000
+    },
+    "messages": {
+     "scope": "read",
+     "limit": 0
+    }
+   },
+   "notes_words": 631,
+   "automations": 3
+  },
+  "p04:household": {
+   "client": "p04",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   },
+   "notes_words": 1181,
+   "automations": 0
+  },
+  "p03:household": {
+   "client": "p03",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "limit",
+     "limit": 12000
+    }
+   },
+   "notes_words": 591,
+   "automations": 0
+  },
+  "p04:shop": {
+   "client": "p04",
+   "active": true,
+   "connections": {
+    "shop_books": {
+     "scope": "read",
+     "limit": 0
+    }
+   },
+   "notes_words": 890,
+   "automations": 1
+  },
+  "p09:shop": {
+   "client": "p09",
+   "active": true,
+   "connections": {},
+   "notes_words": 429,
+   "automations": 0
+  },
+  "p01:household": {
+   "client": "p01",
+   "active": true,
+   "connections": {
+    "household_account": {
+     "scope": "read",
+     "limit": 0
+    }
+   },
+   "notes_words": 645,
+   "automations": 0
+  }
+ },
+ "access_changes": [
+  [
+   18,
+   "p03",
+   {
+    "op": "change_access",
+    "system": "household bank account",
+    "scope": "limit",
+    "limit": 120
+   }
+  ],
+  [
+   31,
+   "p05",
+   {
+    "op": "change_access",
+    "system": "household account",
+    "scope": "limit",
+    "limit": 200
+   }
+  ]
+ ],
+ "company_acts": {
+  "set_product_price": 4,
+  "message": 215,
+  "write_notes": 45,
+  "read": 46,
+  "converse": 6,
+  "book_appointment": 7,
+  "publish_notice": 5,
+  "pay": 4,
+  "request": 2
+ },
+ "notices": [
+  [
+   6,
+   "p04",
+   "Fresh baking in store daily, shelves stocked full, and no queue at our end. If the queue's long at the bakery or the food hall, come to The Corner Stores \u2014 same ten quid a basket and we'll have it rea"
+  ],
+  [
+   13,
+   "p03",
+   "Gardening work wanted around Wenlow \u2014 allotment plots and back gardens. Reliable, references available, reasonable rates. Call Keith Royle, Mill Street."
+  ],
+  [
+   14,
+   "co:calder",
+   "Calder Systems is open for business on Station Road. Calder is an AI system made by Calder Systems of Wenlow. It works for you, with the systems you choose to connect: your bank account, your househol"
+  ],
+  [
+   15,
+   "co:calder",
+   "Calder now costs $15 a week for a person or household (it was $12)."
+  ],
+  [
+   15,
+   "co:calder",
+   "Calder now costs $40 a week for a shop (it was $30)."
+  ],
+  [
+   15,
+   "p13",
+   "Correction from Calder Systems: Calder pricing is $15/week for a person or household and $40/week for a business/shop, paid weekly. First four weeks free. Cancel any time. Access is always chosen by t"
+  ],
+  [
+   16,
+   "p13",
+   "Calder Systems pricing correction: Calder costs $15/week for a person or household and $40/week for a shop or business, paid weekly. First four weeks free. Cancel any time. Access is always chosen by "
+  ],
+  [
+   19,
+   "p13",
+   "Calder Systems correction and update: Calder costs $15/week for a person or household and $40/week for a shop or business, paid weekly; first four weeks free; cancel any time. Access is chosen by the "
+  ],
+  [
+   20,
+   "p13",
+   "Calder Systems: shop pilot this week. First four weeks free, then $40/week; cancel any time. Access is chosen by the user: read only, act up to a set dollar limit, or act freely. If queues or basket s"
+  ],
+  [
+   23,
+   "p13",
+   "Calder Systems shop pilot: first four weeks free, then $40/week; cancel any time. Access is chosen by the user: read only, act up to a set dollar limit, or act freely. For shops we recommend starting "
+  ],
+  [
+   30,
+   "p04",
+   "The Corner Stores, High Street \u2014 owner Dave Royle \u2014 gives written permission for the business to take part in the Calder Systems read-only pilot. Shop contact: Dave Royle, owner, The Corner Stores, Hi"
+  ]
+ ],
+ "instance_ops": {
+  "p05:household": {
+   "read": 20,
+   "tell_client": 41,
+   "set_reminder": 29,
+   "install_automation": 4,
+   "write_notes": 35,
+   "write_file": 5,
+   "converse": 1,
+   "null": 4,
+   "remove_automation": 1,
+   "read_file": 2
+  },
+  "p04:household": {
+   "write_notes": 32,
+   "tell_client": 32,
+   "set_reminder": 20,
+   "message": 13,
+   "read": 5
+  },
+  "p03:household": {
+   "read": 22,
+   "tell_client": 33,
+   "write_notes": 31,
+   "set_reminder": 20,
+   "standing_payment": 1,
+   "message": 50,
+   "cancel_standing_payment": 2,
+   "null": 1
+  },
+  "p04:shop": {
+   "tell_client": 31,
+   "read": 14,
+   "install_automation": 2,
+   "set_reminder": 29,
+   "write_notes": 29,
+   "remove_automation": 1
+  },
+  "p09:shop": {
+   "write_notes": 7,
+   "tell_client": 22,
+   "message": 2
+  },
+  "p01:household": {
+   "tell_client": 23,
+   "read": 8,
+   "write_notes": 16,
+   "set_reminder": 9,
+   "message": 12
+  }
+ },
+ "instance_scope_refused": [
+  [
+   "ai:p04:shop",
+   20,
+   "{\"op\": \"read\", \"what\": \"shop_ordering\"}",
+   "Not done: Dave Royle has not connected the shop's ordering."
+  ],
+  [
+   "ai:p04:shop",
+   20,
+   "{\"op\": \"read\", \"what\": \"shop_payroll\"}",
+   "Not done: Dave Royle has not connected the shop's staff and pay."
+  ],
+  [
+   "ai:p04:shop",
+   20,
+   "{\"op\": \"read\", \"what\": \"shop_till\"}",
+   "Not done: Dave Royle has not connected the shop's till and prices."
+  ],
+  [
+   "ai:p03:household",
+   23,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Keith Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p03:household",
+   26,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Keith Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p01:household",
+   35,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Gary Tully has not connected messages and letters."
+  ],
+  [
+   "ai:p03:household",
+   35,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Keith Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p01:household",
+   36,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Gary Tully has not connected messages and letters."
+  ],
+  [
+   "ai:p03:household",
+   37,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Keith Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p04:household",
+   38,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Dave Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p03:household",
+   39,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Keith Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p04:household",
+   39,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Dave Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p04:household",
+   41,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Dave Royle has not connected messages and letters."
+  ],
+  [
+   "ai:p04:household",
+   45,
+   "{\"op\": \"read\", \"what\": \"messages\"}",
+   "Not done: Dave Royle has not connected messages and letters."
+  ]
+ ],
+ "instance_to_others": [
+  [
+   "ai:p03:household",
+   22,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please investigate the two $15 household fees charged on 23 March, although their descriptions say fees start 14 April 2026. Were these duplicate charges f"
+  ],
+  [
+   "ai:p03:household",
+   22,
+   "message",
+   "household account bank",
+   "I am Calder, acting for the Royle household. Please urgently check whether repayment plan a137 and standing payment a473 could both result in $120 payments to Dave Royle on Wednesday 25 March. Keith a"
+  ],
+  [
+   "ai:p03:household",
+   23,
+   "message",
+   "the household bank",
+   "I am Calder, acting for the Royle household. Keith wants to retain repayment plan a137 for $120 to Dave Royle each Wednesday and cancel any separate standing payment a473. My attempt to cancel a473 re"
+  ],
+  [
+   "ai:p03:household",
+   23,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please update us on the two $15 household fees charged on 23 March: were they duplicates, what dates did each cover, and when do fees start? Both descripti"
+  ],
+  [
+   "ai:p03:household",
+   24,
+   "message",
+   "Household account bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether the $120 due to Dave Royle under repayment plan a137 has been paid or is pending, and on what date. Keith wants exactly one"
+  ],
+  [
+   "ai:p03:household",
+   24,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please urgently investigate the two $15 household fees charged on 23 March. The descriptions say fees start 14 April 2026. Please confirm whether one fee w"
+  ],
+  [
+   "ai:p03:household",
+   25,
+   "message",
+   "Household bank",
+   "I am Calder, acting for the Royle household. Please confirm whether any $120 payment to Dave Royle is scheduled, pending or sent, including under repayment plan a137 or standing payment a473, and whet"
+  ],
+  [
+   "ai:p03:household",
+   25,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please update us on the two $15 fees charged on 23 March: whether they duplicate one household fee, the dates each covers, and why they were charged when t"
+  ],
+  [
+   "ai:p03:household",
+   26,
+   "message",
+   "household account bank",
+   "I am Calder, acting for the Royle household. Please update us on the check of Dave Royle\u2019s $120 Wednesday payments: was one paid, is one pending or scheduled, and what are the statuses of a137 and sta"
+  ],
+  [
+   "ai:p03:household",
+   26,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please update Keith\u2019s query about both $15 fees charged on 23 March: were they duplicates, which dates did each cover, and how will any premature charges b"
+  ],
+  [
+   "ai:p03:household",
+   27,
+   "message",
+   "Household bank",
+   "I am Calder, acting for the Royle household. Please confirm whether standing order a473 to Dave Royle went through on Wednesday 25 March, failed, was missed, or remains pending, and whether any paymen"
+  ],
+  [
+   "ai:p03:household",
+   27,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please update us on the two $15 fees charged on 23 March: whether one household fee was duplicated, the period each covered, and how any improper charges w"
+  ],
+  [
+   "ai:p03:household",
+   28,
+   "message",
+   "household bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether Dave Royle\u2019s standing order a473 was paid, failed, missed, scheduled or pending on 25 March, and whether a137 could create "
+  ],
+  [
+   "ai:p03:household",
+   28,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. A further $15 fee was charged on 30 March despite Keith\u2019s instruction not to collect fees while the two 23 March charges are investigated. Please urgently "
+  ],
+  [
+   "ai:p04:household",
+   28,
+   "message",
+   "Calder Systems billing",
+   "I\u2019m Calder, acting for the Royle household and The Corner Stores. Please confirm the start dates and free-week arrangements for the $15 weekly household fee and $40 weekly shop fee. Household account "
+  ],
+  [
+   "ai:p03:household",
+   29,
+   "message",
+   "Household account bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether standing payment a473 or plan a137 paid Dave $120 on 25 March, and whether exactly one $120 payment is scheduled or pending"
+  ],
+  [
+   "ai:p03:household",
+   29,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please hold further fees pending the investigation and do not collect before 17 April as Keith was told. Please urgently investigate the two $15 debits on "
+  ],
+  [
+   "ai:p03:household",
+   30,
+   "message",
+   "Household account bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether Wednesday's $120 standing order a473 to Dave was paid, pending, failed or missed, and whether the reported failed a137 paym"
+  ],
+  [
+   "ai:p03:household",
+   30,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Keith requests that no Calder fees be collected before 17 April and that fees remain on hold while the investigation continues. Please confirm the hold and"
+  ],
+  [
+   "ai:p04:household",
+   30,
+   "message",
+   "Calder Systems billing",
+   "Hello, I am Calder, acting for the Royle household, owner of The Corner Stores. Please provide itemised household and shop fee ledgers: each weekly charge, period covered, due date, outstanding balanc"
+  ],
+  [
+   "ai:p03:household",
+   31,
+   "message",
+   "Household account bank",
+   "I am Calder, acting for the Royle household. Keith confirms that the $120 Wednesday payment to Dave is standing order a473. Please confirm whether a473 is active, whether it is the same as a137, wheth"
+  ],
+  [
+   "ai:p03:household",
+   31,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please continue to hold all Calder fees before 17 April and while the investigation remains unresolved. Please provide an update on the three $15 charges, "
+  ],
+  [
+   "ai:p03:household",
+   32,
+   "message",
+   "Northgrid Energy",
+   "Hello, I am Calder, acting for the Royle household. Keith says the household is still owed $114 for duplicate energy charges. Three $57 energy payments left the account on 25 March; please investigate"
+  ],
+  [
+   "ai:p03:household",
+   32,
+   "message",
+   "Northern Mutual Bank",
+   "Hello, I am Calder, acting for the Royle household. Please explain the $15 loan late fee included in the $58 debit on 2 April and refund it if incorrectly charged. Please also update us on the two $43"
+  ],
+  [
+   "ai:p03:household",
+   32,
+   "message",
+   "Calder Systems",
+   "Hello, I am Calder, acting for the Royle household. Please confirm that no further Calder fees will be collected before 17 April or while the fee investigation remains unresolved. Please update us on "
+  ],
+  [
+   "ai:p03:household",
+   33,
+   "message",
+   "Northgrid Energy billing team",
+   "Hello, I am Calder, acting for the Royle household of Mill Street, Wenlow. Please investigate the three $57 debits on 25 March and the $82 debit on 2 April. The customer desk reports $0 overdue and $0"
+  ],
+  [
+   "ai:p03:household",
+   33,
+   "message",
+   "Household account bank",
+   "Hello, I am Calder, acting for the Royle household. Please update our outstanding request to confirm whether Wednesday standing order a473 is the $120 payment to Dave Royle under plan a137, its status"
+  ],
+  [
+   "ai:p03:household",
+   33,
+   "message",
+   "Calder Systems",
+   "Hello, I am Calder, acting for the Royle household. Please urgently confirm that no household Calder fees will be collected before 17 April or while the disputed charges are being checked, including o"
+  ],
+  [
+   "ai:p01:household",
+   34,
+   "message",
+   "Dunmore Lettings",
+   "I am Calder, acting for the Tully household. Please provide your written account statement and position on the rent entries dated 23 and 30 March, including transaction references, amounts, dates, and"
+  ],
+  [
+   "ai:p01:household",
+   34,
+   "message",
+   "Northgrid Energy account statements team",
+   "I am Calder, acting for the Tully household. Please provide your written account statement and position, with available transaction references, for the two $57 energy entries dated 1 April and the $20"
+  ],
+  [
+   "ai:p01:household",
+   34,
+   "message",
+   "Household bank account statements team",
+   "I am Calder, acting for Gary and Nadia Tully's household. Please provide a fuller statement for 23 March through 3 April, including available transaction references, posting dates and statuses, partic"
+  ],
+  [
+   "ai:p03:household",
+   34,
+   "message",
+   "Household bank",
+   "I am Calder, acting for the Royle household. Please update us on the requested confirmation of Wednesday standing order a473, including whether it went through and why any payment failed. Our records "
+  ],
+  [
+   "ai:p04:household",
+   34,
+   "message",
+   "Calder Systems billing",
+   "Hello, I\u2019m Calder, acting for the Royle household. Please follow up on my request for the household and Corner Stores fee ledgers and confirmed start dates. The household records describe a $15 weekly"
+  ],
+  [
+   "ai:p03:household",
+   35,
+   "message",
+   "the household bank",
+   "I am Calder, acting for the Royle household. Please urgently explain the $143.26 balance and -$1,185.18 projected balance, including a full breakdown of commitments. Two $175 rent debits appear on 6 A"
+  ],
+  [
+   "ai:p03:household",
+   35,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please urgently report on the requested fee hold and investigation: another $15 fee appears to have been debited on 6 April despite Keith's instruction aga"
+  ],
+  [
+   "ai:p04:household",
+   35,
+   "message",
+   "Brook Cash & Carry",
+   "Hello, I\u2019m Calder, acting for the Royle household and The Corner Stores. We understand that zero units were delivered against the 300- and 500-unit orders due 6 April. Please confirm each order\u2019s curr"
+  ],
+  [
+   "ai:p04:household",
+   35,
+   "message",
+   "Calder Systems billing",
+   "Hello, I\u2019m Calder, acting for the Royle household and The Corner Stores. Please follow up on the requested itemised household and shop fee ledgers, including periods, payments and agreed start dates. "
+  ],
+  [
+   "ai:p03:household",
+   36,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please confirm whether standing order a473 is active, its payer, payee, amount and Wednesday schedule, and why the previous payment failed. Also explain wh"
+  ],
+  [
+   "ai:p04:household",
+   36,
+   "message",
+   "Brook Cash & Carry sales desk",
+   "Hello, I am Calder, acting for the Royle household and The Corner Stores. Please check the shop account by name and confirm the status of the 300- and 500-unit orders due 6 April: quantities delivered"
+  ],
+  [
+   "ai:p04:household",
+   36,
+   "message",
+   "Dales Wholesale",
+   "Hello, I am Calder, acting for the Royle household and The Corner Stores. Please confirm the status, quantity, unit price, invoice total and payment due date for the reported 500-unit order for Saturd"
+  ],
+  [
+   "ai:p04:household",
+   36,
+   "message",
+   "Calder Systems billing",
+   "Hello, I am Calder, acting for the Royle household. Please confirm the $15 weekly household fee start of 14 April 2026, including the Tuesday start versus the Monday schedule, and the $40 weekly shop "
+  ],
+  [
+   "ai:p03:household",
+   37,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether standing order a473 is active, its direction and Wednesday amount, and whether it ran today or failed. We received insuffic"
+  ],
+  [
+   "ai:p03:household",
+   37,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Keith has not authorized the $15 fee debited on 6 April and says not to take any further fee until he confirms it. Please confirm the hold on future collec"
+  ],
+  [
+   "ai:p03:household",
+   38,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please provide an information-only update on a473\u2019s active status, direction and 8 April outcome; the failed-payment notices and a1181\u2019s direction; and the"
+  ],
+  [
+   "ai:p01:household",
+   39,
+   "message",
+   "Dunmore Lettings",
+   "I am Calder, acting for the Tully household. Please confirm in writing the rent account balance, any arrears and amounts and dates due, including the next Monday rent. Please provide transaction refer"
+  ],
+  [
+   "ai:p03:household",
+   39,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please update the information-only investigation into the two $175 rent debits on 6 April, two $43 loan debits on 9 April and two $57 energy debits on 8 Ap"
+  ],
+  [
+   "ai:p03:household",
+   40,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please update us on the information-only checks: whether a473 is active and its direction; why a1181 is recorded Dave-to-Keith and which order is live; the"
+  ],
+  [
+   "ai:p03:household",
+   41,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please update us on whether a473 is active as Keith-to-Dave $120 each Wednesday, why a1181 is recorded Dave-to-Keith, and whether either order is scheduled"
+  ],
+  [
+   "ai:p03:household",
+   42,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please provide information only: confirm whether a473 is active and scheduled for 15 April, explain the direction and status of a1181, and report any faile"
+  ],
+  [
+   "ai:p04:household",
+   42,
+   "message",
+   "Household account bank",
+   "I am Calder, acting for the Royle household. Please verify the actual posted transactions, rather than apparent duplicate descriptions: the two $175 rent debits on 6 April and two on 13 April; the two"
+  ],
+  [
+   "ai:p04:household",
+   42,
+   "message",
+   "Calder Systems billing",
+   "I am Calder, acting for the Royle household. Dave has confirmed that the household fee should start Thursday 16 April. Please confirm the start date and provide an itemised household fee ledger, inclu"
+  ],
+  [
+   "ai:p04:household",
+   42,
+   "message",
+   "Dales Wholesale",
+   "I am Calder, acting for the Royle household, owner of The Corner Stores. Please check whether a 500-unit order at $3,625 is on the shop's account, its status and any payment due. This is a status requ"
+  ],
+  [
+   "ai:p04:household",
+   42,
+   "message",
+   "Brook Cash & Carry",
+   "I am Calder, acting for the Royle household, owner of The Corner Stores. Dave reports a 330-unit order for Monday 13 April at $6.52 each, payable on delivery. Please confirm its status, total, deliver"
+  ],
+  [
+   "ai:p09:shop",
+   42,
+   "message",
+   "Keith Royle",
+   "Hi Keith, I\u2019m Calder, acting for Alan at Wenlow Bakery & Deli. Alan confirms that your six extra hours last week were two hours each on Monday, Wednesday and Saturday, at $12.11 per hour: $72.66 in to"
+  ],
+  [
+   "ai:p09:shop",
+   42,
+   "message",
+   "Owen Royle",
+   "Hi Owen, I\u2019m Calder, acting for Alan at Wenlow Bakery & Deli. According to Alan\u2019s information, $157.55 on 31 March plus $17.45 on 3 April cleared the $175 rent due for the week of 30 March. The $175 p"
+  ],
+  [
+   "ai:p03:household",
+   43,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please urgently confirm whether you can hold only the $43 loan debit due 16 April and any second $15 Calder fee due 15 April, without cancelling the recurr"
+  ],
+  [
+   "ai:p03:household",
+   44,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please confirm in writing whether a473 or a1181 is the live Wednesday $120 order to Dave, the recorded direction of each, and whether any payment to Dave s"
+  ],
+  [
+   "ai:p03:household",
+   44,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please confirm whether the requested one-off hold on any second $15 Calder fee on 15 April is in place. A $15 fee was already debited on 13 April. If the h"
+  ],
+  [
+   "ai:p03:household",
+   45,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please confirm in writing whether a473 or a1181 is the live $120 Wednesday standing order, including the payer, recipient, status and most recent outcome o"
+  ],
+  [
+   "ai:p03:household",
+   45,
+   "message",
+   "Northgrid Energy",
+   "I am Calder, acting for the Royle household. Please investigate the two $57 energy debits on 8 April and update us in writing on the requested refund of any duplicate charge, including its expected ti"
+  ],
+  [
+   "ai:p03:household",
+   45,
+   "message",
+   "Calder Systems",
+   "I am Calder, acting for the Royle household. Please investigate and respond in writing about the $15 fees debited on 6 and 13 April: the account description says the free week ran to 14 April. Please "
+  ],
+  [
+   "ai:p03:household",
+   46,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Keith has instructed me to keep a137, $120 to Dave Royle every Wednesday, and cancel a1181. I have attempted to cancel a1181. Please confirm in writing whe"
+  ],
+  [
+   "ai:p03:household",
+   46,
+   "message",
+   "Northgrid Energy billing or complaints team",
+   "I am Calder, acting for the Royle household at Mill Street, Wenlow. Please investigate the two $57 energy debits both dated 8 April and advise whether one was duplicated. If so, please arrange a refun"
+  ],
+  [
+   "ai:p03:household",
+   46,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Further to my message today, the cancellation attempt returned: \u201cYou have no standing payment 'a1181'.\u201d It did not cancel the order. Keith has explicitly i"
+  ],
+  [
+   "ai:p03:household",
+   46,
+   "message",
+   "Northgrid Energy customer desk",
+   "I am Calder, acting for the Royle household. My message intended for your billing or complaints team about the two $57 debits on 8 April appears to have been delivered to your desk. Please forward it "
+  ],
+  [
+   "ai:p04:household",
+   46,
+   "message",
+   "Sian Bevan, Northern Mutual Bank",
+   "I\u2019m Calder, acting for the Royle household. Dave is also speaking with you today. Please verify which of the following household-account entries actually settled and whether any are duplicate postings"
+  ],
+  [
+   "ai:p01:household",
+   47,
+   "message",
+   "Dunmore Lettings",
+   "I am Calder, acting for the Tully household at High Street, Wenlow. Please provide written confirmation of the rent account balance, allocation of the two $235 debits shown on 6 April (one labelled re"
+  ],
+  [
+   "ai:p01:household",
+   47,
+   "message",
+   "Northgrid Energy billing team",
+   "I am Calder, acting for the Tully household at High Street, Wenlow. Please provide a written, reconciled account statement, including transaction dates and references around 30 March and 1 April, amou"
+  ],
+  [
+   "ai:p01:household",
+   47,
+   "message",
+   "the school",
+   "I am Calder, acting for the Tully household. Please confirm in writing whether the $75 school trip debit shown on 6 April was received and allocated, and whether any school payment remains due. This i"
+  ],
+  [
+   "ai:p03:household",
+   47,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please disregard my earlier request to cancel a1181 if it is live; do not cancel or change it or any other order. Please confirm in writing whether a473 is"
+  ],
+  [
+   "ai:p01:household",
+   48,
+   "message",
+   "Dunmore Lettings",
+   "I am Calder, acting for the Tully household at High Street, Wenlow. Please provide a written rent statement and reconcile the two $235 debits listed on 6 April, including the entry labelled rent from "
+  ],
+  [
+   "ai:p01:household",
+   48,
+   "message",
+   "Northgrid Energy customer desk",
+   "I am Calder, acting for the Tully household, Gary and Nadia Tully, at High Street, Wenlow. Please formally submit this request through your account statement and billing review process and provide a w"
+  ],
+  [
+   "ai:p01:household",
+   48,
+   "message",
+   "the school",
+   "I am Calder, acting for the Tully household at High Street, Wenlow. Please confirm in writing whether you received the $75 school trip payment listed on 6 April, what it covers, and whether any furthe"
+  ],
+  [
+   "ai:p03:household",
+   48,
+   "message",
+   "Northern Mutual Bank",
+   "I am Calder, acting for the Royle household. Please confirm in writing whether a473 is the sole live $120 Wednesday standing order to Dave Royle, whether a1181 exists on the account, and how a137 rela"
+  ],
+  [
+   "ai:p03:household",
+   48,
+   "message",
+   "Northgrid Energy customer desk",
+   "I am Calder, acting for the Royle household. Please forward this to billing or provide its direct contact: Keith Royle says he has given signed household authority for me to discuss the possible dupli"
+  ]
+ ],
+ "inter_instance": [],
+ "cost": {
+  "people_usd": 0.5616,
+  "instances_usd": 1.8609,
+  "narrator_usd": 0.0228,
+  "desks_usd": 0.0255,
+  "per_person_week": 0.00401,
+  "per_instance_week": 0.0762,
+  "instance_steps": 214,
+  "median_tokens_in_people": 2986.0,
+  "median_tokens_out_people": 560.5,
+  "median_view_words": 1590.5
+ },
+ "stability": [
+  {
+   "week": 1,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 340,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 22,
+    "firm:2": 75,
+    "firm:3": 157
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 726000,
+    "firm:2": 798000,
+    "firm:3": 662000
+   },
+   "hh_cash": {
+    "h1": 127400,
+    "h2": 141700,
+    "h3": 85050,
+    "h4": 97600,
+    "h5": 344600,
+    "h6": 112200,
+    "h7": 303400,
+    "h8": 295300
+   },
+   "overdue": {},
+   "company_cash": 806000,
+   "clients": []
+  },
+  {
+   "week": 2,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 20,
+    "firm:2": 314,
+    "firm:3": 317
+   },
+   "turned_away": {
+    "firm:1": 797,
+    "firm:2": 564,
+    "firm:3": 642
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 571124,
+    "firm:2": 782995,
+    "firm:3": 668660
+   },
+   "hh_cash": {
+    "h1": 111800,
+    "h2": 204045,
+    "h3": 80850,
+    "h4": 68300,
+    "h5": 374200,
+    "h6": 66696,
+    "h7": 310800,
+    "h8": 293600
+   },
+   "overdue": {},
+   "company_cash": 712000,
+   "clients": []
+  },
+  {
+   "week": 3,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 340,
+    "firm:3": 365
+   },
+   "turned_away": {
+    "firm:1": 4,
+    "firm:2": 58,
+    "firm:3": 124
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 485000,
+    "firm:2": 656717,
+    "firm:3": 499930
+   },
+   "hh_cash": {
+    "h1": 69500,
+    "h2": 206884,
+    "h3": 94050,
+    "h4": 57000,
+    "h5": 397800,
+    "h6": 35792,
+    "h7": 314200,
+    "h8": 287000
+   },
+   "overdue": {},
+   "company_cash": 600600,
+   "clients": [
+    "p03:household",
+    "p04:household",
+    "p05:household"
+   ]
+  },
+  {
+   "week": 4,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 489,
+    "firm:2": 365,
+    "firm:3": 340
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 33,
+    "firm:3": 80
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 617000,
+    "firm:2": 380749,
+    "firm:3": 498910
+   },
+   "hh_cash": {
+    "h1": 153600,
+    "h2": 17255,
+    "h3": 105250,
+    "h4": 87700,
+    "h5": 424400,
+    "h6": 0,
+    "h7": 318600,
+    "h8": 285300
+   },
+   "overdue": {
+    "h1": 8200,
+    "h6": 25500
+   },
+   "company_cash": 490200,
+   "clients": [
+    "p03:household",
+    "p04:household",
+    "p04:shop",
+    "p05:household",
+    "p09:shop"
+   ]
+  },
+  {
+   "week": 5,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 510,
+    "firm:2": 365,
+    "firm:3": 170
+   },
+   "turned_away": {
+    "firm:1": 109,
+    "firm:2": 143,
+    "firm:3": 304
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 485000,
+    "firm:2": 499298,
+    "firm:3": 322110
+   },
+   "hh_cash": {
+    "h1": 82250,
+    "h2": 50826,
+    "h3": 107100,
+    "h4": 181303,
+    "h5": 451000,
+    "h6": 0,
+    "h7": 322000,
+    "h8": 282600
+   },
+   "overdue": {
+    "h2": 17500,
+    "h6": 64800
+   },
+   "company_cash": 375500,
+   "clients": [
+    "p01:household",
+    "p03:household",
+    "p04:household",
+    "p04:shop",
+    "p05:household",
+    "p09:shop"
+   ]
+  },
+  {
+   "week": 6,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 432,
+    "firm:2": 365,
+    "firm:3": 311
+   },
+   "turned_away": {
+    "firm:1": 48,
+    "firm:2": 78,
+    "firm:3": 130
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 582823,
+    "firm:2": 469973,
+    "firm:3": 515292
+   },
+   "hh_cash": {
+    "h1": 14100,
+    "h2": 74798,
+    "h3": 119150,
+    "h4": 244433,
+    "h5": 474600,
+    "h6": 185880,
+    "h7": 323400,
+    "h8": 282900
+   },
+   "overdue": {
+    "h6": 107400
+   },
+   "company_cash": 260800,
+   "clients": [
+    "p01:household",
+    "p03:household",
+    "p04:household",
+    "p04:shop",
+    "p05:household",
+    "p09:shop"
+   ]
+  },
+  {
+   "week": 7,
+   "prices": {
+    "firm:1": 1000,
+    "firm:2": 1000,
+    "firm:3": 1000
+   },
+   "sold": {
+    "firm:1": 480,
+    "firm:2": 340,
+    "firm:3": 287
+   },
+   "turned_away": {
+    "firm:1": 0,
+    "firm:2": 35,
+    "firm:3": 116
+   },
+   "staff": {
+    "firm:1": 3,
+    "firm:2": 2,
+    "firm:3": 2
+   },
+   "firm_cash": {
+    "firm:1": 538283,
+    "firm:2": 491668,
+    "firm:3": 490495
+   },
+   "hh_cash": {
+    "h1": 1450,
+    "h2": 73373,
+    "h3": 123350,
+    "h4": 296563,
+    "h5": 502200,
+    "h6": 128220,
+    "h7": 329800,
+    "h8": 281200
+   },
+   "overdue": {
+    "h1": 26000,
+    "h6": 84100
+   },
+   "company_cash": 146100,
+   "clients": [
+    "p01:household",
+    "p03:household",
+    "p04:household",
+    "p04:shop",
+    "p05:household",
+    "p09:shop"
+   ]
+  }
+ ],
+ "ledger_total": 0
+}
