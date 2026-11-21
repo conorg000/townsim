@@ -371,3 +371,135 @@ def test_a_file_from_before_schemas_reads_as_schema_0(tmp_path):
 def test_a_run_id_must_be_a_plain_name(db, run_id):
     with pytest.raises(ValueError):
         db.create_run(run_id, seed=1)
+
+
+# asking a batch
+
+from townsim.town.replies import ask_all  # noqa: E402
+
+
+class _Batch:
+    """An inner replier with `ask_many`: answers `fn(key)` (a Reply or a StopRun) and records
+    the keys of each batch it is sent."""
+
+    def __init__(self, fn):
+        self.fn = fn
+        self.batches = []
+
+    def model_for(self, actor):
+        return "scripted"
+
+    def ask(self, key, messages):
+        raise AssertionError("asked one at a time")
+
+    def ask_many(self, pairs):
+        self.batches.append([k for k, _ in pairs])
+        return [self.fn(k) for k, _ in pairs]
+
+
+def _pairs(*actors, day=0, model="scripted"):
+    keys = Keys("r1")
+    return [(keys.next(model, day, a, "turn"), [{"role": "user", "content": f"view of {a}"}]) for a in actors]
+
+
+def test_ask_all_falls_back_to_one_at_a_time():
+    seen = []
+    replier = ScriptedReplier(lambda k, m: seen.append(k.actor) or f"hi {k.actor}")
+    assert [r.text for r in ask_all(replier, _pairs("p01", "p02", "p03"))] == ["hi p01", "hi p02", "hi p03"]
+    assert seen == ["p01", "p02", "p03"]
+
+    def stop_at_p02(k, m):
+        if k.actor == "p02":
+            raise StopRun("cap")
+        seen.append(k.actor)
+        return "x"
+    seen.clear()
+    with pytest.raises(StopRun):
+        ask_all(ScriptedReplier(stop_at_p02), _pairs("p01", "p02", "p03"))
+    assert seen == ["p01"]
+
+
+def test_ask_all_uses_ask_many_and_raises_after_the_batch():
+    inner = _Batch(lambda k: StopRun("down") if k.actor == "p02" else Reply(text=k.actor))
+    with pytest.raises(StopRun, match="down"):
+        ask_all(inner, _pairs("p01", "p02", "p03"))
+    assert len(inner.batches) == 1 and len(inner.batches[0]) == 3
+
+
+def test_recording_ask_many_stores_what_came_back_before_stopping(db):
+    inner = _Batch(lambda k: StopRun("down") if k.actor == "p02" else Reply(text=k.actor, cost=0.01))
+    rec = Recording(inner, db, "r1")
+    pairs = _pairs("p01", "p02", "p03")
+    got = rec.ask_many(pairs)
+    assert [type(g) for g in got] == [Reply, StopRun, Reply]
+    assert db.reply_keys("r1") == ["r1|scripted|d0|p01|turn:|0", "r1|scripted|d0|p03|turn:|0"]
+    with pytest.raises(StopRun):
+        ask_all(Recording(inner, db, "r1"), pairs)
+    assert inner.batches[-1] == [pairs[1][0]]                   # only the one not stored is asked again
+
+
+def test_recording_ask_many_serves_stored_and_asks_only_the_rest(db):
+    pairs = _pairs("p01", "p02", "p03", "p04")
+    Recording(ScriptedReplier(lambda k, m: "old"), db, "r1").ask(*pairs[2])
+    inner = _Batch(lambda k: Reply(text="new"))
+    got = Recording(inner, db, "r1").ask_many(pairs)
+    assert [g.text for g in got] == ["new", "new", "old", "new"]
+    assert inner.batches == [[pairs[0][0], pairs[1][0], pairs[3][0]]]
+    assert [k.split("|")[3] for k in db.reply_keys("r1")] == ["p03", "p01", "p02", "p04"]
+    inner.batches.clear()
+    assert [g.text for g in Recording(inner, db, "r1").ask_many(pairs)] == ["new", "new", "old", "new"]
+    assert inner.batches == []                                  # all stored: nothing is asked
+
+
+def test_recording_ask_many_model_changed_raises_before_asking(db):
+    Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(*_pairs("p02", model="model-a")[0])
+    inner = _Batch(lambda k: Reply(text="y"))
+    pairs = _pairs("p01", "p02", "p03", model="model-b")
+    with pytest.raises(ReplayMismatch) as e:
+        Recording(inner, db, "r1").ask_many(pairs)
+    assert e.value.why == "model changed" and inner.batches == []
+    changed = [(k, [{"role": "user", "content": "another view"}]) for k, _ in _pairs("p02", model="model-a")]
+    with pytest.raises(ReplayMismatch) as e:
+        Recording(inner, db, "r1").ask_many(_pairs("p01", model="model-a") + changed)
+    assert e.value.why == "prompt changed" and inner.batches == []
+    assert db.reply_keys("r1") == ["r1|model-a|d0|p02|turn:|0"]
+
+
+def test_recording_ask_many_one_at_a_time_stops_asking_at_a_stop(db):
+    seen = []
+
+    def fn(k, m):
+        seen.append(k.actor)
+        if k.actor == "p02":
+            raise StopRun("cap")
+        return "x"
+    got = Recording(ScriptedReplier(fn), db, "r1").ask_many(_pairs("p01", "p02", "p03"))
+    assert seen == ["p01", "p02"] and [type(g) for g in got] == [Reply, StopRun, StopRun]
+    assert db.reply_keys("r1") == ["r1|scripted|d0|p01|turn:|0"]
+
+
+def test_recording_stores_a_fresh_refusal_then_stops_the_run(db):
+    refused = Reply(text=None, finish="content_filter", cost=0.002, error="refused: m: no")
+    inner = _Batch(lambda k: refused if k.actor == "p02" else Reply(text="ok", cost=0.001))
+    pairs = _pairs("p01", "p02", "p03")
+    with pytest.raises(StopRun, match="refused"):
+        ask_all(Recording(inner, db, "r1"), pairs)
+    assert len(db.reply_keys("r1")) == 3                        # all three were paid for and are kept
+    assert db.get_reply("r1", pairs[1][0].slot())[2] == refused
+    # a resume is served the stored refusal and goes on
+    got = ask_all(Recording(_Batch(lambda k: Reply(text="never")), db, "r1"), pairs)
+    assert got[1] == refused
+    # one at a time: the refusal is kept and the run stops at once
+    key = Keys("r1").next("scripted", 1, "p01", "turn")
+    with pytest.raises(StopRun, match="refused"):
+        Recording(_Fixed(refused), db, "r1").ask(key, MSGS)
+    assert db.get_reply("r1", key.slot())[2] == refused
+
+
+def test_replaying_ask_many_serves_each_through_ask(db):
+    pairs = _pairs("p01", "p02")
+    Recording(ScriptedReplier(lambda k, m: k.actor), db, "r1").ask_many(pairs)
+    replaying = Replaying(db, "r1")
+    assert [r.text for r in replaying.ask_many(pairs)] == ["p01", "p02"] and replaying.unused() == []
+    with pytest.raises(ReplayMismatch):
+        Replaying(db, "r1").ask_many(_pairs("p01", "p09"))

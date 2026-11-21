@@ -110,6 +110,32 @@ class Replier(Protocol):
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply: ...
 
 
+def refused(reply: Reply) -> bool:
+    """Whether the provider refused the prompt this reply answers."""
+    return isinstance(reply.error, str) and reply.error.startswith("refused:")
+
+
+def ask_all(replier: Replier, pairs: list[tuple[ReplyKey, list[dict]]]) -> list[Reply]:
+    """The replies to `pairs`, in order: through `replier.ask_many` when it has one, else
+    one at a time, stopping at the first `StopRun`. Raises the first `StopRun` among the
+    elements once the whole batch has been dealt with (and, through a `Recording`, every
+    reply that came back stored)."""
+    if hasattr(replier, "ask_many"):
+        got = list(replier.ask_many(pairs))
+    else:
+        got = []
+        for key, messages in pairs:
+            try:
+                got.append(replier.ask(key, messages))
+            except StopRun as e:
+                got.append(e)
+                break
+    for g in got:
+        if isinstance(g, StopRun):
+            raise g
+    return got
+
+
 class Keys:
     """Hands out keys for one run, counting from 0 for each (day, actor, purpose, ref)."""
 
@@ -161,18 +187,78 @@ class Recording:
         return self.inner.model_for(actor)
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
-        _own_run(self.run, key)
-        k, h = key.text(), prompt_hash(messages)
-        stored = self.db.get_reply(self.run, key.slot())
+        """The stored reply, or the inner replier's, stored. A fresh refusal (an `error`
+        beginning `refused:`) is stored and then stops the run (`StopRun`)."""
+        h = prompt_hash(messages)
+        stored = self._stored(key, h)
         if stored is not None:
-            if stored[0] != k:
-                raise ReplayMismatch(key=k, why="model changed")
-            if stored[1] != h:
-                raise ReplayMismatch(key=k, why="prompt changed")
-            return stored[2]
-        reply = decode_reply(_storable(self.inner.ask(key, messages)))
-        self.db.put_reply(self.run, k, key.slot(), h, reply)
+            return stored
+        reply = self._store(key, h, self.inner.ask(key, messages))
+        if refused(reply):
+            raise StopRun(reply.error)
         return reply
+
+    def _stored(self, key: ReplyKey, h: str) -> Reply | None:
+        """The reply stored at the key's slot, or None; a mismatch if it was stored under
+        another model or for another prompt."""
+        _own_run(self.run, key)
+        stored = self.db.get_reply(self.run, key.slot())
+        if stored is None:
+            return None
+        if stored[0] != key.text():
+            raise ReplayMismatch(key=key.text(), why="model changed")
+        if stored[1] != h:
+            raise ReplayMismatch(key=key.text(), why="prompt changed")
+        return stored[2]
+
+    def _store(self, key: ReplyKey, h: str, reply: Reply) -> Reply:
+        reply = decode_reply(_storable(reply))
+        self.db.put_reply(self.run, key.text(), key.slot(), h, reply)
+        return reply
+
+    def ask_many(self, pairs: list[tuple[ReplyKey, list[dict]]]) -> list[Reply | StopRun]:
+        """For each pair, the stored reply if there is one (a mismatch, as for `ask`, is
+        raised before anything is asked); the rest are asked of `inner` as one batch. Every
+        reply that came back is stored, in the pairs' order, before this returns, even when
+        an element is a `StopRun`. A fresh refusal (an `error` beginning `refused:`) is
+        stored and its element becomes a `StopRun`, so the run stops at once; a stored one
+        is served as stored."""
+        hashes = [prompt_hash(m) for _, m in pairs]
+        out: list[Reply | StopRun | None] = [self._stored(k, h) for (k, _), h in zip(pairs, hashes)]
+        missing = [i for i, got in enumerate(out) if got is None]
+        if not missing:
+            return out      # type: ignore[return-value]
+        asked = [pairs[i] for i in missing]
+        fresh: list[Reply | StopRun] = []
+        if hasattr(self.inner, "ask_many"):
+            fresh = list(self.inner.ask_many(asked))
+            if len(fresh) != len(asked):
+                raise ValueError(f"asked for {len(asked)} replies and got {len(fresh)}")
+        else:
+            try:
+                for key, messages in asked:
+                    try:
+                        reply = self.inner.ask(key, messages)
+                    except StopRun as e:
+                        fresh.append(e)
+                        break
+                    fresh.append(reply)
+                    if refused(reply):
+                        break
+            except BaseException:
+                self._keep(missing, pairs, hashes, fresh, out)    # what came back before the fault is kept
+                raise
+            fresh += [StopRun("not asked: the run stopped") for _ in asked[len(fresh):]]
+        self._keep(missing, pairs, hashes, fresh, out)
+        return out      # type: ignore[return-value]
+
+    def _keep(self, missing, pairs, hashes, fresh, out) -> None:
+        for i, got in zip(missing, fresh):
+            if isinstance(got, StopRun):
+                out[i] = got
+                continue
+            reply = self._store(pairs[i][0], hashes[i], got)
+            out[i] = StopRun(reply.error) if refused(reply) else reply
 
 
 class Replaying:
@@ -199,6 +285,9 @@ class Replaying:
             raise ReplayMismatch(key=stored[0], why="prompt changed")
         self._asked.add(slot)
         return stored[2]
+
+    def ask_many(self, pairs: list[tuple[ReplyKey, list[dict]]]) -> list[Reply]:
+        return [self.ask(key, messages) for key, messages in pairs]
 
     def unused(self) -> list[str]:
         """The stored keys never asked for, in the order they were stored."""

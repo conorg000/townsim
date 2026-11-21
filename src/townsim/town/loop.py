@@ -12,7 +12,7 @@ from townsim.town import aims, firms, hamlet, hours, jobs, obligations, talk
 from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
 from townsim.town.entities import Result
-from townsim.town.replies import Keys, Replier
+from townsim.town.replies import Keys, Replier, ask_all
 from townsim.town.statement import quoted
 from townsim.town.store import Store
 from townsim.town import views
@@ -181,8 +181,8 @@ def guarded_view(store: Store, pid: str, build: Any) -> Any:
 
 
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
-    """The routine, then everyone's view, every reply, and each person's aims and acts in
-    id order; then the day's talks (`talk.todays`, each held in turn, its acts numbered on
+    """The routine, then everyone's view, every reply (asked as one batch, `ask_all`), and
+    each person's aims and acts in id order; then the day's talks (`talk.todays`, each held in turn, its acts numbered on
     from everyone's); then the close. A reply's `aims`, when it has them, are taken before
     its acts. Acts past the eighth are not carried out, and the person is told how many. A
 person whose view cannot be built is not asked that day (`guarded_view`)."""
@@ -193,10 +193,8 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
         built = guarded_view(store, pid, lambda: views.view(store, pid))
         if built is not None:
             shown.append((pid, *built))
-    asked = []
-    for pid, messages, _ in shown:
-        key = keys.next(replier.model_for(pid), day, pid, "turn")
-        asked.append((key.text(), replier.ask(key, messages)))
+    pairs = [(keys.next(replier.model_for(pid), day, pid, "turn"), messages) for pid, messages, _ in shown]
+    asked = [(key.text(), reply) for (key, _), reply in zip(pairs, ask_all(replier, pairs))]
     turns = []
     n = 0
     for (pid, _, ids), (key, reply) in zip(shown, asked):

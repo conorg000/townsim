@@ -252,3 +252,96 @@ def test_a_view_that_raises_skips_that_person_that_day_and_the_run_goes_on(tmp_p
         assert not any(n.text == "half made" for n in final.all("notices"))
         assert not any(c.cause == "routine:test" for c in final.changes)
         assert replay(db, "v") == []
+
+
+# a day's turns asked as one batch
+
+from townsim.town import families as _families, gen as _gen, hamlet_script as _hamlet_script  # noqa: E402
+
+SCRIPTED_HASH = "f14fc6650a783e0f34509362d1bd6e8f97078ca7b335ba5d1788906bc87462b7"   # at 9010568, before batching
+
+
+def _hamlet():
+    return _gen.generate(1, _families.names("config/families.yaml"))
+
+
+class BatchScript:
+    """The hamlet's script behind `ask_many`. With `stop`, the pair at index `stop[1]` of the
+    first batch on day `stop[0]` is a `StopRun` (every other pair in it is answered); with
+    `die`, that batch raises SystemExit instead, as a killed process would. Records each
+    batch's keys."""
+
+    def __init__(self, stop=None, die=None):
+        self.stop, self.die = stop, die
+        self.batches = []
+
+    def model_for(self, actor):
+        return "scripted"
+
+    def ask(self, key, messages):
+        return Reply(text=_hamlet_script.script(key, messages))
+
+    def ask_many(self, pairs):
+        self.batches.append([k for k, _ in pairs])
+        day = pairs[0][0].day if pairs else None
+        if self.die is not None and day == self.die:
+            self.die = None
+            raise SystemExit("killed")
+        out = [Reply(text=_hamlet_script.script(k, m)) for k, m in pairs]
+        if self.stop is not None and day == self.stop[0]:
+            out[self.stop[1]] = StopRun("stop here")
+            self.stop = None
+        return out
+
+
+def _same_days(db, other, run_id, days):
+    for d in range(days + 1):
+        assert db.snapshot_hash(run_id, d) == other.snapshot_hash(run_id, d), d
+    assert db.change_days(run_id) == db.turn_days(run_id) == list(range(days))
+    for d in range(days):
+        assert db.changes(run_id, d) == other.changes(run_id, d), d
+        assert db.turns(run_id, d) == other.turns(run_id, d), d
+    assert db.errors(run_id) == other.errors(run_id)
+    assert db.reply_keys(run_id) and sorted(db.reply_keys(run_id)) == sorted(other.reply_keys(run_id))
+
+
+def test_run_stopped_mid_batch_resumes_to_the_same_state(tmp_path):
+    days = 14
+    with RunDB(str(tmp_path / "s.sqlite")) as straight_db, RunDB(str(tmp_path / "b.sqlite")) as db:
+        straight_db.create_run("h", seed=1); db.create_run("h", seed=1)
+        straight = run(straight_db, "h", _hamlet(), BatchScript(), days)
+        stopper = BatchScript(stop=(9, 2))
+        back = run(db, "h", _hamlet(), stopper, days)
+        assert back.day == 9
+        [first9] = [b for b in stopper.batches if b[0].day == 9]
+        assert len(first9) >= 3
+        stored9 = [k for k in db.reply_keys("h") if k.split("|")[2] == "d9"]
+        assert stored9 == [k.text() for i, k in enumerate(first9) if i != 2]    # the rest of the batch is kept
+        going_on = BatchScript()
+        end = run(db, "h", resume(db, "h"), going_on, days - 9)
+        assert [b for b in going_on.batches if b[0].day == 9][0] == [first9[2]]   # only the one not stored
+        assert end.hash() == straight.hash() and replay(db, "h") == []
+        _same_days(db, straight_db, "h", days)
+
+
+def test_a_process_killed_mid_batch_asks_again_only_what_was_not_stored(tmp_path):
+    days = 12
+    with RunDB(str(tmp_path / "s.sqlite")) as straight_db, RunDB(str(tmp_path / "k.sqlite")) as db:
+        straight_db.create_run("h", seed=1); db.create_run("h", seed=1)
+        straight = run(straight_db, "h", _hamlet(), BatchScript(), days)
+        with pytest.raises(SystemExit):
+            run(db, "h", _hamlet(), BatchScript(die=9), days)
+        stored = set(db.reply_keys("h"))
+        assert stored and all(int(k.split("|")[2][1:]) < 9 for k in stored)
+        going_on = BatchScript()
+        end = run(db, "h", resume(db, "h"), going_on, days - 9)
+        assert not {k.text() for b in going_on.batches for k in b} & stored
+        assert end.hash() == straight.hash() and replay(db, "h") == []
+        _same_days(db, straight_db, "h", days)
+
+
+def test_scripted_hashes_unchanged(tmp_path):
+    with RunDB(str(tmp_path / "p.sqlite")) as db:
+        db.create_run("h", seed=1)
+        final = run(db, "h", _hamlet(), ScriptedReplier(_hamlet_script.script), 56)
+    assert final.day == 56 and final.hash() == SCRIPTED_HASH
