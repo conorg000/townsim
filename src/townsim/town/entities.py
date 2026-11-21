@@ -342,3 +342,48 @@ class Event:
     amount: int
     weeks: int
     done: bool = False
+
+
+@dataclass
+class Talk:
+    """A conversation between `a` and `b` on `day`. `kind` is asked (by `converse`, `a` the
+    asker, who said `opening` first), appointment (`ref` the appointment, `a` who booked it)
+    or household (`ref` the household, on a Sunday). `status` is waiting, held or not held.
+    `unseen` is who has not yet been shown it under `TALKS` in their own view."""
+
+    id: str
+    day: int
+    a: str
+    b: str
+    kind: str
+    opening: str
+    status: str
+    ref: str = ""
+    unseen: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Line:
+    """One turn in a talk: the `n`th, by `speaker`, what they said (cleaned; empty when they
+    said nothing) and the results of the acts they made in it."""
+
+    id: str
+    talk: str
+    n: int
+    speaker: str
+    text: str
+    results: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Appointment:
+    """A talk `a` booked with `b` for `day`, about `about` (their words, quoted), on
+    `made_on`. `status` is booked, held, missed or cancelled."""
+
+    id: str
+    day: int
+    a: str
+    b: str
+    about: str
+    made_on: int
+    status: str = "booked"

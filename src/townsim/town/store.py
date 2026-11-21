@@ -22,7 +22,7 @@ from townsim.econ.ledger import Ledger
 
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results", "ties",
           "firms", "suppliers", "buyers", "tills", "work", "jobs", "events",
-          "aims")
+          "aims", "talks", "lines", "appointments")
 
 # Fields looked up often enough to be indexed, each a sorted tuple of field names.
 INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -37,6 +37,9 @@ INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
     "work": (("holder",),),
     "jobs": (("person",), ("org",)),
     "aims": (("person",),),
+    "talks": (("day",),),
+    "lines": (("talk",),),
+    "appointments": (("day",),),
 }
 
 _ID = re.compile(r"([A-Za-z:]+)(\d+)", re.ASCII)

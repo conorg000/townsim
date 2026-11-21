@@ -256,3 +256,18 @@ def test_new_id_takes_the_cause_it_is_given():
     assert s.new_id("ob") == "ob2" and s.changes[-1].cause == "routine:new_id"
     with pytest.raises(ValueError):
         s.new_id("ob", "")
+
+
+def test_talks_lines_and_appointments_are_rows_like_any_other():
+    from townsim.town.entities import Appointment, Line, Talk
+    s = Store()
+    empty = s.hash()
+    m = s.mark()
+    s.add("talks", Talk("tk1", 0, "p1", "p2", "asked", "Hello.", "waiting"), "routine:t")
+    s.add("lines", Line("ln1", "tk1", 0, "p1", "Hello.", ["res1"]), "routine:t")
+    s.add("appointments", Appointment("ap1", 3, "p1", "p2", '"the rent"', 0), "routine:t")
+    s.set("talks", "tk1", "routine:t", status="held", unseen=["p1", "p2"])
+    assert s.where("talks", day=0)[0].unseen == ["p1", "p2"] and s.where("lines", talk="tk1")[0].results == ["res1"]
+    assert s.where("appointments", day=3)[0].status == "booked" and {"talks", "lines", "appointments"} <= set(TABLES)
+    s.undo_to(m)
+    assert s.hash() == empty
