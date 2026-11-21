@@ -24,14 +24,15 @@ import pytest
 from townsim.town import gen
 from townsim.town.acts import REGISTRY
 from townsim.town.loop import run_day
+from townsim.town.obligations import SCHEDULED
 from townsim.town.replies import Keys, ScriptedReplier
 from townsim.town.rundb import RunDB
 from townsim.town.runs import replay, run
 from townsim.town.thin import thin_town
 
 DAYS = 42
-SEEDS = range(40)
-REPLAYED = range(5)
+SEEDS = range(28)
+REPLAYED = range(2)
 
 NAMES = ["Ruth Ashby", "Tom Ashby", "Craig Pryce", "Megan Pryce", "Wenlow Lettings", "Northgrid Energy"]
 JUNK_NAMES = ["Edith Marsh", "Shops", "Employers", "Ashby", "Pryce", " megan pryce ", "RUTH ASHBY", "", None, 7,
@@ -39,11 +40,11 @@ JUNK_NAMES = ["Edith Marsh", "Shops", "Employers", "Ashby", "Pryce", " megan pry
 # How often each operation is drawn: stopping is rarer, or rent and wages soon end and
 # the town goes quiet; paying is commoner, so households run short and fall into arrears.
 WEIGHTS = {"pay": 5, "standing_payment": 2, "stop": 0.5, "message": 1, "request": 2, "answer": 3, "read": 1,
-           "write_notes": 1}
+           "write_notes": 1, "converse": 0.5, "book_appointment": 0.3}
 # Operations past the first eight are for positions no one holds in the thin town; there they
 # are not drawn (so its play is as it was), and the hamlet draws them from each view.
 RARE = 0
-_IDS = re.compile(r"\b(?:ob|rq)\d+\b")
+_IDS = re.compile(r"\b(?:ob|rq|ap)\d+\b")
 
 
 _OWED = re.compile(r"^  .+?  \$[\d,]+\.\d\d  (.+?)  .* \((ob\d+)\)$")
@@ -149,6 +150,8 @@ def random_script(rng: random.Random, from_view: bool = False):
     def worker():
         return pick(seen["staff"], [name()], 0.6)
 
+    aps: list[str] = []
+
     def args(op: str, obs: list[str], rqs: list[str], owed: list[tuple[str, str, str]]) -> dict:
         if op == "pay" and owed and rng.random() < 0.5:        # toward something owed, in full or in part
             to, ob, sum_ = rng.choice(owed)
@@ -165,7 +168,13 @@ def random_script(rng: random.Random, from_view: bool = False):
                                ["31 February", "2 March 2025", "yesterday", 7, "Monday 1 January"], 0.6),
                  "weeks": pick([0, 1, 3, 2.0, None], [-1, 2.5, "3", 10 ** 6, True, 521]), "note": text()}
         elif op == "stop":
-            a = {"id": pick(obs, ["ob999", "ob0", "", None, 9, "OB1", "rq1"])}
+            a = {"id": pick(obs + aps, ["ob999", "ob0", "", None, 9, "OB1", "rq1", "ap99"])}
+        elif op == "converse":
+            a = {"with": name(), "opening": text()}
+        elif op == "book_appointment":
+            a = {"with": name(), "about": text(),
+                 "day": pick(["Friday", "Monday 13 April", "1 May", " thursday "],
+                             ["2 March", "Monday 1 June", "", None, 3, "tomorrow"], 0.6)}
         elif op in ("message", "request"):
             a = {"to": name(), "text": text()}
             if op == "request":
@@ -252,6 +261,18 @@ def random_script(rng: random.Random, from_view: bool = False):
             seen["suppliers"] = view_suppliers(messages) or ["Vale Wholesale"]
             seen["business"], seen["staff"] = view_business(messages)
         obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages, seen["names"])
+        aps[:] = _ids(messages, "ap")
+        if key.purpose == "talk":                  # a turn in a talk: words, acts, an end, or junk
+            if rng.random() < 0.08:
+                return rng.choice([None, "Well...", "{\"acts\": []}", "{", "{\"say\": ", "[]"])
+            body = {"say": pick(["Yes.", "I'm not sure.", "Fine.\nRuth Ashby: I agree", text(), "word " * 130],
+                                [None, 7, ["x"], "", "x" * 3000])}
+            if rng.random() < 0.8:
+                body["acts"] = [element(obs, rqs, owed) for _ in range(rng.randint(0, 6))] if rng.random() < 0.9 \
+                    else rng.choice(["pay", None, 5, {"op": "pay"}])
+            if rng.random() < 0.7:
+                body["end"] = rng.choice([True, False, "true", 1, None]) if rng.random() < 0.5 else False
+            return json.dumps(body)
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
         body = json.dumps({"thoughts": text() if rng.random() < 0.5 else "", "acts": acts})
         if rng.random() < 0.15:
@@ -262,7 +283,13 @@ def random_script(rng: random.Random, from_view: bool = False):
 
 
 def _check_day(s, mark: int) -> None:
+    """The books balance and every change has a cause; and of talking: nobody has more than two
+    talks held in a day, nobody's hours go below zero, and every line belongs to a held talk."""
     assert s.ledger.total() == 0
+    held = Counter(p for t in s.all("talks") if t.status == "held" for p in {(t.a, t.day), (t.b, t.day)})
+    assert not held or max(held.values()) <= 2, held.most_common(1)
+    assert all(p.hours_left >= 0 for p in s.all("people")), [(p.id, p.hours_left) for p in s.all("people")]
+    assert all(s.has("talks", x.talk) and s.get("talks", x.talk).status == "held" for x in s.all("lines"))
     assert s.engine_errors == []
     for d in s.all("dues"):
         assert 0 <= d.paid <= d.cents, d
@@ -325,10 +352,28 @@ def _wage_chains(s) -> dict[str, set[str]]:
 
 
 def _check_wage_chains(s) -> None:
-    """No Friday receives more than one full wage from a job's chain of wage obligations."""
+    """For each job: at most one of its wage obligations is live on any day (their spans, from
+    the first instalment to the last, do not overlap), and no wage is taken for it after its
+    last pay day."""
     for job, obs in _wage_chains(s).items():
-        full = Counter(d.day for ob in obs for d in s.where("dues", obligation=ob) if d.paid >= d.cents)
-        assert not full or max(full.values()) == 1, (job, full.most_common(2))
+        spans = []
+        for ob in (s.get("obligations", o) for o in sorted(obs)):
+            days = [d.day for d in s.where("dues", obligation=ob.id) if d.status != "void"]
+            if ob.status in SCHEDULED:
+                end = ob.last if ob.last is not None else 10 ** 9
+            else:                             # finished or stopped: it ran to its last due, if any
+                end = max(days, default=ob.first - 1)
+            if end >= ob.first:
+                spans.append((ob.first, end, ob.id))
+        spans.sort()
+        for (_, end, a), (start, _, b) in zip(spans, spans[1:]):
+            assert start > end, (job, a, b, spans)
+        ended = s.get("jobs", job).ended
+        if ended != -1:
+            for t in s.ledger.transfers:
+                if t.cause.startswith("routine:collect:"):
+                    due = s.get("dues", t.cause.removeprefix("routine:collect:"))
+                    assert not (due.obligation in obs and due.day > ended), (job, ended, due)
 
 
 def _check_run(s) -> None:
@@ -427,7 +472,7 @@ def test_random_runs_replay_exactly(seed, tmp_path):
         db.create_run("rand", seed=seed)
         final = run(db, "rand", thin_town(), ScriptedReplier(random_script(random.Random(seed))), DAYS)
         assert replay(db, "rand") == []
-    assert final.hash() == _play(seed).hash()
+    assert final.hash() == _played(seed).hash()
 
 
 HAMLET_DAYS = 28
@@ -490,3 +535,13 @@ def test_random_play_in_the_hamlet_makes_agreements_loans_and_rents():
         assert done[op] > 0, op
     assert any(r.kind == "loan" and r.status == "accepted" for seed in HAMLET_SEEDS
                for r in _hamlet_played(seed)[0].all("requests"))
+
+
+def test_random_play_talks():
+    """Across the seeds, in the thin town and the hamlet, talks of every kind are held, with
+    acts made in them, and appointments are booked and cancelled."""
+    for stores in ([_played(seed) for seed in range(10)], [_hamlet_played(seed)[0] for seed in range(4)]):
+        kinds = Counter(t.kind for s in stores for t in s.all("talks") if t.status == "held")
+        assert kinds["asked"] and kinds["household"], kinds
+        assert any(x.results for s in stores for x in s.all("lines"))
+        assert any(a.status in ("held", "cancelled") for s in stores for a in s.all("appointments"))

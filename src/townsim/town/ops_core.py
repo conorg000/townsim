@@ -140,9 +140,26 @@ def _check_pay(store: Store, act: Act) -> str | None:
     if ref is not None:
         if not (isinstance(ref, str) and store.has("obligations", ref)
                 and (store.get("obligations", ref).payer == source or _own_wage(store, act, ref))
-                and store.get("obligations", ref).payee == payee):
+                and store.get("obligations", ref).payee == payee and not _ended_wage(store, ref)):
             return f"you have nothing with the id '{shown(ref)}' that is owed to {name}."
     return _short_of(store, source, cents)
+
+
+def _ended_wage(store: Store, ob_id: str) -> bool:
+    """Whether `ob_id` is a wage that has ended or been stopped, with nothing of it owed."""
+    ob = store.get("obligations", ob_id)
+    ended = ob.status not in obligations.SCHEDULED or (ob.last is not None and ob.last < store.day)
+    return ob.kind == "wage" and ended and not obligations.owed_dues(store, ob_id)
+
+
+def _nothing_counted(store: Store, ob_id: str) -> str:
+    """What the payer is told when a payment naming `ob_id` counted toward none of it because
+    its next payment is more than a week away; "" otherwise."""
+    ob = store.get("obligations", ob_id)
+    day = obligations.next_instalment(store, ob)
+    if day is None or day <= store.day + obligations.AHEAD_DAYS:
+        return ""
+    return f" Nothing was counted toward {memo_shown(ob.memo)}: the next payment on it is more than a week away."
 
 
 def _own_wage(store: Store, act: Act, ob_id: str) -> bool:
@@ -166,6 +183,9 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     # a wage the principal's business owes, paid from another of their accounts, counts toward it
     matches = obligations.pay(store, source, payee, cents, memo, cause, ref=ref, toward=wage)
     told = f"Paid {money(cents)} to {name}."
+    named = ref or (wage if _pay_ref(act) is not None else None)
+    if named and not matches:
+        told += _nothing_counted(store, named)
     if matches:
         counted = []
         for m in matches:
@@ -249,7 +269,21 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
 
 # stop
 
+# Other kinds of row `stop` may name, by table: `(check, do)` as an operation's, given an
+# act whose `id` is a row of that table.
+STOPPABLE: dict[str, tuple[Callable[[Store, Act], str | None], Callable[[Store, Act, str], str]]] = {}
+
+
+def _stoppable(store: Store, act: Act) -> tuple | None:
+    ob_id = act.args.get("id")
+    return next((pair for table, pair in STOPPABLE.items() if isinstance(ob_id, str) and store.has(table, ob_id)),
+                None)
+
+
 def _check_stop(store: Store, act: Act) -> str | None:
+    other = _stoppable(store, act)
+    if other is not None:
+        return other[0](store, act)
     ob_id = act.args.get("id")
     if (isinstance(ob_id, str) and store.has("obligations", ob_id)
             and controls(store, act.principal, store.get("obligations", ob_id).payer)
@@ -259,6 +293,9 @@ def _check_stop(store: Store, act: Act) -> str | None:
 
 
 def _do_stop(store: Store, act: Act, cause: str) -> str:
+    other = _stoppable(store, act)
+    if other is not None:
+        return other[1](store, act, cause)
     ob = store.get("obligations", act.args["id"])
     result = obligations.stop(store, ob.id, ob.payer, cause)
     if result == "breach":
@@ -340,7 +377,7 @@ def _owed_on(store: Store, act: Act, who: str) -> str | None:
     ob = store.get("obligations", ob_id)
     if ob.status != "active" or not controls(store, who, ob.payer) or not controls(store, act.actor, ob.payee):
         return None
-    return ob.id
+    return None if _ended_wage(store, ob.id) else ob.id
 
 
 def _check_request(store: Store, act: Act) -> str | None:
@@ -432,14 +469,19 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     elif accepted and rq.cents > 0:
         payer, payee = _request_accounts(store, rq)
         if rq.ob:
-            obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
+            matches = obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, ref=rq.ob)
         else:
-            obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
+            matches = obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
         paid = rq.sender if payee == account_of(store, rq.sender) else payee
         told += f" Paid {money(rq.cents)} to {name_of_who(store, paid)}."
-    asked = quoted(cut(rq.text))
-    text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
-            f"your request {rq.id} ({asked}).")
+        if rq.ob and not matches:
+            told += _nothing_counted(store, rq.ob)
+    text = f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} your request {rq.id}"
+    if rq.text.strip():
+        text += f" ({quoted(cut(rq.text))})."
+    else:                       # nothing written: named by the first sentence of its summary, if any
+        first = rq.summary.split(". ")[0].rstrip(".") if rq.summary.strip() else ""
+        text += "." + (f" {first}." if first else "")
     if done:
         text += " " + done
     note = _note(act.args.get("note"))
@@ -526,3 +568,8 @@ ANSWERERS.update(getattr(_ops_work, "ANSWERERS_OF_WORK", {}))
 from townsim.town import ops_deals as _ops_deals  # noqa: E402
 
 ANSWERERS.update(getattr(_ops_deals, "ANSWERERS_OF_DEALS", {}))
+
+# and so do the operations of talking, from `ops_talk`, with the appointments `stop` cancels
+from townsim.town import ops_talk as _ops_talk  # noqa: E402
+
+STOPPABLE.update(getattr(_ops_talk, "STOPPABLE_OF_TALK", {}))

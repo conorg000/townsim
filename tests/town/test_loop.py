@@ -256,3 +256,21 @@ def test_ids_are_counted_under_the_cause_of_what_made_them(weeks8):
     for i in counters:                          # each id is counted, then its row added, under one cause
         c, row = s.changes[i], s.changes[i + 1]
         assert row.field == "+" and row.cause == c.cause != "routine:new_id" and row.id == f"{c.id}{c.new}", (c, row)
+
+
+def test_a_lapsed_request_without_words_is_told_by_its_summary():
+    from townsim.town.entities import Request
+    from townsim.town.loop import _lapse
+    s = thin_town()
+    s.add("requests", Request("rq1", 0, "p01", "p03", "", 0, 0, kind="job",
+                              summary="Ruth Ashby offers Craig Pryce a job: $400.00 a week. It starts Monday."),
+          "routine:t")
+    s.add("requests", Request("rq2", 0, "p01", "p03", "", 0, 0, kind="job"), "routine:t")
+    s.add("requests", Request("rq3", 0, "p01", "p03", "Lend me $5?", 500, 0), "routine:t")
+    s.advance_day()
+    _lapse(s)
+    assert [n.text for n in s.where("notices", to="p01")] == [
+        "Your request rq1 to Craig Pryce was not answered and has lapsed. Ruth Ashby offers Craig Pryce a job: "
+        "$400.00 a week.",
+        "Your request rq2 to Craig Pryce was not answered and has lapsed.",
+        'Your request rq3 to Craig Pryce ("Lend me $5?") was not answered and has lapsed.']

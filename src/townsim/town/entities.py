@@ -160,6 +160,8 @@ class Obligation:
     penalty: bool = False
     status: str = "active"
     final_cents: int = 0       # the instalment falling on `last`, when above 0; else `cents`
+    next_cents: int = 0        # with `next_from`: what instalments on and after that day are for
+    next_from: int = -1        # the day a change of amount takes effect, or -1 for none pending
 
 
 @dataclass
@@ -302,9 +304,9 @@ class Work:
 class Job:
     """`person` works `hours` a week for the organisation `org`, paid `weekly` cents by the
     wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start).
-    `ended` is the last day worked, or -1 while the job goes on. `paid_to` is the last Friday
-    paid by a wage obligation of the job's that a change of pay ended (-1 if none), so the
-    next is never paid on a Friday already paid."""
+    `ended` is the last day worked, or -1 while the job goes on. A change of pay re-prices
+    the one wage obligation (`obligations.reprice`); only a draw set to nothing ends it, and a
+    draw set again starts another after it."""
 
     id: str
     person: str
@@ -314,7 +316,6 @@ class Job:
     wage_ob: str
     since: int
     ended: int = -1
-    paid_to: int = -1
 
 
 @dataclass

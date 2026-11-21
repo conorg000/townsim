@@ -27,6 +27,7 @@ from .test_random_play import _check_run
 
 FAMILIES = ["a", "b", "c", "d"]
 DAYS = 56
+ORDINARY_WORDS = 1500       # the most a view may be on an ordinary day of the scripted weeks
 T = "routine:test"
 
 
@@ -118,9 +119,31 @@ def test_nothing_is_collected_twice_and_no_view_is_over_length():
     assert s.engine_errors == []
     _check_run(s)                                    # one collect a due; by hand plus collected is its sum
     assert len(sizes) == DAYS * 18
-    assert max(sizes.values()) <= 1300, max(sizes.items(), key=lambda kv: kv[1])
+    assert max(sizes.values()) <= ORDINARY_WORDS, max(sizes.items(), key=lambda kv: kv[1])
     for d in s.all("dues"):
         assert 0 <= d.paid <= d.cents
+
+
+def _largest_views(seed):
+    """The largest of everyone's views on each morning of eight scripted weeks of `seed`."""
+    s = place(seed)
+    sizes = {}
+
+    def script(key, messages):
+        if s.day not in {d for d, _ in sizes}:
+            for p in s.all("people"):
+                sizes[(s.day, p.id)] = words(view(s, p.id)[0])
+        return hamlet_script.script(key, messages)
+    keys = Keys("v")
+    for _ in range(DAYS):
+        run_day(s, ScriptedReplier(script), keys)
+    return max(sizes.items(), key=lambda kv: kv[1])
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_no_ordinary_view_is_over_1500_words_on_other_seeds(seed):
+    where, most = _largest_views(seed)
+    assert most <= ORDINARY_WORDS, (where, most)
 
 
 def test_the_script_lives_a_full_life():
@@ -229,6 +252,84 @@ def test_a_run_stopped_mid_day_and_resumed_reaches_the_same_end(tmp_path):
         final = run(db, "h", resume(db, "h"), ScriptedReplier(hamlet_script.script), DAYS - 30)
         assert replay(db, "h") == []
     assert final.hash() == eight_weeks()[0].hash()
+
+
+def test_eight_weeks_with_talking_conserve_and_replay():
+    """The script talks: conversations asked for and held, one not held for want of time, one
+    ended early and one run to three turns a side; a payment and an agreement made inside a
+    talk and the agreement accepted there by the other; appointments booked and held, missed
+    and cancelled; the household's Sunday talk; and a reply in a talk that cannot be read. The
+    run conserves money and replays (see the test above)."""
+    from townsim.town import talk
+    s, reports, _, _ = eight_weeks()
+    talks = s.all("talks")
+    asked = [t for t in talks if t.kind == "asked"]
+    assert len([t for t in asked if t.status == "held"]) >= 5
+    assert any(t.status == "not held" for t in asked)
+    assert any(n.text.endswith(" had no time to talk today.") for n in s.all("notices"))
+    held = [t for t in talks if t.status == "held"]
+    sizes = {t.id: len(talk.lines_of(s, t.id)) for t in held}
+    assert 6 in sizes.values() and any(n < 6 for t, n in sizes.items() if s.get("talks", t).kind == "asked")
+    in_talks = [o for r in reports for t in r.turns if t.talk for o in t.outcomes]
+    assert any(o.ok and o.act.op == "pay" for o in in_talks)
+    proposed = {o.msg.split("(")[1].split(")")[0] for o in in_talks if o.ok and o.act.op == "propose_agreement"}
+    accepted = {o.act.args["request"] for o in in_talks if o.ok and o.act.op == "answer"}
+    assert proposed & accepted
+    assert any(s.get("requests", rq).status == "accepted" for rq in proposed & accepted)
+    statuses = {a.status for a in s.all("appointments")}
+    assert {"held", "missed", "cancelled"} <= statuses
+    assert any(t.kind == "appointment" for t in held) and any(t.kind == "household" for t in held)
+    assert any(t.invalid for r in reports for t in r.turns if t.talk)
+    for r in reports:                                         # two a day at most, and each reported
+        assert [h.id for h in r.talks] == [t.id for t in held if t.day == r.day]
+    assert all(p.hours_left >= 0 for p in s.all("people"))
+
+
+def test_a_talk_view_is_under_900_words_for_every_pair_after_eight_weeks():
+    from townsim.town import talk
+    from townsim.town.acts import Act, apply_act
+    for s in (place(1), pickle.loads(pickle.dumps(eight_weeks()[0]))):
+        people = [p.id for p in s.all("people")]
+        for a in people:
+            for b in people:
+                if a == b:
+                    continue
+                for t in s.where("talks", day=s.day):
+                    s.set("talks", t.id, T, day=-1)
+                s.set("people", a, T, hours_left=60.0)
+                out = apply_act(s, Act(a, a, "converse", {"with": s.get("people", b).name, "opening": "Hello."}), 0)
+                assert out.ok, out.msg
+                tk = s.all("talks")[-1].id
+                for pid in (a, b):
+                    assert words(talk.view(s, pid, tk)) <= 900, (s.day, pid, tk)
+
+
+def test_a_run_stopped_mid_talk_resumes_to_the_same_state(tmp_path):
+    """From the kept eight weeks: a run stopped at the second speaker's second turn of a talk
+    goes back to that morning, and resumed reaches the same end, and replays."""
+    from townsim.town import talk
+    final, _, _, _ = eight_weeks()
+    tk = next(t for t in final.all("talks") if t.status == "held" and len(talk.lines_of(final, t.id)) == 6)
+    second = talk.lines_of(final, tk.id)[1].speaker
+    stopped_at = []
+
+    def stopping(key, messages):
+        if (key.purpose, key.ref, key.actor, key.n) == ("talk", tk.id, second, 1) and not stopped_at:
+            stopped_at.append(key)
+            raise StopRun
+        return hamlet_script.script(key, messages)
+
+    kept = _eight_weeks_run()[4]
+    with RunDB(str(tmp_path / "t.sqlite")) as db:
+        db.create_run("h", seed=1)
+        back = run(db, "h", kept.load_snapshot("h1", tk.day), ScriptedReplier(stopping), DAYS - tk.day)
+        assert stopped_at and back.day == tk.day and back.hash() == kept.snapshot_hash("h1", tk.day)
+        assert any(f"|talk:{tk.id}|" in k for k in db.reply_keys("h"))
+        pending = replay(db, "h")
+        assert pending and any(f"|talk:{tk.id}|" in k for k in pending)
+        end = run(db, "h", resume(db, "h"), ScriptedReplier(stopping), DAYS - tk.day)
+        assert replay(db, "h") == []
+    assert end.hash() == final.hash()
 
 
 _HASH = """
@@ -564,3 +665,4 @@ def test_a_cold_spell_near_an_energy_bills_end_tells_the_weeks_it_has():
     first = s.get("households", energy[0].payer).members
     assert {t for p, t in told if p in first} == {"A cold spell: energy bills are 30% higher for two weeks."}
     assert {t for p, t in told if p not in first} == {"A cold spell: energy bills are 30% higher for four weeks."}
+

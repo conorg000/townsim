@@ -473,28 +473,39 @@ def _check_staff_pay(store: Store, act: Act) -> str | None:
 
 
 def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
+    """A job has one wage obligation for its whole life: a new weekly sum re-prices it from the
+    Friday after the next payable one (and past any Friday already paid in full by hand). A
+    draw set to nothing ends it; set again, a new one starts the Friday after its last."""
     job, _ = _staff(store, act)
     weekly = _new_pay(store, act, job)
     friday = jobs.pay_friday(store.day)
-    paid_to = job.paid_to
-    if store.has("obligations", job.wage_ob):
-        old = store.get("obligations", job.wage_ob)
-        if old.status in obligations.SCHEDULED:
-            # it pays this Friday, and any Friday already paid by hand, and no further
-            last = max(friday, obligations.latest_paid(store, old.id) or friday)
-            if old.first <= last:
-                paid_to = max(paid_to, last)
-            obligations.end(store, old.id, last, cause)
-        elif old.last is not None:
-            paid_to = max(paid_to, old.last)
-    start = max(friday, paid_to + 7) if paid_to >= 0 else friday
+    old = store.get("obligations", job.wage_ob) if store.has("obligations", job.wage_ob) else None
+    ob = job.wage_ob
+    if old is not None and old.status == "active" and old.last is None and old.every == 7:
+        start = obligations.instalment_days(old, friday + 1, 1)[0]
+        while any(d.day == start and d.status != "void" and (d.paid >= d.cents or d.paid > weekly)
+                  for d in store.where("dues", obligation=old.id)):
+            start += old.every
+        if weekly > 0:
+            obligations.reprice(store, old.id, weekly, start, cause)
+        else:
+            obligations.end(store, old.id, start - old.every, cause)
+    else:
+        after = None
+        if old is not None and old.status in obligations.SCHEDULED:       # stopped by its payer, still falling due
+            after = max(friday, obligations.latest_paid(store, old.id) or friday)
+            obligations.end(store, old.id, after, cause)
+        elif old is not None:
+            after = old.last if old.last is not None else obligations.latest_paid(store, old.id)
+        start = max(friday, after + 7) if after is not None else friday
+        if weekly > 0:
+            org_name = _org_name(store, job.org)
+            ob = obligations.create(store, kind="wage", payer=job.org, payee=store.get("people", job.person).household,
+                                    cents=weekly, first=start, every=7, memo=f"wages from {org_name}", ends="both",
+                                    made_by="routine", cause=cause)
     org = _org_name(store, job.org)
     worker = store.get("people", job.person)
-    ob = ""
-    if weekly > 0:
-        ob = obligations.create(store, kind="wage", payer=job.org, payee=worker.household, cents=weekly, first=start,
-                                every=7, memo=f"wages from {org}", ends="both", made_by="routine", cause=cause)
-    store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob, paid_to=paid_to)
+    store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob)
     if job.person == act.principal:
         return f"{org} pays you {money(weekly)} a week from {date_text(start)}."
     jobs.tell(store, job.person, f"{org} pays you {money(weekly)} a week from {date_text(start)}.", cause)

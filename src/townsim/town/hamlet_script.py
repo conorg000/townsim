@@ -35,6 +35,13 @@ _AGREEMENT = re.compile(rf" pays .+ {_MONEY} (once on|every week from) ")
 _GARDEN = "help with the garden"
 _BOILER = "a new boiler"
 _OWED_LINE = re.compile(rf"^(ob\d+): (.+?), ({_MONEY}) a week (to|from) ")
+_LANDLORD = re.compile(r"^The house is rented from (.+?) for ", re.M)
+_BOOKED = re.compile(r"^(ap\d+): with (.+?) on ")
+_TALKING = "YOU ARE TALKING WITH "
+_COAL = "the coal for the winter"
+_QUICK = "Only a quick word"
+_HOUSE = "About the house: the back door sticks."
+_RENT_DAY = "Thursday 9 April"
 
 
 def _cents(text: str) -> int:
@@ -109,6 +116,9 @@ class _Seen:
         self.minded = "ON YOUR MIND" in self.sections
         self.banker = "THE BANK'S BOOK" in self.sections
         self.notes = "\n".join(self.sections.get("YOUR NOTES", []))
+        found = _LANDLORD.search(system)
+        self.landlord = found.group(1) if found else ""
+        self.booked = [m.groups() for line in self.sections.get("APPOINTMENTS", []) if (m := _BOOKED.match(line))]
 
     def known(self, *words: str) -> list[str]:
         """The full names of people known whose line has any of `words`."""
@@ -241,11 +251,91 @@ def _deals(me: _Seen, day: int, num: int) -> list[dict]:
     return acts
 
 
+def _talking(me: _Seen, day: int, num: int) -> list[dict]:
+    """Asking to talk and booking talks: a word with a friend on Wednesdays, now about the coal
+    and now only a quick one; the landlord's tenants all asking her for a word on one day and
+    all booking her for one day, one of them cancelling later; a talk booked with a friend."""
+    week, wd = day // 7 + 1, day % 7
+    acts: list[dict] = []
+    friends = me.known("friend")
+    tenant = bool(me.landlord) and me.landlord in [name for name, _ in me.people]
+    if 2 <= week <= 7 and wd == 2 and num % 4 == 1 and friends:
+        coal = week == 2 and num % 16 == 1
+        opening = f"Have you got a minute? It's about {_COAL}." if coal else f"{_QUICK}: are you well?"
+        acts.append({"op": "converse", "with": friends[0], "opening": opening})
+    if day == 16 and tenant:
+        acts.append({"op": "converse", "with": me.landlord, "opening": _HOUSE})
+    if week == 2 and wd == 1 and num % 5 == 2 and friends:
+        acts.append({"op": "book_appointment", "with": friends[-1], "day": "Friday", "about": "the allotment"})
+    if week == 4 and tenant and not any(who == me.landlord for _, who in me.booked):
+        acts.append({"op": "book_appointment", "with": me.landlord, "day": _RENT_DAY, "about": "the rent"})
+    if week == 5 and num % 3 == 0:
+        acts += [{"op": "stop", "id": ap} for ap, who in me.booked if who == me.landlord][:1]
+    return acts
+
+
+class _Talk:
+    """What a scripted person reads off a talk's view."""
+
+    def __init__(self, messages: list[dict]) -> None:
+        user = messages[-1].get("content", "") if messages else ""
+        blocks = {b.split("\n")[0]: b.split("\n")[1:] for b in user.split("\n\n")}
+        head = next((h for h in blocks if h.startswith(_TALKING)), _TALKING)
+        self.other = head.removeprefix(_TALKING)
+        how = blocks.get(head, ["", ""])
+        self.mine = len(how) > 1 and how[1].startswith("You ")
+        self.household = len(how) > 1 and how[1].startswith("At home")
+        said = blocks.get("THE TALK SO FAR", [])
+        self.opening = said[1].removeprefix("  > ") if len(said) > 1 else ""
+        self.turns = len([x for x in said if x.endswith(" said:")])
+        found = re.search(r"You have (not yet spoken|spoken (once|twice|three times))", user)
+        self.spoken = {"once": 1, "twice": 2, "three times": 3}.get(found.group(2), 0) if found and found.group(2) else 0
+        self.asks = []
+        between = blocks.get("BETWEEN YOU", [])
+        for i, line in enumerate(between):
+            if (m := _REQUEST.match(line)) and m.group(2) == self.other:
+                rest = between[i + 1:i + 4]
+                self.asks.append((m.group(1), any(_AGREEMENT.search(x) for x in rest)))
+
+
+def _talk_reply(key: ReplyKey, messages: list[dict]) -> str:
+    """A turn in a talk: the asker about the coal pays for some and proposes a share of it each
+    week, which the other accepts there and then; a quick word is ended at once; a household
+    talk ends on the second speaker's first turn; an appointment on the booker's second; now
+    and then a reply that cannot be read."""
+    me = _Talk(messages)
+    num = int(re.sub(r"\D", "", key.actor) or 0)
+    if key.day % 7 == 3 and num % 3 == 1 and me.spoken == 1:
+        return "Hmm. Let me think about that one."
+    acts: list[dict] = [{"op": "answer", "request": rq, "answer": "accept", "note": "Agreed, then."}
+                        for rq, agreement in me.asks if agreement or not me.mine]
+    coal = _COAL in me.opening
+    end = False
+    if coal and me.mine and me.spoken == 1:
+        acts += [{"op": "pay", "to": me.other, "amount": 10, "note": "for the coal"},
+                 {"op": "propose_agreement", "to": me.other, "amount": 5, "per": "week", "weeks": 2, "pays": "me",
+                  "what": "a share of the coal"}]
+        say = "Here is ten dollars for the last lot, and I would pay five a week for a share for the next two weeks."
+    elif coal:
+        say = "That sounds fair to me." if me.spoken else "Go on, what about the coal?"
+    elif me.opening.startswith(_QUICK) and not me.mine:
+        say, end = "I'm well, thank you. I must get on.", True
+    elif me.household:
+        say = "Yes, let's." if me.turns else "We should sort it out this week."
+        end = me.turns > 0
+    else:
+        say = "I wanted to talk it over with you." if me.mine else "Yes, I have been thinking about it too."
+        end = me.mine and me.spoken >= 1
+    return json.dumps({"say": say, "acts": acts, "end": end})
+
+
 def script(key: ReplyKey, messages: list[dict]) -> str:
     """A scripted life for anyone in a generated place: what they do is decided from the day,
     who they are and the text of their view alone, with `Random(f"script:<day>:<actor>")`
     for variety. They answer what is asked of them, pay toward what is overdue, give and ask
     for help, write to those they know, keep notes and aims, and now and then make a slip."""
+    if key.purpose == "talk" or any(_TALKING in m.get("content", "") for m in messages[-1:]):
+        return _talk_reply(key, messages)
     rng = random.Random(f"script:{key.day}:{key.actor}")
     me = _Seen(messages)
     num = int(re.sub(r"\D", "", key.actor) or 0)
@@ -321,6 +411,7 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
     acts += work
     deals = _deals(me, day, num)
     acts += deals
+    acts += _talking(me, day, num)
     mark = _done_mark(day) if work or _done_mark(day) in me.notes else ""
     if deals or _deals_mark(day) in me.notes:
         mark = f"{mark} {_deals_mark(day)}".strip()

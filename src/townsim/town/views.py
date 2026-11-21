@@ -3,7 +3,8 @@
 The system message is who they are (`facts.who`) and the form of a reply. The user message
 is their day, in sections in a fixed order, each left out when it is empty: the date; what
 came of their last acts; their household's account; their business; what is owed; their
-letters and notices; requests waiting for their answer; appointments; the people they know;
+letters and notices; the talks they have had since they were last shown them; requests
+waiting for their answer; the talks booked with them; the people they know;
 how their trade works; what is on their mind; their notes; their hours; the operations.
 
 The inbox shows the three most pressing letters and notices in full (closest ties first, a
@@ -15,8 +16,9 @@ view changes nothing.
 What a person wrote is always set off from what code wrote: a letter's or a request's text
 stands under its own `From <name>:` or `<id> from <name>:` line with every line of it begun by
 `  > `; their own notes and aims are indented; memos and quoted values are one line, cut to a
-label; a notice is one line. So a line at the left margin that begins with a heading, `From `,
-`<id> from ` or `(` and a digit was written by code.
+label; a notice is one line; a turn in a talk stands under its own `<name> said:` line, on one
+line begun `  > `, under `With <name> on <date>:`. So a line at the left margin that begins with
+a heading, `From `, `With `, `<id> from `, `<name> said:` or `(` and a digit was written by code.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ import re
 from typing import Any, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import acts, aims, facts
+from townsim.town import acts, aims, facts, talk
 from townsim.town.acts import CHARS_A_WORD, accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
@@ -39,6 +41,10 @@ CEILING = 2000
 CHAR_CEILING = 16000
 STATEMENT_LINES = 25
 IN_FULL = 3
+TALKS_SHOWN = 2
+TALK_WORDS = 40
+TALK_CUT = 20
+APPOINTMENTS_SHOWN = 5
 PEOPLE_KEPT = 6
 RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
 RESULT_WORDS = 30
@@ -196,8 +202,13 @@ def _waiting(store: Store, pid: str, rank: dict[str, int] | None = None) -> list
 
 def _request_lines(store: Store, rq) -> list[str]:
     """`<id> from <name>:` on its own, the request set off as a letter is, then what code
-    writes of it: the sum asked for and the summary."""
-    lines = [f"{rq.id} from {name_of_who(store, rq.sender)}:"] + _quoted(rq.text)
+    writes of it: the sum asked for and the summary. A request code made for its sender (an
+    offer, a proposed agreement, a loan asked for) has no text of theirs: its summary alone
+    follows the header."""
+    head = f"{rq.id} from {name_of_who(store, rq.sender)}:"
+    if not rq.text.strip():
+        return [head] + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
+    lines = [head] + _quoted(rq.text)
     if rq.cents > 0:
         lines.append(f"They ask you for {money(rq.cents)}.")
     return lines + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
@@ -205,6 +216,23 @@ def _request_lines(store: Store, rq) -> list[str]:
 
 def _hours(h: float) -> str:
     return f"{round(h, 2):g}"
+
+
+def _appointments(store: Store, pid: str) -> list[str]:
+    """`<id>: with <name> on <date>, about <"label">` for each talk booked with `pid` from
+    today on, soonest first: at most five, then a line counting the rest."""
+    rows = sorted((ap for ap in store.all("appointments")
+                   if ap.status == "booked" and pid in (ap.a, ap.b) and ap.day >= store.day),
+                  key=lambda ap: (ap.day, id_key(ap.id)))
+    out = [f"{ap.id}: with {name_of_who(store, ap.b if ap.a == pid else ap.a)} on {date_text(ap.day)}, "
+           f"about {ap.about}" for ap in rows[:APPOINTMENTS_SHOWN]]
+    if len(rows) > APPOINTMENTS_SHOWN:
+        out.append(Counted(f"({len(rows) - APPOINTMENTS_SHOWN} more not shown)"))
+    return out
+
+
+def _talks_counted(k: int) -> str:
+    return f"({k} more talk{'' if k == 1 else 's'} not shown)"
 
 
 # --- the layout -----------------------------------------------------------------------------
@@ -218,13 +246,16 @@ class _Parts(NamedTuple):
     book: list[str]
     accounts: list[str]
     items: list[Any]              # inbox rows, most pressing first
+    talks: list                   # talks held since they were last shown them, oldest first
     waiting: list                 # open requests, in the order they are shown
+    appointments: list[str]
     people: list[str]
     knowhow: list[str]
     mind: list[str]
     notes: str
     hours: str
     operations: list[str]
+    pid: str = ""
 
 
 class _Choice(NamedTuple):
@@ -237,6 +268,8 @@ class _Choice(NamedTuple):
     in_full: int
     requests: int
     read_words: int = READ_WORDS
+    talks: int = TALKS_SHOWN
+    talk_words: int = TALK_WORDS
 
 
 class _Sec(NamedTuple):
@@ -256,7 +289,7 @@ class _Sec(NamedTuple):
 class Layout(NamedTuple):
     """A view laid out: its two messages, the ids shown in full (and results passed over),
     and the steps of giving way that were taken, in order: `statement`, `people`, `till`,
-    `owed`, `inbox`, `requests`, `read`, and `guard` for the last guard."""
+    `owed`, `talks`, `inbox`, `requests`, `read`, and `guard` for the last guard."""
 
     system: str
     user: str
@@ -281,9 +314,10 @@ def _parts(store: Store, pid: str) -> _Parts:
     business = [facts.business_rows(store, pid, weeks=w) for w in range(weeks, -1, -1)] if weeks else \
         [facts.business_rows(store, pid)]
     return _Parts(_results(store, pid), business, facts.bank_book_rows(store, pid), accounts_of(store, pid),
-                  _unseen(store, pid, rank), _waiting(store, pid, rank),
+                  _unseen(store, pid, rank), talk.unseen_talks(store, pid), _waiting(store, pid, rank),
+                  _appointments(store, pid),
                   facts.people_lines(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
-                  person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid))
+                  person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid), pid)
 
 
 COUNTED = "#counted"               # the owner of a line that counts what is not shown
@@ -324,12 +358,18 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
                 for line in _item_lines(store, r)]
         counted = _counted(parts.items[c.in_full:])
         out.append(_Sec("LETTERS AND NOTICES", rows + ([(counted, COUNTED)] if counted else [])))
+    if parts.talks:
+        rows = [(line, t.id) for t in parts.talks[:c.talks] for line in talk.summary_lines(store, parts.pid, t, c.talk_words)]
+        more = len(parts.talks) - c.talks
+        out.append(_Sec("TALKS", rows + ([(_talks_counted(more), COUNTED)] if more > 0 else [])))
     if parts.waiting:
         rows = [(line, rq.id) for rq in parts.waiting[:c.requests] for line in _request_lines(store, rq)]
         more = len(parts.waiting) - c.requests
         keep = len(_request_lines(store, parts.waiting[0]))
         out.append(_Sec("WAITING FOR YOUR ANSWER",
                         rows + ([(f"({more} more requests waiting)", COUNTED)] if more else []), keep=keep))
+    if parts.appointments:
+        out.append(_Sec("APPOINTMENTS", _rows(parts.appointments)))
     if parts.people[:c.people]:
         out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(parts.people[:c.people]))))
     if parts.knowhow:
@@ -405,7 +445,9 @@ def layout(store: Store, pid: str) -> Layout:
     needs. While the whole is over 1,200 words, and each only as far as needed: the household
     statement's in-and-out lines, oldest first, down to none (`statement`); the people known,
     down to the six closest (`people`); the business's second till week (`till`); what is
-    owed, down to four lines an account (`owed`); the third and second letters or notices,
+    owed, down to four lines an account (`owed`); the second talk, which moves to the counted
+    line and waits unseen, and then each turn of the first cut to 20 words in place of 40
+    (`talks`); the third and second letters or notices,
     which move to the counted line and wait unseen (`inbox`); the third and second requests,
     likewise (`requests`); the latest read result cut to 120 words (`read`). Letters and
     requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
@@ -449,6 +491,15 @@ def layout(store: Store, pid: str) -> Layout:
         c = c._replace(owed=facts.OWED_KEPT)
         steps.append("owed")
         left = over(c)
+    if left > 0 and len(parts.talks) > 1:
+        c = c._replace(talks=1)
+        steps.append("talks")
+        left = over(c)
+    if left > 0 and parts.talks:
+        c = c._replace(talk_words=TALK_CUT)
+        if "talks" not in steps:
+            steps.append("talks")
+        left = over(c)
     for field, step in (("in_full", "inbox"), ("requests", "requests")):
         if left > 0 and getattr(c, field) > 1:
             steps.append(step)
@@ -465,7 +516,8 @@ def layout(store: Store, pid: str) -> Layout:
         steps.append("guard")
     ids = ([r.id for r in parts.results.shown] + parts.results.passed
            + [r.id for r in parts.items[:c.in_full] if r.id not in taken]
-           + [rq.id for rq in parts.waiting[:c.requests] if rq.id not in taken])
+           + [rq.id for rq in parts.waiting[:c.requests] if rq.id not in taken]
+           + [t.id for t in parts.talks[:c.talks] if t.id not in taken])
     return Layout(system, _render(secs), ids, steps)
 
 
@@ -502,9 +554,12 @@ def person_view(store: Store, pid: str) -> list[dict]:
 
 
 def mark_seen(store: Store, pid: str, ids: list[str], cause: str) -> None:
-    """Mark as seen the messages, notices and requests to `pid`, and the results of `pid`'s
-    acts, among `ids` that are still unseen."""
+    """Mark as seen the messages, notices and requests to `pid`, the results of `pid`'s acts
+    and the talks `pid` took part in, among `ids` that are still unseen."""
     for i in ids:
+        if store.has("talks", i) and pid in store.get("talks", i).unseen:
+            store.set("talks", i, cause, unseen=[p for p in store.get("talks", i).unseen if p != pid])
+            continue
         for table, owner in (("messages", "to"), ("notices", "to"), ("requests", "to"), ("results", "actor")):
             if store.has(table, i):
                 row = store.get(table, i)

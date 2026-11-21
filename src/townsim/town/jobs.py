@@ -94,9 +94,21 @@ def finish(store: Store, job_id: str, last_pay_day: int, cause: str) -> None:
         raise ValueError(f"{job_id} already ended on day {job.ended}")
     if not isinstance(last_pay_day, int) or isinstance(last_pay_day, bool) or last_pay_day < store.day - 6:
         raise ValueError(f"last_pay_day must be an int >= {store.day - 6}, got {last_pay_day!r}")
+    last = max(last_pay_day, store.day)
     with store.transaction():
         if store.has("obligations", job.wage_ob):
-            obligations.end(store, job.wage_ob, max(last_pay_day, store.day), cause)
+            obligations.end(store, job.wage_ob, last, cause)
+            memo = store.get("obligations", job.wage_ob).memo
+            household = store.get("people", job.person).household
+            named = {j.wage_ob for j in store.all("jobs")}
+            # The job's wage before a stopped one was replaced (ended, with a last day of its own)
+            # ends with the job too; any other wage like it is not meant to exist.
+            for o in store.where("obligations", payer=job.org):
+                if (o.payee == household and o.kind == "wage" and o.memo == memo and o.id not in named
+                        and o.status in SCHEDULED and (o.last is None or o.last > last)):
+                    if o.last is None:
+                        store.engine_errors.append(f"{cause}: {o.id} was a second wage of {job_id}; ended")
+                    obligations.end(store, o.id, last, cause)
         store.set("jobs", job_id, cause, ended=last_pay_day)
 
 
@@ -142,8 +154,13 @@ def pay_benefit(store: Store) -> None:
         if any(j.ended == -1 or j.ended >= store.day for j in rows):
             continue
         last = max(j.ended for j in rows)
-        for j in rows:                   # a week already paid in full by hand is not paid again
-            last = max([last] + [d.day for d in store.where("dues", obligation=j.wage_ob) if d.paid >= d.cents])
+        for j in rows:                   # never a Friday on which a wage of the job is still due or was paid
+            if store.has("obligations", j.wage_ob):
+                wage = store.get("obligations", j.wage_ob)
+                if wage.status in SCHEDULED and wage.last is not None:
+                    last = max(last, wage.last)
+                last = max([last] + [d.day for d in store.where("dues", obligation=wage.id)
+                                     if d.paid > 0 or d.status in ("due",) + obligations.OWED])
         first = max(last - dow(last) + 7 + FRIDAY, pay_friday(store.day))
         cause = f"routine:benefit:{p.id}"
         ob = obligations.create(store, kind="wage", payer=region, payee=p.household, cents=BENEFIT_WEEKLY,
