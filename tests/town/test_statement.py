@@ -154,3 +154,15 @@ def test_notices_of_what_is_owed_begin_with_code_s_words():
            "The Ashby account held $0.00." in texts
     assert 'A late fee of $25.00 on a payment due Monday 2 March ("From the bank: frozen") could not be taken. ' \
            "The Ashby account held $0.00." in texts
+
+
+def test_an_agreement_ended_before_its_first_payment_says_so():
+    from townsim.town import obligations as O
+    from townsim.town.statement import agreements_text
+    from townsim.town.thin import thin_town
+    s = thin_town()
+    ob = O.create(s, kind="agreement", payer="h1", payee="h2", cents=1000, first=10, every=7, last=24,
+                  memo='"help"', ends="both", made_by="p01", cause="routine:t")
+    s.set("obligations", ob, "routine:t", status="finished")
+    line = next(x for x in agreements_text(s, "h1").split("\n") if x.startswith(ob + ":"))
+    assert line == f'{ob}: "help", $10.00 every week to Pryce, ended before its first payment, finished'

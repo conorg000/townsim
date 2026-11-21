@@ -522,13 +522,13 @@ from townsim.town.statement import MEMO_CHARS, MEMO_WORDS, Counted, cut_words, l
 _OWED_KINDS = ("loan", "agreement", "standing")
 
 
-def _arrears(store: Store, ob_id: str) -> tuple[int, int | None]:
+def arrears(store: Store, ob_id: str) -> tuple[int, int | None]:
     """Cents still owed on dues past their day, and the day of the oldest."""
     dues = owed_dues(store, ob_id)
     return sum(d.cents - d.paid for d in dues), min((d.day for d in dues), default=None)
 
 
-def _until(ob) -> str:
+def until(ob) -> str:
     """`, until <date>`, or `, the last, on <date>, <$y>` when the last instalment differs; ""
     for an obligation with no last day."""
     if ob.last is None:
@@ -546,7 +546,7 @@ def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
     for ob in store.all("obligations"):
         if account not in (ob.payer, ob.payee):
             continue
-        late, _ = _arrears(store, ob.id)
+        late, _ = arrears(store, ob.id)
         if not late and not (ob.kind in _OWED_KINDS and ob.status in SCHEDULED):
             continue
         party = f"to {name_of(store, ob.payee)}" if ob.payer == account else f"from {name_of(store, ob.payer)}"
@@ -554,7 +554,7 @@ def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
             how = f"once on {when(ob.first)} {party}"
         else:
             every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
-            how = f"{every} {party}" + _until(ob)
+            how = f"{every} {party}" + until(ob)
         rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
     if len(rows) > most:
         rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]
@@ -579,10 +579,10 @@ def bank_book_rows(store: Store, pid: str) -> list[str]:
     for ob in store.where("obligations", payee=bank.id):
         if ob.kind != "loan" or ob.status not in SCHEDULED:
             continue
-        until = _until(ob)
-        late, since = _arrears(store, ob.id)
+        ends = until(ob)
+        late, since = arrears(store, ob.id)
         overdue = f", {money(late)} overdue since {date_text(since)}" if late else ""
-        rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {memo(ob.memo)}, {money(ob.cents)} a week{until}{overdue}")
+        rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {memo(ob.memo)}, {money(ob.cents)} a week{ends}{overdue}")
     if len(rows) > BOOK_LINES:
         rows = rows[:BOOK_LINES] + [Counted(f"({len(rows) - BOOK_LINES} more not shown)")]
     fees: dict[str, int] = {}

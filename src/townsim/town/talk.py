@@ -52,6 +52,9 @@ LETTER_CUT = 60
 REQUESTS = 3
 OWED_LINES = 8
 OWED_KEPT = 4
+MONEY_DAYS = 7
+MONEY_LINES = 8
+MONEY_KEPT = 4
 SCAN_CHARS = 20_000
 SCAN_TRIES = 50
 ONCE = ("", "once", "twice", "three times")
@@ -136,19 +139,24 @@ def _names_first(text: str, first: str) -> bool:
 
 
 def household_pair(store: Store, household: str) -> tuple[str, str] | None:
-    """The two adults with the lowest ids, when something is open between them: an unseen
-    letter from one to the other, a due of the household's in arrears, or an aim of one's
-    that names the other's first name. None otherwise."""
+    """The first pair of the household's adults, in id order, between whom something is
+    open: an unseen letter from one to the other, a due of the household's in arrears, or an
+    aim of one's that names the other's first name. None if there is no such pair."""
     grown = adults(store, household)
-    if len(grown) < 2:
-        return None
-    a, b = grown[:2]
+    for i, a in enumerate(grown):
+        for b in grown[i + 1:]:
+            if _open_between(store, household, a, b):
+                return a, b
+    return None
+
+
+def _open_between(store: Store, household: str, a: str, b: str) -> bool:
     letter = any(m.sender in (a, b) and m.to in (a, b) and m.sender != m.to
                  for m in store.where("messages", seen=False))
     arrears = any(store.get("obligations", d.obligation).payer == household for d in store.where("dues", status="arrears"))
     named = any(_names_first(x.text, store.get("people", other).name.split()[0])
                 for me, other in ((a, b), (b, a)) for x in store.where("aims", person=me) if x.text)
-    return (a, b) if letter or arrears or named else None
+    return letter or arrears or named
 
 
 def todays(store: Store) -> list[str]:
@@ -171,6 +179,13 @@ def _free(store: Store, pid: str, hour: bool = True) -> bool:
     """Whether `pid` can talk now: an hour left (unless it was taken already) and fewer than
     two talks held today."""
     return (not hour or store.get("people", pid).hours_left >= TALK_HOURS) and held_today(store, pid) < TALKS_A_DAY
+
+
+def _why_not(store: Store, pid: str, who: str) -> str:
+    """Why `pid` (called `who`) cannot talk now: no hour left, or two talks already today."""
+    if store.get("people", pid).hours_left < TALK_HOURS:
+        return f"{who} had no time"
+    return f"{who} had already had two talks that day"
 
 
 def _tell(store: Store, pid: str, text: str, cause: str) -> None:
@@ -205,9 +220,10 @@ def hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int = 0) -> He
         if lacking:
             store.set("appointments", ap.id, cause, status="missed")
             for me, other in ((ap.a, ap.b), (ap.b, ap.a)):
-                who = " and ".join("you" if p == me else store.get("people", p).name for p in lacking)
+                why = " and ".join(_why_not(store, p, "you" if p == me else store.get("people", p).name)
+                                   for p in lacking)
                 _tell(store, me, f"The talk with {store.get('people', other).name} on {date_text(ap.day)} did not "
-                                 f"happen: {who} had no time.", cause)
+                                 f"happen: {why}.", cause)
             return Held("", [], n)
         store.set("appointments", ap.id, cause, status="held")
         tk = store.new_id("tk", cause)
@@ -295,8 +311,8 @@ def _apply(store: Store, pid: str, element: Any, n: int) -> Outcome:
     act = loop.act_of(pid, element)
     name = act.op.strip().lower() if isinstance(act.op, str) else None
     if name in NOT_IN_TALK and isinstance(act.args, dict):
-        cause = f"op:{pid}:?:d{store.day}.{n}"
-        return Outcome(False, f"Not done: there is no operation called '{acts.shown(act.op)}'.", act, cause)
+        cause = f"op:{pid}:{name}:d{store.day}.{n}"
+        return Outcome(False, "Not done: that cannot be done in the middle of a talk.", act, cause)
     return apply_act(store, act, n)
 
 
@@ -345,14 +361,12 @@ def _how(store: Store, pid: str, t: Talk) -> str:
 def _between_obligations(store: Store, pid: str, other: str, most: int) -> list[str]:
     """What either side's accounts owe the other's, one line each as `WHAT IS OWED` writes
     them: what is in force, and anything with arrears; at most `most`, then a counted line."""
-    mine, theirs = accounts_of(store, pid), accounts_of(store, other)
-    a = [x for x in mine if x not in theirs]
-    b = [x for x in theirs if x not in mine]
+    a, b = _sides(store, pid, other)
     rows = []
     for ob in store.all("obligations"):
         if not ((ob.payer in a and ob.payee in b) or (ob.payer in b and ob.payee in a)):
             continue
-        late, _ = facts._arrears(store, ob.id)
+        late, _ = facts.arrears(store, ob.id)
         if not late and ob.status not in SCHEDULED:
             continue
         party = f"to {name_of(store, ob.payee)}" if ob.payer in a else f"from {name_of(store, ob.payer)}"
@@ -360,7 +374,7 @@ def _between_obligations(store: Store, pid: str, other: str, most: int) -> list[
             how = f"once on {facts.when(ob.first)} {party}"
         else:
             every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
-            how = f"{every} {party}" + facts._until(ob)
+            how = f"{every} {party}" + facts.until(ob)
         rows.append(f"{ob.id}: {facts.memo(ob.memo)}, {money(ob.cents)} {how}"
                     + (f", {money(late)} overdue" if late else ""))
     if len(rows) > most:
@@ -381,11 +395,65 @@ def _between_letters(store: Store, pid: str, other: str) -> list:
 
 
 def _letter_lines(store: Store, pid: str, m, words: int | None) -> list[str]:
-    who = "you" if m.sender == pid else name_of_who(store, m.sender)
-    return [f"From {who} on {date_text(m.day)}:"] + views._quoted(facts.cut_words(m.text, words))
+    """A letter between them, from the viewer's side: `From you to <name> on <date>:` for one
+    they wrote, `From <name> on <date>:` for one they had; then its lines begun `  > `."""
+    if m.sender == pid:
+        head = f"From you to {name_of_who(store, m.to)} on {date_text(m.day)}:"
+    else:
+        head = f"From {name_of_who(store, m.sender)} on {date_text(m.day)}:"
+    return [head] + views._quoted(facts.cut_words(m.text, words))
+
+
+def _request_lines(store: Store, pid: str, rq) -> list[str]:
+    """A request between them, from the viewer's side: one made to them as the ordinary view
+    shows it; one they made as `<id> from you to <name>:`, its words begun `  > `, then
+    `You ask them for <$x>.` and what code wrote of it."""
+    if rq.sender != pid:
+        return views._request_lines(store, rq)
+    lines = [f"{rq.id} from you to {name_of_who(store, rq.to)}:"]
+    if rq.text.strip():
+        lines += views._quoted(rq.text)
+        if rq.cents > 0:
+            lines.append(f"You ask them for {money(rq.cents)}.")
+    return lines + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
+
+
+def _sides(store: Store, pid: str, other: str) -> tuple[list[str], list[str]]:
+    """The accounts only `pid` controls, and those only `other` controls."""
+    mine, theirs = accounts_of(store, pid), accounts_of(store, other)
+    return [x for x in mine if x not in theirs], [x for x in theirs if x not in mine]
+
+
+def _money_between(store: Store, pid: str, other: str) -> list:
+    """The ledger's transfers in the last seven days, today's included, between an account
+    only `pid` controls and one only `other` controls, oldest first."""
+    a, b = _sides(store, pid, other)
+    since = store.day - (MONEY_DAYS - 1)
+    found = []
+    for x in reversed(store.ledger.transfers):
+        if x.t < since:
+            break
+        if (x.src in a and x.dst in b) or (x.src in b and x.dst in a):
+            found.append(x)
+    return found[::-1]
+
+
+def _money_lines(store: Store, rows: list, most: int) -> list:
+    """`Money between you in the last seven days:` and a line for each of the newest `most`
+    transfers, newest last, after a line counting those left out."""
+    if not rows:
+        return []
+    out = ["Money between you in the last seven days:"]
+    if len(rows) > most:
+        out.append(Counted(f"({len(rows) - most} earlier not shown)"))
+    for x in rows[len(rows) - most:] if most else []:
+        out.append(f"  {date_text(x.t)}  {money(x.cents)}  from {name_of(store, x.src)} to {name_of(store, x.dst)}  "
+                   f"{facts.memo(x.memo)}")
+    return out
 
 
 class _Choice(NamedTuple):
+    money: int = MONEY_LINES
     letter_words: int | None = None
     letters: int = LETTERS
     owed: int = OWED_LINES
@@ -412,7 +480,8 @@ def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
     between = list(_between_obligations(store, pid, other, c.owed))
     requests = _between_requests(store, pid, other)
     for rq in requests[:c.requests]:
-        between += views._request_lines(store, rq)
+        between += _request_lines(store, pid, rq)
+    between += _money_lines(store, _money_between(store, pid, other), c.money)
     if len(requests) > c.requests:
         between.append(Counted(f"({len(requests) - c.requests} more requests between you not shown)"))
     letters = _between_letters(store, pid, other)
@@ -453,7 +522,8 @@ class TalkLayout(NamedTuple):
 def layout(store: Store, pid: str, tk: str) -> TalkLayout:
     """The view `pid` is shown for their turn in talk `tk`: at most 900 words on ordinary
     input and never over 2,000 words or 16,000 characters. While it is over 900 words, each
-    only as far as needed: the letters between them are cut to 60 words each (`letters`),
+    only as far as needed: the money between them gives way to its four newest transfers
+    (`money`); the letters between them are cut to 60 words each (`letters`),
     then left out, oldest first (`no letters`); what is owed between them gives way to four
     lines (`owed`); and the requests between them beyond the first, then that one too, move
     to the counted line (`requests`). The talk itself is never cut: it is at most six turns
@@ -470,6 +540,9 @@ def layout(store: Store, pid: str, tk: str) -> TalkLayout:
     t = store.get("talks", tk)
     other = t.b if t.a == pid else t.a
     letters = len(_between_letters(store, pid, other))
+    if over(c) and len(_money_between(store, pid, other)) > MONEY_KEPT:
+        c = c._replace(money=MONEY_KEPT)
+        steps.append("money")
     if over(c) and letters:
         c = c._replace(letter_words=LETTER_CUT)
         steps.append("letters")

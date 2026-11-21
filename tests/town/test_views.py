@@ -1338,12 +1338,14 @@ def _check_talk_margin(s, text, a, victim, bank):
             assert re.fullmatch(r"With (.+) on \w+day \d+ \w+:", x) and x[5:].split(" on ")[0] in names, x
         elif x.startswith("From "):
             assert not x.startswith(f"From {bank}"), x
-            assert re.fullmatch(r"From (.+?)( on \w+day \d+ \w+)?:", x), x
+            m = re.fullmatch(r"From (?:you to )?(.+?)( on \w+day \d+ \w+)?:", x)
+            assert m and (m.group(1) in names or not m.group(2)), x
         elif re.match(r"\w+\d+ from ", x):
-            assert x.split(" from ")[1].removesuffix(":") in names and x.split()[0] != "rq99", x
+            assert re.fullmatch(r"\w+\d+ from (?:you to )?(.+):", x).group(1) in names and x.split()[0] != "rq99", x
         else:
             assert re.fullmatch(r"\(\d+ (?:more talks? not shown|more not shown|more requests between you not shown"
-                                r"|more letters? between you not shown|earlier results not shown)\)", x) \
+                                r"|more letters? between you not shown|earlier results not shown"
+                                r"|earlier not shown)\)", x) \
                 or _code_counted(s, victim, x), x
     said = [x for x in text.split("\n") if x.endswith(" said:") and not x.startswith(" ")]
     return said

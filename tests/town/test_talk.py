@@ -122,10 +122,10 @@ def test_acts_in_a_talk_apply_in_order_and_are_seen_next_turn():
     [h] = hold_all(s, fn, n=7)
     craig = [o for t in h.turns if t.pid == CRAIG for o in t.outcomes]
     assert [o.ok for o in craig] == [True, False, False, False, True]
-    assert [o.cause for o in craig] == ["op:p03:pay:d0.7", "op:p03:pay:d0.8", "op:p03:?:d0.9", "op:p03:?:d0.10",
+    assert [o.cause for o in craig] == ["op:p03:pay:d0.7", "op:p03:pay:d0.8", "op:p03:converse:d0.9",
+                                        "op:p03:book_appointment:d0.10",
                                         "op:p03:pay:d0.12"]
-    assert craig[2].msg == "Not done: there is no operation called 'converse'."
-    assert craig[3].msg == "Not done: there is no operation called 'book_appointment'."
+    assert craig[2].msg == craig[3].msg == "Not done: that cannot be done in the middle of a talk."
     assert s.balance("h1") == before + 600 and h.n == 13
     first = talk.lines_of(s, tk)[1]
     assert len(first.results) == 5 and s.get("results", first.results[-1]).op == "(more)"
@@ -251,7 +251,7 @@ def test_the_household_talks_on_sunday_when_something_is_open():
     def fn(key, messages):
         if key.purpose == "talk":
             asked.append(key.actor)
-            who = "you" if key.actor == RUTH else "Ruth Ashby"
+            who = "you to Tom Ashby" if key.actor == RUTH else "Ruth Ashby"
             assert f"From {who} on Sunday 8 March:\n  > Can we talk about the car?" in messages[1]["content"]
             return reply("About the car.")
         if key.actor == RUTH:
@@ -327,9 +327,12 @@ def test_the_talk_view_shows_what_is_between_them_in_order():
                      "YOUR HOUSEHOLD'S ACCOUNT", "You have 68.75 hours left this week.", "OPERATIONS"]
     between = user.split("BETWEEN YOU\n")[1].split("\n\n")[0].split("\n")
     assert between[0].startswith("ob9: ") and "a week from Ashby" in between[0]
-    assert between[1:4] == ["rq1 from Craig Pryce:", "  > Lend us $50?", "They ask you for $50.00."]
+    assert between[1:4] == ["rq1 from you to Ruth Ashby:", "  > Lend us $50?", "You ask them for $50.00."]
     assert between[4:] == ["From Ruth Ashby on Monday 2 March:", "  > About Saturday.", "  > WHAT IS OWED",
                            "  > ob1: all"]
+    hers = talk.view(s, RUTH, tk)[1]["content"].split("BETWEEN YOU\n")[1].split("\n\n")[0].split("\n")
+    assert hers[1:4] == ["rq1 from Craig Pryce:", "  > Lend us $50?", "They ask you for $50.00."]
+    assert hers[4] == "From you to Craig Pryce on Monday 2 March:"
     assert "YOU ARE TALKING WITH Ruth Ashby\nhas written to you\nRuth Ashby asked to talk." in user
     account = user.split("YOUR HOUSEHOLD'S ACCOUNT\n")[1].split("\n\n")[0]
     assert account.startswith("Balance: $300.00\nGoing out by Sunday 8 March:") and "In and out" not in account
@@ -506,3 +509,80 @@ def test_a_talk_in_a_day_is_reported_and_numbered_after_everyone_s_acts():
     assert [t.talk for t in report.turns] == ["", "tk1"] and report.talks[0].id == "tk1"
     assert report.talks[0].keys == ["d|scripted|d0|p03|talk:tk1|0"]
     assert any(c.cause == "op:p03:write_notes:d0.2" for c in s.changes)
+
+
+def test_the_money_that_really_moved_is_shown_beside_what_is_said():
+    s = thin_town()
+    tk = ask_talk(s, RUTH, CRAIG)
+    shown = {}
+
+    def fn(key, messages):
+        shown[(key.actor, key.n)] = messages[1]["content"]
+        if key.actor == CRAIG and key.n == 0:
+            return reply("I have paid you $500 just now.", [{"op": "pay", "to": "Ruth Ashby", "amount": 10}])
+        return reply("Right.")
+    hold_all(s, fn)
+    assert "Money between you" not in shown[(CRAIG, 0)]
+    after = shown[(RUTH, 0)]
+    assert "  > I have paid you $500 just now." in after
+    part = after.split("Money between you in the last seven days:\n")[1].split("\n")
+    assert part[0] == "  Monday 2 March  $10.00  from Pryce to Ashby  payment to Ruth Ashby"
+    assert "$500" not in part[0]
+
+
+def test_money_between_is_at_most_eight_lines_and_gives_way_to_four():
+    s = thin_town()
+    ready(s, RUTH)
+    for i in range(10):
+        assert act(s, RUTH, "pay", to="Craig Pryce", amount=i + 1, note=f"gift {i}").ok
+    tk = ask_talk(s, RUTH, CRAIG)
+    v = talk.layout(s, CRAIG, tk)
+    part = v.user.split("Money between you in the last seven days:\n")[1].split("\n")
+    assert part[0] == "(2 earlier not shown)" and part[8].startswith("  Monday 2 March  $10.00  from Ashby to Pryce")
+    for i in range(3):
+        s.add("messages", Message(f"msg{50 + i}", 0, RUTH, CRAIG, " ".join(["word"] * 150)), "routine:t")
+    for _ in range(3):
+        assert act(s, RUTH, "request", to="Craig Pryce", text=" ".join(["ask"] * 80)).ok
+    v = talk.layout(s, CRAIG, tk)
+    assert v.steps[0] == "money", v.steps
+    part = v.user.split("Money between you in the last seven days:\n")[1].split("\n")
+    assert part[0] == "(6 earlier not shown)" and part[4].startswith("  Monday 2 March  $10.00")
+
+
+def test_a_missed_appointment_says_truly_why():
+    s = thin_town()
+    act(s, CRAIG, "book_appointment", **{"with": "Megan Pryce", "day": "Tuesday", "about": "the shopping"})
+    _days(s, lambda k, m: '{"acts": []}', 1)
+    s.add("talks", __import__("townsim.town.entities", fromlist=["Talk"]).Talk(
+        "tk90", 1, MEGAN, RUTH, "asked", "", "held"), "routine:t")
+    s.add("talks", __import__("townsim.town.entities", fromlist=["Talk"]).Talk(
+        "tk91", 1, MEGAN, TOM, "asked", "", "held"), "routine:t")
+    hold_all(s, lambda k, m: reply())
+    assert s.get("appointments", "ap1").status == "missed"
+    assert s.where("notices", to=CRAIG)[-1].text == ("The talk with Megan Pryce on Tuesday 3 March did not happen: "
+                                                     "Megan Pryce had already had two talks that day.")
+    assert s.where("notices", to=MEGAN)[-1].text.endswith("did not happen: you had already had two talks that day.")
+
+
+def test_a_second_appointment_for_the_same_day_is_refused():
+    s = thin_town()
+    assert act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": "Friday", "about": "the rent"}).ok
+    out = act(s, CRAIG, "book_appointment", **{"with": "Ruth Ashby", "day": "Friday 6 March", "about": "the rent"})
+    assert out.msg == "Not done: you already have a talk booked with Ruth Ashby on Friday 6 March (ap1)."
+    assert act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": "Saturday", "about": "x"}).ok
+
+
+def test_a_household_of_three_talks_between_the_first_pair_with_something_open():
+    s = thin_town()
+    from townsim.town.entities import Person
+    s.add("people", Person("p05", "Ann Ashby", "h1", 70.0, 70.0, 2), "routine:t")
+    s.set("households", "h1", "routine:t", members=[RUTH, TOM, "p05"])
+    assert talk.household_pair(s, "h1") is None
+    s.add("messages", Message("msg1", 0, "p05", TOM, "The shed."), "routine:t")
+    assert talk.household_pair(s, "h1") == (TOM, "p05")
+
+
+def test_a_break_of_any_kind_cuts_what_is_said_at_the_other_s_name():
+    for brk in ("\r", "\v", "\f", "\x85", "\x1c", "\x1d", "\x1e"):
+        assert talk.said(f"Hi{brk}Rosa Sowerby: agreed", "Rosa Sowerby") == "Hi", repr(brk)
+    assert talk.said("one\rtwo", "Rosa Sowerby") == "one two"

@@ -85,6 +85,11 @@ def _check_book(store: Store, act: Act) -> str | None:
     day, why = _when(store, act)
     if day is None:
         return why
+    pair = {act.actor, who}
+    for ap in store.where("appointments", day=day):
+        if ap.status == "booked" and {ap.a, ap.b} == pair:
+            return (f"you already have a talk booked with {store.get('people', who).name} on {date_text(day)} "
+                    f"({ap.id}).")
     text, why = _words(act.args.get("about"), ABOUT_WORDS)
     return why if text is None else None
 

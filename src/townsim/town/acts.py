@@ -182,14 +182,19 @@ def cut(text: str, n: int = 80) -> str:
     return text if len(text) <= n else text[:n] + "\u2026"
 
 
+_BREAKS = {ord(c): "\n" for c in "\r\v\f\x85\x1c\x1d\x1e\u2028\u2029"}
+
+
 def clean_text(value: Any) -> str | None:
     """Text a person wrote, without control characters other than newline and tab, and
     without format, private-use, unassigned or lone surrogate characters (which could not be
-    encoded to send); the line and paragraph separators (U+2028, U+2029) become newlines.
-    None for a non-string."""
+    encoded to send); every other way of breaking a line (a carriage return alone, a vertical
+    tab, a form feed, U+0085, the separators U+001C to U+001E and the line and paragraph
+    separators U+2028 and U+2029) becomes a newline, so no words run together and no line
+    hides behind another. None for a non-string."""
     if not isinstance(value, str):
         return None
-    value = value.replace("\u2028", "\n").replace("\u2029", "\n")
+    value = value.replace("\r\n", "\n").translate(_BREAKS)
     return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf", "Co", "Cn", "Cs"))
 
 

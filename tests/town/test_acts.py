@@ -70,7 +70,8 @@ def test_operation_names_ignore_case_and_spaces():
 
 
 def test_clean_text_keeps_newlines_and_tabs_only():
-    assert clean_text("a\nb\tc\x00d\re\x1bf\x85g\u200bh") == "a\nb\tcdefgh"     # format characters go too
+    assert clean_text("a\nb\tc\x00d\re\x1bf\x85g\u200bh") == "a\nb\tcd\nef\ngh"   # format characters go; breaks stay
+    assert clean_text("x\r\ny\vz\fw\x1cv\x1du\x1et") == "x\ny\nz\nw\nv\nu\nt"
     assert clean_text(5) is None and clean_text(None) is None and clean_text("") == ""
 
 

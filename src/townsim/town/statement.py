@@ -179,7 +179,8 @@ def agreements_text(store: Store, account: str) -> str:
     """Every obligation `account` pays or receives, ordered for its reader: those in force
     (active or breached) that it pays, then those in force that it receives, each by id, then
     the rest by id; at most forty lines, then a line counting the rest. Each memo is cut to a
-    label as views show it; a last instalment that differs from the rest is told with its sum."""
+    label as views show it; a last instalment that differs from the rest is told with its sum;
+    one that finished before any instalment fell says so in place of its dates."""
     mine = [ob for ob in store.all("obligations") if account in (ob.payer, ob.payee)]
     live = [ob for ob in mine if ob.status in SCHEDULED]
     order = ([ob for ob in live if ob.payer == account] + [ob for ob in live if ob.payer != account]
@@ -187,6 +188,11 @@ def agreements_text(store: Store, account: str) -> str:
     rows = []
     for ob in order:
         party = f"to {name_of(store, ob.payee)}" if ob.payer == account else f"from {name_of(store, ob.payer)}"
+        if ob.status == "finished" and not [d for d in store.where("dues", obligation=ob.id) if d.status != "void"]:
+            how = "once" if ob.every == 0 else {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
+            rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, ended before its first payment, "
+                        f"{ob.status}")
+            continue
         if ob.every == 0:
             rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} once on {date_text(ob.first)} {party}, "
                         f"{ob.status}")
