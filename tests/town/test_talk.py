@@ -8,7 +8,7 @@ import pytest
 
 from townsim.town import talk, views
 from townsim.town.acts import REGISTRY, Act, apply_act
-from townsim.town.entities import Message, Notice
+from townsim.town.entities import Message, Notice, Request
 from townsim.town.loop import run_day
 from townsim.town.replies import Keys, ScriptedReplier
 from townsim.town.thin import thin_town
@@ -442,6 +442,10 @@ def test_a_crowded_view_gives_way_with_talks():
     for i in range(3):
         s.add("messages", Message(f"msg{90 + i}", 0, MEGAN, CRAIG, " ".join(["letter"] * 150)), "routine:t")
     s.set("people", CRAIG, "routine:t", notes=" ".join(["note"] * 150))
+    from townsim.town import aims
+    aims.update(s, CRAIG, [f"aim {i} " + "thing " * 18 for i in range(5)], "op:x:aims:d0.0")
+    for i in range(3):                                         # requests waiting, as long as they may be
+        s.add("requests", Request(f"rq{90 + i}", 0, MEGAN, CRAIG, " ".join(["please"] * 80), 0, 14), "routine:t")
     v = views.layout(s, CRAIG)
     assert "talks" in v.steps and v.steps.index("talks") < (v.steps + ["inbox"]).index("inbox")
     part = v.user.split("TALKS\n")[1].split("\n\n")[0].split("\n")

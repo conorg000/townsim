@@ -9,8 +9,8 @@ how their trade works; what is on their mind; their notes; their hours; the oper
 
 The inbox shows the three most pressing letters and notices in full (closest ties first, a
 notice ranking with the household, then oldest) and counts the rest, which stay unseen;
-requests waiting are shown three at a time in the same order. A view is about 1,200 words on
-an ordinary day and never over 2,000, system and user together (see `layout`). Building a
+requests waiting are shown three at a time in the same order. A view is at most about 1,500
+words on an ordinary day and never over 2,000, system and user together (see `layout`). Building a
 view changes nothing.
 
 What a person wrote is always set off from what code wrote: a letter's or a request's text
@@ -35,7 +35,7 @@ from townsim.town.facts import cut_words as _cut
 from townsim.town.statement import Counted, statement
 from townsim.town.store import Store, id_key
 
-MAX_WORDS = 1200
+MAX_WORDS = 1500
 CEILING = 2000
 CHAR_CEILING = 16000
 STATEMENT_LINES = 25
@@ -49,12 +49,10 @@ TALK_CUT = 20
 APPOINTMENTS_SHOWN = 5
 PEOPLE_KEPT = 6
 RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
-RESULT_CUT = 30                    # each result, when all else has given way
 RESULT_WORDS = 80                  # room for a proposal's result, which repeats what the other reads
 NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
 READ_CUT = 120
-READ_LAST = 40                     # the latest read, when all else has given way
 
 REPLY_FORM = ('Reply with JSON only, in this form:\n'
               '{"thoughts": "<what goes through your mind; no one else sees this>", '
@@ -179,13 +177,13 @@ def _fit(text: str, words: int, chars: int) -> str:
     return (head[:space] if space > 0 else head).rstrip() + "\u2026"
 
 
-def _result_text(r, latest_read: str | None, read_words: int, words_each: int = 0) -> str:
+def _result_text(r, latest_read: str | None, read_words: int) -> str:
     """`<op>: <text>`, each line after the first indented: cut to 80 words and 640
     characters; the latest read to `read_words` words and eight characters a word; an
     older read in the same batch is not shown."""
     if _is_read(r) and r.id != latest_read:
         return f"{r.op}: not shown, a later read follows"
-    words = read_words if r.id == latest_read else (words_each or RESULT_WORDS)
+    words = read_words if r.id == latest_read else RESULT_WORDS
     op = r.op if r.op.strip().lower() in acts.REGISTRY or r.op in ("(no operation named)", "(more)") else f"'{r.op}'"
     if _is_read(r):                                                # a listing code wrote: its lines stay
         return _fit(f"{op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
@@ -307,7 +305,6 @@ class _Choice(NamedTuple):
     knowhow: bool = True
     going_out: int = facts.GOING_OUT
     coming_in: int = facts.COMING_IN
-    result_words: int = RESULT_WORDS
     toward: bool = True
 
 
@@ -396,7 +393,7 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     res = parts.results
     if res.shown:
         rows = [(f"({len(res.passed)} earlier results not shown)", COUNTED)] if res.passed else []
-        rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words, c.result_words) for r in res.shown))
+        rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words) for r in res.shown))
         out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", rows, fixed=True))
     st = c.statement
     out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _once(parts, ("statement", st.earlier, len(st.lines), c.going_out,
@@ -494,7 +491,7 @@ def _guard(secs: list[_Sec], words: int, chars: int) -> tuple[list[_Sec], set[st
 
 
 def layout(store: Store, pid: str) -> Layout:
-    """The view of `pid`: about 1,200 words on an ordinary day, never over 2,000.
+    """The view of `pid`: at most about 1,500 words on an ordinary day, never over 2,000.
 
     What anyone writes is limited where it is written, in words and in characters
     (`acts.fits`: a letter 150 words, a request 80, notes 150, an answer's note 80, a
@@ -504,20 +501,22 @@ def layout(store: Store, pid: str) -> Layout:
     and 2,000 characters), and counted past nine; upcoming payments are counted past ten
     going out and six coming in; what is owed past eight lines an account; names not known past three
     a letter. Everything is built once, then laid out again only as each step of giving way
-    needs. While the whole is over 1,200 words, and each only as far as needed: how the trade
-    works (`knowhow`); the people known who are not among those the reader lives or works with or
-    has dealt with in the last four weeks, furthest first (`people`); the household statement's
+    needs. While the whole is over 1,500 words, and each only as far as needed, the least of what
+    the reader needs gives way first, so that what matters most is kept: the results of their
+    last acts and what is new to them, then the statement's last seven days, then their business
+    with all its figures, then what is owed, then the rest. In order: how the trade works
+    (`knowhow`); the people known who are not among those the reader lives or works with or has
+    dealt with in the last four weeks, furthest first (`people`); the household statement's
     in-and-out lines older than seven days, oldest first (`statement`: the last seven days give
-    way only to the last guard); the business's own figures beyond its account, price, shelf,
-    order, staff and till (`business`); its second till week (`till`); what is owed, down to four
-    lines an account (`owed`); the second talk, which moves to the counted line and waits unseen,
-    and then each turn of the first cut to 20 words in place of 40 (`talks`); the third and second
-    letters or notices, which move to the counted line and wait unseen (`inbox`); the third and
-    second requests, likewise (`requests`); the latest read result cut to 120 words (`read`); the
-    people known, down to the six closest (`closest`); and the payments going out and coming in,
-    down to five and three, and the business's going out to four (`coming`); the latest read
-    result cut again, to 40 words (`read again`); the statement's lines without what each was
-    counted toward (`toward`); and every other result cut to 30 words (`results`). Letters and
+    way only to the last guard); the people known, down to the six closest (`closest`); the
+    payments going out and coming in, down to five and three, and the business's going out to
+    four (`coming`); what is owed, down to four lines an account (`owed`); the business's second
+    till week (`till`); its own figures beyond its account, price, shelf, order, staff and till
+    (`business`); the statement's lines without what each was counted toward (`toward`); the
+    second talk, which moves to the counted line and waits unseen, and then each turn of the
+    first cut to 20 words in place of 40 (`talks`); the third and second letters or notices,
+    which move to the counted line and wait unseen (`inbox`); the third and second requests,
+    likewise (`requests`); the latest read result cut to 120 words (`read`). Letters and
     requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
     more, or more than 16,000 characters, the last guard (`guard`) takes whole lines from the
     end of the longest section that may lose them until it is under both, and ends that
@@ -559,17 +558,33 @@ def layout(store: Store, pid: str) -> Layout:
             drop += 1
         c = c._replace(statement=st._replace(lines=st.lines[drop:], earlier=st.earlier + drop))
         left = over(c)
-    if left > 0 and parts.business[0](*c.business) != parts.business[0](till, facts.GOING_OUT, False):
-        c = c._replace(business=(till, facts.GOING_OUT, False))
-        steps.append("business")
+    if left > 0 and len(c.people) > PEOPLE_KEPT:
+        steps.append("closest")
+        while left > 0 and len(c.people) > PEOPLE_KEPT:
+            c = c._replace(people=c.people[:-1])
+            left = over(c)
+    if left > 0:
+        shorter = c._replace(going_out=COMING_KEPT[0], coming_in=COMING_KEPT[1],
+                             business=c.business[:1] + (COMING_KEPT[2],) + c.business[2:])
+        if _render(_sections(store, parts, shorter)) != _render(_sections(store, parts, c)):
+            c = shorter
+            steps.append("coming")
+            left = over(c)
+    if left > 0 and _owed(store, parts.accounts, facts.OWED_KEPT) != _owed(store, parts.accounts, c.owed):
+        c = c._replace(owed=facts.OWED_KEPT)
+        steps.append("owed")
         left = over(c)
     if left > 0 and till > 1:
         c = c._replace(business=(1,) + c.business[1:])
         steps.append("till")
         left = over(c)
-    if left > 0 and _owed(store, parts.accounts, facts.OWED_KEPT) != _owed(store, parts.accounts, c.owed):
-        c = c._replace(owed=facts.OWED_KEPT)
-        steps.append("owed")
+    if left > 0 and parts.business[0](*c.business) != parts.business[0](till, facts.GOING_OUT, False):
+        c = c._replace(business=(till, facts.GOING_OUT, False))
+        steps.append("business")
+        left = over(c)
+    if left > 0 and any(" (counted toward " in x.memo for x in c.statement.lines):
+        c = c._replace(toward=False)
+        steps.append("toward")
         left = over(c)
     if left > 0 and len(parts.talks) > 1:
         c = c._replace(talks=1)
@@ -589,30 +604,6 @@ def layout(store: Store, pid: str) -> Layout:
     if left > 0 and parts.results.latest_read is not None:
         c = c._replace(read_words=READ_CUT)
         steps.append("read")
-        left = over(c)
-    if left > 0 and len(c.people) > PEOPLE_KEPT:
-        steps.append("closest")
-        while left > 0 and len(c.people) > PEOPLE_KEPT:
-            c = c._replace(people=c.people[:-1])
-            left = over(c)
-    if left > 0:
-        shorter = c._replace(going_out=COMING_KEPT[0], coming_in=COMING_KEPT[1],
-                             business=c.business[:1] + (COMING_KEPT[2],) + c.business[2:])
-        if _render(_sections(store, parts, shorter)) != _render(_sections(store, parts, c)):
-            c = shorter
-            steps.append("coming")
-            left = over(c)
-    if left > 0 and parts.results.latest_read is not None:
-        c = c._replace(read_words=READ_LAST)
-        steps.append("read again")
-        left = over(c)
-    if left > 0 and any(" (counted toward " in x.memo for x in c.statement.lines):
-        c = c._replace(toward=False)
-        steps.append("toward")
-        left = over(c)
-    if left > 0 and any(len(r.text.split()) > RESULT_CUT for r in parts.results.shown):
-        c = c._replace(result_words=RESULT_CUT)
-        steps.append("results")
         left = over(c)
     secs = _sections(store, parts, c)
     secs, taken, fired = _guard(secs, CEILING - base, CHAR_CEILING - len(system) - 0)

@@ -74,7 +74,7 @@ def test_when_the_news_is_too_long_the_rest_waits_for_another_day():
     unseen = [f"msg{i + 1}" for i in range(6)]
     text = person_view(s, "p03")[1]["content"]
     shown = shown_ids(s, "p03")
-    assert len(text.split()) <= 1200 and 0 < len(shown) < 6 and shown == unseen[:len(shown)]
+    assert len(text.split()) <= views.MAX_WORDS and 0 < len(shown) < 6 and shown == unseen[:len(shown)]
     assert f"({6 - len(shown)} more: {6 - len(shown)} letters, 0 notices)" in text.split("\n")
     assert f"letter {len(shown)} " in text and f"letter {len(shown) + 1} " not in text
     mark_seen(s, "p03", shown, "routine:seen:p03")
@@ -513,9 +513,9 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     s, owner, letters, asked = _worst()
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
-    assert 1200 < total < 2000
-    order = ["knowhow", "people", "statement", "business", "till", "owed", "talks", "inbox", "requests", "read",
-             "closest", "coming", "read again", "toward", "results", "guard"]
+    assert views.MAX_WORDS < total < 2000
+    order = ["knowhow", "people", "statement", "closest", "coming", "owed", "till", "business", "toward", "talks",
+             "inbox", "requests", "read", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut

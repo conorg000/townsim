@@ -52,3 +52,13 @@ def test_what_people_are_shown_states_the_records(seed):
         for i, line in enumerate(every):
             if re.fullmatch(r"\s*\(\d+ earlier lines not shown\)", line):
                 assert i + 1 < len(every) and re.match(r"\s+[A-Z][a-z]+day \d", every[i + 1]), (seed, day, pid, line)
+
+
+@pytest.mark.parametrize("seed", (1, 2, 3))
+def test_an_owner_is_shown_the_suppliers_and_the_other_shops_prices_almost_every_day(seed):
+    s, _, asked = scripted_weeks(seed)
+    owners = {o.owner for o in s.all("orgs") if o.kind == "shop"}
+    views = [user for _, pid, purpose, _, user, _ in asked if purpose == "turn" and pid in owners]
+    assert views
+    both = [u for u in views if "Suppliers' prices a basket today: " in u and "Prices a basket in the other shops: " in u]
+    assert len(both) >= 0.9 * len(views), (seed, len(both), len(views))

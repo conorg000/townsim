@@ -27,7 +27,7 @@ from .test_random_play import _check_run
 
 FAMILIES = ["a", "b", "c", "d"]
 DAYS = 56
-ORDINARY_WORDS = 1500       # the most a view may be on an ordinary day of the scripted weeks
+ORDINARY_WORDS = 1600       # the most a view may be on an ordinary day of the scripted weeks
 T = "routine:test"
 
 
