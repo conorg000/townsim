@@ -43,13 +43,6 @@ def resume(db: RunDB, run_id: str) -> Store:
     return db.load_snapshot(run_id, days[-1])
 
 
-def _model(db: RunDB, run_id: str) -> str:
-    models = list(dict.fromkeys(k.split("|")[1] for k in db.reply_keys(run_id)))
-    if len(models) > 1:
-        raise ValueError(f"run {run_id!r} has replies from more than one model: {models}")
-    return models[0] if models else "scripted"
-
-
 def replay(db: RunDB, run_id: str) -> list[str]:
     """Run every recorded day again from the earliest snapshot with only stored replies,
     and return the keys of replies stored for the latest snapshot's day, which a stopped
@@ -61,7 +54,7 @@ def replay(db: RunDB, run_id: str) -> list[str]:
     days = db.snapshot_days(run_id)
     if not days:
         raise KeyError(run_id)
-    replier = Replaying(db, run_id, _model(db, run_id))
+    replier = Replaying(db, run_id)
     keys = Keys(run_id)
     store = db.load_snapshot(run_id, days[0])
     for i, day in enumerate(days):

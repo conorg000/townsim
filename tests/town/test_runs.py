@@ -88,17 +88,37 @@ def test_replay_notices_a_changed_view_a_changed_state_and_an_unused_reply(eight
 
     unused = copy_of(src, tmp_path, "unused.sqlite")
     with RunDB(unused) as db:
-        db.put_reply("r1", "r1|scripted|d30|p02|turn:|5", "x", Reply(text=EMPTY))
+        db.put_reply("r1", "r1|scripted|d30|p02|turn:|5", "r1|d30|p02|turn:|5", "x", Reply(text=EMPTY))
         with pytest.raises(ReplayMismatch) as e:
             replay(db, "r1")
     assert e.value.why == "unused" and "d30" in str(e.value)
 
 
-def test_replay_refuses_replies_from_more_than_one_model(eight_week_db, tmp_path):
-    with RunDB(copy_of(eight_week_db[0], tmp_path, "m.sqlite")) as db:
-        db.put_reply("r1", "r1|other|d3|p02|turn:|0", "x", Reply(text=EMPTY))
-        with pytest.raises(ValueError):
-            replay(db, "r1")
+class TwoModels:
+    """The thin script, with Ruth played by one model and everyone else by another."""
+
+    def __init__(self, fn=thin_script):
+        self.fn = fn
+
+    def model_for(self, actor):
+        return "scripted-a" if actor == "p01" else "scripted-b"
+
+    def ask(self, key, messages):
+        return Reply(text=self.fn(key, messages))
+
+
+def test_people_played_by_different_models_record_resume_and_replay(tmp_path):
+    with RunDB(str(tmp_path / "two.sqlite")) as db, RunDB(str(tmp_path / "one.sqlite")) as one:
+        db.create_run("t", seed=1); one.create_run("t", seed=1)
+        assert run(db, "t", thin_town(), TwoModels(stop_on(day=11, actor="p03")), 21).day == 11
+        end = run(db, "t", resume(db, "t"), TwoModels(), 10)
+        assert end.day == 21 and replay(db, "t") == []
+        models = {k.split("|")[3]: k.split("|")[1] for k in db.reply_keys("t")}
+        assert models["p01"] == "scripted-a" and {models[p] for p in ("p02", "p03", "p04")} == {"scripted-b"}
+        assert end.hash() == run(one, "t", thin_town(), ScriptedReplier(thin_script), 21).hash()
+        with pytest.raises(ReplayMismatch) as e:                    # going on with the models changed is refused
+            run(db, "t", db.load_snapshot("t", 11), ScriptedReplier(thin_script), 1)
+        assert e.value.why == "model changed"
 
 
 def test_each_day_keeps_its_turns(eight_week_db):

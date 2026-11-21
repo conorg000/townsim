@@ -15,8 +15,8 @@ create table if not exists runs (
 );
 create table if not exists replies (
     seq integer primary key autoincrement,
-    run text not null, key text not null, prompt_hash text not null, reply_json text not null,
-    unique (run, key)
+    run text not null, key text not null, slot text not null, prompt_hash text not null, reply_json text not null,
+    unique (run, slot)
 );
 create table if not exists snapshots (
     run text not null, day integer not null, hash text not null, blob blob not null,
@@ -74,27 +74,34 @@ class RunDB:
 
     # replies
 
-    def put_reply(self, run_id: str, key: str, prompt_hash: str, reply: Reply) -> None:
-        """Store a reply. A key is written once."""
+    def put_reply(self, run_id: str, key: str, slot: str, prompt_hash: str, reply: Reply) -> None:
+        """Store a reply under its full key and its slot (the key without the model). A
+        slot is written once."""
         try:
             self._write(
-                "insert into replies (run, key, prompt_hash, reply_json) values (?, ?, ?, ?)",
-                (run_id, key, prompt_hash, encode_reply(reply)),
+                "insert into replies (run, key, slot, prompt_hash, reply_json) values (?, ?, ?, ?, ?)",
+                (run_id, key, slot, prompt_hash, encode_reply(reply)),
             )
         except sqlite3.IntegrityError:
-            raise ValueError(f"run {run_id!r} already has a reply at {key!r}") from None
+            raise ValueError(f"run {run_id!r} already has a reply at {slot!r}") from None
 
-    def get_reply(self, run_id: str, key: str) -> tuple[str, Reply] | None:
+    def get_reply(self, run_id: str, slot: str) -> tuple[str, str, Reply] | None:
+        """The full key, prompt hash and reply stored at `slot`, or None."""
         row = self._db.execute(
-            "select prompt_hash, reply_json from replies where run = ? and key = ?", (run_id, key)
+            "select key, prompt_hash, reply_json from replies where run = ? and slot = ?", (run_id, slot)
         ).fetchone()
         if row is None:
             return None
-        return row[0], decode_reply(row[1])
+        return row[0], row[1], decode_reply(row[2])
 
     def reply_keys(self, run_id: str) -> list[str]:
-        """The run's reply keys in the order they were stored."""
-        return [r[0] for r in self._db.execute("select key from replies where run = ? order by seq", (run_id,))]
+        """The run's full reply keys in the order they were stored."""
+        return [k for k, _ in self.reply_entries(run_id)]
+
+    def reply_entries(self, run_id: str) -> list[tuple[str, str]]:
+        """The run's (full key, slot) pairs in the order they were stored."""
+        return [(r[0], r[1]) for r in
+                self._db.execute("select key, slot from replies where run = ? order by seq", (run_id,))]
 
     # snapshots
 

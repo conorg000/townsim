@@ -3,8 +3,10 @@
 A key is built from the run, the model, the day, the actor, the purpose of the call,
 a ref and a running count, never from the prompt's text. A fresh `Keys` for a resumed
 or replayed run counts from 0 again, so the same calls get the same keys and line up
-with the replies already stored. The prompt's hash is stored beside each reply only to
-notice when a replayed prompt has changed.
+with the replies already stored. A stored reply is found by its slot, the key without
+the model, so each person may be played by a different model and a replay need not
+know which. The prompt's hash is stored beside each reply only to notice when a
+replayed prompt has changed.
 """
 
 from __future__ import annotations
@@ -32,6 +34,10 @@ class ReplyKey:
     def text(self) -> str:
         return f"{self.run}|{self.model}|d{self.day}|{self.actor}|{self.purpose}:{self.ref}|{self.n}"
 
+    def slot(self) -> str:
+        """The key without the model: which call this is, whoever answers it."""
+        return f"{self.run}|d{self.day}|{self.actor}|{self.purpose}:{self.ref}|{self.n}"
+
 
 @dataclass
 class Reply:
@@ -48,7 +54,8 @@ class Reply:
 class ReplayMismatch(Exception):
     """A stored run and the run asking for its replies disagree.
 
-    `why` is `"missing"`, `"prompt changed"`, `"asked twice"`, `"unused"` or `"state differs"`.
+    `why` is `"missing"`, `"prompt changed"`, `"model changed"`, `"asked twice"`, `"unused"`
+    or `"state differs"`.
     """
 
     def __init__(self, key: str, why: str) -> None:
@@ -96,7 +103,9 @@ def prompt_hash(messages: list[dict]) -> str:
 
 
 class Replier(Protocol):
-    model: str
+    def model_for(self, actor: str) -> str:
+        """The model that plays `actor`."""
+        ...
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply: ...
 
@@ -125,63 +134,72 @@ class Keys:
 class ScriptedReplier:
     """Stands in for a model: the reply's text is `fn(key, messages)`."""
 
-    model = "scripted"
-
     def __init__(self, fn: Callable[[ReplyKey, list[dict]], str | None]) -> None:
         self.fn = fn
+
+    def model_for(self, actor: str) -> str:
+        return "scripted"
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
         return Reply(text=self.fn(key, messages))
 
 
 class Recording:
-    """Asks `inner` once per key and stores the reply; a stored reply is served as stored.
+    """Asks `inner` once per slot and stores the reply; a stored reply is served as stored.
 
     A fresh reply is returned as it reads back from the store, so a live run, a resume
-    and a replay all see equal replies for the same key.
+    and a replay all see equal replies for the same key. A slot stored under another
+    model is a mismatch: a resumed run is played by the models it began with.
     """
 
     def __init__(self, inner: Replier, db: RunDB, run: str) -> None:
         self.inner = inner
         self.db = db
         self.run = run
-        self.model = inner.model
+
+    def model_for(self, actor: str) -> str:
+        return self.inner.model_for(actor)
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
         _own_run(self.run, key)
         k, h = key.text(), prompt_hash(messages)
-        stored = self.db.get_reply(self.run, k)
+        stored = self.db.get_reply(self.run, key.slot())
         if stored is not None:
-            if stored[0] != h:
+            if stored[0] != k:
+                raise ReplayMismatch(key=k, why="model changed")
+            if stored[1] != h:
                 raise ReplayMismatch(key=k, why="prompt changed")
-            return stored[1]
+            return stored[2]
         reply = decode_reply(_storable(self.inner.ask(key, messages)))
-        self.db.put_reply(self.run, k, h, reply)
+        self.db.put_reply(self.run, k, key.slot(), h, reply)
         return reply
 
 
 class Replaying:
-    """Serves only stored replies; anything not stored, or asked with a changed prompt, is a mismatch."""
+    """Serves only stored replies, found by slot whatever model gave them; anything not
+    stored, or asked with a changed prompt, is a mismatch. Mismatches name the stored key."""
 
-    def __init__(self, db: RunDB, run: str, model: str) -> None:
+    def __init__(self, db: RunDB, run: str) -> None:
         self.db = db
         self.run = run
-        self.model = model
-        self._asked: set[str] = set()
+        self._asked: set[str] = set()   # slots; for membership only
+
+    def model_for(self, actor: str) -> str:
+        return ""
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
         _own_run(self.run, key)
-        k = key.text()
-        if k in self._asked:
-            raise ReplayMismatch(key=k, why="asked twice")
-        stored = self.db.get_reply(self.run, k)
+        slot = key.slot()
+        stored = self.db.get_reply(self.run, slot)
         if stored is None:
-            raise ReplayMismatch(key=k, why="missing")
-        if stored[0] != prompt_hash(messages):
-            raise ReplayMismatch(key=k, why="prompt changed")
-        self._asked.add(k)
-        return stored[1]
+            raise ReplayMismatch(key=slot, why="missing")
+        if slot in self._asked:
+            raise ReplayMismatch(key=stored[0], why="asked twice")
+        if stored[1] != prompt_hash(messages):
+            raise ReplayMismatch(key=stored[0], why="prompt changed")
+        self._asked.add(slot)
+        return stored[2]
 
     def unused(self) -> list[str]:
         """The stored keys never asked for, in the order they were stored."""
-        return [k for k in self.db.reply_keys(self.run) if k not in self._asked]
+        return [k for k, slot in self.db.reply_entries(self.run) if slot not in self._asked]

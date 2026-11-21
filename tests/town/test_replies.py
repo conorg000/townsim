@@ -32,6 +32,7 @@ def test_keys_count_per_day_actor_purpose_and_ref():
     k = Keys("r1")
     a = k.next("scripted", 3, "p01", "turn"); b = k.next("scripted", 3, "p01", "turn"); c = k.next("scripted", 3, "p01", "conv", "c7")
     assert (a.n, b.n, c.n) == (0, 1, 0) and a.text() == "r1|scripted|d3|p01|turn:|0"
+    assert a.slot() == "r1|d3|p01|turn:|0"
     assert c.text() == "r1|scripted|d3|p01|conv:c7|0"
     assert b == ReplyKey("r1", "scripted", 3, "p01", "turn", "", 1)
     assert k.next("scripted", 4, "p01", "turn").n == 0
@@ -66,7 +67,7 @@ def test_prompt_hash_depends_on_content_not_dict_order():
 
 def test_scripted_replier_returns_the_function_text():
     r = ScriptedReplier(lambda key, msgs: f"{key.actor}:{msgs[0]['content']}")
-    assert r.model == "scripted"
+    assert r.model_for("p01") == "scripted"
     assert r.ask(Keys("r1").next("scripted", 0, "p01", "turn"), MSGS) == Reply(text="p01:view")
 
 
@@ -81,7 +82,16 @@ def test_recording_stores_once_and_serves_a_resume_without_asking(tmp_path):
 
 
 def test_recording_model_is_the_inner_model(db):
-    assert Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").model == "scripted"
+    assert Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").model_for("p01") == "scripted"
+
+
+def test_recording_refuses_a_slot_stored_under_another_model(db):
+    Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(Keys("r1").next("model-a", 0, "p01", "turn"), MSGS)
+    key = Keys("r1").next("model-b", 0, "p01", "turn")
+    with pytest.raises(ReplayMismatch) as e:
+        Recording(ScriptedReplier(lambda k, m: "y"), db, "r1").ask(key, MSGS)
+    assert e.value.why == "model changed" and e.value.key == key.text()
+    assert db.reply_keys("r1") == ["r1|model-a|d0|p01|turn:|0"]
 
 
 def test_recording_serves_a_resume_from_a_second_handle_on_the_file(tmp_path):
@@ -111,7 +121,7 @@ def test_recording_stores_nothing_when_the_inner_raises(db):
 def test_recording_serves_a_stored_reply_whole(db):
     whole = Reply(text=None, tool={"name": "pay", "args": {"cents": 5}}, reasoning="r", finish="tool", tokens_in=3, tokens_out=4, cost=0.5, error="e")
     key = Keys("r1").next("scripted", 0, "p01", "turn")
-    db.put_reply("r1", key.text(), prompt_hash(MSGS), whole)
+    db.put_reply("r1", key.text(), key.slot(), prompt_hash(MSGS), whole)
     assert Recording(ScriptedReplier(lambda k, m: "fresh"), db, "r1").ask(key, MSGS) == whole
 
 
@@ -122,8 +132,8 @@ def test_replaying_fails_on_a_missing_key_and_reports_unused_ones(db):
     for k in (k0, k1, k2):
         rec.ask(k, MSGS)
 
-    rep = Replaying(db, "r1", "scripted")
-    assert rep.model == "scripted"
+    rep = Replaying(db, "r1")
+    assert rep.model_for("p01") == ""
     assert rep.unused() == [k0.text(), k1.text(), k2.text()]
     assert rep.ask(k1, MSGS).text == "p01"
     assert rep.unused() == [k0.text(), k2.text()]
@@ -131,8 +141,8 @@ def test_replaying_fails_on_a_missing_key_and_reports_unused_ones(db):
     missing = Keys("r1").next("scripted", 9, "p01", "turn")
     with pytest.raises(ReplayMismatch) as e:
         rep.ask(missing, MSGS)
-    assert e.value.why == "missing" and e.value.key == missing.text()
-    assert str(e.value) == f"replay mismatch (missing) at {missing.text()}"
+    assert e.value.why == "missing" and e.value.key == missing.slot()
+    assert str(e.value) == f"replay mismatch (missing) at {missing.slot()}"
 
     with pytest.raises(ReplayMismatch) as e:
         rep.ask(k0, [{"role": "user", "content": "other"}])
@@ -142,26 +152,27 @@ def test_replaying_fails_on_a_missing_key_and_reports_unused_ones(db):
 def test_a_reply_is_stored_whole(db):
     full = Reply(text="hi", tool={"name": "pay", "args": {"to": "p02", "cents": 120}}, reasoning="because", finish="stop", tokens_in=11, tokens_out=7, cost=0.0042, error=None)
     failed = Reply(text=None, error="timeout")
-    db.put_reply("r1", "k1", "h1", full)
-    db.put_reply("r1", "k2", "h2", failed)
-    assert db.get_reply("r1", "k1") == ("h1", full)
-    assert db.get_reply("r1", "k2") == ("h2", failed)
-    assert db.get_reply("r1", "k3") is None
-    assert db.reply_keys("r1") == ["k1", "k2"]
+    db.put_reply("r1", "r1|a|k1", "r1|k1", "h1", full)
+    db.put_reply("r1", "r1|b|k2", "r1|k2", "h2", failed)
+    assert db.get_reply("r1", "r1|k1") == ("r1|a|k1", "h1", full)
+    assert db.get_reply("r1", "r1|k2") == ("r1|b|k2", "h2", failed)
+    assert db.get_reply("r1", "r1|a|k1") is None and db.get_reply("r1", "r1|k3") is None
+    assert db.reply_keys("r1") == ["r1|a|k1", "r1|b|k2"]
+    assert db.reply_entries("r1") == [("r1|a|k1", "r1|k1"), ("r1|b|k2", "r1|k2")]
 
 
 def test_a_reply_key_is_written_once(db):
-    db.put_reply("r1", "k1", "h1", Reply(text="a"))
+    db.put_reply("r1", "k1", "s1", "h1", Reply(text="a"))
     with pytest.raises(ValueError):
-        db.put_reply("r1", "k1", "h1", Reply(text="b"))
-    assert db.get_reply("r1", "k1") == ("h1", Reply(text="a"))
+        db.put_reply("r1", "k1-other-model", "s1", "h1", Reply(text="b"))
+    assert db.get_reply("r1", "s1") == ("k1", "h1", Reply(text="a"))
 
 
 def test_replies_are_kept_per_run(db):
     db.create_run("r2", seed=2)
-    db.put_reply("r1", "k", "h", Reply(text="one"))
-    db.put_reply("r2", "k", "h", Reply(text="two"))
-    assert db.get_reply("r2", "k")[1].text == "two" and db.reply_keys("r1") == ["k"]
+    db.put_reply("r1", "k", "s", "h", Reply(text="one"))
+    db.put_reply("r2", "k", "s", "h", Reply(text="two"))
+    assert db.get_reply("r2", "s")[2].text == "two" and db.reply_keys("r1") == ["k"]
 
 
 def test_runs_are_created_once_and_read_back(db):
@@ -228,10 +239,11 @@ def _key(run="r1", day=0, actor="p01"):
 
 
 class _Fixed:
-    model = "scripted"
-
     def __init__(self, reply):
         self.reply = reply
+
+    def model_for(self, actor):
+        return "scripted"
 
     def ask(self, key, messages):
         return self.reply
@@ -245,7 +257,7 @@ def test_live_resumed_and_replayed_replies_are_equal(tmp_path):
         live = Recording(_Fixed(reply), db, "r1").ask(_key(), MSGS)
     with RunDB(path) as db:
         resumed = Recording(_Fixed(Reply(text="other")), db, "r1").ask(_key(), MSGS)
-        replayed = Replaying(db, "r1", "scripted").ask(_key(), MSGS)
+        replayed = Replaying(db, "r1").ask(_key(), MSGS)
     assert live == resumed == replayed
     assert live.tool == {"name": "pay", "args": {"to": ["p02", "p03"]}}
 
@@ -256,27 +268,27 @@ def test_a_reply_that_cannot_be_stored_becomes_a_stored_error(db):
     assert live.text is None and live.tool is None
     assert live.error.startswith("the reply could not be stored: ")
     assert (live.tokens_in, live.tokens_out, live.cost) == (5, 6, 0.25)
-    assert db.get_reply("r1", _key().text()) == (prompt_hash(MSGS), live)
+    assert db.get_reply("r1", _key().slot()) == (_key().text(), prompt_hash(MSGS), live)
 
 
 def test_a_reply_with_a_nan_cost_still_stores_an_error(db):
     live = Recording(_Fixed(Reply(text="ok", cost=float("nan"))), db, "r1").ask(_key(), MSGS)
     assert live.text is None and live.error.startswith("the reply could not be stored: ")
-    assert db.get_reply("r1", _key().text())[1] == live
+    assert db.get_reply("r1", _key().slot())[2] == live
 
 
 def test_a_refused_write_does_not_lock_the_file_for_another_handle(tmp_path):
     path = str(tmp_path / "x.sqlite")
     with RunDB(path) as a, RunDB(path) as b:
         a.create_run("r1", seed=1)
-        a.put_reply("r1", "k", "h", Reply(text="x"))
+        a.put_reply("r1", "k", "s", "h", Reply(text="x"))
         with pytest.raises(ValueError):
             a.create_run("r1", seed=1)
         b.create_run("r2", seed=2)
         with pytest.raises(ValueError):
-            a.put_reply("r1", "k", "h", Reply(text="y"))
-        b.put_reply("r2", "k", "h", Reply(text="z"))
-        assert a.get_reply("r2", "k")[1].text == "z"
+            a.put_reply("r1", "k", "s", "h", Reply(text="y"))
+        b.put_reply("r2", "k", "s", "h", Reply(text="z"))
+        assert a.get_reply("r2", "s")[2].text == "z"
 
 
 @pytest.mark.parametrize("day", [-1, True, 1.0, "1"])
@@ -289,13 +301,13 @@ def test_repliers_refuse_a_key_from_another_run(db):
     with pytest.raises(ValueError):
         Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(_key(run="r2"), MSGS)
     with pytest.raises(ValueError):
-        Replaying(db, "r1", "scripted").ask(_key(run="r2"), MSGS)
+        Replaying(db, "r1").ask(_key(run="r2"), MSGS)
     assert db.reply_keys("r1") == []
 
 
 def test_replaying_refuses_a_key_asked_twice(db):
     Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(_key(), MSGS)
-    rep = Replaying(db, "r1", "scripted")
+    rep = Replaying(db, "r1")
     rep.ask(_key(), MSGS)
     with pytest.raises(ReplayMismatch) as e:
         rep.ask(_key(), MSGS)

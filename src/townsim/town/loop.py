@@ -113,7 +113,7 @@ def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     shown = [(pid, *view(store, pid)) for pid in who_acts(store)]
     asked = []
     for pid, messages, _ in shown:
-        key = keys.next(replier.model, day, pid, "turn")
+        key = keys.next(replier.model_for(pid), day, pid, "turn")
         asked.append((key.text(), replier.ask(key, messages)))
     turns = []
     n = 0
