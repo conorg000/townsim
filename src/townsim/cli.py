@@ -9,7 +9,9 @@ from typing import Annotated, Iterator
 
 import typer
 
-app = typer.Typer(help="Run the thin town and replay it, or run the small economy's skill test.")
+app = typer.Typer(help="Run the thin town or a generated hamlet and replay it, or run the small economy's skill test.")
+
+_FAMILIES = str(Path(__file__).resolve().parents[2] / "config" / "families.yaml")
 
 Db = Annotated[str, typer.Option("--db", help="SQLite file holding the runs.")]
 
@@ -71,20 +73,27 @@ def town_thin_cmd(
 ) -> None:
     """Run the thin town on its script of replies, then replay it. No model is called.
     Exits 1 if the engine reported any errors."""
+    from townsim.town.thin import thin_script, thin_town
+
+    _run_weeks(db, run_id, 0, weeks, thin_town, thin_script)
+
+
+def _run_weeks(db: str, run_id: str, seed: int, weeks: int, make_store, script) -> None:
+    """Run a town week by week on a script of replies, print a line a week and the engine
+    errors, then replay it. Exits 1 on engine errors or a run id already in the file."""
     from townsim.town.replies import ScriptedReplier
     from townsim.town.rundb import RunDB
     from townsim.town.runs import run
-    from townsim.town.thin import thin_script, thin_town
 
     with _plainly(db), RunDB(db) as rdb:
         try:
             rdb.get_run(run_id)
         except KeyError:
-            rdb.create_run(run_id, seed=0)
+            rdb.create_run(run_id, seed=seed)
         else:
             _fail(f"{db} already has a run called {run_id!r}")
-        store = thin_town()
-        replier = ScriptedReplier(thin_script)
+        store = make_store()
+        replier = ScriptedReplier(script)
         for n in range(1, weeks + 1):
             store = run(rdb, run_id, store, replier, 7)
             typer.echo(f"week {n}  day {store.day}  {store.hash()[:12]}  ledger total {store.ledger.total()}")
@@ -95,6 +104,26 @@ def town_thin_cmd(
         _replay(rdb, run_id)
         if errors:
             raise typer.Exit(code=1)
+
+
+@app.command("town-hamlet")
+def town_hamlet_cmd(
+    db: Annotated[str, typer.Option("--db", help="SQLite file to keep the run in.")],
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run.")] = 8,
+    run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "hamlet",
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families.")] = _FAMILIES,
+) -> None:
+    """Generate the hamlet for a seed and run it on a scripted life, then replay it. No model
+    is called. Exits 1 if the engine reported any errors."""
+    from townsim.town import families as fam
+    from townsim.town import gen, hamlet
+
+    try:
+        names = fam.names(families)
+    except (OSError, ValueError) as e:
+        _fail(f"cannot read the families from {families}: {e}")
+    _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet.script)
 
 
 @app.command("town-replay")

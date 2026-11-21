@@ -24,10 +24,10 @@ from datetime import timedelta
 from townsim.econ.demand import NEEDS, DemandRule, Offering, true_choice_probabilities
 from townsim.econ.demand import Household as EconHousehold
 from townsim.econ.suppliers import default_suppliers
-from townsim.town import acts, firms, hours, names
+from townsim.town import acts, firms, hours, jobs, names
 from townsim.town import obligations as O
 from townsim.town.clock import DAY_ZERO, date_text
-from townsim.town.entities import Buyer, Event, FirmRow, Household, Job, Org, Person, SupplierRow, Tie
+from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
 
@@ -391,17 +391,9 @@ def _weekly(store: Store, kind: str, payer: str, payee: str, cents: int, first: 
 
 def _employ(store: Store, person: str, org: str, hours_a_week: float, weekly: int, since: int,
             cause: str = SETUP) -> str:
-    """Give `person` a job at `org`: a `Job` row and its weekly wage, paid by the employer's
-    account into the person's household account on Fridays from the first Friday on, ended
-    only by both. Returns the job's id."""
-    employer = store.get("orgs", org)
-    first = store.day + (FRIDAY - store.day) % 7
-    ob = O.create(store, kind="wage", payer=org, payee=store.get("people", person).household, cents=weekly,
-                  first=first, every=7, memo=f"wages from {employer.name}", ends="both", made_by="routine",
-                  cause=cause)
-    jid = store.new_id("jb", cause)
-    store.add("jobs", Job(jid, person, org, weekly, float(hours_a_week), ob, since), cause)
-    return jid
+    """Give `person` a job at `org` (`jobs.start`), paid on Fridays from the first Friday on."""
+    return jobs.start(store, person, org, weekly, hours_a_week, store.day + (FRIDAY - store.day) % 7, cause,
+                      since=since)
 
 
 def _tie(store: Store, a: str, b: str, kind: str, back: str | None) -> None:

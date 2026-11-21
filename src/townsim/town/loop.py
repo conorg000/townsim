@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import hours, obligations
+from townsim.town import aims, firms, hamlet, hours, obligations
 from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
 from townsim.town.entities import Notice, Result
@@ -46,13 +46,24 @@ def _lapse(store: Store) -> None:
 
 
 def routine(store: Store) -> None:
-    """The morning: a week's free hours on a Monday, old requests lapse, then what is owed is
-    opened, aged and collected."""
+    """The morning: today's events; on a Monday, a week's free hours and the shops'
+    deliveries; old requests lapse; what is owed is opened, aged and collected; then those
+    whose shopping day it is shop. Events come first, so that someone who falls ill on a
+    Monday has no hours that week."""
+    hamlet.apply_events(store)
     hours.monday_hours(store)
+    firms.deliver(store)
     _lapse(store)
     obligations.open_dues(store)
     obligations.age_arrears(store)
     obligations.collect(store)
+    firms.shop_today(store)
+
+
+def close(store: Store) -> None:
+    """The evening: on a Sunday the shops' week closes; then the day ends."""
+    firms.close_week(store)
+    store.advance_day()
 
 
 def who_acts(store: Store) -> list[str]:
@@ -68,6 +79,13 @@ def parse_acts(text: str | None) -> list | None:
 
     Only the first `SCAN_CHARS` characters are read and at most `SCAN_TRIES` decodes are
     tried. An object without an `acts` list is skipped whole. Never raises."""
+    reply = parse_reply(text)
+    return None if reply is None else reply["acts"]
+
+
+def parse_reply(text: str | None) -> dict | None:
+    """The first top-level JSON object in `text` that has an `acts` list, or None; read as
+    `parse_acts` reads it. Never raises."""
     if not isinstance(text, str):
         return None
     text = text[:SCAN_CHARS]
@@ -82,7 +100,7 @@ def parse_acts(text: str | None) -> list | None:
             at = text.find("{", at + 1)
             continue
         if isinstance(value, dict) and isinstance(value.get("acts"), list):
-            return value["acts"]
+            return value
         at = text.find("{", end)
     return None
 
@@ -93,9 +111,15 @@ def _act(pid: str, element: Any) -> Act:
     return Act(pid, pid, None, element)
 
 
+NO_OP = "(no operation named)"
+MORE = "(more)"
+
+
 def _op_written(op: Any) -> str:
-    """An act's operation name as its actor wrote it, cut to 40 characters, on one line."""
-    return " ".join((clean_text(shown(op)) or "").split())
+    """An act's operation name as its actor wrote it, cut to 40 characters, on one line;
+    `(no operation named)` when none was written."""
+    written = " ".join((clean_text(shown(op)) or "").split()) if op is not None else ""
+    return written or NO_OP
 
 
 def _tell_result(store: Store, outcome: Outcome) -> None:
@@ -105,7 +129,16 @@ def _tell_result(store: Store, outcome: Outcome) -> None:
     store.add("results", result, outcome.cause)
 
 
+def _tell_more(store: Store, pid: str, k: int, cause: str) -> None:
+    """Tell `pid` that `k` operations past the eighth (`MAX_ACTS`) were not carried out."""
+    text = f"Not done: {k} more operations were written than the eight carried out in a day."
+    store.add("results", Result(store.new_id("res", cause), store.day, pid, MORE, text, False), cause)
+
+
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
+    """The routine, then everyone's view, every reply, and each person's aims and acts in
+    id order; then the close. A reply's `aims`, when it has them, are taken before its acts.
+    Acts past the eighth are not carried out, and the person is told how many."""
     routine(store)
     day = store.day
     shown = [(pid, *view(store, pid)) for pid in who_acts(store)]
@@ -116,17 +149,24 @@ def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     turns = []
     n = 0
     for (pid, _, ids), (key, reply) in zip(shown, asked):
-        elements = parse_acts(reply.text)
-        if elements is None:
+        parsed = parse_reply(reply.text)
+        if parsed is None:
             turns.append(Turn(pid, key, True, []))
             continue
+        elements = parsed["acts"]
+        if "aims" in parsed:
+            aims.update(store, pid, parsed["aims"], f"op:{pid}:aims:d{day}.{n}")
+            n += 1
         outcomes = []
         for element in elements[:MAX_ACTS]:
             outcome = apply_act(store, _act(pid, element), n)
             _tell_result(store, outcome)
             outcomes.append(outcome)
             n += 1
+        if len(elements) > MAX_ACTS:
+            _tell_more(store, pid, len(elements) - MAX_ACTS, f"op:{pid}:more:d{day}.{n}")
+            n += 1
         mark_seen(store, pid, ids, f"routine:seen:{pid}")
         turns.append(Turn(pid, key, False, outcomes))
-    store.advance_day()
+    close(store)
     return DayReport(day, turns)

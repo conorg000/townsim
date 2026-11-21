@@ -22,7 +22,7 @@ import random
 from townsim.econ.demand import NEEDS, DemandRule, Household, Offering, shop
 from townsim.econ.firm import Cohort, Firm, WeekCounters
 from townsim.econ.suppliers import Supplier
-from townsim.town import clock
+from townsim.town import clock, jobs
 from townsim.town.entities import Buyer, FirmRow, SupplierRow, TillWeek
 from townsim.town.store import Store
 
@@ -38,9 +38,10 @@ _PLACES = 6
 
 
 def staff_hours(store: Store, org: str) -> float:
-    """Hours worked at `org` this week: the hours of its jobs, plus its shops' `extra_hours`."""
-    jobs = sum(j.hours for j in store.where("jobs", org=org))
-    return jobs + sum(f.extra_hours for f in store.where("firms", org=org))
+    """Hours worked at `org` this week: the hours of the jobs there held today, plus its
+    shops' `extra_hours`."""
+    worked = sum(j.hours for j in jobs.held(store, org=org))
+    return worked + sum(f.extra_hours for f in store.where("firms", org=org))
 
 
 def capacity(store: Store, firm_id: str) -> int:
@@ -237,8 +238,9 @@ def _order(store: Store, row: FirmRow) -> tuple[str, int, int] | None:
 
 def deliver(store: Store) -> None:
     """Monday, once a week: each shop gets the order placed since last Monday at the price it
-    was placed at, or last week's again at today's price, as far as the supplier fills it and
-    the shop can pay for it, paid on delivery."""
+    was placed at, or last week's again at today's price, as far as the supplier fills it
+    (half of that in a week it has said it will be short) and the shop can pay for it, paid
+    on delivery."""
     if clock.dow(store.day) != 0:
         return
     week = clock.week(store.day)
@@ -258,6 +260,8 @@ def deliver(store: Store) -> None:
                     _error(store, "deliver", f"{row.id}: no account for {row.org} or {sp.org}; skipped")
                 else:
                     got = _supplier(sp).fill(units, random.Random(f"fill:{store.seed}:{week}:{row.id}"))
+                    if sp.short_week == week:
+                        got //= 2
                     got = min(got, max(0, store.balance(row.org)) // cents)
                     fields.update(last_supplier=sid, last_units=units)
                     if got > 0:

@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 
 import pytest
 
+from townsim.town import gen
 from townsim.town.acts import REGISTRY
 from townsim.town.loop import run_day
 from townsim.town.replies import Keys, ScriptedReplier
@@ -50,24 +51,53 @@ def _ids(messages: list[dict], prefix: str) -> list[str]:
     return sorted(set(i for i in _IDS.findall(text) if i.startswith(prefix)))
 
 
-def _owed(messages: list[dict]) -> list[tuple[str, str, str]]:
+def _owed(messages: list[dict], names: list[str] = NAMES) -> list[tuple[str, str, str]]:
     """(name, obligation id, amount) for each line under "Going out by" in the view whose
     payee is someone a payment can name."""
     found, going_out = [], False
     for line in messages[-1].get("content", "").split("\n"):
         if line.startswith("Going out by") or line.startswith("Expected in by"):
             going_out = line.startswith("Going out by")
-        elif going_out and (m := _OWED.match(line)) and m.group(1) in NAMES:
+        elif going_out and (m := _OWED.match(line)) and m.group(1) in names:
             found.append((m.group(1), m.group(2), line.split("  ")[2]))
     return found
 
 
-def random_script(rng: random.Random):
+_ROW = re.compile(r"^  (?:overdue since )?[A-Z][a-z]+day \d+ [A-Z][a-z]+  -?\$[\d,]+\.\d\d  (.+?)  ")
+_OP = re.compile(r'^\{"op": "(\w+)"')
+
+
+def view_names(messages: list[dict]) -> list[str]:
+    """The names a generated place's view shows: the people known, the business, and every
+    household and organisation money goes to or comes from."""
+    lines = messages[-1].get("content", "").split("\n")
+    found: list[str] = []
+    section = ""
+    for i, line in enumerate(lines):
+        if line.isupper() and line.strip():
+            section = line
+        elif section == "PEOPLE YOU KNOW" and ", " in line:
+            found.append(line.split(", ")[0])
+        elif section == "YOUR BUSINESS" and lines[i - 1] == section:
+            found.append(line)
+        elif m := _ROW.match(line):
+            found.append(m.group(1))
+    return list(dict.fromkeys(found))
+
+
+def view_ops(messages: list[dict]) -> list[str]:
+    """The operations the view offers, in order."""
+    return [m.group(1) for line in messages[-1].get("content", "").split("\n") if (m := _OP.match(line))]
+
+
+def random_script(rng: random.Random, from_view: bool = False):
     """A reply function for `ScriptedReplier`: for each turn, zero to ten acts from every
     registered operation (and some that are not), with arguments read from the view
     (names, obligation and request ids) or invented (wrong types, unknown names, huge or
     negative sums, missing keys), and now and then text that is not JSON at all.
-    All of its randomness comes from `rng`."""
+    All of its randomness comes from `rng`. With `from_view`, the names and the operations
+    it chooses among are read from each view, as in a generated place."""
+    seen = {"names": NAMES, "ops": list(REGISTRY)}
 
     def pick(sensible: list, junk: list, p: float = 0.7):
         return rng.choice(sensible) if sensible and rng.random() < p else rng.choice(junk)
@@ -84,7 +114,7 @@ def random_script(rng: random.Random):
                     ["", "   ", None, 12, ["words"], "x" * 3001, "word " * 301, "bell\x07\x00here", "‮"])
 
     def name():
-        return pick(NAMES, JUNK_NAMES)
+        return pick(seen["names"], JUNK_NAMES)
 
     def args(op: str, obs: list[str], rqs: list[str], owed: list[tuple[str, str, str]]) -> dict:
         if op == "pay" and owed and rng.random() < 0.5:        # toward something owed, in full or in part
@@ -130,7 +160,7 @@ def random_script(rng: random.Random):
         if roll < 0.12:
             op = rng.choice(["fly", "", None, 7, "PAY", " Pay ", "write notes", "borrow", ["pay"]])
         else:
-            op = rng.choices(list(REGISTRY), [WEIGHTS.get(n, 1) for n in REGISTRY])[0]
+            op = rng.choices(seen["ops"], [WEIGHTS.get(n, 1) for n in seen["ops"]])[0]
         a = args(op.strip().lower() if isinstance(op, str) else "", obs, rqs, owed)
         return {"op": op, **a} if rng.random() > 0.03 else {**a}
 
@@ -141,7 +171,10 @@ def random_script(rng: random.Random):
         if roll < 0.10:
             return rng.choice(["I'll think about it.", "{", "{\"acts\": ", "[]", "null", "{\"acts\": \"pay\"}",
                                "{\"thoughts\": \"no acts key\"}", "}{", "\x00", "{" * 5000])
-        obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages)
+        if from_view:
+            seen["names"] = view_names(messages) or NAMES
+            seen["ops"] = view_ops(messages) or list(REGISTRY)
+        obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages, seen["names"])
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
         body = json.dumps({"thoughts": text() if rng.random() < 0.5 else "", "acts": acts})
         if rng.random() < 0.15:
@@ -253,3 +286,31 @@ def test_random_runs_replay_exactly(seed, tmp_path):
         final = run(db, "rand", thin_town(), ScriptedReplier(random_script(random.Random(seed))), DAYS)
         assert replay(db, "rand") == []
     assert final.hash() == _play(seed).hash()
+
+
+HAMLET_DAYS = 28
+HAMLET_SEEDS = range(20)
+
+
+@pytest.mark.parametrize("seed", HAMLET_SEEDS)
+def test_random_play_in_the_hamlet_never_breaks_the_books(seed):
+    """The same invariants on a generated place for four weeks, the script reading real names
+    and ids, and choosing among the operations, from each view; no view reaches 2,000 words."""
+    s = gen.generate(seed + 1, ["a", "b", "c", "d"])
+    rng = random.Random(f"hamlet:{seed}")
+    inner = random_script(rng, from_view=True)
+    biggest = [0]
+
+    def reply(key, messages):
+        biggest[0] = max(biggest[0], sum(len(m["content"].split()) for m in messages))
+        return inner(key, messages)
+
+    replier = ScriptedReplier(reply)
+    keys = Keys("h")
+    for _ in range(HAMLET_DAYS):
+        mark = s.mark()
+        run_day(s, replier, keys)
+        _check_day(s, mark)
+    _check_run(s)
+    assert biggest[0] < 2000
+    assert any(c.cause.startswith("op:") and c.table == "ledger" for c in s.changes)

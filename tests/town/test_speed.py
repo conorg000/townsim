@@ -1,5 +1,6 @@
 """A larger town runs in good time, and a day does not grow much slower as the run grows."""
 
+import gc
 import time
 
 from townsim.town import obligations as O
@@ -41,13 +42,20 @@ def wide_town(households: int = 20) -> Store:
 
 
 def week_times(households: int = 20, weeks: int = 21) -> list[float]:
+    """Each week's time, with the garbage collector paused, so what the rest of the suite
+    holds in memory does not weigh on the later weeks more than the earlier ones."""
     s = wide_town(households)
     replier, keys, times = ScriptedReplier(lambda key, messages: EMPTY), Keys("w"), []
-    for _ in range(weeks):
-        started = time.perf_counter()
-        for _ in range(7):
-            run_day(s, replier, keys)
-        times.append(time.perf_counter() - started)
+    gc.collect()
+    gc.disable()
+    try:
+        for _ in range(weeks):
+            started = time.perf_counter()
+            for _ in range(7):
+                run_day(s, replier, keys)
+            times.append(time.perf_counter() - started)
+    finally:
+        gc.enable()
     assert s.ledger.total() == 0 and s.engine_errors == []
     assert any(o.penalty for o in s.all("obligations"))      # the arrears machinery has work to do
     return times

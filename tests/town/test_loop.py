@@ -187,7 +187,7 @@ def test_each_act_leaves_a_result_with_its_own_cause():
     assert (paid.day, paid.op, paid.ok, paid.seen) == (4, "pay", True, False)
     assert paid.text == "Paid $5.00 to Megan Pryce."
     assert unknown.op == ("Pay" + "x" * 60)[:39] and not unknown.ok and unknown.text.startswith("Not done:")
-    assert junk.op == "None" and not junk.ok
+    assert junk.op == "(no operation named)" and not junk.ok
     causes = [c.cause for c in s.changes if c.table == "results" and c.field == "+"]
     assert causes == ["op:p01:pay:d4.0", "op:p01:?:d4.1", "op:p01:?:d4.2"]
     assert [i.id for i in s.all("results")] == ["res1", "res2", "res3"]

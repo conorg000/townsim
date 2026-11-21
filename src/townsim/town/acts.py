@@ -186,6 +186,20 @@ def clean_text(value: Any) -> str | None:
     return "".join(c for c in value if c in "\n\t" or unicodedata.category(c) != "Cc")
 
 
+LONGEST_WORD = 40
+CHARS_A_WORD = 8
+LONGEST_NAME = 100
+
+
+def fits(text: str, words: int) -> bool:
+    """Whether text a person wrote is within a limit of `words`: at most that many
+    whitespace-separated words, at most eight characters a word in all, and no word longer
+    than 40 characters."""
+    found = text.split()
+    return (len(found) <= words and len(text) <= CHARS_A_WORD * words
+            and all(len(w) <= LONGEST_WORD for w in found))
+
+
 def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
     """The id of the person, household or org called `name`, ignoring case and surrounding
     spaces; or, given an `actor`, of the one person they know whose first name it is."""
@@ -302,13 +316,13 @@ _FROM = ', "from": "household" | "<your business>"'
 
 def positions(store: Store, pid: str) -> list[str]:
     """What `pid` is in the town, in the order of `POSITIONS`: everyone is `all`; `owner` of
-    an org in the town; `employed` in a job; `landlord` to a household, themselves or
+    an org in the town; `employed` in a job held today; `landlord` to a household, themselves or
     through their household; `banker`."""
     person = store.get("people", pid)
     found = ["all"]
     if any(o.owner == pid and not o.outside for o in store.all("orgs")):
         found.append("owner")
-    if any(j.person == pid for j in _rows(store, "jobs")):
+    if any(j.person == pid and (j.ended == -1 or j.ended >= store.day) for j in _rows(store, "jobs")):
         found.append("employed")
     if any(h.landlord in (pid, person.household) for h in store.all("households")):
         found.append("landlord")

@@ -222,7 +222,7 @@ class SupplierRow:
     """A supplier beyond the town, paid into the account of `org` (an outside organisation).
     `unit_cents` is today's price, which drifts back towards `base_cents`; `reliability` is
     the chance an order arrives complete, and a short one brings between `short_low` and
-    `short_high` of it."""
+    `short_high` of it. In week `short_week` it sends half of what it otherwise would."""
 
     id: str
     org: str
@@ -231,6 +231,7 @@ class SupplierRow:
     base_cents: int
     short_low: float = 0.5
     short_high: float = 0.9
+    short_week: int = -1
 
 
 @dataclass
@@ -284,7 +285,8 @@ class Work:
 @dataclass
 class Job:
     """`person` works `hours` a week for the organisation `org`, paid `weekly` cents by the
-    wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start)."""
+    wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start).
+    `ended` is the last day worked, or -1 while the job goes on."""
 
     id: str
     person: str
@@ -293,6 +295,7 @@ class Job:
     hours: float
     wage_ob: str
     since: int
+    ended: int = -1
 
 
 @dataclass

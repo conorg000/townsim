@@ -119,3 +119,32 @@ def test_town_replay_of_a_run_kept_under_another_schema_is_a_plain_error(tmp_pat
     with sqlite3.connect(db) as con:
         con.execute("update runs set schema = 0")
     assert "schema 0" in _one_plain_line(_run("town-replay", "--db", db, "t1"))
+
+
+def test_town_hamlet_runs_eight_weeks_then_replays(tmp_path):
+    db = str(tmp_path / "h.sqlite")
+    result = _run("town-hamlet", "--seed", "1", "--weeks", "8", "--db", db, "--run-id", "hamlet")
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+    assert len(lines) == 10 and lines[-2:] == ["engine errors: 0", "replay ok"]
+    for n, line in enumerate(lines[:8], start=1):
+        week, day, digest, total = line.split("  ")
+        assert (week, day, total) == (f"week {n}", f"day {7 * n}", "ledger total 0") and len(digest) == 12
+    again = _run("town-hamlet", "--seed", "1", "--weeks", "1", "--db", db, "--run-id", "hamlet")
+    assert again.exit_code == 1 and "already has a run called 'hamlet'" in again.output
+
+
+def test_town_hamlet_reads_the_families_left_in(tmp_path):
+    from townsim.town import families
+
+    path = tmp_path / "f.yaml"
+    path.write_text("one:\n  left_out: false\ntwo:\n  left_out: true\nthree:\n  left_out: false\n"
+                    "four: {model: x, left_out: false}\n")
+    assert families.names(str(path)) == ["one", "three", "four"]
+    assert families.names("config/families.yaml")[:2] == ["haiku", "deepseek"]
+    a = _run("town-hamlet", "--weeks", "1", "--db", str(tmp_path / "a.sqlite"), "--families", str(path))
+    assert a.exit_code == 0, a.output
+    b = _run("town-hamlet", "--weeks", "1", "--db", str(tmp_path / "c.sqlite"))
+    assert a.output.splitlines()[0] != b.output.splitlines()[0]              # other players were dealt
+    bad = _run("town-hamlet", "--weeks", "1", "--db", str(tmp_path / "b.sqlite"), "--families", str(tmp_path / "no"))
+    assert bad.exit_code == 1 and "cannot read the families" in bad.output

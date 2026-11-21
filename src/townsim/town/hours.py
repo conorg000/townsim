@@ -6,6 +6,7 @@ less the hours of the recurring work they hold. An ill week has none.
 
 from __future__ import annotations
 
+from townsim.town import jobs
 from townsim.town.clock import dow
 from townsim.town.entities import Work
 from townsim.town.store import Store
@@ -15,8 +16,8 @@ WORK_HOURS = {"household paperwork": 1.5, "ordering": 4.0, "the books": 3.0, "ro
 
 
 def job_hours(store: Store, pid: str) -> float:
-    """The hours a week of the jobs `pid` holds."""
-    return sum(j.hours for j in store.where("jobs", person=pid))
+    """The hours a week of the jobs `pid` holds today."""
+    return sum(j.hours for j in jobs.held(store, person=pid))
 
 
 def work_hours(store: Store, pid: str) -> float:

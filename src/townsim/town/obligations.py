@@ -200,8 +200,8 @@ def _collect_order(store: Store, due: Due) -> tuple:
 
 def collect(store: Store) -> None:
     """Take every instalment owed up to today in full, or leave it owed. A due that goes to
-    arrears for the first time is told to the payer's people. A breached obligation's dues
-    are not taken: they go to arrears on their day.
+    arrears for the first time is told to the payer's people, and so is one taken after it
+    went to arrears. A breached obligation's dues are not taken: they go to arrears on their day.
 
     Wages go first so they land before anything is taken; then oldest first.
     """
@@ -222,6 +222,9 @@ def collect(store: Store) -> None:
             memo = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)}"
             store.transfer(ob.payer, ob.payee, remainder, memo, cause)
             store.set("dues", due.id, cause, paid=due.cents)
+            if due.status in OWED:
+                _tell(store, ob.payer, f"{ob.memo}, due {date_text(due.day)}, was taken on {date_text(store.day)}.",
+                      cause)
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
@@ -368,3 +371,37 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
             return "breach"
         store.set("obligations", ob_id, cause, status="stopped")
         return "stopped" if ob.ends == "payer" else "left"
+
+
+def instalment_days(ob: Obligation, today: int, n: int) -> list[int]:
+    """The first `n` days from `today` on which an instalment of an active or breached
+    obligation falls, in order (fewer if it ends first)."""
+    out: list[int] = []
+    for day in _instalment_days(ob, today):
+        if len(out) >= n:
+            break
+        out.append(day)
+    return out
+
+
+def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
+    """End a weekly or other repeating obligation after `last_day`: no instalment falls after
+    it. Dues already opened stand. A once-only obligation, one no longer active or breached,
+    or one already ending on or before `last_day` is left as it is. An obligation with
+    nothing owed and no instalment left from today is finished. Raises ValueError, changing
+    nothing, for an unknown id or a `last_day` before today."""
+    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
+        raise ValueError(f"no obligation {ob_id!r}")
+    if not _is_int(last_day) or last_day < store.day:
+        raise ValueError(f"last_day must be an int >= today ({store.day}), got {last_day!r}")
+    ob = store.get("obligations", ob_id)
+    if ob.every == 0 or ob.status not in SCHEDULED or (ob.last is not None and ob.last <= last_day):
+        return
+    with store.transaction():
+        if last_day < ob.first:          # no instalment ever falls
+            store.set("obligations", ob_id, cause, status="finished")
+            return
+        store.set("obligations", ob_id, cause, last=last_day)
+        unpaid = [d for d in store.where("dues", obligation=ob_id) if d.status != "paid"]
+        if not unpaid and not instalment_days(ob, store.day, 1):
+            store.set("obligations", ob_id, cause, status="finished")
