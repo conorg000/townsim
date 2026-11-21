@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "01b0ab7e356082d1e708be08327bff0e93d7a794e25d324956f6738245c31387"
+SEED_1_HASH = "c853b3afb92f45eb36b5cd7af5c69ff42b14ceb3ff7952b35953fc9ccbd3adbb"
 
 
 @functools.lru_cache(maxsize=None)
@@ -263,3 +263,136 @@ def test_recurring_work_and_bank_borrowers(seed):
         assert set(payers) <= banked
     for p in s.all("people"):
         assert p.hours_week == p.hours_left == hours.free_hours(s, p.id) > 0
+
+
+# facts that hold up
+
+def _run(s, days):
+    for _ in range(days):
+        routine(s); firms.deliver(s); firms.shop_today(s); firms.close_week(s); s.advance_day()
+
+
+def test_nobody_started_their_present_job_before_sixteen():
+    for seed in range(1, 21):
+        s = place(seed)
+        for j in s.all("jobs"):
+            p = s.get("people", j.person)
+            assert j.since < 0 and -j.since / 7 <= max(4, (p.age - 16) * 52), (p.name, p.age, j.since)
+
+
+def test_households_that_worry_about_money_do_run_short():
+    worried = short = 0
+    for seed in range(1, 21):
+        s = gen.generate(seed, FAMILIES)
+        start = {h.id: s.balance(h.id) for h in s.all("households")}
+        tight = [h.id for h in s.all("households")
+                 if any(w.startswith("More goes out") for m in h.members for w in s.get("people", m).worries)]
+        for h in tight:
+            assert gen.weekly_in(s, h) < gen.weekly_out(s, h)
+        _run(s, 28)
+        worried += len(tight)
+        short += len([h for h in tight if s.balance(h) < start[h]])
+        assert s.ledger.total() == 0 and s.engine_errors == []
+    assert worried and short >= 0.6 * worried
+
+
+def test_food_counts_as_what_a_household_can_be_expected_to_spend():
+    s = place(1)
+    price = sum(f.price for f in s.all("firms")) / 3
+    for b in s.all("buyers"):
+        if b.account != firms.OUTSIDE_BUYERS:
+            spend = gen.food_spend(s, b.account)
+            assert spend == gen.expected_food(b.size, price) and spend < b.budget * 2
+            obs = sum(o.cents for o in s.where("obligations", payer=b.account) if o.every == 7)
+            assert gen.weekly_out(s, b.account) == obs + spend
+
+
+@pytest.mark.parametrize("seed", range(1, 21))
+def test_mortgages_end_by_seventy_five_and_the_landlord_s_is_sized_without_the_rents(seed):
+    s = place(seed)
+    for h in s.all("households"):
+        head = s.get("people", h.members[0])
+        mortgage = [o for o in s.where("obligations", payer=h.id) if o.memo.startswith("mortgage")]
+        if head.age >= 75:
+            assert not mortgage
+        for o in mortgage:
+            assert (o.last - o.first) // 7 + 1 <= (75 - head.age) * 52
+            if any(p.kind == "landlord" for p in map(lambda m: s.get("people", m), h.members)):
+                rents = sum(r.cents for r in s.where("obligations", payee=h.id) if r.kind == "rent")
+                base = gen.weekly_in(s, h.id) - rents
+                assert 0.25 * base - 100 <= o.cents <= 0.35 * base + 100
+
+
+def test_siblings_living_together_share_a_surname():
+    for seed in range(1, 41):
+        s = place(seed)
+        for t in s.all("ties"):
+            if t.kind == "sibling":
+                assert s.get("people", t.person).name.split()[-1] == s.get("people", t.other).name.split()[-1]
+
+
+def test_a_landlord_under_pension_age_lives_on_the_rents_and_pensions_are_each_their_own():
+    for seed in range(1, 21):
+        s = place(seed)
+        landlord = next(p for p in s.all("people") if p.kind == "landlord")
+        pensions = [o for o in s.where("obligations", payee=landlord.household) if "pension" in o.memo]
+        retired = [p for p in s.get("households", landlord.household).members
+                   if s.get("people", p).kind == "retired" or (s.get("people", p) is landlord and landlord.age >= 66)]
+        assert len(pensions) == len(retired)
+        for p in s.all("people"):
+            for w in p.worries:
+                if w.startswith("Getting by on a pension"):
+                    assert p.kind == "retired" or (p.kind == "landlord" and p.age >= 66)
+
+
+def _all_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            yield from _all_strings(k); yield from _all_strings(v)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            yield from _all_strings(v)
+
+
+IMPERATIVES = ("never", "do not", "don't", "keep", "always", "try", "make", "be")
+UNSAID = ("model", "models", "game", "games", "role", "test", "scenario", "experiment", "machine", "machines",
+          "robot", "ai", "artificial", "simulation")
+
+
+def test_no_wording_is_an_instruction_or_says_what_the_place_is_for():
+    lists = [v for m in (gen, names) for k, v in vars(m).items()
+             if k.isupper() and isinstance(v, (list, tuple, dict))]
+    words = [w for v in lists for w in _all_strings(v)]
+    words += [w for seed in (1, 2, 3) for p in place(seed).all("people") for w in p.worries + p.beliefs + [p.voice]]
+    assert len(words) > 300
+    for w in words:
+        low = w.lower()
+        assert not any(low == i or low.startswith(i + " ") for i in IMPERATIVES), w
+        assert not any(re.search(rf"\b{u}\b", low) for u in UNSAID), w
+
+
+def test_the_number_of_families_changes_nothing_else():
+    def without_families(s):
+        c = s.canonical()
+        for p in c["tables"]["people"].values():
+            p["family"] = ""
+        return c
+    for seed in (1, 2, 5):
+        assert without_families(gen.generate(seed, ["a", "b", "c"])) == without_families(gen.generate(seed, FAMILIES))
+
+
+def test_a_person_named_like_an_organisation_is_reported():
+    s = gen.generate(2, FAMILIES)
+    p = s.all("people")[0]
+    shop = _shops(s)[0]
+    s.set("orgs", shop.id, "routine:setup", name=p.name.split()[-1])
+    assert any("named like an organisation" in x for x in gen.check(s))
+
+
+def test_household_headings_are_written_one_way():
+    s = place(1)
+    text = gen.describe(s)
+    for h in s.all("households"):
+        assert f"{h.name.split(' household')[0]} household, {h.street}\n" in text

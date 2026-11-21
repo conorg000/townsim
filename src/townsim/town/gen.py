@@ -58,16 +58,19 @@ JOB_HOURS = {"owner": (38, 48), "staff": (16, 38), "banker": (35, 40), "software
 PENSION = (28_000, 42_000)
 BENEFIT = (23_000, 32_000)
 HOUSING, FOOD, ENERGY = (0.25, 0.35), (0.12, 0.18), (0.04, 0.07)
+MORTGAGE_END_AGE = 75
+LANDLORD_JOB_CHANCE = 0.5
+LANDLORD_JOB_HOURS = (12, 24)
 MARGIN = (-0.08, 0.12)           # what a household's regular outgoings leave of its income
 PERSONAL_LOAN_CHANCE = 0.3
 PERSONAL_LOAN_SHARE = (0.03, 0.07)
 OPENING_WEEKS = (1.0, 4.0)
-PRICE = (0.95, 1.07)             # times econ's reference price
+PRICE = (0.99, 1.11)             # times econ's reference price
 QUALITY = (0.52, 0.68)
 VISIBILITY = {"large": (0.6, 0.85), "small": (0.3, 0.55)}
 REPUTATION = (0.45, 0.55)
 UNITS_PER_38_HOURS = (135, 185)
-SHOP_FIXED = {"large": (25_000, 45_000), "small": (12_000, 25_000)}
+SHOP_FIXED = {"large": (15_000, 35_000), "small": (8_000, 18_000)}
 SHOP_LOAN = (4_000, 9_000)
 INVESTOR_OVER_WAGES = (1.02, 1.15)
 
@@ -87,9 +90,9 @@ VOICES = [
 INTERESTS = [
     "gardening", "fishing", "football", "cricket", "darts", "crosswords", "baking", "knitting", "hill walking",
     "birdwatching", "local history", "cycling", "crime novels", "the pub quiz", "the church choir", "bowls",
-    "model railways", "cooking", "the allotment", "walking the dog", "family history", "jigsaw puzzles",
+    "toy trains", "cooking", "the allotment", "walking the dog", "family history", "jigsaw puzzles",
     "woodwork", "watercolours", "photography", "horse racing", "snooker", "bingo", "running", "swimming",
-    "ballroom dancing", "card games", "fixing up old cars", "chess", "sewing", "old films", "country music",
+    "ballroom dancing", "cards", "dominoes", "fixing up old cars", "chess", "sewing", "old films", "country music",
     "keeping hens",
 ]
 
@@ -103,17 +106,17 @@ BELIEFS: dict[str, tuple[list[str], list[str]]] = {
     "change": (
         ["Things should change faster round here.", "New ways are usually better ways.",
          "A place that stands still goes backwards.", "It does people good to try new things."],
-        ["Things were better done the old way.", "Change is mostly for the worse.", "If it works, leave it alone.",
+        ["Things were better done the old way.", "Change is mostly for the worse.", "Things that work are best left alone.",
          "The village was a better place twenty years ago."]),
     "technology": (
         ["New gadgets make life easier.", "Computers save more time than they waste.",
          "Most new inventions are worth having.", "Phones and computers have made life better."],
-        ["Machines are taking over too much.", "Computers make more work than they save.",
-         "A person is better than a machine any day.", "Too much is done on screens now."]),
+        ["Gadgets always break just when you need them.", "Computers make more work than they save.",
+         "Nothing beats a proper conversation over the counter.", "Too much is done on screens now."]),
     "religion": (
         ["Church is the best part of the week.", "Faith matters a great deal.", "A prayer never did anyone harm.",
          "God has a plan for everyone."],
-        ["Religion is not for them.", "Church is for weddings and funerals.", "There is no God.",
+        ["Religion has never meant much.", "Church is for weddings and funerals.", "There is no God.",
          "Religion causes more trouble than it is worth."]),
     "politics": (
         ["The rich should pay more tax.", "Workers need strong unions.", "Public services should be properly paid for.",
@@ -123,14 +126,14 @@ BELIEFS: dict[str, tuple[list[str], list[str]]] = {
     "risk": (
         ["Nothing ventured, nothing gained.", "A good chance is worth a gamble.", "Better to try and fail than never try.",
          "Fortune favours the bold."],
-        ["Better safe than sorry.", "Never borrow what you cannot pay back.", "Keep something put by for a rainy day.",
-         "Do not put all your eggs in one basket."]),
+        ["Better safe than sorry.", "Borrowing what you cannot pay back is asking for trouble.", "It pays to keep something put by for a rainy day.",
+         "Putting all your eggs in one basket is foolish."]),
 }
 
 EMPLOYERS = (
     ("{p} Haulage", ["drives for {e}", "loads lorries at {e}", "works in the office at {e}", "fixes lorries at {e}"]),
     ("{p} Foods", ["works on the packing line at {e}", "drives a forklift at {e}", "works in the office at {e}",
-                   "cleans the machines at {e}"]),
+                   "cleans the equipment at {e}"]),
     ("{p} General Hospital", ["works as a porter at {e}", "works in the kitchens at {e}", "nurses at {e}",
                               "works on reception at {e}"]),
     ("{p} Quarry", ["drives a dumper at {e}", "works in the weighbridge office at {e}", "maintains the plant at {e}",
@@ -152,10 +155,27 @@ def weekly_in(store: Store, account: str) -> int:
     return sum(o.cents for o in store.where("obligations", payee=account) if o.every == 7 and o.status == "active")
 
 
+def expected_food(size: int, price: float) -> int:
+    """Cents a week a household of `size` can be expected to spend on food at `price` a unit:
+    its expected wants (as `econ` has them) that fall within willingness to pay (`IN_TOWN`)."""
+    spec = NEEDS["food"]
+    return round(spec.wants_per_person * size ** spec.size_exponent * price * IN_TOWN)
+
+
+def food_spend(store: Store, account: str) -> int:
+    """What a household can be expected to spend on food a week at the shops' average price.
+    Its `Buyer.budget` is the most it will spend, not what it spends."""
+    prices = [f.price for f in store.all("firms") if f.need == firms.NEED]
+    if not prices:
+        return 0
+    price = sum(prices) / len(prices)
+    return sum(expected_food(b.size, price) for b in store.all("buyers") if b.account == account)
+
+
 def weekly_out(store: Store, account: str) -> int:
-    """Cents a week a household pays out by its weekly obligations, and its food budget."""
+    """Cents a week a household pays out by its weekly obligations, and its expected food spending."""
     out = sum(o.cents for o in store.where("obligations", payer=account) if o.every == 7 and o.status == "active")
-    return out + sum(b.budget for b in store.all("buyers") if b.account == account)
+    return out + food_spend(store, account)
 
 
 class _Redraw(Exception):
@@ -285,8 +305,6 @@ def _ages(rng: random.Random, h: _H) -> None:
     k = _parents(h.form)
     parents, children = m[:k], m[k:]
     top = min(AGES[x.kind][1] for x in parents) - 20
-    if k == 2:
-        top = min(top, min(AGES[x.kind][1] for x in parents) - 20)
     for c in children:
         c.age = rng.randint(max(AGES[c.kind][0], _CHILD_AGES[0]), max(max(AGES[c.kind][0], _CHILD_AGES[0]),
                                                                        min(AGES[c.kind][1], _CHILD_AGES[1], top)))
@@ -335,15 +353,16 @@ def _names(rng: random.Random, hs: list[_H], kin: list[tuple[_P, _P, str]]) -> N
                 p.surname = spare.pop()
     where = {id(p): h for h in hs for p in h.members}
     for elder, younger, _ in kin:
+        # only a household's head brings a relative's surname into a house, and the household's
+        # members who had the head's name take it with them; anyone else keeps theirs, as married
+        # relatives do
         h = where[id(younger)]
-        if younger.relation in ("head", ""):
+        if younger.relation in ("head", "") and where[id(elder)] is not h:
             old = h.surname
             h.surname = elder.surname
             for p in h.members:
                 if p.surname == old:
                     p.surname = elder.surname
-        else:
-            younger.surname = elder.surname
     for p, first in zip([p for h in hs for p in h.members], rng.sample(names.FIRST_NAMES, PEOPLE)):
         p.first = first
     streets = rng.sample(names.STREETS, rng.randint(3, 5))
@@ -447,7 +466,7 @@ def _shop_costs(store: Store, f: FirmRow, units: float) -> tuple[int, int, int]:
     return wages, round(units * unit), fixed
 
 
-def _build(seed: int, families: list[str], rng: random.Random) -> Store:
+def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0) -> Store:
     s = Store()
     s.seed = seed
     s.place = rng.choice(names.PLACES)
@@ -537,10 +556,11 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
     if [len(c) for c in crews] != list(SHOP_STAFF):
         raise _Redraw
 
-    def job(p: _P, org: str, band: str) -> None:
-        h = rng.randint(*JOB_HOURS[band])
+    def job(p: _P, org: str, band: str, hours_band: tuple[int, int] | None = None) -> None:
+        h = rng.randint(*(hours_band or JOB_HOURS[band]))
         rate = rng.randrange(HOURLY[band][0], HOURLY[band][1] + 1, 5)
-        _employ(s, p.id, org, h, int(round(h * rate)), -7 * rng.randint(4, 600))
+        weeks = rng.randint(4, max(4, min(600, (p.age - 16) * 52)))    # nobody started before 16
+        _employ(s, p.id, org, h, int(round(h * rate)), -7 * weeks)
 
     for i, shop in enumerate(shops):
         job(owners[i], shop, "owner")
@@ -552,17 +572,38 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
     for p in by_kind["outside_worker"]:
         job(p, employer, "outside_worker")
 
-    # pensions and benefit
+    # pensions and benefit; a landlord under pension age lives on the rents, and some work part time
     landlord = by_kind["landlord"][0]
+    pension_of: dict[str, str] = {}
     for p in people:
         if p.kind == "retired" or (p.kind == "landlord" and p.age >= PENSION_AGE):
-            _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*PENSION, 100), FRIDAY, "state pension", "service")
-        elif p.kind == "landlord":
-            _weekly(s, "wage", employer, home_of[p.id].id, rng.randrange(*PENSION, 100), FRIDAY,
-                    f"pension from {s.get('orgs', employer).name}", "service")
+            pension_of[p.id] = _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*PENSION, 100), FRIDAY,
+                                       "state pension", "service")
+        elif p.kind == "landlord" and rng.random() < LANDLORD_JOB_CHANCE:
+            job(p, employer, "outside_worker", LANDLORD_JOB_HOURS)
         elif p.kind == "unemployed":
             _weekly(s, "wage", region, home_of[p.id].id, rng.randrange(*BENEFIT, 100), FRIDAY, "jobseeker's benefit",
                     "service")
+
+    # the shops' rows, rent and running costs, a loan, and the owner's recurring work
+    spec = NEEDS["food"]
+    fids = []
+    for i, shop in enumerate(shops):
+        size = "large" if i == 0 else "small"
+        fid = s.new_id("fm", SETUP)
+        s.add("firms", FirmRow(fid, shop, firms.NEED, price=int(round(spec.ref_price * _u(rng, PRICE) / 5)) * 5,
+                               quality=round(_u(rng, QUALITY), 6), visibility=round(_u(rng, VISIBILITY[size]), 6),
+                               reputation=round(_u(rng, REPUTATION), 6),
+                               units_per_staff=rng.randint(*UNITS_PER_38_HOURS), shelf_weeks=2,
+                               last_supplier=rng.choice(sup_rows), delivered_week=1), SETUP)
+        fids.append(fid)
+        _weekly(s, "rent", shop, agency, rng.randrange(*SHOP_FIXED[size], 100), MONDAY,
+                "shop rent and running costs", "both")
+        for what in ("ordering", "the books", "rota and pay"):
+            hours.give(s, owners[i].id, shop, what, SETUP)
+    borrower = rng.randrange(3)
+    _weekly(s, "loan", shops[borrower], bank, rng.randrange(*SHOP_LOAN, 100), MONDAY,
+            "loan for the shop fittings", "both", last=7 * (rng.randint(30, 200) - 1))
 
     # how each house is held
     lhome = home_of[landlord.id]
@@ -578,10 +619,16 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
             h.tenure = "agency"
         else:
             h.tenure = rng.choice(("agency", "mortgage"))
+        if h.tenure == "mortgage" and h.members[0].age >= MORTGAGE_END_AGE:
+            h.tenure = "outright"          # paid off by 75
         h.shares = dict(housing=_u(rng, HOUSING), food=_u(rng, FOOD), energy=_u(rng, ENERGY), margin=_u(rng, MARGIN))
+    price = sum(s.get("firms", f).price for f in fids) / len(fids)
     for h in sorted(hs, key=lambda h: h is lhome):        # the landlord's rents come in first
         income = weekly_in(s, h.id)
-        housing = _r100(h.shares["housing"] * income)
+        rents = sum(o.cents for o in s.where("obligations", payee=h.id) if o.kind == "rent")
+        if h.tenure == "mortgage" and income - rents <= 0:
+            h.tenure = "outright"          # nothing but the rents coming in: the house is the landlord's own
+        housing = _r100(h.shares["housing"] * (income - rents)) if h.tenure != "outright" else 0
         if h.tenure == "landlord":
             _weekly(s, "rent", h.id, lhome.id, housing, MONDAY, f"rent for {h.address}", "both")
             s.set("households", h.id, SETUP, landlord=landlord.id)
@@ -589,15 +636,20 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
             _weekly(s, "rent", h.id, agency, housing, MONDAY, f"rent for {h.address}", "both")
             s.set("households", h.id, SETUP, landlord=agency)
         elif h.tenure == "mortgage":
+            left = min(1300, (MORTGAGE_END_AGE - h.members[0].age) * 52)
             _weekly(s, "loan", h.id, bank, housing, MONDAY, f"mortgage on {h.address}", "both",
-                    last=7 * (rng.randint(150, 1300) - 1))
-        _weekly(s, "bill", h.id, utility, _r100(h.shares["energy"] * income), WEDNESDAY, "energy", "service")
-        housed = h.shares["housing"] if h.tenure != "outright" else 0.0
-        rest = 1 - housed - h.shares["food"] - h.shares["energy"] - h.shares["margin"]
-        _weekly(s, "bill", h.id, market, _r100(rest * income), SATURDAY, "regular spending", "payer")
+                    last=7 * (rng.randint(min(150, left), left) - 1))
+        energy = _r100(h.shares["energy"] * income)
+        _weekly(s, "bill", h.id, utility, energy, WEDNESDAY, "energy", "service")
+        food = expected_food(len(h.members), price)
+        # what regular outgoings leave of income is the drawn margin: the rest of it goes on regular spending
+        rest = income * (1 - h.shares["margin"]) - housing - energy - food
+        _weekly(s, "bill", h.id, market, _r100(rest), SATURDAY, "regular spending", "payer")
         if h is not bhome and rng.random() < PERSONAL_LOAN_CHANCE:
             _weekly(s, "loan", h.id, bank, _r100(_u(rng, PERSONAL_LOAN_SHARE) * income), MONDAY,
                     rng.choice(LOAN_PURPOSES), "both", last=7 * (rng.randint(20, 150) - 1))
+    for h in hs:
+        hours.give(s, rng.choice(h.members).id, h.id, "household paperwork", SETUP)
 
     # ties: households, kin, work, landlord and tenant, then friends
     for h in hs:
@@ -658,8 +710,9 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
     # each borrower from the bank sees the banker as their banker
     borrowers: list[str] = []
     for o in s.where("obligations", payee=bank):
-        if o.kind == "loan" and s.has("households", o.payer):
-            borrowers += [m for m in s.get("households", o.payer).members if m not in borrowers]
+        if o.kind == "loan":
+            who = s.get("households", o.payer).members if s.has("households", o.payer) else [s.get("orgs", o.payer).owner]
+            borrowers += [m for m in who if m not in borrowers]
     for pid in borrowers:
         _tie(s, pid, banker.id, "banker", None)
 
@@ -687,30 +740,8 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
         in_debt |= {dh, ch}
         made += 1
 
-    # the shops' rows, rent and running costs, a loan, and the owner's recurring work
-    spec = NEEDS["food"]
-    fids = []
-    for i, shop in enumerate(shops):
-        size = "large" if i == 0 else "small"
-        fid = s.new_id("fm", SETUP)
-        s.add("firms", FirmRow(fid, shop, firms.NEED, price=int(round(spec.ref_price * _u(rng, PRICE) / 5)) * 5,
-                               quality=round(_u(rng, QUALITY), 6), visibility=round(_u(rng, VISIBILITY[size]), 6),
-                               reputation=round(_u(rng, REPUTATION), 6),
-                               units_per_staff=rng.randint(*UNITS_PER_38_HOURS), shelf_weeks=2,
-                               last_supplier=rng.choice(sup_rows), delivered_week=1), SETUP)
-        fids.append(fid)
-        _weekly(s, "rent", shop, agency, rng.randrange(*SHOP_FIXED[size], 100), MONDAY,
-                "shop rent and running costs", "both")
-        for what in ("ordering", "the books", "rota and pay"):
-            hours.give(s, owners[i].id, shop, what, SETUP)
-    borrower = rng.randrange(3)
-    _weekly(s, "loan", shops[borrower], bank, rng.randrange(*SHOP_LOAN, 100), MONDAY,
-            "loan for the shop fittings", "both", last=7 * (rng.randint(30, 200) - 1))
-    if owners[borrower].id not in [t.person for t in s.all("ties") if t.kind == "banker"]:
-        _tie(s, owners[borrower].id, banker.id, "banker", None)
-    for h in hs:
-        hours.give(s, rng.choice(h.members).id, h.id, "household paperwork", SETUP)
     # food: a buyer for each household, and the background buyers round about
+    spec = NEEDS["food"]
     days = rng.sample(range(7), 7) + rng.sample(range(7), 7)
     for h, day in zip(hs, days):
         wtp = round(spec.wtp_mean * math.exp(rng.gauss(0, spec.wtp_sd) - spec.wtp_sd ** 2 / 2), 6)
@@ -742,8 +773,8 @@ def _build(seed: int, families: list[str], rng: random.Random) -> Store:
 
     _describe_people(s, rng, hs, people, home_of, dict(shops=shops, fids=fids, owners=owners, crews=crews,
                      bank=bank, firm=firm, employer=employer, emp_lines=emp_lines, investor=investor,
-                     landlord=landlord))
-    _deal(s, rng, families)
+                     landlord=landlord, pension_of=pension_of))
+    _deal(s, random.Random(f"gen:{seed}:{attempt}:families"), families)
     _deck(s, rng, hs, sup_rows, utility)
     for p in s.all("people"):
         free = hours.free_hours(s, p.id)
@@ -782,7 +813,8 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
         elif p.kind == "outside_worker":
             line = emp_lines[outs.index(p)].format(e=emp_name)
         elif p.kind == "landlord":
-            line = "lets three houses" + (" and is retired" if p.age >= PENSION_AGE else "")
+            line = "lets three houses" + (" and is retired" if p.age >= PENSION_AGE else
+                                          f" and works part time at {emp_name}" if jobs_ else "")
         elif p.kind == "retired":
             line = "retired"
         elif p.kind == "unemployed":
@@ -820,10 +852,10 @@ def _describe_people(s: Store, rng: random.Random, hs: list[_H], people: list[_P
         if p.kind == "unemployed":
             amount = next(o.cents for o in s.where("obligations", payee=h.id) if o.memo == "jobseeker's benefit")
             worries.append(f"Finding work; the benefit is {money(amount)} a week.")
-        if p.kind == "retired" or (p.kind == "landlord" and p.age >= PENSION_AGE):
-            mine = sorted(o.cents for o in s.where("obligations", payee=h.id) if o.memo == "state pension")
-            if mine and mine[0] <= pensions[len(pensions) // 2]:
-                worries.append(f"Getting by on a pension of {money(mine[0])} a week.")
+        if p.id in w["pension_of"]:
+            mine = s.get("obligations", w["pension_of"][p.id]).cents
+            if mine <= pensions[len(pensions) // 2]:
+                worries.append(f"Getting by on a pension of {money(mine)} a week.")
         if s.get("households", h.id).landlord and h.tenure == "landlord":
             rent = next(o for o in s.where("obligations", payer=h.id) if o.kind == "rent")
             worries.append(f"The rent of {money(rent.cents)} a week to {s.get('people', w['landlord'].id).name}.")
@@ -910,7 +942,7 @@ def generate_counted(seed: int, families: list[str]) -> tuple[Store, int]:
     for attempt in range(MAX_ATTEMPTS):
         rng = random.Random(f"gen:{seed}:{attempt}")
         try:
-            s = _build(seed, list(families), rng)
+            s = _build(seed, list(families), rng, attempt)
         except _Redraw:
             continue
         if not check(s):
@@ -984,7 +1016,7 @@ def check(s: Store) -> list[str]:
         bad.append("two people share a full name")
     org_names = {o.name.casefold() for o in orgs}
     for p in people:
-        if p.name.casefold() in org_names or p.name.split()[0].casefold() in org_names:
+        if any(n.casefold() in org_names for n in (p.name, p.name.split()[0], p.name.split()[-1])):
             bad.append(f"{p.name} is named like an organisation")
         firsts = Counter(s.get("people", q).name.split()[0].casefold() for q in acts.knows(s, p.id))
         twice = sorted(n for n, c in firsts.items() if c > 1)
@@ -1043,7 +1075,7 @@ def describe(s: Store) -> str:
           f"The ledger starts on {date_text(0)}.", ""]
     L += ["Households", "----------", ""]
     for h in households:
-        L.append(h.name if h.street in h.name else f"{h.name}, {h.street}")
+        L.append(f"{h.name.split(' household')[0]} household, {h.street}")
         rel = {t.other: t.kind for t in s.all("ties") if t.person == h.members[0] and t.kind in _HOUSEHOLD_TIES}
         for i, m in enumerate(h.members):
             p = s.get("people", m)
@@ -1066,7 +1098,8 @@ def describe(s: Store) -> str:
         food = sum(b.budget for b in s.all("buyers") if b.account == h.id)
         day = next((b.shop_day for b in s.all("buyers") if b.account == h.id), 0)
         went = [f"{o.memo} to {_who(s, o.payee)} {money(o.cents)} ({_day(o.first)})" for o in outs]
-        L.append("  Out each week: " + "; ".join(went) + f"; food, about {money(food)}, bought on {_dayname(day)}s.")
+        L.append("  Out each week: " + "; ".join(went) + f"; food, about {money(food_spend(s, h.id))} "
+                 f"(at most {money(food)}), bought on {_dayname(day)}s.")
         L.append(f"  In all {money(weekly_in(s, h.id))} in and {money(weekly_out(s, h.id))} out a week. "
                  f"Holds {money(s.balance(h.id))}.")
         owes = [o for o in outs if o.last is not None]
