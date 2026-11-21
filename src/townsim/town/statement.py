@@ -3,6 +3,7 @@ coming, and the balance after what goes out (design 3.2). Nothing here changes t
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
@@ -37,8 +38,9 @@ class Statement(NamedTuple):
 
 def statement(store: Store, account: str, back: int = 14, ahead: int = 7, max_lines: int = 25) -> Statement:
     lines = []
-    for t in store.ledger.transfers:
-        if store.day - back <= t.t <= store.day and account in (t.src, t.dst):
+    transfers = store.ledger.transfers                  # in time order, so only the last `back` days are read
+    for t in transfers[bisect_left(transfers, store.day - back, key=lambda t: t.t):]:
+        if t.t <= store.day and account in (t.src, t.dst):
             if t.src == account:
                 lines.append(Line(t.t, t.dst, -t.cents, t.memo))
             else:
@@ -52,8 +54,7 @@ def statement(store: Store, account: str, back: int = 14, ahead: int = 7, max_li
 
 
 def _overdue(store: Store, u: Upcoming) -> bool:
-    return any(d.obligation == u.obligation and d.day == u.day and d.status in OWED
-               for d in store.all("dues"))
+    return any(d.status in OWED for d in store.where("dues", obligation=u.obligation, day=u.day))
 
 
 def _coming(store: Store, ups: list[Upcoming]) -> list[str]:
@@ -64,11 +65,16 @@ def _coming(store: Store, ups: list[Upcoming]) -> list[str]:
     return rows or ["  nothing"]
 
 
+def line_rows(store: Store, lines: list[Line]) -> list[str]:
+    """The rows `statement_text` shows for `lines`, oldest first."""
+    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {l.memo}" for l in lines]
+
+
 def statement_text(store: Store, st: Statement) -> str:
     rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
     if st.earlier:
         rows.append(f"  ({st.earlier} earlier lines not shown)")
-    rows += [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {l.memo}" for l in st.lines]
+    rows += line_rows(store, st.lines)
     if not st.lines and not st.earlier:
         rows.append("  nothing")
     rows.append(f"Going out by {date_text(st.until)}:")

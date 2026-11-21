@@ -110,10 +110,13 @@ def _last_instalment(ob: Obligation) -> int | None:
 
 
 def _find_due(store: Store, ob_id: str, day: int) -> Due | None:
-    for due in store.all("dues"):
-        if due.obligation == ob_id and due.day == day:
-            return due
-    return None
+    found = store.where("dues", obligation=ob_id, day=day)
+    return found[0] if found else None
+
+
+def owed_dues(store: Store, ob_id: str) -> list[Due]:
+    """The obligation's dues still owed after their day (arrears and defaulted), in id order."""
+    return sorted((d for s in OWED for d in store.where("dues", obligation=ob_id, status=s)), key=lambda d: id_key(d.id))
 
 
 def ensure_due(store: Store, ob_id: str, day: int, cause: str) -> Due:
@@ -156,7 +159,7 @@ def _tell(store: Store, account: str, text: str, cause: str) -> None:
 
 def age_arrears(store: Store) -> None:
     """Charge the late fee, send the two-weeks notice, and default, each once, on dues in arrears."""
-    for due in [d for d in store.all("dues") if d.status == "arrears"]:
+    for due in store.where("dues", status="arrears"):
         ob = store.get("obligations", due.obligation)
         age = store.day - due.day
         when = date_text(due.day)
@@ -201,7 +204,7 @@ def collect(store: Store) -> None:
 
     Wages go first so they land before anything is taken; then oldest first.
     """
-    waiting = [d for d in store.all("dues") if d.status in ("due",) + OWED and d.day <= store.day]
+    waiting = [d for status in ("due",) + OWED for d in store.where("dues", status=status) if d.day <= store.day]
     for due in sorted(waiting, key=lambda d: _collect_order(store, d)):
         ob = store.get("obligations", due.obligation)
         cause = f"routine:collect:{due.id}"
@@ -226,20 +229,18 @@ def collect(store: Store) -> None:
 def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
     """What `account` pays or is paid from today to `today + ahead`, plus all arrears,
     soonest first, each with what remains. Changes nothing."""
-    obs = {o.id: o for o in store.all("obligations") if account in (o.payer, o.payee)}
+    obs = {o.id: o for o in sorted(store.where("obligations", payer=account) + store.where("obligations", payee=account),
+                                   key=lambda o: id_key(o.id))}
     end = store.day + ahead
     found: dict[tuple[str, int], int] = {}
-    opened: set[tuple[str, int]] = set()
-    for due in store.all("dues"):
-        if due.obligation not in obs:
-            continue
-        opened.add((due.obligation, due.day))
-        if due.status in OWED or (due.status == "due" and due.day <= end):
-            found[(due.obligation, due.day)] = due.cents - due.paid
     for ob in obs.values():
-        for day in range(store.day, end + 1):
-            if falls_on(ob, day) and (ob.id, day) not in opened:
-                found[(ob.id, day)] = ob.cents
+        for due in owed_dues(store, ob.id) + store.where("dues", obligation=ob.id, status="due"):
+            if due.status in OWED or due.day <= end:
+                found[(ob.id, due.day)] = due.cents - due.paid
+        if ob.status in SCHEDULED:
+            for day in range(store.day, end + 1):
+                if falls_on(ob, day) and _find_due(store, ob.id, day) is None:
+                    found[(ob.id, day)] = ob.cents
     rows = []
     for (ob_id, day), cents in found.items():
         ob = obs[ob_id]
@@ -266,8 +267,8 @@ def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
 def next_instalment(store: Store, ob: Obligation) -> int | None:
     """The earliest instalment of `ob` from today on not yet fully paid: an open due, or
     else the first day it falls with no due opened yet."""
-    open_days = [d.day for d in store.all("dues")
-                 if d.obligation == ob.id and d.status == "due" and d.day >= store.day and d.paid < d.cents]
+    open_days = [d.day for d in store.where("dues", obligation=ob.id, status="due")
+                 if d.day >= store.day and d.paid < d.cents]
     best = min(open_days) if open_days else None
     for day in _instalment_days(ob, store.day):
         if best is not None and day >= best:
@@ -296,7 +297,7 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
     if not match:
         store.transfer(payer, payee, cents, memo, cause)
         return []
-    obs = [o for o in store.all("obligations") if o.payer == payer and o.payee == payee]
+    obs = [o for o in store.where("obligations", payer=payer) if o.payee == payee]
     if ref is not None:
         obs = [o for o in obs if o.id == ref]
         if not obs:
@@ -305,7 +306,7 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
 
     plan: list[tuple[Obligation, int, int]] = []  # (obligation, day, cents counted)
     left = cents
-    arrears = [d for d in store.all("dues") if d.obligation in by_id and d.status in OWED]
+    arrears = [d for ob_id in by_id for d in owed_dues(store, ob_id)]
     arrears.sort(key=lambda d: (d.day, KIND_ORDER.index(by_id[d.obligation].kind), id_key(d.obligation)))
     for due in arrears:
         take = min(left, due.cents - due.paid)

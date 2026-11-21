@@ -208,3 +208,33 @@ def test_undo_raises_if_the_ledger_disagrees_with_the_log():
     s.transfer("h1", "h2", 5, "x", "op:p1:pay:d0.0")
     s.ledger.transfers[-1] = s.ledger.transfers[-1]._replace(cents=6)
     with pytest.raises(RuntimeError): s.undo_to(m)
+
+
+# what `all` and `where` read is kept up to date through add, set, undo and a pickle
+
+def _notices(s, *ids):
+    for i in ids:
+        s.add("notices", Notice(i, 0, "p1" if i != "n2" else "p2", i), "routine:x")
+
+
+def test_all_and_where_follow_adds_sets_and_undo():
+    import pickle
+    s = small_store()
+    _notices(s, "n10", "n2")
+    assert [n.id for n in s.all("notices")] == ["n2", "n10"]
+    m = s.mark()
+    _notices(s, "n1", "n11")
+    s.set("notices", "n10", "routine:x", seen=True)
+    assert [n.id for n in s.all("notices")] == ["n1", "n2", "n10", "n11"]
+    assert [n.id for n in s.where("notices", seen=False)] == ["n1", "n2", "n11"]
+    assert [n.id for n in s.where("notices", to="p1", seen=False)] == ["n1", "n11"]
+    assert [n.id for n in s.where("notices", text="n2")] == ["n2"]                 # no index: read in full
+    copy = pickle.loads(pickle.dumps(s))
+    s.undo_to(m)
+    assert [n.id for n in s.all("notices")] == ["n2", "n10"]
+    assert [n.id for n in s.where("notices", seen=False)] == ["n2", "n10"] and s.where("notices", seen=True) == []
+    assert [n.id for n in copy.where("notices", seen=True)] == ["n10"]
+    assert [n.id for n in copy.all("notices")] == ["n1", "n2", "n10", "n11"]
+    copy.add("notices", Notice("n3", 0, "p1", "x"), "routine:x")
+    assert [n.id for n in copy.where("notices", to="p1", seen=False)] == ["n1", "n3", "n11"]
+    assert "_order" not in copy.__getstate__() and "_index" not in copy.__getstate__()

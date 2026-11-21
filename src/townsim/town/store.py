@@ -9,6 +9,7 @@ apply in full or not at all. The log is history, not state: `canonical()` and
 
 from __future__ import annotations
 
+import bisect
 import copy
 import dataclasses
 import hashlib
@@ -20,6 +21,16 @@ from typing import Any, Iterator, NamedTuple
 from townsim.econ.ledger import Ledger
 
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results")
+
+# Fields looked up often enough to be indexed, each a sorted tuple of field names.
+INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
+    "obligations": (("payer",), ("payee",)),
+    "dues": (("status",), ("day", "obligation"), ("obligation", "status")),
+    "messages": (("seen",), ("seen", "to")),
+    "notices": (("seen",), ("seen", "to")),
+    "requests": (("status",),),
+    "results": (("seen",), ("actor", "seen")),
+}
 
 _ID = re.compile(r"([A-Za-z:]+)(\d+)", re.ASCII)
 _FLOAT_PLACES = 6
@@ -78,6 +89,53 @@ class Store:
         self.engine_errors: list[str] = []  # not state, never undone
         self._tables: dict[str, dict[str, Any]] = {t: {} for t in TABLES}
         self._counters: dict[str, int] = {}
+        self._indexes()
+
+    # indexes: derived from the tables, kept up to date by add, set and undo; not state
+
+    def _indexes(self) -> None:
+        self._order: dict[str, list[tuple]] = {}      # table -> sorted (id_key, id), built when first asked
+        self._index: dict[tuple, dict[tuple, list[tuple]]] = {(t, f): {} for t, fs in INDEXES.items() for f in fs}
+        for table, fields in INDEXES.items():
+            for obj in self._tables[table].values():
+                for f in fields:
+                    self._file(table, f, obj, True)
+
+    def _file(self, table: str, fields: tuple[str, ...], obj: Any, present: bool) -> None:
+        entries = self._index[(table, fields)].setdefault(tuple(getattr(obj, f) for f in fields), [])
+        entry = (id_key(obj.id), obj.id)
+        if present:
+            bisect.insort(entries, entry)
+        else:
+            entries.remove(entry)
+
+    def _index_row(self, table: str, obj: Any, present: bool) -> None:
+        order = self._order.get(table)
+        if order is not None:
+            entry = (id_key(obj.id), obj.id)
+            if present:
+                bisect.insort(order, entry)
+            else:
+                order.remove(entry)
+        for fields in INDEXES.get(table, ()):
+            self._file(table, fields, obj, present)
+
+    def _set_field(self, table: str, obj: Any, name: str, value: Any) -> None:
+        touched = [f for f in INDEXES.get(table, ()) if name in f]
+        for fields in touched:
+            self._file(table, fields, obj, False)
+        setattr(obj, name, value)
+        for fields in touched:
+            self._file(table, fields, obj, True)
+
+    def __getstate__(self) -> dict:
+        state = dict(self.__dict__)
+        del state["_order"], state["_index"]
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._indexes()
 
     # ids
 
@@ -107,6 +165,7 @@ class Store:
             raise ValueError(f"{table} already has {obj.id!r}")
         record = copy.deepcopy(obj)
         rows[obj.id] = obj
+        self._index_row(table, obj, True)
         self.changes.append(Change(self.day, table, obj.id, "+", None, record, cause))
 
     def set(self, table: str, id: str, cause: str, **fields: Any) -> None:
@@ -123,8 +182,9 @@ class Store:
                 raise AttributeError(f"{type(obj).__name__} has no field {name!r}")
         for name, value in fields.items():
             old = getattr(obj, name)
-            setattr(obj, name, _copy_list(value))
+            self._set_field(table, obj, name, _copy_list(value))
             self.changes.append(Change(self.day, table, id, name, _copy_list(old), _copy_list(value), cause))
+
 
     def get(self, table: str, id: str) -> Any:
         return self._table(table)[id]
@@ -136,7 +196,20 @@ class Store:
         """Every row in `table`, in id order. These are the live rows, not copies:
         do not mutate them; change them with `set`."""
         rows = self._table(table)
-        return [rows[k] for k in sorted(rows, key=lambda k: (id_key(k), k))]
+        order = self._order.get(table)
+        if order is None:
+            order = self._order[table] = sorted((id_key(k), k) for k in rows)
+        return [rows[k] for _, k in order]
+
+    def where(self, table: str, **equals: Any) -> list:
+        """The rows in `table` whose fields equal `equals`, in id order: live rows, as for
+        `all`. Read from an index when `INDEXES` has one on exactly those fields."""
+        fields = tuple(sorted(equals))
+        index = self._index.get((table, fields))
+        if index is None:
+            return [r for r in self.all(table) if all(getattr(r, f) == v for f, v in equals.items())]
+        rows = self._tables[table]
+        return [rows[k] for _, k in index.get(tuple(equals[f] for f in fields), ())]
 
     # money
 
@@ -190,9 +263,10 @@ class Store:
             self.day = c.old
             self.ledger.t = c.old
         elif c.field == "+":
+            self._index_row(c.table, self._tables[c.table][c.id], False)
             del self._tables[c.table][c.id]
         else:
-            setattr(self._tables[c.table][c.id], c.field, c.old)
+            self._set_field(c.table, self._tables[c.table][c.id], c.field, c.old)
 
     @contextmanager
     def transaction(self) -> Iterator[None]:

@@ -14,7 +14,7 @@ from townsim.town.clock import dow
 from townsim.town.entities import Notice, Result
 from townsim.town.replies import Keys, Replier
 from townsim.town.store import Store
-from townsim.town.views import has_news, mark_seen, person_view, shown_ids
+from townsim.town.views import mark_seen, view, with_news
 
 MAX_ACTS = 8
 SCAN_CHARS = 20_000
@@ -36,8 +36,8 @@ class DayReport:
 
 
 def _lapse(store: Store) -> None:
-    for rq in store.all("requests"):
-        if rq.status != "open" or rq.expires >= store.day:
+    for rq in store.where("requests", status="open"):
+        if rq.expires >= store.day:
             continue
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed")
@@ -60,9 +60,9 @@ def routine(store: Store) -> None:
 
 def who_acts(store: Store) -> list[str]:
     """People with something unseen, an open request to them, or their stock day today."""
-    waiting = {rq.to for rq in store.all("requests") if rq.status == "open"}
-    return [p.id for p in store.all("people")
-            if has_news(store, p.id) or p.id in waiting or p.stock_day == dow(store.day)]
+    waiting = {rq.to for rq in store.where("requests", status="open")}
+    news = with_news(store)
+    return [p.id for p in store.all("people") if p.id in news or p.id in waiting or p.stock_day == dow(store.day)]
 
 
 def parse_acts(text: str | None) -> list | None:
@@ -110,7 +110,7 @@ def _tell_result(store: Store, outcome: Outcome) -> None:
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     routine(store)
     day = store.day
-    shown = [(pid, person_view(store, pid), shown_ids(store, pid)) for pid in who_acts(store)]
+    shown = [(pid, *view(store, pid)) for pid in who_acts(store)]
     asked = []
     for pid, messages, _ in shown:
         key = keys.next(replier.model, day, pid, "turn")
