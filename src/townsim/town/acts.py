@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
+from townsim.town import jobs
 from townsim.town.store import TABLES, Store, id_key
 
 MAX_CENTS = 100_000_000
@@ -322,7 +323,7 @@ def positions(store: Store, pid: str) -> list[str]:
     found = ["all"]
     if any(o.owner == pid and not o.outside for o in store.all("orgs")):
         found.append("owner")
-    if any(j.person == pid and (j.ended == -1 or j.ended >= store.day) for j in _rows(store, "jobs")):
+    if any(j.person == pid and jobs.current(j, store.day) for j in _rows(store, "jobs")):
         found.append("employed")
     if any(h.landlord in (pid, person.household) for h in store.all("households")):
         found.append("landlord")

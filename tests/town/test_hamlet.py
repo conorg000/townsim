@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from townsim.town import acts, firms, gen, hamlet, hours, jobs
+from townsim.town import acts, firms, gen, hamlet, hamlet_script, hours, jobs
 from townsim.town import obligations as O
 from townsim.town.entities import Event
 from townsim.town.loop import routine, run_day
@@ -55,7 +55,7 @@ def words(messages):
 
 @functools.cache
 def eight_weeks():
-    """Seed 1 played for eight weeks on `hamlet.script`, with the size of every person's view
+    """Seed 1 played for eight weeks on `hamlet_script.script`, with the size of every person's view
     on every morning (after the routine) and the time the days took."""
     s = place(1)
     sizes: dict[tuple[int, str], int] = {}
@@ -64,7 +64,7 @@ def eight_weeks():
         if not any(d == s.day for d, _ in sizes):
             for p in s.all("people"):
                 sizes[(s.day, p.id)] = words(view(s, p.id)[0])
-        return hamlet.script(key, messages)
+        return hamlet_script.script(key, messages)
 
     started = time.perf_counter()
     reports = days(s, DAYS, script)
@@ -90,7 +90,7 @@ def test_eight_weeks_in_the_hamlet_conserve_and_replay(tmp_path):
     started = time.perf_counter()
     with RunDB(str(tmp_path / "h.sqlite")) as db:
         db.create_run("h1", seed=1)
-        final = run(db, "h1", place(1), ScriptedReplier(hamlet.script), DAYS)
+        final = run(db, "h1", place(1), ScriptedReplier(hamlet_script.script), DAYS)
         assert final.ledger.total() == 0 and db.errors("h1") == [] and replay(db, "h1") == []
     assert time.perf_counter() - started < 15
     assert final.day == DAYS and final.hash() == eight_weeks()[0].hash()
@@ -168,24 +168,24 @@ def test_a_run_stopped_mid_day_and_resumed_reaches_the_same_end(tmp_path):
     def stopping(key, messages):
         if key.day == 30 and key.actor == "p3":
             raise StopRun
-        return hamlet.script(key, messages)
+        return hamlet_script.script(key, messages)
 
     with RunDB(str(tmp_path / "h.sqlite")) as db:
         db.create_run("h", seed=1)
         stopped = run(db, "h", place(1), ScriptedReplier(stopping), DAYS)
         assert stopped.day == 30
-        final = run(db, "h", resume(db, "h"), ScriptedReplier(hamlet.script), DAYS - 30)
+        final = run(db, "h", resume(db, "h"), ScriptedReplier(hamlet_script.script), DAYS - 30)
         assert replay(db, "h") == []
     assert final.hash() == eight_weeks()[0].hash()
 
 
 _HASH = """
-from townsim.town import gen, hamlet
+from townsim.town import gen, hamlet_script
 from townsim.town.loop import run_day
 from townsim.town.replies import Keys, ScriptedReplier
 s = gen.generate(1, ["a", "b", "c", "d"]); k = Keys("q")
 for _ in range(56):
-    run_day(s, ScriptedReplier(hamlet.script), k)
+    run_day(s, ScriptedReplier(hamlet_script.script), k)
 print(s.hash())
 """
 
@@ -464,3 +464,39 @@ def test_a_job_started_and_finished():
 
 
 # random play's sibling: see tests/town/test_random_play.py
+
+
+def test_a_late_fee_is_told_by_its_memo_alone():
+    s = town(h1=0)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, every=0, memo="energy",
+             ends="service", made_by="routine", cause=T)
+    run_days(s, 8)                                           # the fee is added on day 7 and cannot be taken
+    s.transfer("outside:employers", "h1", 20_000, "wages", T)
+    run_days(s, 1)
+    texts = [n.text for n in s.all("notices") if n.to == "p1"]
+    assert "late fee on energy due Monday 2 March could not be taken. The Ashby account held $0.00." in texts
+    assert texts[-2:] == ["energy, due Monday 2 March, was taken on Tuesday 10 March.",
+                          "late fee on energy due Monday 2 March was taken on Tuesday 10 March."]
+
+
+def test_a_repair_with_no_regular_spending_in_force_is_an_engine_error():
+    s = at(14)
+    [ob] = [o for o in s.where("obligations", payer="h6") if o.memo == "regular spending"]
+    O.stop(s, ob.id, "h6", T)
+    changes = event(s, "repair", "h6", amount=10_000)
+    assert [c.table for c in changes] == ["events"]
+    assert s.engine_errors == ["event ev99 d14: repair no regular spending in force for 'h6'; not applied"]
+
+
+def test_a_cold_spell_near_an_energy_bills_end_tells_the_weeks_it_has():
+    s = at(28)
+    [ev] = [e for e in s.all("events") if e.kind == "cold_month"]
+    energy = [o for o in s.where("obligations", payee=ev.who) if o.memo == "energy"]
+    O.end(s, energy[0].id, 37, T)                            # two more energy days, 30 and 37
+    mark = s.mark()
+    hamlet.apply_events(s)
+    told = {(n.to, n.text) for c in s.changes[mark:] if c.table == "notices" and c.field == "+"
+            for n in [s.get("notices", c.id)]}
+    first = s.get("households", energy[0].payer).members
+    assert {t for p, t in told if p in first} == {"A cold spell: energy bills are 30% higher for two weeks."}
+    assert {t for p, t in told if p not in first} == {"A cold spell: energy bills are 30% higher for four weeks."}

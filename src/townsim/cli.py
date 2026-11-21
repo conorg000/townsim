@@ -80,11 +80,16 @@ def town_thin_cmd(
 
 def _run_weeks(db: str, run_id: str, seed: int, weeks: int, make_store, script) -> None:
     """Run a town week by week on a script of replies, print a line a week and the engine
-    errors, then replay it. Exits 1 on engine errors or a run id already in the file."""
+    errors, then replay it. Exits 1 on engine errors or a run id already in the file. The
+    town is made before the run is, so a town that cannot be made leaves no run behind."""
     from townsim.town.replies import ScriptedReplier
     from townsim.town.rundb import RunDB
     from townsim.town.runs import run
 
+    try:
+        store = make_store()
+    except (ValueError, RuntimeError) as e:
+        _fail(f"cannot make the town: {e}")
     with _plainly(db), RunDB(db) as rdb:
         try:
             rdb.get_run(run_id)
@@ -92,7 +97,6 @@ def _run_weeks(db: str, run_id: str, seed: int, weeks: int, make_store, script) 
             rdb.create_run(run_id, seed=seed)
         else:
             _fail(f"{db} already has a run called {run_id!r}")
-        store = make_store()
         replier = ScriptedReplier(script)
         for n in range(1, weeks + 1):
             store = run(rdb, run_id, store, replier, 7)
@@ -117,13 +121,13 @@ def town_hamlet_cmd(
     """Generate the hamlet for a seed and run it on a scripted life, then replay it. No model
     is called. Exits 1 if the engine reported any errors."""
     from townsim.town import families as fam
-    from townsim.town import gen, hamlet
+    from townsim.town import gen, hamlet_script
 
     try:
         names = fam.names(families)
     except (OSError, ValueError) as e:
         _fail(f"cannot read the families from {families}: {e}")
-    _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet.script)
+    _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet_script.script)
 
 
 @app.command("town-replay")

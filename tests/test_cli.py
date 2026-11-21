@@ -1,6 +1,7 @@
 import json
 import sqlite3
 
+import pytest
 from typer.testing import CliRunner
 
 from townsim.cli import app
@@ -148,3 +149,30 @@ def test_town_hamlet_reads_the_families_left_in(tmp_path):
     assert a.output.splitlines()[0] != b.output.splitlines()[0]              # other players were dealt
     bad = _run("town-hamlet", "--weeks", "1", "--db", str(tmp_path / "b.sqlite"), "--families", str(tmp_path / "no"))
     assert bad.exit_code == 1 and "cannot read the families" in bad.output
+
+
+def test_town_hamlet_says_plainly_when_the_families_file_is_not_yaml(tmp_path):
+    path = tmp_path / "f.yaml"
+    path.write_text("one: [unclosed\n  two: {\n")
+    db = tmp_path / "h.sqlite"
+    result = _run("town-hamlet", "--weeks", "1", "--db", str(db), "--families", str(path))
+    assert result.exit_code == 1 and len(result.output.strip().splitlines()) == 1
+    assert result.output.startswith("cannot read the families from") and "Traceback" not in result.output
+    assert not db.exists()
+
+
+def test_a_town_that_cannot_be_made_leaves_no_run_behind(tmp_path):
+    from townsim.town.rundb import RunDB
+
+    path = tmp_path / "f.yaml"
+    path.write_text("only:\n  left_out: false\n")                  # one family cannot play a place
+    db = str(tmp_path / "h.sqlite")
+    assert _run("town-thin", "--weeks", "1", "--db", db, "--run-id", "kept").exit_code == 0
+    result = _run("town-hamlet", "--weeks", "1", "--db", db, "--families", str(path), "--run-id", "h")
+    assert result.exit_code == 1 and result.output.startswith("cannot make the town:")
+    with RunDB(db) as rdb:
+        rdb.get_run("kept")
+        with pytest.raises(KeyError):
+            rdb.get_run("h")
+    again = _run("town-hamlet", "--weeks", "1", "--db", db, "--run-id", "h")
+    assert again.exit_code == 0, again.output

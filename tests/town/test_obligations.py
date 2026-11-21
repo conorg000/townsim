@@ -53,7 +53,7 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
         (p, "energy, $48.00, due Monday 2 March, could not be taken. The Ashby account held $0.00.") for p in ("p1", "p2")
     ] + [(p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
          for p in ("p1", "p2")] + [
-        (p, "late fee on energy due Monday 2 March, $25.00, due Monday 9 March, could not be taken. "
+        (p, "late fee on energy due Monday 2 March could not be taken. "
             "The Ashby account held $0.00.") for p in ("p1", "p2")]
     run_days(s, 7)
     two_weeks = [n for n in s.all("notices") if "two weeks" in n.text]

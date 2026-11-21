@@ -187,7 +187,10 @@ def age_arrears(store: Store) -> None:
 
 
 def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:
-    text = f"{ob.memo}, {money(remainder)}, due {date_text(due.day)}, could not be taken."
+    if ob.penalty:                        # a late fee's memo already names what it is on and when
+        text = f"{ob.memo} could not be taken."
+    else:
+        text = f"{ob.memo}, {money(remainder)}, due {date_text(due.day)}, could not be taken."
     if ob.status != "breached":
         text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
     _tell(store, ob.payer, text, cause)
@@ -223,8 +226,8 @@ def collect(store: Store) -> None:
             store.transfer(ob.payer, ob.payee, remainder, memo, cause)
             store.set("dues", due.id, cause, paid=due.cents)
             if due.status in OWED:
-                _tell(store, ob.payer, f"{ob.memo}, due {date_text(due.day)}, was taken on {date_text(store.day)}.",
-                      cause)
+                what = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)},"
+                _tell(store, ob.payer, f"{what} was taken on {date_text(store.day)}.", cause)
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
