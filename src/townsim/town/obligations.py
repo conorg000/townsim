@@ -5,10 +5,11 @@ row, opened once by `ensure_due`. `collect` is the only code that takes money fo
 due, and it takes it in one transfer or not at all. Unpaid dues age through a ladder:
 a late fee at 7 days, a notice at 14, default at 28. A defaulted due is still owed:
 collect keeps trying it and a payment by hand counts toward it (design 3.2: what cannot
-be paid does not vanish).
+be paid does not vanish). A default never changes the obligation's status.
 
-A `breached` obligation keeps its schedule: its dues open on their days, but the payer
-has withheld payment, so they are not taken automatically. Each goes to arrears on its
+Only `stop` on an agreement breaches it: the payer withholding payment. A `breached`
+obligation keeps its schedule: its dues open on their days, but they are not taken
+automatically. Each goes to arrears on its
 day, climbs the same ladder, and can be paid by hand.
 """
 
@@ -181,8 +182,6 @@ def age_arrears(store: Store) -> None:
             store.set("dues", due.id, cause, status="defaulted")
             text = f"{name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
             store.add("records", Record(store.new_id("rec", cause), store.day, "default", ob.payer, text), cause)
-            if ob.status == "active" and due.day == _last_instalment(ob):
-                store.set("obligations", ob.id, cause, status="breached")
 
 
 def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:

@@ -253,15 +253,15 @@ def test_a_due_paid_beyond_its_amount_is_an_engine_fault_and_is_marked_paid():
     assert s.get("obligations", ob).status == "finished"
 
 
-def test_defaulting_on_the_final_instalment_breaches_the_obligation():
+def test_defaulting_on_the_final_instalment_leaves_the_obligation_as_it_was():
     s = town(h1=0)
     once = O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
     ending = O.create(s, kind="loan", payer="h1", payee="outside:lettings", cents=1_000, first=0, every=7, last=3, memo="loan", ends="both", **SETUP)
     running = O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=10_000, first=0, every=7, memo="rent", ends="both", **SETUP)
     run_days(s, 29)
-    assert [s.get("obligations", o).status for o in (once, ending, running)] == ["breached", "breached", "active"]
-    assert any(c.table == "obligations" and c.field == "status" and c.new == "breached"
-               and c.cause.startswith("routine:default:du") for c in s.changes)
+    assert [s.get("obligations", o).status for o in (once, ending, running)] == ["active", "active", "active"]
+    assert s.all("dues")[0].status == "defaulted"
+    assert not any(c.table == "obligations" and c.field == "status" for c in s.changes)
 
 
 def test_collect_twice_in_a_day_takes_each_due_once():
@@ -345,12 +345,17 @@ def test_a_late_fee_cannot_be_shed_by_stopping_it():
     assert fee_due.status == "paid"
 
 
-def test_a_breach_by_default_is_no_longer_taken_automatically():
+def test_a_defaulted_one_off_bill_is_taken_when_money_comes_and_then_finishes():
     s = town(h1=0)
-    once = O.create(s, kind="loan", payer="h1", payee="outside:lettings", cents=4_800, first=0, memo="loan", ends="both", **SETUP)
-    run_days(s, 29)
-    assert s.get("obligations", once).status == "breached"
-    s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 3)
-    assert first_due(s).status == "defaulted" and first_due(s).paid == 0
-    m = O.pay(s, "h1", "outside:lettings", 4_800, "the loan", "op:p1:pay:d32.0")
-    assert m[0].due == first_due(s).id and first_due(s).status == "paid"
+    bill = O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy",
+                    ends="service", **SETUP)
+    run_days(s, 40)
+    [due] = [d for d in s.all("dues") if d.obligation == bill]
+    assert due.status == "defaulted" and s.get("obligations", bill).status == "active"
+    assert [r.day for r in s.all("records") if "defaulted on energy" in r.text] == [28]
+    s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test")
+    run_days(s, 1)                                                          # day 40
+    [taken] = [t for t in s.ledger.transfers if t.cause == f"routine:collect:{due.id}"]
+    assert (taken.t, taken.cents, taken.memo) == (40, 4_800, "energy, due Monday 2 March")
+    assert due.status == "paid" and s.get("obligations", bill).status == "finished"
+
