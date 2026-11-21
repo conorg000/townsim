@@ -238,3 +238,13 @@ def test_all_and_where_follow_adds_sets_and_undo():
     copy.add("notices", Notice("n3", 0, "p1", "x"), "routine:x")
     assert [n.id for n in copy.where("notices", to="p1", seen=False)] == ["n1", "n3", "n11"]
     assert "_order" not in copy.__getstate__() and "_index" not in copy.__getstate__()
+
+
+def test_empty_tables_are_left_out_of_the_hash():
+    s = small_store()
+    before = s.hash()
+    assert "notices" not in s.canonical()["tables"] and "people" in s.canonical()["tables"]
+    s._tables["kinds_added_later"] = {}                 # a kind of thing this store has none of
+    assert s.hash() == before
+    s.add("notices", Notice("n1", 0, "p1", "x"), "routine:x")
+    assert "notices" in s.canonical()["tables"] and s.hash() != before

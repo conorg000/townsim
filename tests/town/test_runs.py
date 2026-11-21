@@ -165,7 +165,7 @@ def test_a_fork_shares_the_past_and_has_its_own_future(eight_week_db, tmp_path):
     with RunDB(copy_of(eight_week_db[0], tmp_path, "f.sqlite")) as db:
         child = fork(db, "r1", 14, "c")
         assert child.hash() == db.snapshot_hash("r1", 14) == db.snapshot_hash("c", 14)
-        assert db.get_run("c") == {"id": "c", "seed": 1, "parent": "r1", "parent_day": 14}
+        assert db.get_run("c") == {"id": "c", "seed": 1, "parent": "r1", "parent_day": 14, "schema": 1}
         end = run(db, "c", child, ScriptedReplier(stop_sooner), 7)
         assert end.day == 21 and end.hash() != db.snapshot_hash("r1", 21)
         assert end.get("obligations", "ob9").status == "stopped"

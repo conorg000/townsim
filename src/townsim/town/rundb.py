@@ -9,9 +9,11 @@ import sqlite3
 from townsim.town.replies import Reply, decode_reply, encode_reply
 from townsim.town.store import Store
 
-_SCHEMA = """
+SCHEMA = 1   # how a run's snapshots and rows are kept; a run kept under another is refused
+
+_TABLES = """
 create table if not exists runs (
-    id text primary key, seed integer not null, parent text, parent_day integer
+    id text primary key, seed integer not null, parent text, parent_day integer, schema integer not null
 );
 create table if not exists replies (
     seq integer primary key autoincrement,
@@ -43,7 +45,10 @@ class RunDB:
     def __init__(self, path: str) -> None:
         self._db = sqlite3.connect(path)
         with self._db:
-            self._db.executescript(_SCHEMA)
+            self._db.executescript(_TABLES)
+            columns = [r[1] for r in self._db.execute("pragma table_info(runs)")]
+            if "schema" not in columns:          # a file from before schemas were kept
+                self._db.execute("alter table runs add column schema integer not null default 0")
 
     def close(self) -> None:
         self._db.close()
@@ -61,16 +66,21 @@ class RunDB:
     # runs
 
     def create_run(self, run_id: str, seed: int, parent: str | None = None, parent_day: int | None = None) -> None:
+        """Add a run kept under this code's `SCHEMA`. Raises ValueError for a run id that is
+        not a non-empty string without `|`, or one already taken."""
+        if not isinstance(run_id, str) or not run_id or "|" in run_id:
+            raise ValueError(f"a run id must be a non-empty name without '|', got {run_id!r}")
         try:
-            self._write("insert into runs values (?, ?, ?, ?)", (run_id, seed, parent, parent_day))
+            self._write("insert into runs (id, seed, parent, parent_day, schema) values (?, ?, ?, ?, ?)",
+                        (run_id, seed, parent, parent_day, SCHEMA))
         except sqlite3.IntegrityError:
             raise ValueError(f"run {run_id!r} already exists") from None
 
     def get_run(self, run_id: str) -> dict:
-        row = self._db.execute("select id, seed, parent, parent_day from runs where id = ?", (run_id,)).fetchone()
+        row = self._db.execute("select id, seed, parent, parent_day, schema from runs where id = ?", (run_id,)).fetchone()
         if row is None:
             raise KeyError(run_id)
-        return dict(zip(("id", "seed", "parent", "parent_day"), row))
+        return dict(zip(("id", "seed", "parent", "parent_day", "schema"), row))
 
     # replies
 
@@ -117,7 +127,11 @@ class RunDB:
         self._write("insert or replace into snapshots values (?, ?, ?, ?)", (run_id, day, store.hash(), pickle.dumps(state)))
 
     def load_snapshot(self, run_id: str, day: int) -> Store:
-        """A new `Store` each time, rebuilt from the snapshot."""
+        """A new `Store` each time, rebuilt from the snapshot. Raises ValueError if the run
+        was kept under another schema."""
+        schema = self.get_run(run_id)["schema"]
+        if schema != SCHEMA:
+            raise ValueError(f"run {run_id!r} was kept under schema {schema}; this code reads schema {SCHEMA}")
         row = self._db.execute("select blob from snapshots where run = ? and day = ?", (run_id, day)).fetchone()
         if row is None:
             raise KeyError((run_id, day))

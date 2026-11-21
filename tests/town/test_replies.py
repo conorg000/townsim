@@ -14,7 +14,7 @@ from townsim.town.replies import (
     StopRun,
     prompt_hash,
 )
-from townsim.town.rundb import RunDB
+from townsim.town.rundb import SCHEMA, RunDB
 from townsim.town.store import Change, Store
 
 MSGS = [{"role": "user", "content": "view"}]
@@ -177,8 +177,8 @@ def test_replies_are_kept_per_run(db):
 
 def test_runs_are_created_once_and_read_back(db):
     db.create_run("r2", seed=7, parent="r1", parent_day=3)
-    assert db.get_run("r1") == {"id": "r1", "seed": 1, "parent": None, "parent_day": None}
-    assert db.get_run("r2") == {"id": "r2", "seed": 7, "parent": "r1", "parent_day": 3}
+    assert db.get_run("r1") == {"id": "r1", "seed": 1, "parent": None, "parent_day": None, "schema": SCHEMA}
+    assert db.get_run("r2") == {"id": "r2", "seed": 7, "parent": "r1", "parent_day": 3, "schema": 1}
     with pytest.raises(ValueError):
         db.create_run("r1", seed=9)
     with pytest.raises(KeyError):
@@ -349,3 +349,19 @@ def test_rundb_closes_when_used_as_a_context_manager(tmp_path):
         db.create_run("r1", seed=1)
     with pytest.raises(sqlite3.ProgrammingError):
         db.get_run("r1")
+
+
+def test_a_snapshot_kept_under_another_schema_is_refused(db, tmp_path):
+    db.save_snapshot("r1", 1, _town())
+    db._db.execute("update runs set schema = 0 where id = 'r1'"); db._db.commit()
+    with pytest.raises(ValueError, match=r"schema 0.*schema 1"):
+        db.load_snapshot("r1", 1)
+
+
+def test_a_file_from_before_schemas_reads_as_schema_0(tmp_path):
+    path = str(tmp_path / "old.sqlite")
+    with sqlite3.connect(path) as con:
+        con.execute("create table runs (id text primary key, seed integer not null, parent text, parent_day integer)")
+        con.execute("insert into runs values ('old', 1, null, null)")
+    with RunDB(path) as db:
+        assert db.get_run("old")["schema"] == 0

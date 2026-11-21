@@ -281,14 +281,16 @@ class Store:
     # state
 
     def canonical(self) -> dict:
-        """The whole state as plain JSON-ready values. The change log is not state."""
+        """The whole state as plain JSON-ready values. The change log is not state. Empty
+        tables are left out, so a new kind of row does not change the hash of a store
+        that has none."""
         return _plain({
             "day": self.day,
             "place": self.place,
             "counters": dict(self._counters),
             "accounts": {a.id: [a.balance, a.allow_credit] for a in self.ledger.accounts.values()},
             "transfers": [list(t) for t in self.ledger.transfers],
-            "tables": {t: {i: dataclasses.asdict(o) for i, o in rows.items()} for t, rows in self._tables.items()},
+            "tables": {t: {i: dataclasses.asdict(o) for i, o in rows.items()} for t, rows in self._tables.items() if rows},
         })
 
     def hash(self) -> str:
