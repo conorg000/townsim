@@ -479,13 +479,23 @@ def test_a_late_fee_is_told_by_its_memo_alone():
                           "late fee on energy due Monday 2 March was taken on Tuesday 10 March."]
 
 
-def test_a_repair_with_no_regular_spending_in_force_is_an_engine_error():
+def test_a_repair_is_billed_after_regular_spending_has_stopped():
     s = at(14)
     [ob] = [o for o in s.where("obligations", payer="h6") if o.memo == "regular spending"]
     O.stop(s, ob.id, "h6", T)
     changes = event(s, "repair", "h6", amount=10_000)
-    assert [c.table for c in changes] == ["events"]
-    assert s.engine_errors == ["event ev99 d14: repair no regular spending in force for 'h6'; not applied"]
+    [bill] = [s.get("obligations", c.id) for c in changes if c.table == "obligations" and c.field == "+"]
+    assert (bill.payee, bill.cents, bill.memo, bill.first) == (ob.payee, 10_000, "repair to the house", 21)
+    assert s.engine_errors == []
+
+
+def test_a_repair_to_a_house_that_never_bought_anything_is_passed_over():
+    s = at(14)
+    for o in s.where("obligations", payer="h6"):
+        if o.memo == "regular spending":
+            s.set("obligations", o.id, T, memo="other spending")
+    changes = event(s, "repair", "h6", amount=10_000)
+    assert [c.table for c in changes] == ["events"] and s.engine_errors == []
 
 
 def test_a_cold_spell_near_an_energy_bills_end_tells_the_weeks_it_has():

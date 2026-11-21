@@ -184,14 +184,9 @@ def random_script(rng: random.Random, from_view: bool = False):
     return reply
 
 
-# A repair to a house whose regular spending has been stopped (which a payer may do) has no
-# one to be paid to: the engine notes it and passes over the event, as it is meant to.
-_EXPECTED = re.compile(r"^event ev\d+ d\d+: repair no regular spending in force for 'h\d+'; not applied$")
-
-
 def _check_day(s, mark: int) -> None:
     assert s.ledger.total() == 0
-    assert [e for e in s.engine_errors if not _EXPECTED.match(e)] == []
+    assert s.engine_errors == []
     for d in s.all("dues"):
         assert 0 <= d.paid <= d.cents, d
     for a in s.ledger.accounts.values():

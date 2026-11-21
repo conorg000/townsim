@@ -62,12 +62,11 @@ def _adults(store: Store, household: str) -> list[str]:
 def _repair(store: Store, e: Event, cause: str) -> str | None:
     if not store.has("households", e.who):
         return "no household"
-    spending = [o for o in store.where("obligations", payer=e.who) if o.memo == "regular spending"
-                and o.status == "active"]
-    if not spending:
-        return "no regular spending in force for"
+    spending = [o for o in store.where("obligations", payer=e.who) if o.memo == "regular spending"]
+    if not spending:                     # nowhere it has ever bought from: nothing to bill
+        return None
     due = store.day + REPAIR_DAYS
-    obligations.create(store, kind="bill", payer=e.who, payee=spending[0].payee, cents=e.amount, first=due,
+    obligations.create(store, kind="bill", payer=e.who, payee=spending[-1].payee, cents=e.amount, first=due,
                        memo="repair to the house", ends="service", made_by="routine", cause=cause)
     _tell(store, _adults(store, e.who), f"The house needs a repair costing {money(e.amount)}. "
                                         f"It is due on {date_text(due)}.", cause)
