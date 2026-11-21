@@ -10,6 +10,17 @@ MONTHS: tuple[str, ...] = ("January", "February", "March", "April", "May", "June
                            "August", "September", "October", "November", "December")
 
 
+_FILLER = ("the", "of")
+_ORDINALS = ("st", "nd", "rd", "th")
+
+
+def _drop_ordinal(word: str) -> str:
+    """'12th' -> '12'; any other word unchanged."""
+    if word[-2:] in _ORDINALS and word[:-2].isdigit():
+        return word[:-2]
+    return word
+
+
 def dow(day: int) -> int:
     """Day of the week, 0 for Monday."""
     return day % 7
@@ -29,11 +40,13 @@ def parse_date(text: str, today: int) -> int | None:
     """The day a written date names, or None if it names none on or after `today`.
 
     A bare weekday is the next such day strictly after `today`. A day and month is that
-    date in 2026, and wins over any weekday written beside it. Never raises.
+    date in 2026, in either order, and wins over any weekday written beside it. Commas,
+    ordinals ("12th") and the words "the" and "of" are allowed. Never raises.
     """
     if not isinstance(text, str):
         return None
-    words = text.strip().rstrip(".").lower().split()
+    words = [_drop_ordinal(w) for w in text.strip().rstrip(".").lower().replace(",", " ").split()
+             if w not in _FILLER]
     weekdays = [i for i, name in enumerate(DAYS) if name.lower() in words]
     months = [i + 1 for i, name in enumerate(MONTHS) if name.lower() in words]
     numbers = [int(w) for w in words if w.isascii() and w.isdigit() and len(w) <= 2]

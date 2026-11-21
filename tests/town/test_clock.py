@@ -21,6 +21,13 @@ def test_parse_date_tolerates_case_spacing_and_a_full_stop():
     assert clock.parse_date("Friday.", today=3) == 4
 
 
+def test_parse_date_reads_ordinals_commas_and_either_order():
+    assert clock.parse_date("Thursday, 12th March", today=3) == 10
+    assert clock.parse_date("1st April", today=3) == 30
+    assert clock.parse_date("the 12th of March", today=3) == 10
+    assert clock.parse_date("March 12", today=3) == 10
+
+
 def test_parse_date_trusts_day_and_month_over_a_wrong_weekday():
     assert clock.parse_date("Monday 12 March", today=3) == 10
 
@@ -33,7 +40,8 @@ def test_parse_date_accepts_today_as_a_date_but_not_as_a_weekday():
 def test_parse_date_never_raises():
     for junk in (None, 12, 3.5, [], {}, b"12 March", "", "   ", "31 February", "0 March",
                  "12 Marchember", "Thursday 12", "12 13 March", "Thursday Friday",
-                 "\u00b2 March", "9" * 5000 + " March", "012 March"):
+                 "\u00b2 March", "9" * 5000 + " March", "012 March",
+                 "th March", "the of", ",", "12thth March"):
         assert clock.parse_date(junk, today=3) is None
 
 
