@@ -46,7 +46,11 @@ def _is_int(x: object) -> bool:
 def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first: int, every: int = 0,
            last: int | None = None, memo: str, ends: str, made_by: str, cause: str,
            penalty: bool = False) -> str:
-    """Add an obligation and return its id. Raises ValueError, changing nothing, on bad arguments."""
+    """Add an obligation and return its id. Raises ValueError, changing nothing, on bad arguments.
+
+    `first` may not be before today. If an instalment falls today its due is opened here,
+    so an obligation made after that day's `open_dues` is still collected today.
+    """
     if kind not in KIND_ORDER:
         raise ValueError(f"kind {kind!r} is not one of {KIND_ORDER}")
     if ends not in ENDS:
@@ -55,8 +59,8 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
         raise ValueError(f"cents must be a positive int, got {cents!r}")
     if not _is_int(every) or every < 0:
         raise ValueError(f"every must be an int >= 0, got {every!r}")
-    if not _is_int(first) or first < 0:
-        raise ValueError(f"first must be an int >= 0, got {first!r}")
+    if not _is_int(first) or first < store.day:
+        raise ValueError(f"first must be an int >= today ({store.day}), got {first!r}")
     if last is not None and (not _is_int(last) or last < first):
         raise ValueError(f"last must be None or an int >= first, got {last!r}")
     for account in (payer, payee):
@@ -67,6 +71,8 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
     ob = Obligation(store.new_id("ob"), kind, payer, payee, cents, first, every, last, memo, ends,
                     made_by, store.day, penalty)
     store.add("obligations", ob, cause)
+    if falls_on(ob, store.day):
+        ensure_due(store, ob.id, store.day, cause)
     return ob.id
 
 
@@ -135,9 +141,8 @@ def age_arrears(store: Store) -> None:
         if age >= FEE_AFTER_DAYS and not due.fee_charged and not ob.penalty:
             cause = f"routine:late-fee:{due.id}"
             fee = create(store, kind="bill", payer=ob.payer, payee=ob.payee, cents=LATE_FEE_CENTS,
-                         first=store.day, memo=f"late fee on {ob.memo} due {when}", ends=ob.ends,
+                         first=store.day, memo=f"late fee on {ob.memo} due {when}", ends="both",
                          made_by="routine", cause=cause, penalty=True)
-            ensure_due(store, fee, store.day, cause)
             store.set("dues", due.id, cause, fee_charged=True)
             _tell(store, ob.payer, f"A late fee of {money(LATE_FEE_CENTS)} has been added to {ob.memo}, "
                                    f"due {when}, which has not been paid.", cause)
@@ -151,6 +156,8 @@ def age_arrears(store: Store) -> None:
             store.set("dues", due.id, cause, status="defaulted")
             text = f"{_name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
             store.add("records", Record(store.new_id("rec"), store.day, "default", ob.payer, text), cause)
+            if ob.status == "active" and due.day == _last_instalment(ob):
+                store.set("obligations", ob.id, cause, status="breached")
 
 
 def _collect_order(store: Store, due: Due) -> tuple:
@@ -168,14 +175,18 @@ def collect(store: Store) -> None:
         ob = store.get("obligations", due.obligation)
         cause = f"routine:collect:{due.id}"
         remainder = due.cents - due.paid
+        if remainder < 0:
+            store.engine_errors.append(f"{due.id} has paid {due.paid} of {due.cents} cents")
         account = store.ledger.accounts[ob.payer]
         if remainder > 0 and (account.balance < remainder and not account.allow_credit):
             if due.status != "arrears":
                 store.set("dues", due.id, cause, status="arrears")
             continue
         if remainder > 0:
-            store.transfer(ob.payer, ob.payee, remainder, f"{ob.memo}, due {date_text(due.day)}", cause)
-        store.set("dues", due.id, cause, paid=due.cents, status="paid")
+            memo = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)}"
+            store.transfer(ob.payer, ob.payee, remainder, memo, cause)
+            store.set("dues", due.id, cause, paid=due.cents)
+        store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
 

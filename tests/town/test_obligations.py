@@ -75,6 +75,7 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
     run_days(s, 8)
     fees = [o for o in s.all("obligations") if o.penalty]
     assert len(fees) == 1 and fees[0].cents == 2_500 and "late fee on energy due Monday 2 March" == fees[0].memo
+    assert fees[0].ends == "both"                                        # the parent is "service"
     assert [d.day for d in s.all("dues") if d.obligation == fees[0].id] == [7]
     assert [(n.to, n.text) for n in s.all("notices")] == [
         (p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
@@ -97,7 +98,7 @@ def test_a_defaulted_due_is_not_retried():
     run_days(s, 29)
     s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 1)
     assert first_due(s).status == "defaulted"
-    assert [t.memo for t in s.ledger.transfers if t.src == "h1"] == ["late fee on energy due Monday 2 March, due Monday 9 March"]
+    assert [t.memo for t in s.ledger.transfers if t.src == "h1"] == ["late fee on energy due Monday 2 March"]
 
 
 def test_wages_land_before_anything_is_taken_and_older_debts_go_first():
@@ -232,3 +233,66 @@ def test_money_is_conserved_and_nothing_is_collected_twice_over_sixty_days():
     statuses = {d.status for d in dues.values()}
     assert "paid" in statuses and statuses & {"arrears", "defaulted"}      # too little money for everything
     assert len({(d.obligation, d.day) for d in dues.values()}) == len(dues)
+
+
+def test_an_obligation_made_after_open_dues_still_falls_due_today():
+    s = town(h1=10_000)
+    run_days(s, 3)
+    O.open_dues(s); O.age_arrears(s)
+    ob = O.create(s, kind="fee", payer="h1", payee="outside:lettings", cents=1_000, first=3, memo="key", ends="payer", **SETUP)
+    assert [(d.obligation, d.day) for d in s.all("dues")] == [(ob, 3)]
+    assert s.changes[-1].cause == "routine:setup"
+    O.open_dues(s)
+    assert len(s.all("dues")) == 1
+    O.collect(s)
+    assert only_due(s).status == "paid" and s.balance("h1") == 9_000
+
+
+def test_an_obligation_cannot_start_before_today():
+    s = town()
+    run_days(s, 3)
+    before, logged = s.hash(), len(s.changes)
+    with pytest.raises(ValueError):
+        O.create(s, kind="fee", payer="h1", payee="outside:lettings", cents=1_000, first=2, memo="key", ends="payer", **SETUP)
+    assert s.hash() == before and len(s.changes) == logged
+
+
+def test_a_due_paid_beyond_its_amount_is_an_engine_fault_and_is_marked_paid():
+    s = town(h1=10_000)
+    ob = O.create(s, kind="fee", payer="h1", payee="outside:lettings", cents=1_000, first=0, memo="key", ends="payer", **SETUP)
+    due = only_due(s)
+    s.set("dues", due.id, "routine:test", paid=1_500)
+    O.collect(s)
+    assert due.status == "paid" and due.paid == 1_500 and s.balance("h1") == 10_000
+    assert len(s.engine_errors) == 1 and due.id in s.engine_errors[0]
+    assert s.get("obligations", ob).status == "finished"
+
+
+def test_defaulting_on_the_final_instalment_breaches_the_obligation():
+    s = town(h1=0)
+    once = O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
+    ending = O.create(s, kind="loan", payer="h1", payee="outside:lettings", cents=1_000, first=0, every=7, last=3, memo="loan", ends="both", **SETUP)
+    running = O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=10_000, first=0, every=7, memo="rent", ends="both", **SETUP)
+    run_days(s, 29)
+    assert [s.get("obligations", o).status for o in (once, ending, running)] == ["breached", "breached", "active"]
+    assert any(c.table == "obligations" and c.field == "status" and c.new == "breached"
+               and c.cause.startswith("routine:default:du") for c in s.changes)
+
+
+def test_collect_twice_in_a_day_takes_each_due_once():
+    s = town(h1=50_000)
+    O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=17_500, first=0, memo="rent", ends="both", **SETUP)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
+    O.collect(s); O.collect(s)
+    assert len([t for t in s.ledger.transfers if t.src == "h1"]) == 2 and s.balance("h1") == 27_700
+
+
+def test_dues_are_taken_in_numeric_id_order_and_an_exact_balance_pays():
+    s = town(h1=1_000, h2=100_000)
+    for i in range(8):
+        O.create(s, kind="bill", payer="h2", payee="outside:northgrid", cents=100, first=0, memo=f"h2 bill {i}", ends="service", **SETUP)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=1_000, first=0, memo="nine", ends="service", **SETUP)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=1_000, first=0, memo="ten", ends="service", **SETUP)
+    O.collect(s)
+    assert [(d.id, d.status) for d in s.all("dues")][-2:] == [("du9", "paid"), ("du10", "arrears")]
+    assert s.balance("h1") == 0
