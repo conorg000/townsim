@@ -19,7 +19,7 @@ def test_statement_shows_dates_what_goes_out_and_what_is_left():
         "Balance: $556.92",
         "In and out since Monday 2 March:",
         "  Monday 2 March  $731.92  Employers  opening",
-        "  Monday 2 March  -$175.00  Lettings  rent, due Monday 2 March",
+        "  Monday 2 March  -$175.00  Lettings  rent",
         "Going out by Wednesday 11 March:",
         "  Monday 9 March  $175.00  Lettings  rent (ob1)",
         "Expected in by Wednesday 11 March:",

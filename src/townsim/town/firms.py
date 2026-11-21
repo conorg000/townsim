@@ -267,7 +267,7 @@ def deliver(store: Store) -> None:
                     fields.update(last_supplier=sid, last_units=units)
                     if got > 0:
                         name = store.get("orgs", sp.org).name if store.has("orgs", sp.org) else sp.org
-                        store.transfer(row.org, sp.org, got * cents, f"{got} baskets from {name}", cause)
+                        store.transfer(row.org, sp.org, got * cents, f"{got} basket{'' if got == 1 else 's'} from {name}", cause)
                         fields.update(stock_units=[*row.stock_units, got], stock_weeks=[*row.stock_weeks, week],
                                       delivered=row.delivered + got)
             fields = _changed(row, **fields)

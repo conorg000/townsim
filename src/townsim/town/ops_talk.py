@@ -12,8 +12,9 @@ from townsim.town import ops_core as core
 from townsim.town import talk
 from townsim.town.acts import Act, OpSpec, clean_text, fits, register, shown
 from townsim.town.clock import date_text, parse_date, unreadable
-from townsim.town.entities import Appointment, Notice, Talk
+from townsim.town.entities import Appointment, Talk
 from townsim.town.statement import quoted
+from townsim.town import obligations
 from townsim.town.store import Store
 from townsim.town.unknown import reader_lines, unknown_names, writer_text
 
@@ -106,7 +107,7 @@ def _do_book(store: Store, act: Act, cause: str) -> str:
     me, other = store.get("people", act.actor).name, store.get("people", who).name
     text = f"{me} has booked to talk with you on {date_text(day)} about {about}."
     text = " ".join([text, *reader_lines(unknown_names(store, who, act.actor, about))])
-    store.add("notices", Notice(store.new_id("n", cause), store.day, who, text), cause)
+    obligations.notify(store, who, text, cause)
     return f"Booked ({ap}): to talk with {other} on {date_text(day)}." + writer_text(
         unknown_names(store, act.actor, who, about))
 
@@ -126,7 +127,7 @@ def _do_cancel(store: Store, act: Act, cause: str) -> str:
     other = ap.b if act.principal == ap.a else ap.a
     me = store.get("people", act.principal).name
     text = f"{me} has cancelled the talk with you on {date_text(ap.day)} about {ap.about}."
-    store.add("notices", Notice(store.new_id("n", cause), store.day, other, text), cause)
+    obligations.notify(store, other, text, cause)
     return f"Cancelled: the talk with {store.get('people', other).name} on {date_text(ap.day)}."
 
 

@@ -126,8 +126,8 @@ def test_nothing_is_collected_twice_and_no_view_is_over_length():
 
 def _largest_views(seed):
     """The largest of everyone's views on each morning of eight scripted weeks of `seed`."""
-    _, sizes, _ = scripted_weeks(seed)                # DAYS, the eight weeks
-    return max(sizes.items(), key=lambda kv: kv[1])
+    _, laid, _ = scripted_weeks(seed)                 # every view shown in the first eight weeks
+    return max((((d, p), w) for d, p, w, _, _, _ in laid if d < DAYS), key=lambda kv: kv[1])
 
 
 @pytest.mark.parametrize("seed", [2, 3])
@@ -637,8 +637,7 @@ def test_a_late_fee_is_told_by_its_memo_alone():
     taken = [x for x in texts if x.endswith("was taken on Tuesday 10 March.")]
     assert taken == ["A payment of $48.00 due Monday 2 March (energy) was taken on Tuesday 10 March.",
                      "A late fee of $25.00 on a payment due Monday 2 March (energy) was taken on Tuesday 10 March."]
-    assert texts[-4:] == [taken[0], "Energy is paid in full.", taken[1],              # a bill that fell once, settled
-                          "Late fee on energy due Monday 2 March is paid in full."]
+    assert texts[-2:] == taken                    # what collection settles is told by what was taken, once
 
 
 def test_a_repair_is_billed_after_regular_spending_has_stopped():

@@ -20,7 +20,7 @@ from townsim.town import jobs, obligations
 from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
                                from_account, knows, name_of_who, register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
-from townsim.town.entities import Message, Notice, Request
+from townsim.town.entities import Message, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
 from townsim.town.store import Store
@@ -274,9 +274,9 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
     memo = quoted(note) if note else f"standing payment to {name}"
     ob = obligations.create(store, kind="standing", payer=own, payee=payee, cents=cents, first=first, every=7,
                             last=last, memo=memo, ends="payer", made_by=act.actor, cause=cause)
-    told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[wd]}, first on {date_text(first)}"
+    told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[wd]}, first on {date_in(first, store.day)}"
     if last is not None:
-        told += f", last on {date_text(last)}"
+        told += f", last on {date_in(last, store.day)}"
     told += "."
     for other in already:
         when = obligations.next_instalment(store, other)
@@ -323,7 +323,11 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
                 f"stays owed each week and is no longer taken from your account.")
     if result == "breach":
         return f"That was an agreement with {name_of(store, ob.payee)}. Stopping it is recorded as a breach."
-    return "Stopped." if result == "stopped" else "You have left; the fee ends."
+    if result == "stopped":
+        what = memo_shown(ob.memo)
+        return f"Stopped: {what}." if what.startswith("standing payment to ") else \
+            f"Stopped: {what} to {name_of(store, ob.payee)}."
+    return f"You have left {name_of(store, ob.payee)} ({memo_shown(ob.memo)}); the fee ends."
 
 
 # message
@@ -491,7 +495,7 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     rq = _open_request(store, act)
     accepted = _answer(act) == "accept"
     store.set("requests", rq.id, cause, status="accepted" if accepted else "declined")
-    told = "Accepted." if accepted else "Declined."
+    told = "Accepted." if accepted else f"Declined: {rq.id} from {name_of_who(store, rq.sender)}."
     done = ANSWERERS[rq.kind][1](store, act, rq, cause) if accepted and rq.kind in ANSWERERS else ""
     if done:
         told += " " + done
@@ -525,7 +529,7 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     if note:
         text += f" They wrote: {quoted(note)}"
-    store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
+    obligations.notify(store, rq.sender, text, cause)
     return told
 
 

@@ -331,6 +331,7 @@ class Layout(NamedTuple):
     user: str
     ids: list[str]
     steps: list[str]
+    trail: tuple = ()                  # the words of the whole as each step of giving way left it
 
 
 def _owed(store: Store, accounts: list[str], most: int) -> list[str]:
@@ -532,8 +533,11 @@ def layout(store: Store, pid: str) -> Layout:
     base = _words(system)
     steps: list[str] = []
 
+    trail: list[int] = []
+
     def over(choice: _Choice) -> int:
-        return base + _words(_render(_sections(store, parts, choice))) - MAX_WORDS
+        trail.append(base + _words(_render(_sections(store, parts, choice))))
+        return trail[-1] - MAX_WORDS
 
     left = over(c)
     if left > 0 and parts.knowhow:
@@ -578,8 +582,8 @@ def layout(store: Store, pid: str) -> Layout:
         c = c._replace(business=(1,) + c.business[1:])
         steps.append("till")
         left = over(c)
-    if left > 0 and parts.business[0](*c.business) != parts.business[0](till, facts.GOING_OUT, False):
-        c = c._replace(business=(till, facts.GOING_OUT, False))
+    if left > 0 and parts.business[0](*c.business) != parts.business[0](*c.business[:2], False):
+        c = c._replace(business=c.business[:2] + (False,))       # only ever less: what was cut stays cut
         steps.append("business")
         left = over(c)
     if left > 0 and any(" (counted toward " in x.memo for x in c.statement.lines):
@@ -613,7 +617,7 @@ def layout(store: Store, pid: str) -> Layout:
            + [r.id for r in parts.items[:c.in_full] if r.id not in taken]
            + [rq.id for rq in parts.waiting[:c.requests] if rq.id not in taken]
            + [t.id for t in parts.talks[:c.talks] if t.id not in taken])
-    return Layout(system, _render(secs), ids, steps)
+    return Layout(system, _render(secs), ids, steps, tuple(trail))
 
 
 def _needed(sizes: list[int], over: int) -> int:

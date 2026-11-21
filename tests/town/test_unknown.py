@@ -57,6 +57,9 @@ def _ordinary(s):
         "Merry Christmas to you both.", "Is the shop open on Sunday?", "I will see you in April.",
         "I go to Church Street on Thursdays.", "It is Monday 9 March already.", "OK, I will.",
         "The Lettings people wrote.", "Ruby red apples are best.", "Dawn came early.",
+        "The August Bank Holiday is coming.", "I live on Victoria Road.", "We walked up to St Mary's church on Sunday.",
+        "Queen Victoria would not stand for this.", "Customer Services said they would call back.",
+        "The Food Bank on the corner is open.", "We had a Victoria sponge for tea.", "St Patrick's Day was fun.",
     ]
 
 
@@ -90,6 +93,7 @@ def test_invented_names_and_bodies_are_flagged():
         assert len(found) == 1, (name, found)
         assert found[0].replace("Dr.", "Dr") in name.replace("Dr.", "Dr") or name == "Ask Tom", (name, found)
     assert _flags(s, pid, writer, "Ask Tom about it.") == ["Tom"]
+    assert _flags(s, pid, writer, "Ruby Tranter sends her love.") == ["Ruby Tranter"]      # a word-name opening one
     assert _flags(s, pid, writer, "Mr Grant and Sarah Kemp said so; Sarah Kemp again.") == ["Mr Grant", "Sarah Kemp"]
 
 

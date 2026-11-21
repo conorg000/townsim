@@ -63,8 +63,7 @@ _KEPT: "weakref.WeakKeyDictionary[Store, dict]" = weakref.WeakKeyDictionary()
 def kept(store: Store, key: tuple, build: Callable[[], Any]) -> Any:
     """What `build()` gives, kept while the store does not change (reading changes nothing,
     so a view built many times over reads the same records). Callers do not change it."""
-    last = store.changes[-1] if store.changes else None
-    state = (store.mark(), id(last), last and (last.cause, last.table, last.id, last.field))
+    state = (store.mark(), store.version)          # the log's length and every change made or undone
     mine = _KEPT.get(store)
     if mine is None or mine[0] != state:
         mine = (state, {})

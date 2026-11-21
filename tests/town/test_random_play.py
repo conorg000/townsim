@@ -21,6 +21,8 @@ from collections import Counter, defaultdict
 
 import pytest
 
+from townsim.town.clock import date_text
+
 from townsim.town import firms, gen
 from townsim.town.acts import REGISTRY
 from townsim.town.loop import run_day
@@ -290,7 +292,8 @@ def random_script(rng: random.Random, from_view: bool = False):
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
         if from_view and seen["debts"] and rng.random() < 0.3:     # until ended, between people who owe already
             acts.append({"op": "propose_agreement", "to": rng.choice(seen["debts"]), "amount": rng.randint(5, 40),
-                         "per": "week", "weeks": 0, "pays": rng.choice(["me", "them"]), "what": "a little each week"})
+                         "per": "week", "weeks": 0, "pays": rng.choice(["me", "them"]), "what": "a little each week",
+                         "start": date_text(key.day + 7)})          # open long enough to be answered
         if from_view and owed and rng.random() < 0.3:              # paid toward ahead, then stopped
             to, ob, sum_ = rng.choice(owed)
             acts += [{"op": "pay", "to": to, "amount": rng.choice([1, 5, sum_]), "for": ob}, {"op": "stop", "id": ob}]

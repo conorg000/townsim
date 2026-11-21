@@ -511,9 +511,9 @@ def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
                         f"{date_text(start)}.")
         else:
             start = obligations.next_on_schedule(wage, friday + 1)
-            while any(d.day == start and d.status != "void" and (d.paid >= d.cents or d.paid > weekly or weekly == 0)
-                      for d in store.where("dues", obligation=wage.id)):
-                start += wage.every
+        while any(d.day == start and d.status != "void" and d.paid > 0       # a Friday paid toward keeps its pay
+                  for d in store.where("dues", obligation=wage.id)):
+            start += wage.every
         obligations.reprice(store, wage.id, weekly, start, cause)
         ob = wage.id
     else:

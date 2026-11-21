@@ -44,7 +44,14 @@ AMBIGUOUS = frozenset({
     "Nick", "Bob", "Gene", "Carol", "Victor", "Norman", "Sally", "Basil", "Lee", "Robin", "Rowan", "Ross", "Bonnie",
     "Felicity", "Constance", "Prudence", "Patience", "Florence", "Lewis", "Scott", "Stewart", "Murray", "Terry",
     "Harry", "Pierce", "Chase", "Hunter", "Wade", "Lance", "Kim", "Lynn", "Polly", "Nell", "Mona", "Eve", "Una",
+    "Victoria",
 })
+# Words naming a place: a given name before one is a street's or a building's name, not a person's.
+PLACE_WORDS = frozenset({"Road", "Street", "Lane", "Avenue", "Close", "Square", "Row", "Hill", "Park", "Way", "Drive",
+                         "Court", "Place", "Gardens", "Terrace", "Crescent", "Walk", "Station", "Church", "Chapel",
+                         "School", "Hall", "House", "Cottage", "Farm", "Green"})
+# Words before a given name that make it a saint's, a sovereign's or a title's, not a person here.
+NOT_PEOPLE_BEFORE = frozenset({"St", "Saint", "Queen", "King", "Prince", "Princess", "Lord", "Lady"})
 # Capitalised words that are never the second half of a person's name.
 NOT_SURNAMES = frozenset(set(DAYS) | set(MONTHS) | {
     "I", "Road", "Street", "Lane", "Close", "Row", "Hill", "Side", "End", "Head", "Square", "Avenue", "Park", "Way",
@@ -59,7 +66,8 @@ LEADING = frozenset({
 # The generic words before an organisation's word that make a common noun of it, not a name.
 GENERIC = frozenset({"Post", "Head", "Town", "Parish", "County", "District", "Social", "Local", "Main", "Central",
                      "Booking", "Ticket", "Home", "Village", "Sorting", "Box", "Building", "Lost", "Property",
-                     "Housing", "Council", "Benefits", "Tax", "Savings"})
+                     "Housing", "Council", "Benefits", "Tax", "Savings", "Food", "Customer", "Health"})
+NOT_BODIES_AFTER = frozenset({"Holiday", "Holidays"})        # `Bank Holiday` is a day, not a body
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'’-]*|\S")
 _MASK = "\x00"
@@ -142,8 +150,15 @@ def names_in(k: Known, text: str) -> list[str]:
         before = masked[:found[i][1]].rstrip()
         return not before or before[-1] in '.!?:;"“(\n'
 
+    for i, w in enumerate(words):                       # saints, sovereigns and lords
+        if w.rstrip(".") in NOT_PEOPLE_BEFORE and i + 1 < n and _base(words[i + 1]) in GIVEN:
+            used[i] = used[i + 1] = True
     for i, w in enumerate(words):                       # organisations
         if w not in ORG_WORDS or i == 0 or not _cap(words[i - 1]) or (i + 1 < n and words[i + 1] in ORG_WORDS):
+            continue
+        if i + 1 < n and words[i + 1] in NOT_BODIES_AFTER:
+            for x in range(i - 1, i + 2):
+                used[x] = True
             continue
         j = i - 1
         while j > 0 and _cap(words[j - 1]) and i - (j - 1) <= 3:
@@ -183,9 +198,12 @@ def names_in(k: Known, text: str) -> list[str]:
         if used[i] or not _cap(w) or first not in GIVEN or i + 1 >= n:
             continue
         second = words[i + 1]
+        if _base(second) in PLACE_WORDS:                # a street or a building named for someone
+            used[i] = used[i + 1] = True
+            continue
         if not _cap(second) or used[i + 1] or _base(second) in NOT_SURNAMES:
             continue
-        if first in AMBIGUOUS and sentence_start(i):
+        if first in AMBIGUOUS and sentence_start(i) and second in LEADING:
             continue
         name = f"{first} {_base(second)}"
         if name.casefold() not in k.full:

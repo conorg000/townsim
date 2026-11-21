@@ -118,7 +118,7 @@ def test_a_declined_offer_changes_no_job():
     rq = offer(s, "p01", "Megan Pryce", 440, 38, text="We are busy on Saturdays.")
     assert rq.text == "We are busy on Saturdays."
     out = do(s, "p04", "answer", request=rq.id, answer="decline")
-    assert out.ok and out.msg == "Declined." and s.where("jobs", person="p04") == []
+    assert out.ok and out.msg == "Declined: rq1 from Ruth Ashby." and s.where("jobs", person="p04") == []
     assert told(s, "p01") == ['Megan Pryce declined your request rq1 ("We are busy on Saturdays.").']
 
 
@@ -693,8 +693,7 @@ def test_someone_who_takes_a_job_is_no_longer_out_of_work_in_any_view():
     who = _who(s, "p18")
     assert "out of work" not in who and "Finding work" not in who and "benefit" not in who
     assert "You work at Lumb's Grocer: 38 hours a week, for $440.00 a week, paid on Fridays." in who
-    assert "Wendy Lumb, your child, works for you, works at Lumb's Grocer, paid $440.00 a week by Lumb's Grocer." \
-        in _who(s, "p16")
+    assert "Wendy Lumb, your child, works for you, paid $440.00 a week by Lumb's Grocer." in _who(s, "p16")
 
 
 def test_someone_who_loses_a_job_is_not_told_they_keep_it():
@@ -991,3 +990,18 @@ def test_extra_shifts_are_paid_at_the_rate_in_force_on_the_day_they_are_offered(
     to_day(s, 13)
     do(s, "p01", "offer_shifts", 2, to="Craig Pryce", hours=8)
     assert s.all("requests")[-1].pay == round(8 * 76_000 / 38)
+
+
+def test_a_part_payment_toward_the_first_friday_of_a_rise_does_not_lose_a_take_back():
+    s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
+    assert do(s, "p16", "set_staff_pay", who="Gail Whiteley", weekly_pay=500).ok           # from Friday 20 March
+    close(s); live(s, 4); routine(s)                 # Tuesday 17 March
+    out = do(s, "p16", "pay", to="Gail Whiteley", amount=100, note="wages", **{"from": "Lumb's Grocer", "for": "ob3"})
+    assert out.msg.endswith("counted toward wages from Lumb's Grocer due Friday 20 March.")
+    assert s.get("obligations", "ob3").cents == 43_400                      # the rise is not taken in early
+    out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=434)
+    assert out.ok and "from Friday 27 March" in out.msg and "This replaces the change to $500.00" in out.msg
+    close(s); live(s, 20)
+    assert [(d, c) for d, src, c in _wages_in(s, 14) if src == "org10"] == [(15, 10_000), (18, 40_000), (25, 43_400),
+                                                                          (32, 43_400)]
+    _check_wage_chains(s); _check_run(s)

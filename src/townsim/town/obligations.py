@@ -184,8 +184,10 @@ def ensure_due(store: Store, ob_id: str, day: int, cause: str) -> Due:
         ob = store.get("obligations", ob_id)
         due = Due(store.new_id("du", cause), ob_id, day, instalment_cents(ob, day))
         store.add("dues", due, cause)
-        if ob.next_from != -1 and day >= ob.next_from:      # the change has come: it is the amount now
+        if ob.next_from != -1 and ob.next_from <= day <= store.day:   # the change has come: it is the amount now
             store.set("obligations", ob_id, cause, cents=ob.next_cents, next_cents=0, next_from=-1)
+        # a due opened ahead of today (paid toward by hand) is priced by `instalment_cents`; a change
+        # still to come stays pending, so it can be taken back from the next day after it
     return due
 
 
@@ -245,9 +247,10 @@ def _fold(store: Store, ob: Obligation, cause: str) -> None:
 
 
 def people_of(store: Store, account: str) -> list[str]:
-    """A household's members; an org's owner, if it has one; `[]` for anything else."""
+    """A household's adults; an org's owner, if it has one; `[]` for anything else."""
     if store.has("households", account):
-        return list(store.get("households", account).members)
+        return [p for p in store.get("households", account).members
+                if not store.has("people", p) or store.get("people", p).age >= ADULT]
     if store.has("orgs", account) and store.get("orgs", account).owner:
         return [store.get("orgs", account).owner]
     return []
@@ -264,9 +267,22 @@ def name_of(store: Store, account: str) -> str:
     return account
 
 
+ADULT = 18                           # a child, under this age, is told nothing: their household's adults are
+
+
+def notify(store: Store, pid: str, text: str, cause: str) -> None:
+    """Tell `pid` something in a notice; a child's notice goes to the adults of their household
+    instead. The one way a notice is made."""
+    if store.has("people", pid) and store.get("people", pid).age < ADULT:
+        for adult in people_of(store, store.get("people", pid).household):
+            store.add("notices", Notice(store.new_id("n", cause), store.day, adult, text), cause)
+        return
+    store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+
+
 def _tell(store: Store, account: str, text: str, cause: str) -> None:
     for person in people_of(store, account):
-        store.add("notices", Notice(store.new_id("n", cause), store.day, person, text), cause)
+        notify(store, person, text, cause)
 
 
 def _shown(text: str) -> str:
@@ -370,13 +386,15 @@ def collect(store: Store) -> None:
             memo = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)}"
             store.transfer(ob.payer, ob.payee, remainder, memo, cause)
             store.set("dues", due.id, cause, paid=due.cents)
-            if owed:
-                _tell(store, ob.payer, f"{_cap(_payment(ob, due.day, remainder))} was taken on "
-                                       f"{date_text(store.day)}.", cause)
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
-        settled(store, ob.id, owed, cause)
+        full = paid_in_full(store, ob.id)
+        if owed and remainder > 0:           # one notice: what was taken, and that it is settled if it is
+            _tell(store, ob.payer, f"{_cap(_payment(ob, due.day, remainder))} was taken on {date_text(store.day)}."
+                                   + (f" {full}" if full else ""), cause)
+        elif full:
+            _tell(store, ob.payer, full, cause)
 
 
 def after_its_end(ob: Obligation, day: int) -> bool:
@@ -534,16 +552,27 @@ def _count(store: Store, plan: list[tuple[Obligation, int, int]], cause: str) ->
     return matches
 
 
-def settled(store: Store, ob_id: str, was_owed: bool, cause: str) -> None:
-    """Tell the payer's people when a payment settles something of theirs (design 3.3): a loan,
-    an agreement with an end or a bill that falls once, finished by it (`<memo> is paid in
-    full.`); or the last of what was overdue on anything (`<memo> is up to date.`)."""
+def paid_in_full(store: Store, ob_id: str) -> str:
+    """`<Memo> is paid in full.` when `ob` is a loan, an agreement with an end or a repair bill
+    (a bill for work done) that is finished with nothing still owed; else "". Never for a late
+    fee, nor any other bill that falls once."""
     ob = store.get("obligations", ob_id)
     whole = ob.kind == "loan" or (ob.kind == "agreement" and ob.last is not None) or \
-        (ob.kind == "bill" and ob.every == 0)
+        (ob.kind == "bill" and ob.cannot_stop == "work" and not ob.penalty)
     if ob.status == "finished" and whole and not owed_dues(store, ob_id):
-        _tell(store, ob.payer, f"{_cap(_shown(ob.memo))} is paid in full.", cause)
-    elif was_owed and not owed_dues(store, ob_id):
+        return f"{_cap(_shown(ob.memo))} is paid in full."
+    return ""
+
+
+def settled(store: Store, ob_id: str, was_owed: bool, cause: str) -> None:
+    """Tell the payer's people when a payment by hand or a repayment settles something of theirs
+    (design 3.3): that it is paid in full (`paid_in_full`), or, when it cleared the last of what
+    was overdue on it, `<memo> is up to date.` (What collection settles is told by `collect`.)"""
+    ob = store.get("obligations", ob_id)
+    full = paid_in_full(store, ob_id)
+    if full:
+        _tell(store, ob.payer, full, cause)
+    elif was_owed and not owed_dues(store, ob_id) and not ob.penalty:
         _tell(store, ob.payer, f"{_cap(_shown(ob.memo))} is up to date.", cause)
 
 

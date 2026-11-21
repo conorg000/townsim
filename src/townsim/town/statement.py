@@ -156,9 +156,16 @@ def _coming(store: Store, ups: list[Upcoming]) -> list[str]:
     return rows or ["  nothing"]
 
 
+def same_day(text: str, day: int) -> str:
+    """A memo on a line dated `day` without its `, due <day>`, which the line's date already says."""
+    tail = f", due {date_text(day)}"
+    return text[:-len(tail)] if text.endswith(tail) else text
+
+
 def line_rows(store: Store, lines: list[Line]) -> list[str]:
-    """The rows `statement_text` shows for `lines`, oldest first."""
-    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {memo(l.memo)}" for l in lines]
+    """The rows `statement_text` shows for `lines`, oldest first, as a view shows them."""
+    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {same_day(memo(l.memo), l.day)}"
+            for l in lines]
 
 
 def statement_text(store: Store, st: Statement) -> str:

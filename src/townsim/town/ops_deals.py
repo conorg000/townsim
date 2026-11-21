@@ -33,7 +33,7 @@ from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, controls, fits, from_account, name_of_who,
                                register, shown, to_cents)
 from townsim.town.clock import date_text, date_year, parse_date, unreadable
-from townsim.town.entities import Notice, Org, Record, Request
+from townsim.town.entities import Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
 from townsim.town.store import Store, id_key
@@ -131,7 +131,7 @@ def _adults(store: Store, account: str) -> list[str]:
 
 def _tell(store: Store, people: list[str], text: str, cause: str) -> None:
     for pid in people:
-        store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+        obligations.notify(store, pid, text, cause)
 
 
 def _weeks_text(n: int) -> str:
@@ -434,8 +434,8 @@ def _do_borrow(store: Store, act: Act, cause: str) -> str:
     summary = work._bounded(
         f"{_cut(_side_name(store, loan.source, act.principal))} asks the bank for {money(loan.cents)} over "
         f"{loan.weeks} weeks, repaying {money(weekly)} a week ({money(total)} in all) from {date_year(first)}"
-        f"{differs}: {quoted(loan.purpose)}. They now owe the bank {money(owed)} on {k} loan{'' if k == 1 else 's'}, "
-        f"{money(overdue)} of it overdue.")
+        f"{differs}: {quoted(loan.purpose)}. " + ("They owe the bank nothing." if not owed else
+        f"They now owe the bank {money(owed)} on {k} loan{'' if k == 1 else 's'}, {money(overdue)} of it overdue."))
     rq = Request(store.new_id("rq", cause), store.day, act.actor, loan.banker, "", 0, first - 1, kind="loan", summary=summary, org=loan.source, first=first,
                  times=loan.weeks, pay=loan.cents, payer=loan.source, payee=loan.bank.id)
     store.add("requests", rq, cause)
@@ -594,9 +594,11 @@ def change_of_rent(store: Store, h, ob, cents: int) -> tuple[RentChange | None, 
         day = pending[1]
     else:
         day = obligations.next_on_schedule(ob, store.day + RENT_NOTICE_DAYS)
-    kept = []
+    kept = sorted((d for d in store.where("dues", obligation=ob.id)       # days ahead paid toward at a pending amount
+                   if d.status != "void" and d.paid > 0 and store.day < d.day < day and d.cents != ob.cents),
+                  key=lambda d: d.day)
     while (d := next((d for d in store.where("dues", obligation=ob.id, day=day) if d.status != "void"), None)) \
-            and (d.paid >= d.cents or d.paid > cents):
+            and d.paid > 0:                        # a day paid toward keeps the amount told for it
         kept.append(d)
         day += ob.every
     if ob.last is not None:

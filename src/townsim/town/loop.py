@@ -11,7 +11,7 @@ import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import aims, firms, hamlet, hours, jobs, obligations, talk
 from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
-from townsim.town.entities import Notice, Result
+from townsim.town.entities import Result
 from townsim.town.replies import Keys, Replier
 from townsim.town.statement import quoted
 from townsim.town.store import Store
@@ -57,7 +57,7 @@ def _lapse(store: Store) -> None:
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed")
         text = _lapsed(store, rq)
-        store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
+        obligations.notify(store, rq.sender, text, cause)
 
 
 def _lapsed(store: Store, rq) -> str:

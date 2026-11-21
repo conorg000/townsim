@@ -31,10 +31,11 @@ from typing import Any, NamedTuple
 from townsim.town import acts, facts, loop, unknown, views
 from townsim.town.acts import LONGEST_WORD, Outcome, accounts_of, apply_act, clean_text, name_of_who
 from townsim.town.clock import date_text, dow, week
-from townsim.town.entities import Line, Notice, Result, Talk
+from townsim.town.entities import Line, Result, Talk
 from townsim.town.obligations import SCHEDULED, money, name_of
 from townsim.town.replies import Keys, Replier
 from townsim.town.statement import Counted, statement
+from townsim.town import obligations
 from townsim.town.store import Store, id_key
 
 TURNS = 3                   # turns a side
@@ -189,7 +190,7 @@ def _why_not(store: Store, pid: str, who: str) -> str:
 
 
 def _tell(store: Store, pid: str, text: str, cause: str) -> None:
-    store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+    obligations.notify(store, pid, text, cause)
 
 
 def _take_hour(store: Store, pid: str, cause: str) -> None:

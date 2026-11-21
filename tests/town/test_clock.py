@@ -52,7 +52,10 @@ def test_days_names_the_week_from_monday():
 def test_parse_date_reads_a_trailing_year():
     assert clock.parse_date("12 March 2026", today=3) == 10
     assert clock.parse_date("Thursday, 12th March 2026", today=3) == 10
-    assert clock.parse_date("12 March 2027", today=3) is None
+    assert clock.parse_date("12 March 2027", today=3) == 375
+    assert clock.parse_date("Monday 4 January 2027", today=0) == 308
+    assert clock.parse_date("4 January", today=260) == 308                 # said in November: next January
+    assert clock.parse_date("12 March 2025", today=3) is None
     assert clock.parse_date("Thursday 2026", today=3) is None
     assert clock.parse_date("2026 12 March", today=3) is None
     assert clock.parse_date("2026", today=3) is None

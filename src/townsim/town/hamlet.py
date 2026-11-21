@@ -18,7 +18,7 @@ import random
 
 from townsim.town import jobs, obligations
 from townsim.town.clock import DAY_ZERO, date_text, dow, week
-from townsim.town.entities import Event, Notice
+from townsim.town.entities import Event
 from townsim.town.obligations import money
 from townsim.town.store import Store
 
@@ -43,6 +43,9 @@ _RENT_RANGE = (3, 8)               # percent an agency raises a rent by
 _CUT_RANGE = (15, 35)              # percent of their hours an outside employer cuts
 _REPAIR_CENTS = (15_000, 90_000)
 NOTICE_DAYS = 28                   # an energy price changes on the first bill day this far on
+# How long a change dealt stays to come, from the day it is told: no second change of the same
+# price or the same person's hours is dealt inside it.
+PENDING_DAYS = {"energy_price": NOTICE_DAYS + 7, "agency_rent": NOTICE_DAYS + 7, "hours_cut": 7 + 7}
 
 SUNDAY = 6
 REPAIR_DAYS = 7
@@ -51,7 +54,7 @@ _NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight"
 
 def _tell(store: Store, people: list[str], text: str, cause: str) -> None:
     for pid in people:
-        store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+        obligations.notify(store, pid, text, cause)
 
 
 def _weeks(n: int) -> str:
@@ -108,10 +111,14 @@ def _hours_cut(store: Store, e: Event, cause: str) -> str | None:
     monday = jobs.next_monday(store.day)
     friday = obligations.next_on_schedule(wage, monday + jobs.FRIDAY)
     weekly = round(obligations.cents_now(store, wage) * hours / job.hours)
+    told = obligations.pending_change(store, wage)
     obligations.reprice(store, wage.id, weekly, friday, cause)
     store.set("jobs", job.id, cause, hours=float(hours), weekly=weekly)
+    replaced = (f" This replaces the change to {money(told[0])} that was to start on {date_text(told[1])}."
+                if told else "")
     _tell(store, [e.who], f"{store.get('orgs', job.org).name} has cut your hours to {hours:g} a week from "
-                          f"{date_text(monday)}. Your pay is {money(weekly)} a week from {date_text(friday)}.", cause)
+                          f"{date_text(monday)}. Your pay is {money(weekly)} a week from {date_text(friday)}."
+                          f"{replaced}", cause)
     return None
 
 
@@ -206,9 +213,12 @@ def _energy_price(store: Store, e: Event, cause: str) -> str | None:
         if any(d.day >= day and d.status != "void" and (d.status == "paid" or d.paid > cents)
                for d in store.where("dues", obligation=ob.id)):
             continue
+        told = obligations.pending_change(store, ob)
         obligations.reprice(store, ob.id, cents, day, cause)
+        replaced = (f" This replaces the change to {money(told[0])} that was to start on {date_text(told[1])}."
+                    if told else "")
         _tell(store, _adults(store, ob.payer), f"{name} is changing its prices: your energy bill is "
-                                               f"{money(cents)} a week from {date_text(day)}.", cause)
+                                               f"{money(cents)} a week from {date_text(day)}.{replaced}", cause)
     return None
 
 
@@ -321,6 +331,7 @@ def deal(store: Store, rng: random.Random, weeks: int = RUN_WEEKS) -> list[Event
     """The deck for `weeks` weeks from today: each week, each chance drawn once, in order; a
     household that has three events is dealt no more. Returns the events, by day."""
     dealt: dict[str, int] = {}
+    pending: dict[tuple[str, str], int] = {}      # (kind, who) -> the day a change dealt is told on
     found = []
     for w in range(weeks):
         for kind, who, household, chance in chances(store):
@@ -329,6 +340,10 @@ def deal(store: Store, rng: random.Random, weeks: int = RUN_WEEKS) -> list[Event
                 continue
             if hit >= chance or (household and dealt.get(household, 0) >= EVENTS_A_HOUSEHOLD):
                 continue
+            if kind in PENDING_DAYS and (kind, who) in pending and day < pending[(kind, who)] + PENDING_DAYS[kind]:
+                continue                 # a change of the same price or hours told and not yet come
+            if kind in PENDING_DAYS:
+                pending[(kind, who)] = day
             if household:
                 dealt[household] = dealt.get(household, 0) + 1
             amount, length, what = 0, 1, ""

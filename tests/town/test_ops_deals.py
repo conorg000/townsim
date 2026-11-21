@@ -301,7 +301,7 @@ def test_a_loan_of_1000_over_26_weeks_repays_4077_a_week_and_1060_in_all():
     rq = s.all("requests")[-1]
     summary = ('Craig Pryce asks the bank for $1,000.00 over 26 weeks, repaying $40.77 a week ($1,060.00 in all) '
                'from Friday 13 March 2026, the last, on Friday 4 September 2026, $40.75: "a van". '
-               'They now owe the bank $0.00 on 0 loans, $0.00 of it overdue.')
+               'They owe the bank nothing.')
     assert out.msg == f"Sent to Dora Penn ({rq.id}): {summary} It stays open until Thursday 12 March."
     assert (rq.kind, rq.to, rq.pay, rq.times, rq.first, rq.summary) == ("loan", "p05", 100_000, 26, 11, summary)
     out = ok(s, "p05", "answer", 1, request=rq.id, answer="accept")
@@ -519,9 +519,11 @@ def test_a_rent_paid_ahead_at_a_coming_amount_and_then_changed_is_taken_once():
     ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
     to_day(s, 22)
     ok(s, "p03", "pay", to="Len Hale", amount=200)
-    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=210)
-    to_day(s, 64)
-    assert _rent_paid(s, 21) == [(21, 18_500), (22, 20_000)] + [(d, 20_000) for d in (35, 42, 49)] + \
+    out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=210)
+    assert out.msg.endswith("This replaces the change to $200.00 that was to start on Monday 30 March 2026. The rent "
+                            "due Monday 30 March 2026 stays $200.00: $200.00 has been paid toward it already.")
+    to_day(s, 64)          # the day paid toward keeps what was told for it; the change it replaced never comes
+    assert _rent_paid(s, 21) == [(21, 18_500), (22, 20_000)] + [(d, 18_500) for d in (35, 42, 49)] + \
         [(d, 21_000) for d in (56, 63)]
     assert sorted(d.day for d in s.where("dues", obligation=rent.id)) == list(range(0, 64, 7))
 
@@ -935,3 +937,30 @@ def test_the_accepted_agreement_notice_gives_the_summary_once():
     ok(s, "p04", "answer", request=rq.id, answer="accept")
     notice = told(s, "p01")[-1]
     assert notice.count("towards the shopping") == 1 and notice.count("$80.00 in all") == 1, notice
+
+
+def test_a_part_payment_toward_the_first_day_of_a_rise_does_not_lose_a_take_back():
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)                 # from Monday 30 March, day 28
+    to_day(s, 22)
+    ok(s, "p03", "pay", to="Len Hale", amount=50, **{"for": rent.id})         # toward day 28's rent
+    assert s.get("obligations", rent.id).cents == 18_500                      # the rise is not taken in early
+    out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=185)
+    assert out.msg == ("The rent for 4 Mill Lane stays $185.00 a week. This replaces the change to $200.00 that was "
+                       "to start on Monday 30 March 2026. The rent due Monday 30 March 2026 stays $200.00: $50.00 has "
+                       "been paid toward it already.")
+    to_day(s, 64)
+    paid = _rent_paid(s, 23)
+    assert paid == [(28, 15_000), (35, 18_500), (42, 18_500), (49, 18_500), (56, 18_500), (63, 18_500)]
+
+
+def test_a_take_back_with_nothing_paid_toward_the_day_applies_from_that_day():
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
+    to_day(s, 22)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=185)
+    to_day(s, 50)
+    assert _rent_paid(s, 23) == [(28, 18_500), (35, 18_500), (42, 18_500), (49, 18_500)]

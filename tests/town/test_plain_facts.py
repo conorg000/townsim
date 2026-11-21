@@ -79,7 +79,7 @@ def test_the_banker_sees_the_applicant_s_account_and_four_weeks_of_money():
     text = views.person_view(s, bank.contact)[1]["content"]
     h = s.get("people", pid).household
     assert f"The {s.get('households', h).name} account holds ${s.balance(h) / 100:,.2f}." in text
-    assert "has come into it and" in text and "They now owe the bank" in text
+    assert "has come into it and" in text and "They owe the bank nothing." in text
 
 
 def test_a_household_member_sees_what_the_others_are_paid_and_when_the_household_shops():

@@ -13,7 +13,6 @@ MONTHS: tuple[str, ...] = ("January", "February", "March", "April", "May", "June
 
 _FILLER = ("the", "of")
 _ORDINALS = ("st", "nd", "rd", "th")
-_YEAR = "2026"
 _WEEKDAY_WORDS = {w: i for i, name in enumerate(DAYS) for w in (name.lower(), name[:3].lower())}
 _MONTH_WORDS = {w: i + 1 for i, name in enumerate(MONTHS) for w in (name.lower(), name[:3].lower())} | {"sept": 9}
 
@@ -74,11 +73,12 @@ def parse_date(text: str, today: int) -> int | None:
 
     `today` and `tomorrow` are those days; an ISO date (`2026-03-16`) is that day. A date
     written with slashes is never read, being ambiguous. A bare weekday is the next such day
-    strictly after `today`. A day and month is that
-    date in 2026, in either order, and wins over any weekday written beside it. Commas,
+    strictly after `today`. A day and month, in either order, is that date in the year written
+    after it, or with no year the next such date on or after `today` (so "4 January" said in
+    November is next January), unless the day of the week written beside it is that of this
+    year's, which has passed; otherwise the date wins over any weekday beside it. Commas,
     ordinals ("12th"), the words "the" and "of", three-letter weekdays and months ("Thu",
-    "Mar", and "Sept"), full stops after words, and a trailing year 2026 after a day and
-    month are allowed. Never raises.
+    "Mar", and "Sept") and full stops after words are allowed. Never raises.
     """
     if not isinstance(text, str):
         return None
@@ -94,15 +94,17 @@ def parse_date(text: str, today: int) -> int | None:
         return day if day >= today else None
     words = [_drop_ordinal(w.rstrip(".")) for w in text.strip().lower().replace(",", " ").split()
              if w.rstrip(".") not in _FILLER]
-    year = bool(words) and words[-1] == _YEAR
-    if year:
-        words.pop()
+    year = None
+    if words and len(words[-1]) == 4 and words[-1].isascii() and words[-1].isdigit():
+        year = int(words.pop())
+        if not 2000 <= year <= 2200:
+            return None
     weekdays = [_WEEKDAY_WORDS[w] for w in words if w in _WEEKDAY_WORDS]
     months = [_MONTH_WORDS[w] for w in words if w in _MONTH_WORDS]
     numbers = [int(w) for w in words if w.isascii() and w.isdigit() and len(w) <= 2]
     if len(weekdays) + len(months) + len(numbers) != len(words) or len(weekdays) > 1:
         return None
-    if year and (not months or not numbers):
+    if year is not None and (not months or not numbers):
         return None
     if not months and not numbers:
         if not weekdays:
@@ -110,8 +112,20 @@ def parse_date(text: str, today: int) -> int | None:
         return today + (weekdays[0] - dow(today) - 1) % 7 + 1
     if len(months) != 1 or len(numbers) != 1:
         return None
-    try:
-        day = (date(2026, months[0], numbers[0]) - DAY_ZERO).days
-    except ValueError:
-        return None
-    return day if day >= today else None
+
+    def day_in(y: int) -> int | None:
+        try:
+            return (date(y, months[0], numbers[0]) - DAY_ZERO).days
+        except ValueError:
+            return None
+    if year is not None:
+        day = day_in(year)
+        return day if day is not None and day >= today else None
+    this = (DAY_ZERO + timedelta(days=max(today, 0))).year
+    day = day_in(this)
+    if day is not None and day >= today:
+        return day
+    if day is not None and weekdays and dow(day) == weekdays[0]:
+        return None                       # the day of the week written is this year's: it has passed
+    later = day_in(this + 1)
+    return later if later is not None and later >= today else None

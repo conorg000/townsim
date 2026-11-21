@@ -116,8 +116,10 @@ def test_standing_payment_refusals():
         "Not done: 'Funday' is not a day of the week."
     assert refused(s, "p01", "standing_payment", **{**base, "start": "soon"}) == \
         "Not done: 'soon' is not a date that can be read. Write it like Monday 16 March."
-    assert refused(s, "p01", "standing_payment", **{**base, "start": "1 March"}) == \
-        "Not done: '1 March' is not a date that can be read. Write it like Monday 16 March."
+    assert refused(s, "p01", "standing_payment", **{**base, "start": "Sunday 1 March"}) == \
+        "Not done: 'Sunday 1 March' is not a date that can be read. Write it like Monday 16 March."   # passed
+    assert do(s, "p01", "standing_payment", **{**base, "start": "1 March"}).msg.endswith(
+        "first on Thursday 4 March 2027.")                                    # no year: the next 1 March
     for weeks in (-1, 1.5, "two", True, 521):
         assert refused(s, "p01", "standing_payment", **{**base, "weeks": weeks}).startswith("Not done:")
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Sanjay"}) == \
@@ -133,13 +135,13 @@ def test_stop_a_standing_payment():
     s = thin()
     do(s, "p01", "standing_payment", to="Megan Pryce", amount=20, day="Thursday")
     ob = s.all("obligations")[-1].id
-    assert do(s, "p02", "stop", 1, id=ob).msg == "Stopped."    # either member of the household
+    assert do(s, "p02", "stop", 1, id=ob).msg == "Stopped: standing payment to Megan Pryce."    # either member of the household
     assert s.get("obligations", ob).status == "stopped"
 
 
 def test_stop_a_service_leaves_it():
     s = thin(); energy = ob_id(s, "h1", "energy")
-    assert do(s, "p01", "stop", id=energy).msg == "You have left; the fee ends."
+    assert do(s, "p01", "stop", id=energy).msg == "You have left Northgrid Energy (energy); the fee ends."
     assert s.get("obligations", energy).status == "stopped"
 
 
@@ -294,7 +296,7 @@ def test_money_sent_on_accepting_a_request_counts_toward_nothing():
 
 def test_declining_a_request_tells_the_sender():
     s = thin(); ask(s); rq = s.all("requests")[-1].id
-    assert do(s, "p01", "answer", 1, request=rq, answer="decline").msg == "Declined."
+    assert do(s, "p01", "answer", 1, request=rq, answer="decline").msg == "Declined: rq1 from Craig Pryce."
     assert s.get("requests", rq).status == "declined" and s.balance("h1") == 60000
     assert s.all("notices")[-1].text == f'Ruth Ashby declined your request {rq} ("Could you lend us $40 for the meter?").'
 

@@ -100,7 +100,12 @@ class Store:
         self.engine_errors: list[str] = []  # not state, never undone
         self._tables: dict[str, dict[str, Any]] = {t: {} for t in TABLES}
         self._counters: dict[str, int] = {}
+        self.version = 0     # every change made or undone counts one, never less: not state
         self._indexes()
+
+    def _log(self, change: "Change") -> None:
+        self.changes.append(change)
+        self.version += 1
 
     # indexes: derived from the tables, kept up to date by add, set and undo; not state
 
@@ -146,6 +151,7 @@ class Store:
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
+        self.__dict__.setdefault("version", len(self.changes))
         for table in TABLES:   # a store saved before a table existed has none of its rows
             self._tables.setdefault(table, {})
         self._indexes()
@@ -157,7 +163,7 @@ class Store:
         _need_cause(cause)
         old = self._counters.get(prefix, 0)
         self._counters[prefix] = old + 1
-        self.changes.append(Change(self.day, "counter", prefix, "n", old, old + 1, cause))
+        self._log(Change(self.day, "counter", prefix, "n", old, old + 1, cause))
         return f"{prefix}{old + 1}"
 
     # rows
@@ -179,7 +185,7 @@ class Store:
         record = copy.deepcopy(obj)
         rows[obj.id] = obj
         self._index_row(table, obj, True)
-        self.changes.append(Change(self.day, table, obj.id, "+", None, record, cause))
+        self._log(Change(self.day, table, obj.id, "+", None, record, cause))
 
     def set(self, table: str, id: str, cause: str, **fields: Any) -> None:
         """Set fields on a row. Nothing changes if this raises.
@@ -196,7 +202,7 @@ class Store:
         for name, value in fields.items():
             old = getattr(obj, name)
             self._set_field(table, obj, name, _copy_list(value))
-            self.changes.append(Change(self.day, table, id, name, _copy_list(old), _copy_list(value), cause))
+            self._log(Change(self.day, table, id, name, _copy_list(old), _copy_list(value), cause))
 
 
     def get(self, table: str, id: str) -> Any:
@@ -229,11 +235,11 @@ class Store:
     def open_account(self, id: str, cause: str, allow_credit: bool = False) -> None:
         _need_cause(cause)
         self.ledger.open(id, allow_credit)
-        self.changes.append(Change(self.day, "account", id, "+", None, allow_credit, cause))
+        self._log(Change(self.day, "account", id, "+", None, allow_credit, cause))
 
     def transfer(self, src: str, dst: str, cents: int, memo: str, cause: str) -> None:
         self.ledger.transfer(src, dst, cents, memo, cause)
-        self.changes.append(Change(self.day, "ledger", "", "+", None, self.ledger.transfers[-1], cause))
+        self._log(Change(self.day, "ledger", "", "+", None, self.ledger.transfers[-1], cause))
 
     def balance(self, account: str) -> int:
         return self.ledger.balance(account)
@@ -242,7 +248,7 @@ class Store:
 
     def advance_day(self, cause: str = "routine:close") -> None:
         _need_cause(cause)
-        self.changes.append(Change(self.day, "day", "", "day", self.day, self.day + 1, cause))
+        self._log(Change(self.day, "day", "", "day", self.day, self.day + 1, cause))
         self.day += 1
         self.ledger.t = self.day
 
@@ -257,6 +263,7 @@ class Store:
             raise ValueError(f"mark {mark} is outside the log (0..{len(self.changes)})")
         while len(self.changes) > mark:
             self._reverse(self.changes.pop())
+            self.version += 1
 
     def _reverse(self, c: Change) -> None:
         if c.table == "ledger":

@@ -62,3 +62,13 @@ def test_an_owner_is_shown_the_suppliers_and_the_other_shops_prices_almost_every
     assert views
     both = [u for u in views if "Suppliers' prices a basket today: " in u and "Prices a basket in the other shops: " in u]
     assert len(both) >= 0.9 * len(views), (seed, len(both), len(views))
+
+
+@pytest.mark.parametrize("seed", (1, 2, 3, 4, 5))
+def test_over_21_weeks_no_step_of_giving_way_adds_words_and_no_view_is_over_1600(seed):
+    _, laid, _ = scripted_weeks(seed)
+    assert len({d for d, *_ in laid}) > 100
+    for day, pid, words, chars, trail, steps in laid:
+        assert all(b <= a for a, b in zip(trail, trail[1:])), (seed, day, pid, steps, trail)
+        assert words <= trail[-1] and words <= 1600, (seed, day, pid, words, steps)
+        assert words < 2000 and chars <= 16000

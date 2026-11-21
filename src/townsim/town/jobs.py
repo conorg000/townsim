@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from townsim.town import obligations
 from townsim.town.clock import date_text, dow
-from townsim.town.entities import Job, Notice
+from townsim.town.entities import Job
 from townsim.town.obligations import SCHEDULED, money
 from townsim.town.store import Store, id_key
 
@@ -54,7 +54,7 @@ def last_pay_text(day: int, today: int) -> str:
 
 
 def tell(store: Store, pid: str, text: str, cause: str) -> None:
-    store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+    obligations.notify(store, pid, text, cause)
 
 
 def held(store: Store, **where: str) -> list[Job]:

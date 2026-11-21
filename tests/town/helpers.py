@@ -214,32 +214,43 @@ def generated(seed: int) -> Store:
     return pickle.loads(_generated(seed))
 
 
+WEEKS_21 = 147
+
+
 @functools.cache
-def scripted_weeks(seed: int, days: int = WEEKS_8):
-    """`seed`'s place played for `days` days on `hamlet_script.script`: the end state; the size in
-    words of everyone's view each morning, by (day, person); and every ask made, as (day, person,
-    purpose, system message, user message, what `check(store, person, text)` found then)."""
-    from townsim.town import hamlet_script
+def scripted_weeks(seed: int):
+    """`seed`'s place played for 21 weeks on `hamlet_script.script`, once: the end state; every
+    view laid out for someone asked, as (day, person, words, characters, the words as each step
+    of giving way left it, the steps); and every ask of the first eight weeks, as (day, person,
+    purpose, system message, user message, what `ties_contradicted` found then)."""
+    from townsim.town import hamlet_script, views
     from townsim.town.loop import run_day
     from townsim.town.replies import Keys, ScriptedReplier
-    from townsim.town.views import view
     s = generated(seed)
-    sizes: dict = {}
+    laid: list = []
     asked: list = []
-    sized: set = set()
+    real = views.layout
+
+    def layout(store, pid):
+        v = real(store, pid)
+        if store is s:
+            laid.append((s.day, pid, len(v.system.split()) + len(v.user.split()), len(v.system) + len(v.user),
+                         v.trail, v.steps))
+        return v
 
     def script(key, messages):
-        if s.day not in sized:
-            sized.add(s.day)
-            for p in s.all("people"):
-                sizes[(s.day, p.id)] = sum(len(m["content"].split()) for m in view(s, p.id)[0])
-        system, user = messages[0]["content"], messages[-1]["content"]
-        asked.append((s.day, key.actor, key.purpose, system, user, ties_contradicted(s, key.actor, system, user)))
+        if s.day < WEEKS_8:
+            system, user = messages[0]["content"], messages[-1]["content"]
+            asked.append((s.day, key.actor, key.purpose, system, user, ties_contradicted(s, key.actor, system, user)))
         return hamlet_script.script(key, messages)
     keys = Keys("w")
-    for _ in range(days):
-        run_day(s, ScriptedReplier(script), keys)
-    return s, sizes, asked
+    views.layout = layout
+    try:
+        for _ in range(WEEKS_21):
+            run_day(s, ScriptedReplier(script), keys)
+    finally:
+        views.layout = real
+    return s, laid, asked
 
 
 _SAID = {"works for you": "employee", "your employer": "employer", "works with you": "coworker",

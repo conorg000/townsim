@@ -409,7 +409,9 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
     for other, _, words in known:
         if store.get("people", other).household != household:
             continue
-        does = ", ".join(x for x in (_does(store, other), _paid(store, other)) if x)
+        at_work = any(w in words for w in ("works for you", "your employer", "works with you"))
+        does = ", ".join(x for x in ("" if at_work and jobs.held(store, person=other) else _does(store, other),
+                                     _paid(store, other)) if x)
         lines.append(f"{store.get('people', other).name}, {words}" + (f", {does}." if does else "."))
     return lines
 
@@ -703,10 +705,7 @@ def _untoward(text: str) -> str:
     return text[:at[0]] if at and text.endswith(")") else text
 
 
-def _same_day(text: str, day: int) -> str:
-    """A memo on a line dated `day` without its `, due <day>`, which the line's date already says."""
-    tail = f", due {date_text(day)}"
-    return text[:-len(tail)] if text.endswith(tail) else text
+from townsim.town.statement import same_day as _same_day  # noqa: E402
 
 
 def statement_lines(store: Store, st) -> str:
@@ -735,8 +734,13 @@ def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = C
     return rows
 
 
+def baskets(n: int) -> str:
+    """`1 basket`, `2 baskets`."""
+    return f"{n} basket" + ("" if n == 1 else "s")
+
+
 def _till(label: str, t) -> str:
-    return (f"{label}: sold {t.sold} baskets, could not sell {t.turned_stock} for want of stock and "
+    return (f"{label}: sold {baskets(t.sold)}, could not sell {t.turned_stock} for want of stock and "
             f"{t.turned_capacity} for want of staff, threw away {t.spoiled}, took {money(t.takings)}")
 
 
@@ -746,7 +750,7 @@ def _shelf(store: Store, f) -> str:
     last = sum(u for u, w in zip(f.stock_units, f.stock_weeks) if w == now - 1)
     older = sum(f.stock_units) - this - last
     more = f", {older} older" if older else ""
-    return f"On the shelf: {sum(f.stock_units)} baskets ({this} from this week, {last} from last week{more})"
+    return f"On the shelf: {baskets(sum(f.stock_units))} ({this} from this week, {last} from last week{more})"
 
 
 def _supplier_name(store: Store, sid: str) -> str:
@@ -774,10 +778,10 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
             lines.append(f"Price: {money(f.price)} a basket")
             lines.append(_shelf(store, f))
             if f.order_units > 0:
-                lines.append(f"On order for Monday: {f.order_units} baskets from "
+                lines.append(f"On order for Monday: {baskets(f.order_units)} from "
                              f"{_supplier_name(store, f.order_supplier)}")
             elif f.last_units > 0 and f.last_supplier:
-                lines.append(f"Nothing ordered; last week's order was {f.last_units} baskets from "
+                lines.append(f"Nothing ordered; last week's order was {baskets(f.last_units)} from "
                              f"{_supplier_name(store, f.last_supplier)}")
             else:
                 lines.append("Nothing ordered")
@@ -804,7 +808,7 @@ def _last_delivery(store: Store, f) -> str:
         if x.cause == cause:
             got = int(x.memo.split()[0]) if x.memo.split()[0].isdigit() else 0
             each = f" at {money(x.cents // got)} a basket" if got else ""
-            return f"Last delivery: {date_text(x.t)}, {got} baskets{each} from {name_of(store, x.dst)}"
+            return f"Last delivery: {date_text(x.t)}, {baskets(got)}{each} from {name_of(store, x.dst)}"
     return ""
 
 

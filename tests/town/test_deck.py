@@ -4,6 +4,8 @@ rents as a landlord here does, prices change, hours are cut, and what is settled
 import functools
 import pickle
 
+import pytest
+
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import gen, hamlet, jobs
 from townsim.town import obligations as O
@@ -131,3 +133,64 @@ def test_what_is_settled_is_told_to_the_payer_s_people():
     run_days(s, 10)
     assert [n.text for n in s.all("notices") if n.text.endswith("is paid in full.")] == ["Loan for a van is paid in full."] * 2
     assert s.get("obligations", loan).status == "finished"
+
+
+def test_over_21_weeks_settled_notices_are_few_and_one_collection_tells_each_person_once():
+    from collections import Counter
+    from .helpers import scripted_weeks
+    s, _, _ = scripted_weeks(5)
+    texts = [n.text for n in s.all("notices")]
+    assert not [x for x in texts if x.endswith("is paid in full.") and (x.startswith("Late fee") or "cold spell" in x)]
+    assert not [x for x in texts if "Late fee" in x and "is up to date" in x]
+    collected = Counter((c.day, c.cause, s.get("notices", c.id).to) for c in s.changes
+                        if c.table == "notices" and c.field == "+" and c.cause.startswith("routine:collect:"))
+    assert collected and max(collected.values()) == 1
+    for c in s.changes:                       # an arrears cleared by collection is told only by what was taken
+        if c.table == "notices" and c.field == "+" and c.cause.startswith("routine:collect:"):
+            assert not s.get("notices", c.id).text.endswith("is up to date.")
+
+
+def test_a_child_is_told_nothing_and_is_not_woken_by_a_notice():
+    from townsim.town.entities import Person
+    from townsim.town.loop import who_acts
+    s = town(h1=0)
+    s.add("people", Person("p9", "Ashby p9", "h1", 40.0, 40.0, 3, age=12), T)
+    s.set("households", "h1", T, members=["p1", "p2", "p9"])
+    O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=10_000, first=0, every=7, memo="rent",
+             ends="both", **SETUP)
+    run_days(s, 1)
+    O.notify(s, "p9", "Your talk did not happen.", T)
+    assert s.all("notices") and all(n.to in ("p1", "p2") for n in s.all("notices"))
+    assert "p9" not in who_acts(s)
+
+
+def _quiet_weeks(seed, weeks=21):
+    s = pickle.loads(pickle.dumps(gen.generate(seed, FAMILIES)))
+    for _ in range(7 * weeks):
+        routine(s)
+        close(s)
+    return s
+
+
+@pytest.mark.parametrize("seed", (3, 17))
+def test_every_energy_bill_taken_is_what_was_last_told_for_its_day(seed):
+    import re
+    from townsim.town.clock import parse_date
+    s = _quiet_weeks(seed)
+    assert s.engine_errors == []
+    told_re = re.compile(r"your energy bill is \$([\d,.]+) a week from (\w+ \d+ \w+)\.")
+    for h in s.all("households"):
+        ob = next(o for o in s.where("obligations", payer=h.id) if o.memo == "energy")
+        first = next(c.new for c in s.changes if c.table == "obligations" and c.id == ob.id and c.field == "+").cents
+        told = [(0, first)]
+        adult = next(p for p in h.members if s.get("people", p).age >= 18)
+        for n in sorted(s.where("notices", to=adult), key=lambda n: (n.day, n.id)):
+            if m := told_re.search(n.text):
+                told.append((parse_date(m.group(2), n.day), round(float(m.group(1).replace(",", "")) * 100)))
+        for d in s.where("dues", obligation=ob.id):
+            if d.status == "void":
+                continue
+            # the change told last that has come by the due's day; one told later for an earlier
+            # day replaces it, as its notice says
+            current = [c for day, c in told if day <= d.day]
+            assert d.cents == current[-1], (seed, h.id, d.day, d.cents, told)
