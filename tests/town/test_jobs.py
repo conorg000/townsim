@@ -12,7 +12,7 @@ from townsim.town.loop import close, routine
 from townsim.town.views import view
 
 from .helpers import add_person, add_shop, add_supplier, delivered, set_cash, town_with_shop
-from .test_random_play import _check_run
+from .test_random_play import _check_run, _check_wage_chains
 
 T = "routine:test"
 
@@ -561,14 +561,13 @@ def test_a_second_payment_by_hand_then_a_change_never_pays_a_friday_twice(act):
     s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March; Gail Whiteley's wage is $434
     do(s, "p16", "pay", to="Gail Whiteley", amount=434)
     out = do(s, "p16", "pay", 1, to="Gail Whiteley", amount=50)
-    assert out.msg.endswith("due Friday 20 March.")                   # opened next week's due early
+    assert out.msg == "Paid $50.00 to Gail Whiteley."                 # Friday 20 March is more than a week ahead
     args = dict(who="Gail Whiteley", weekly_pay=500) if act == "set_staff_pay" else dict(who="Gail Whiteley")
     assert do(s, "p16", act, 2, **args).ok
     close(s); live(s, 16)
     assert _gail(s, 10) == ([(18, 50_000), (25, 50_000)] if act == "set_staff_pay" else [])
     assert _collected_after_last(s) == [] and s.ledger.total() == 0
-    [early] = [d for d in s.where("dues", obligation="ob3") if d.day == 18]
-    assert (early.status, early.paid) == ("void", 5_000)              # what was paid stays a payment made
+    assert not [d for d in s.where("dues", obligation="ob3") if d.day > 11]
     _check_run(s)
 
 
@@ -710,3 +709,76 @@ def test_a_household_that_falls_behind_is_shown_so():
     O.create(s, kind="bill", payer=p.household, payee="org4", cents=500_000, first=1, every=7, memo="energy",
              ends="service", made_by="routine", cause=T)
     assert "What worries you: More goes out each week" in _who(s, p.id)
+
+
+# what the second review found: nothing prepaid more than a week ahead
+
+def _wages_in(s, since):
+    """(day, payer, cents) of everything paid to Gail Whiteley's household from `since`."""
+    return [(t.t, t.src, t.cents) for t in s.ledger.transfers if t.dst == "h5" and t.src in ("org10", "h9")
+            and t.t >= since]
+
+
+def test_three_payments_by_hand_on_a_thursday_then_a_pay_change_pay_each_friday_once():
+    s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
+    outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(3)]
+    assert outs[0].endswith("due Friday 13 March.") and outs[1:] == ["Paid $434.00 to Gail Whiteley."] * 2
+    assert do(s, "p16", "set_staff_pay", 3, who="Gail Whiteley", weekly_pay=500).ok
+    close(s); live(s, 20)
+    assert [(d, c) for d, src, c in _wages_in(s, 11) if src == "org10"] == [(18, 50_000), (25, 50_000)]
+    _check_wage_chains(s); _check_run(s)
+
+
+def test_two_payments_by_hand_on_a_saturday_then_a_pay_change_pay_each_friday_once():
+    s = _hamlet(); live(s, 12); routine(s)          # Saturday 14 March
+    outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(2)]
+    assert outs[0].endswith("due Friday 20 March.") and outs[1] == "Paid $434.00 to Gail Whiteley."
+    out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=500)
+    assert out.msg == "Lumb's Grocer pays Gail Whiteley $500.00 a week from Friday 27 March."
+    close(s); live(s, 20)
+    assert [(d, c) for d, src, c in _wages_in(s, 13) if src == "org10"] == [(25, 50_000), (32, 50_000)]
+    _check_wage_chains(s); _check_run(s)
+
+
+@pytest.mark.parametrize("then", ["dismiss", "set_staff_pay"])
+def test_two_requests_for_the_wage_accepted_then_a_change_pay_each_friday_once(then):
+    s = _hamlet(); live(s, 10); routine(s)
+    for i in range(2):
+        assert do(s, "p9", "request", 2 * i, to="Martin Lumb", text="my wage", amount=434, **{"for": "ob3"}).ok
+        assert do(s, "p16", "answer", 2 * i + 1, request=s.all("requests")[-1].id, answer="accept").ok
+    args = dict(weekly_pay=500) if then == "set_staff_pay" else {}
+    assert do(s, "p16", then, 9, who="Gail Whiteley", **args).ok
+    close(s); live(s, 20)
+    assert not [d for d in s.where("dues", obligation="ob3") if d.day > 11]
+    _check_wage_chains(s); _check_run(s)
+
+
+def test_a_dismissal_after_a_week_paid_ahead_tells_both_and_benefit_waits_for_it():
+    s = _hamlet(); live(s, 12); routine(s)          # Saturday 14 March: Friday 20 March paid ahead
+    do(s, "p16", "pay", to="Gail Whiteley", amount=434)
+    assert do(s, "p16", "dismiss", 1, who="Gail Whiteley").msg.endswith("was on Friday 13 March.")
+    kept = "$434.00 already paid toward wages from Lumb's Grocer due Friday 20 March"
+    assert told(s, "p16")[-1] == f"{kept} stays with {s.get('households', 'h5').name}."
+    assert told(s, "p9")[-2:] == ["Lumb's Grocer has ended your job. Your last pay was on Friday 13 March.",
+                                  f"{kept} is yours to keep."]
+    [due] = [d for d in s.where("dues", obligation="ob3") if d.day == 18]
+    assert (due.status, due.paid) == ("void", 43_400)
+    close(s); live(s, 20)
+    [benefit] = [o for o in s.all("obligations") if o.memo == "jobseeker's benefit" and o.payee == "h5"]
+    assert benefit.first == 25                                         # not Friday 20 March, already paid
+    assert [d for d, src, c in _wages_in(s, 13) if src == "org10"] == []
+    _check_run(s)
+
+
+def test_pay_for_a_wage_of_ones_own_shop_from_the_household_counts_toward_it():
+    s = _hamlet(); live(s, 10); routine(s)
+    out = do(s, "p16", "pay", to="Gail Whiteley", amount=434, **{"for": "ob3"})
+    assert out.msg == "Paid $434.00 to Gail Whiteley. It was counted toward wages from Lumb's Grocer due Friday 13 March."
+    assert s.ledger.transfers[-1].src == "h9"
+    assert do(s, "p9", "pay", 1, to="Dennis Brindle", amount=5, **{"for": "ob3"}).msg.startswith(
+        "Not done: you have nothing with the id 'ob3'")
+
+
+def test_curly_quotation_marks_in_a_note_cannot_close_its_quotation():
+    from townsim.town.statement import quoted
+    assert quoted("a \u201cb\u201d \u201ec\u201f \u00abd\u00bb \"e\"") == "\"a 'b' 'c' 'd' 'e'\""

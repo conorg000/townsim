@@ -139,9 +139,18 @@ def _check_pay(store: Store, act: Act) -> str | None:
     ref = _pay_ref(act)
     if ref is not None:
         if not (isinstance(ref, str) and store.has("obligations", ref)
-                and store.get("obligations", ref).payer == source and store.get("obligations", ref).payee == payee):
+                and (store.get("obligations", ref).payer == source or _own_wage(store, act, ref))
+                and store.get("obligations", ref).payee == payee):
             return f"you have nothing with the id '{shown(ref)}' that is owed to {name}."
     return _short_of(store, source, cents)
+
+
+def _own_wage(store: Store, act: Act, ob_id: str) -> bool:
+    """Whether `ob_id` is a wage owed by a business in the town the principal owns: one they
+    may pay by hand from another account of theirs."""
+    ob = store.get("obligations", ob_id)
+    return (ob.kind == "wage" and store.has("orgs", ob.payer) and store.get("orgs", ob.payer).owner == act.principal
+            and not store.get("orgs", ob.payer).outside)
 
 
 def _do_pay(store: Store, act: Act, cause: str) -> str:
@@ -150,7 +159,10 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     memo = quoted(note) if note else f"payment to {name}"
     source, ref = _source(store, act), _pay_ref(act)
-    wage = None if ref is not None else jobs.wage_paid_by_hand(store, act.principal, source, payee)
+    if ref is not None and store.get("obligations", ref).payer != source:     # their business's wage, by hand
+        wage, ref = ref, None
+    else:
+        wage = None if ref is not None else jobs.wage_paid_by_hand(store, act.principal, source, payee)
     # a wage the principal's business owes, paid from another of their accounts, counts toward it
     matches = obligations.pay(store, source, payee, cents, memo, cause, ref=ref, toward=wage)
     told = f"Paid {money(cents)} to {name}."

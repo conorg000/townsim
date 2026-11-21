@@ -37,12 +37,15 @@ _COUNTED = " (counted toward "
 _DUE = re.compile(r", due \w+ \d+ \w+$")
 
 
+_DOUBLE_QUOTES = str.maketrans({q: "'" for q in '"\u201c\u201d\u201e\u201f\u00ab\u00bb'})
+
+
 def quoted(text: str) -> str:
     """Words a person wrote, made into a memo: on one line, inside double quotation marks,
-    with any double quotation mark of theirs made a single one. Every memo a person writes is
-    stored so, which is how what they wrote is told from what code wrote wherever it goes:
-    into a payment, an obligation, a late fee on it, a notice or a record."""
-    return '"' + " ".join(text.replace('"', "'").split()) + '"'
+    with any double quotation mark of theirs, straight or curly, made a single one. Every memo
+    a person writes is stored so, which is how what they wrote is told from what code wrote
+    wherever it goes: into a payment, an obligation, a late fee on it, a notice or a record."""
+    return '"' + " ".join(text.translate(_DOUBLE_QUOTES).split()) + '"'
 
 
 def label(text: str) -> str:

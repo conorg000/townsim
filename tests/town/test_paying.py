@@ -80,10 +80,13 @@ def test_only_one_future_instalment_and_ties_go_by_kind():
     assert [(s.get("dues", x.due).obligation, s.get("dues", x.due).day) for x in m] == [("ob1", 7)]
 
 
-def test_a_second_payment_moves_on_to_the_instalment_after():
+def test_a_second_payment_moves_on_to_the_instalment_after_only_within_a_week():
     s = town(h1=50_000); make_rent(s, cents=17_500, first=7, every=7)
-    O.pay(s, "h1", "outside:lettings", 17_500, "one", "op:p1:pay:d0.0")
-    m = O.pay(s, "h1", "outside:lettings", 17_500, "two", "op:p1:pay:d0.1")
+    O.pay(s, "h1", "outside:lettings", 17_500, "one", "op:p1:pay:d0.0")         # toward day 7, a week ahead
+    assert O.pay(s, "h1", "outside:lettings", 17_500, "two", "op:p1:pay:d0.1") == []   # day 14 is too far ahead
+    assert [d.day for d in s.all("dues")] == [7]
+    run_days(s, 7)
+    m = O.pay(s, "h1", "outside:lettings", 10_000, "three", "op:p1:pay:d7.0")   # day 7 is paid; day 14 is within a week
     assert s.get("dues", m[0].due).day == 14
 
 
@@ -224,3 +227,17 @@ def test_a_ref_without_matching_is_refused():
     with pytest.raises(ValueError):
         O.pay(s, "h1", "outside:lettings", 1_000, "x", "op:p1:pay:d0.0", ref="anything", match=False)
     assert unchanged(s) == before
+
+
+def test_repay_still_counts_ahead_and_never_leaves_a_due_after_last():
+    s = town(h1=50_000, h2=0)
+    loan = O.create(s, kind="loan", payer="h1", payee="h2", cents=1_000, first=10, every=7, last=24, memo="loan",
+                    ends="both", **SETUP)
+    m = O.repay(s, loan, 1_500, "op:p1:repay:d0.0")             # ten days ahead: repay alone may count it
+    ob = s.get("obligations", loan)
+    assert [s.get("dues", x.due).day for x in m] == [10] and (ob.last, ob.final_cents) == (24, 500)
+    O.repay(s, loan, O.outstanding(s, ob), "op:p1:repay:d0.1")
+    ob = s.get("obligations", loan)
+    assert ob.status == "finished" and all(d.day <= ob.last for d in s.where("dues", obligation=loan))
+    run_days(s, 30)
+    assert s.balance("h2") == 3_000 and s.ledger.total() == 0

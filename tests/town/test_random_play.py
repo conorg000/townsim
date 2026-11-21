@@ -313,7 +313,26 @@ def _received_within_what_was_owed(s) -> None:
         assert total is None or got <= total, (ob, got, total)
 
 
+def _wage_chains(s) -> dict[str, set[str]]:
+    """Each job's wage obligations, old and new, as its row named them over the run."""
+    chains: dict[str, set[str]] = defaultdict(set)
+    for c in s.changes:
+        if c.table == "jobs" and c.field == "+" and c.new.wage_ob:
+            chains[c.id].add(c.new.wage_ob)
+        elif c.table == "jobs" and c.field == "wage_ob" and c.new:
+            chains[c.id].add(c.new)
+    return chains
+
+
+def _check_wage_chains(s) -> None:
+    """No Friday receives more than one full wage from a job's chain of wage obligations."""
+    for job, obs in _wage_chains(s).items():
+        full = Counter(d.day for ob in obs for d in s.where("dues", obligation=ob) if d.paid >= d.cents)
+        assert not full or max(full.values()) == 1, (job, full.most_common(2))
+
+
 def _check_run(s) -> None:
+    _check_wage_chains(s)
     _received_within_what_was_owed(s)
     collects = Counter(t.cause for t in s.ledger.transfers if t.cause.startswith("routine:collect:"))
     assert not collects or max(collects.values()) == 1, collects.most_common(1)

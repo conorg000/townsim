@@ -128,7 +128,8 @@ def _region(store: Store) -> str | None:
 def pay_benefit(store: Store) -> None:
     """Monday: everyone under pension age whose job has ended, who holds no job (nor one
     agreed to start) and has no benefit, is paid `BENEFIT_WEEKLY` a week by the regional
-    office into their household, from the Friday of the week after their last pay."""
+    office into their household, from the Friday of the week after their last pay (or after
+    the last week paid in full ahead by hand)."""
     if dow(store.day) != 0:
         return
     region = _region(store)
@@ -141,6 +142,8 @@ def pay_benefit(store: Store) -> None:
         if any(j.ended == -1 or j.ended >= store.day for j in rows):
             continue
         last = max(j.ended for j in rows)
+        for j in rows:                   # a week already paid in full by hand is not paid again
+            last = max([last] + [d.day for d in store.where("dues", obligation=j.wage_ob) if d.paid >= d.cents])
         first = max(last - dow(last) + 7 + FRIDAY, pay_friday(store.day))
         cause = f"routine:benefit:{p.id}"
         ob = obligations.create(store, kind="wage", payer=region, payee=p.household, cents=BENEFIT_WEEKLY,

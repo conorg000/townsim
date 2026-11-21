@@ -418,14 +418,14 @@ def _do_dismiss(store: Store, act: Act, cause: str) -> str:
     who, _ = _person(store, act, "who")
     job = _job_with(store, who, act.principal)
     last = jobs.last_friday(store.day)
-    jobs.finish(store, job.id, last, cause)
     org = _org_name(store, job.org)
     paid = jobs.last_pay_text(last, store.day)
     text = f"{org} has ended your job. Your last pay {paid}."
     note = core._note(act.args.get("text"))
     if note:
         text += f" {store.get('people', act.actor).name} wrote: {quoted(note)}"
-    jobs.tell(store, who, text, cause)
+    jobs.tell(store, who, text, cause)          # told first; then what follows from the end
+    jobs.finish(store, job.id, last, cause)
     return f"{store.get('people', who).name} has left {org}. Their last pay {paid}."
 
 
@@ -480,9 +480,11 @@ def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
     if store.has("obligations", job.wage_ob):
         old = store.get("obligations", job.wage_ob)
         if old.status in obligations.SCHEDULED:
-            if old.first <= friday:            # it pays this Friday, and is paid no further
-                paid_to = max(paid_to, friday)
-            obligations.end(store, old.id, friday, cause)
+            # it pays this Friday, and any Friday already paid by hand, and no further
+            last = max(friday, obligations.latest_paid(store, old.id) or friday)
+            if old.first <= last:
+                paid_to = max(paid_to, last)
+            obligations.end(store, old.id, last, cause)
         elif old.last is not None:
             paid_to = max(paid_to, old.last)
     start = max(friday, paid_to + 7) if paid_to >= 0 else friday

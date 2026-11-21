@@ -364,10 +364,15 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
         return _count(store, plan, cause)
 
 
+AHEAD_DAYS = 7      # how far ahead a payment by hand can count toward an instalment
+
+
 def _plan(store: Store, obs: list[Obligation], cents: int,
-          match: bool | Literal["arrears"]) -> list[tuple[Obligation, int, int]]:
+          match: bool | Literal["arrears"], ahead: int | None = AHEAD_DAYS) -> list[tuple[Obligation, int, int]]:
     """(obligation, day, cents counted) for `cents` paid toward `obs`: arrears oldest first,
-    then, unless `match` is `arrears`, the single next instalment. Changes nothing."""
+    then, unless `match` is `arrears`, the single next instalment, if it falls within `ahead`
+    days of today (any day ahead for None: only `repay`, which shortens a schedule from its
+    end). Never a day after an obligation's `last`. Changes nothing."""
     by_id = {o.id: o for o in obs}
     plan: list[tuple[Obligation, int, int]] = []
     left = cents
@@ -380,7 +385,8 @@ def _plan(store: Store, obs: list[Obligation], cents: int,
             left -= take
     if left > 0 and match is True:
         nexts = [(day, KIND_ORDER.index(o.kind), id_key(o.id), o) for o in obs
-                 if (day := next_instalment(store, o)) is not None and (o.last is None or day <= o.last)]
+                 if (day := next_instalment(store, o)) is not None and (o.last is None or day <= o.last)
+                 and (ahead is None or day <= store.day + ahead)]
         if nexts:
             day, _, _, ob = min(nexts, key=lambda n: n[:3])
             due = _find_due(store, ob.id, day)
@@ -470,8 +476,10 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
         return
     with store.transaction():
         for due in store.where("dues", obligation=ob_id):
-            if due.day > last_day and due.status != "paid":     # opened early by a payment by hand
+            if due.day > last_day and due.status != "void":     # opened early by a payment by hand
                 store.set("dues", due.id, cause, status="void")
+                if due.paid > 0:
+                    _kept(store, ob, due, cause)
         if last_day < ob.first:          # no instalment ever falls
             store.set("obligations", ob_id, cause, status="finished")
             return
@@ -481,6 +489,19 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
             store.set("obligations", ob_id, cause, final_cents=0)     # the instalment that differed no longer falls
         if not _left_to_pay(store, store.get("obligations", ob_id)):
             store.set("obligations", ob_id, cause, status="finished")
+
+
+def _kept(store: Store, ob: Obligation, due: Due, cause: str) -> None:
+    """Tell both sides that what was paid ahead toward a due no longer falling stays paid."""
+    what = f"{money(due.paid)} already paid toward {_shown(ob.memo)} due {date_text(due.day)}"
+    _tell(store, ob.payer, f"{what} stays with {name_of(store, ob.payee)}.", cause)
+    _tell(store, ob.payee, f"{what} is yours to keep.", cause)
+
+
+def latest_paid(store: Store, ob_id: str) -> int | None:
+    """The day of the latest due of `ob_id` that is fully paid, or None."""
+    days = [d.day for d in store.where("dues", obligation=ob_id) if d.status != "void" and d.paid >= d.cents]
+    return max(days) if days else None
 
 
 def _left_to_pay(store: Store, ob: Obligation) -> bool:
@@ -530,7 +551,7 @@ def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
     if account.balance < cents and not account.allow_credit:
         raise Overdraft(f"{ob.payer} has {account.balance}, cannot repay {cents} on {ob_id}")
     nxt = next_instalment(store, ob) if ob.status in SCHEDULED else None
-    plan = _plan(store, [ob], cents, True) if ob.status in SCHEDULED else _plan(store, [ob], cents, "arrears")
+    plan = _plan(store, [ob], cents, True, None) if ob.status in SCHEDULED else _plan(store, [ob], cents, "arrears")
     left = cents - sum(take for _, _, take in plan)
     last, final = ob.last, ob.final_cents
     end_day = _last_instalment(ob) if ob.every > 0 and ob.last is not None and ob.status in SCHEDULED else None
