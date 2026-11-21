@@ -220,7 +220,19 @@ def hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int = 0) -> He
     except _NoView as e:
         store.undo_to(mark)
         store.engine_errors.append(e.args[0])
+        _again_tomorrow(store, ref)
         return Held("", [], n)
+
+
+def _again_tomorrow(store: Store, ref: str) -> None:
+    """A talk not held because a view could not be built is tried again the next day: a booked
+    appointment moves to it (no one's hour was taken); a talk asked for today moves to it too, the
+    asker's hour taken already and not taken again (`_hold` takes only the other's)."""
+    cause = f"routine:talk:{ref}"
+    if store.has("appointments", ref) and store.get("appointments", ref).status == "booked":
+        store.set("appointments", ref, cause, day=store.day + 1)
+    elif store.has("talks", ref) and store.get("talks", ref).status == "waiting":
+        store.set("talks", ref, cause, day=store.day + 1)
 
 
 class _NoView(Exception):

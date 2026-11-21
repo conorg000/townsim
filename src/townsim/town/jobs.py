@@ -96,19 +96,8 @@ def finish(store: Store, job_id: str, last_pay_day: int, cause: str) -> None:
         raise ValueError(f"last_pay_day must be an int >= {store.day - 6}, got {last_pay_day!r}")
     last = max(last_pay_day, store.day)
     with store.transaction():
-        if store.has("obligations", job.wage_ob):
+        if store.has("obligations", job.wage_ob):      # a job has one wage for its whole life
             obligations.end(store, job.wage_ob, last, cause)
-            memo = store.get("obligations", job.wage_ob).memo
-            household = store.get("people", job.person).household
-            named = {j.wage_ob for j in store.all("jobs")}
-            # The job's wage before a stopped one was replaced (ended, with a last day of its own)
-            # ends with the job too; any other wage like it is not meant to exist.
-            for o in store.where("obligations", payer=job.org):
-                if (o.payee == household and o.kind == "wage" and o.memo == memo and o.id not in named
-                        and o.status in SCHEDULED and (o.last is None or o.last > last)):
-                    if o.last is None:
-                        store.engine_errors.append(f"{cause}: {o.id} was a second wage of {job_id}; ended")
-                    obligations.end(store, o.id, last, cause)
         store.set("jobs", job_id, cause, ended=last_pay_day)
 
 

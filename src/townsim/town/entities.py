@@ -306,9 +306,9 @@ class Work:
 class Job:
     """`person` works `hours` a week for the organisation `org`, paid `weekly` cents by the
     wage obligation `wage_ob`, since day `since` (before day 0 for a job held at the start).
-    `ended` is the last day worked, or -1 while the job goes on. A change of pay re-prices
-    the one wage obligation (`obligations.reprice`); only a draw set to nothing ends it, and a
-    draw set again starts another after it."""
+    `ended` is the last day worked, or -1 while the job goes on. A job has one wage obligation
+    for its whole life: a change of pay, a draw set to nothing included, re-prices it
+    (`obligations.reprice`), and it ends only when the job does."""
 
     id: str
     person: str

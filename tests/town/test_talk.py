@@ -600,8 +600,40 @@ def test_a_talk_whose_view_raises_is_not_held_and_nothing_of_it_is_kept(monkeypa
     monkeypatch.setattr(talk, "_view", view)
     [h] = hold_all(s, lambda key, m: reply("Here.", [{"op": "pay", "to": "Ruth Ashby", "amount": 5}]), n=3)
     assert (h.talk, h.turns, h.n) == ("", [], 3)
-    assert s.hash() == before and s.get("talks", tk).status == "waiting"
+    assert s.get("talks", tk).status == "waiting" and s.get("talks", tk).day == 1     # tried again tomorrow
+    s.set("talks", tk, "routine:test", day=0)
+    assert s.hash() == before                                    # and nothing else of it is kept
     assert s.engine_errors == [f"view:{RUTH}:d0: ValueError: no view"]
+
+
+def test_a_talk_not_held_for_want_of_a_view_is_held_the_next_day_with_no_hour_spent_twice(monkeypatch):
+    s = thin_town()
+    tk = ask_talk(s, RUTH, CRAIG)
+    act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": "Tuesday", "about": "the shed"})
+    ap = s.all("appointments")[-1].id
+    hours = {p: s.get("people", p).hours_left for p in (RUTH, CRAIG)}
+    real = talk._view
+    broken = {"on": True}
+
+    def view(store, pid, t):
+        if broken["on"]:
+            raise ValueError("no view")
+        return real(store, pid, t)
+    monkeypatch.setattr(talk, "_view", view)
+    hold_all(s, lambda key, m: reply("Here.", end=True))
+    assert s.get("talks", tk).day == 1 and s.get("talks", tk).status == "waiting"
+    assert {p: s.get("people", p).hours_left for p in (RUTH, CRAIG)} == hours
+    s.advance_day()                                               # Tuesday: the asked talk and the appointment
+    hold_all(s, lambda key, m: reply("Here.", end=True))
+    assert s.get("appointments", ap).day == 2 and s.get("appointments", ap).status == "booked"
+    assert {p: s.get("people", p).hours_left for p in (RUTH, CRAIG)} == hours
+    assert s.get("talks", tk).day == 2
+    broken["on"] = False
+    s.advance_day()                                               # Wednesday: both are held
+    hold_all(s, lambda key, m: reply("Here.", end=True))
+    assert s.get("talks", tk).status == "held" and s.get("appointments", ap).status == "held"
+    # the appointment takes an hour from each; the asked talk only Craig's, Ruth's taken when she asked
+    assert s.get("people", RUTH).hours_left == hours[RUTH] - 1 and s.get("people", CRAIG).hours_left == hours[CRAIG] - 2
 
 
 def test_no_count_of_turns_is_shown_and_the_last_turn_says_they_part_after_it():
