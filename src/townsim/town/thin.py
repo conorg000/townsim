@@ -31,7 +31,7 @@ def thin_town() -> Store:
         s.open_account(h, _SETUP)
         s.add("households", Household(h, surname, [p for p, _, _ in members]), _SETUP)
         for p, first, stock_day in members:
-            s.add("people", Person(p, f"{first} {surname}", h, 12.0, 12.0, stock_day), _SETUP)
+            s.add("people", Person(p, f"{first} {surname}", h, 70.0, 70.0, stock_day), _SETUP)
     for h, cents in (("h1", 60000), ("h2", 30000)):
         s.transfer("outside:employers", h, cents, "opening", _SETUP)
     setup = dict(every=7, made_by="routine", cause=_SETUP)

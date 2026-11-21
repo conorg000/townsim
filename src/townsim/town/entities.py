@@ -258,3 +258,15 @@ class TillWeek:
     spoiled: int
     stock_left: int
     cash: int
+
+
+@dataclass
+class Work:
+    """Recurring work a person holds: `what` (a key of `hours.WORK_HOURS`) for `account`,
+    the household or organisation it belongs to, taking `hours` a week."""
+
+    id: str
+    holder: str
+    account: str
+    what: str
+    hours: float

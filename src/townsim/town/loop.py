@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import obligations
+from townsim.town import hours, obligations
 from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
 from townsim.town.entities import Notice, Result
@@ -46,12 +46,9 @@ def _lapse(store: Store) -> None:
 
 
 def routine(store: Store) -> None:
-    """The morning: hours back on a Monday, old requests lapse, then what is owed is
+    """The morning: a week's free hours on a Monday, old requests lapse, then what is owed is
     opened, aged and collected."""
-    if dow(store.day) == 0:
-        for p in store.all("people"):
-            if p.hours_left != p.hours_week:
-                store.set("people", p.id, "routine:week", hours_left=p.hours_week)
+    hours.monday_hours(store)
     _lapse(store)
     obligations.open_dues(store)
     obligations.age_arrears(store)

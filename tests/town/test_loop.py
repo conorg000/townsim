@@ -79,7 +79,7 @@ def test_routine_resets_hours_on_monday_and_lapses_old_requests():
     for _ in range(14):
         s.advance_day()
     routine(s)                                              # day 14, a Monday; rq1 is still open today
-    assert s.get("people", "p02").hours_left == 12.0 and s.get("requests", "rq1").status == "open"
+    assert s.get("people", "p02").hours_left == 70.0 and s.get("requests", "rq1").status == "open"
     assert [c.cause for c in s.changes if c.table == "people" and c.day == 14] == ["routine:week"]
     s.advance_day(); routine(s)
     assert s.get("requests", "rq1").status == "lapsed" and s.get("requests", "rq2").status == "open"

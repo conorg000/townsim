@@ -48,7 +48,7 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
 
 
 def test_whole_hours_are_shown_without_a_fraction():
-    assert "You have 12 hours left this week." in person_view(thin_town(), "p01")[1]["content"]
+    assert "You have 70 hours left this week." in person_view(thin_town(), "p01")[1]["content"]
 
 
 def test_mark_seen_marks_only_what_it_is_given():

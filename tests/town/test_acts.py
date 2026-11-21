@@ -82,7 +82,7 @@ def test_a_done_act_carries_its_cause_and_takes_its_hours():
     s.advance_day()
     out = apply_act(s, Act("p02", "p02", "note", {}), 3)
     assert out.ok and out.msg == "Done it." and seen == ["op:p02:note:d1.3"]
-    assert s.get("people", "p02").hours_left == 10.5
+    assert s.get("people", "p02").hours_left == 68.5
     assert {c.cause for c in s.changes[-2:]} == {"op:p02:note:d1.3"}
 
 

@@ -385,7 +385,7 @@ def test_an_act_for_a_principal_uses_their_account_and_the_actors_hours():
     assert out.ok and out.cause == "op:p01/p03:pay:d0.2"
     t = s.ledger.transfers[-1]
     assert (t.src, t.dst, t.cents, t.cause) == ("h2", "org1", 1_000, "op:p01/p03:pay:d0.2")
-    assert s.get("people", "p01").hours_left == 11.75 and s.get("people", "p03").hours_left == 12.0
+    assert s.get("people", "p01").hours_left == 69.75 and s.get("people", "p03").hours_left == 70.0
     assert apply_act(s, Act("p01", "p01", "pay", {"to": "Megan Pryce", "amount": 1}), 3).cause == "op:p01:pay:d0.3"
     out = apply_act(s, Act("p01", "p04", "pay", {"to": "Wenlow Lettings", "amount": 1}), 4)
     assert out.msg == "Not done: you have no connection that allows you to act for them."

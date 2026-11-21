@@ -113,7 +113,7 @@ def test_an_operation_for_one_position_is_shown_and_done_only_by_those_who_hold_
     assert _act(s, "p03", "lend").msg == "Not done: there is no operation called 'lend'."
     s.set("people", "p03", T, kind="banker")
     assert forms(s, "p03")[-1] == '{"op": "lend"}'
-    assert _act(s, "p03", "lend", days=3).ok and s.get("people", "p03").hours_left == 6.0
+    assert _act(s, "p03", "lend", days=3).ok and s.get("people", "p03").hours_left == 64.0
 
 
 # names and acquaintance
