@@ -12,6 +12,9 @@ MONTHS: tuple[str, ...] = ("January", "February", "March", "April", "May", "June
 
 _FILLER = ("the", "of")
 _ORDINALS = ("st", "nd", "rd", "th")
+_YEAR = "2026"
+_WEEKDAY_WORDS = {w: i for i, name in enumerate(DAYS) for w in (name.lower(), name[:3].lower())}
+_MONTH_WORDS = {w: i + 1 for i, name in enumerate(MONTHS) for w in (name.lower(), name[:3].lower())} | {"sept": 9}
 
 
 def _drop_ordinal(word: str) -> str:
@@ -41,16 +44,23 @@ def parse_date(text: str, today: int) -> int | None:
 
     A bare weekday is the next such day strictly after `today`. A day and month is that
     date in 2026, in either order, and wins over any weekday written beside it. Commas,
-    ordinals ("12th") and the words "the" and "of" are allowed. Never raises.
+    ordinals ("12th"), the words "the" and "of", three-letter weekdays and months ("Thu",
+    "Mar", and "Sept"), full stops after words, and a trailing year 2026 after a day and
+    month are allowed. Never raises.
     """
     if not isinstance(text, str):
         return None
-    words = [_drop_ordinal(w) for w in text.strip().rstrip(".").lower().replace(",", " ").split()
-             if w not in _FILLER]
-    weekdays = [i for i, name in enumerate(DAYS) if name.lower() in words]
-    months = [i + 1 for i, name in enumerate(MONTHS) if name.lower() in words]
+    words = [_drop_ordinal(w.rstrip(".")) for w in text.strip().lower().replace(",", " ").split()
+             if w.rstrip(".") not in _FILLER]
+    year = bool(words) and words[-1] == _YEAR
+    if year:
+        words.pop()
+    weekdays = [_WEEKDAY_WORDS[w] for w in words if w in _WEEKDAY_WORDS]
+    months = [_MONTH_WORDS[w] for w in words if w in _MONTH_WORDS]
     numbers = [int(w) for w in words if w.isascii() and w.isdigit() and len(w) <= 2]
     if len(weekdays) + len(months) + len(numbers) != len(words) or len(weekdays) > 1:
+        return None
+    if year and (not months or not numbers):
         return None
     if not months and not numbers:
         if not weekdays:

@@ -47,3 +47,22 @@ def test_parse_date_never_raises():
 
 def test_days_names_the_week_from_monday():
     assert clock.DAYS[0] == "Monday" and clock.DAYS[6] == "Sunday" and len(clock.DAYS) == 7
+
+
+def test_parse_date_reads_a_trailing_year():
+    assert clock.parse_date("12 March 2026", today=3) == 10
+    assert clock.parse_date("Thursday, 12th March 2026", today=3) == 10
+    assert clock.parse_date("12 March 2027", today=3) is None
+    assert clock.parse_date("Thursday 2026", today=3) is None
+    assert clock.parse_date("2026 12 March", today=3) is None
+    assert clock.parse_date("2026", today=3) is None
+
+
+def test_parse_date_reads_short_weekdays_and_months():
+    assert clock.parse_date("Thu 12 Mar", today=3) == 10
+    assert clock.parse_date("thu", today=3) == 10
+    assert clock.parse_date("Fri.", today=3) == 4
+    assert clock.parse_date("Tue. 1 Sep.", today=3) == clock.parse_date("1 September", today=3)
+    assert clock.parse_date("1 Sept", today=3) == clock.parse_date("1 September", today=3)
+    assert clock.parse_date("1 Apr 2026", today=3) == 30
+    assert clock.parse_date("Th 12 Ma", today=3) is None
