@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
-from townsim.town import acts, facts, loop, views
+from townsim.town import acts, facts, loop, unknown, views
 from townsim.town.acts import LONGEST_WORD, Outcome, accounts_of, apply_act, clean_text, name_of_who
 from townsim.town.clock import date_text, dow, week
 from townsim.town.entities import Line, Notice, Result, Talk
@@ -345,13 +345,16 @@ def _tell_result(store: Store, outcome: Outcome) -> str:
 # --- what a speaker is shown -------------------------------------------------------------
 
 
-def turn_lines(store: Store, line: Line, words: int | None = None) -> list[str]:
+def turn_lines(store: Store, line: Line, words: int | None = None, reader: str = "") -> list[str]:
     """`<Full name> said:` and what they said on one line begun `  > `, cut to `words` words
-    when given; `  (says nothing)` when they said nothing."""
+    when given; `  (says nothing)` when they said nothing. For a `reader`, a line beneath for
+    each name in what is shown of it that is no one they know."""
     head = f"{name_of_who(store, line.speaker)} said:"
     if not line.text:
         return [head, f"  {SILENT}"]
-    return [head, "  > " + facts.cut_words(line.text, words)]
+    text = facts.cut_words(line.text, words)
+    flagged = unknown.flags(store, reader, line.speaker, text) if reader else []
+    return [head, "  > " + text] + flagged
 
 
 def lines_of(store: Store, tk: str) -> list[Line]:
@@ -513,7 +516,7 @@ def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
     lines = lines_of(store, tk)
     spoke = len([x for x in lines if x.speaker == pid])
     if lines:
-        blocks.append("\n".join(["THE TALK SO FAR"] + [x for line in lines for x in turn_lines(store, line)]))
+        blocks.append("\n".join(["THE TALK SO FAR"] + [x for line in lines for x in turn_lines(store, line, reader=pid)]))
     so_far = "not yet spoken" if not spoke else f"spoken {ONCE[min(spoke, 3)]}"
     blocks.append(f"Each of you speaks at most three times in a talk. You have {so_far} in this one.")
     shown = _results(store, pid, tk)
@@ -605,6 +608,6 @@ def summary_lines(store: Store, pid: str, t: Talk, words: int) -> list[str]:
     other = t.b if t.a == pid else t.a
     out = [f"With {store.get('people', other).name} on {date_text(t.day)}:"]
     for line in lines_of(store, t.id):
-        out += turn_lines(store, line, words)
+        out += turn_lines(store, line, words, pid)
     return out
 

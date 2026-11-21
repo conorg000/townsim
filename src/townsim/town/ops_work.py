@@ -24,7 +24,7 @@ from typing import Any
 from townsim.town import firms, hours, jobs, obligations
 from townsim.town import ops_core as core
 from townsim.town.acts import REGISTRY, Act, OpSpec, dollars, fits, name_of_who, register, shown, to_cents
-from townsim.town.clock import date_text
+from townsim.town.clock import date_in, date_text
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
 from townsim.town.statement import quoted
@@ -149,6 +149,12 @@ def _bounded(text: str) -> str:
     return out + "\u2026"
 
 
+def sent(store: Store, rq: Request, said: str) -> str:
+    """What the sender of a request is told: who it went to, what the other will read of it
+    (`said`, as code wrote it), and the day it lapses."""
+    return f"Sent to {name_of_who(store, rq.to)} ({rq.id}): {said} It stays open until {date_in(rq.expires, store.day)}."
+
+
 def _ending(store: Store, job: Job) -> str | None:
     """Why a job already ending cannot be ended or changed, or None."""
     if job.ended == -1:
@@ -258,7 +264,7 @@ def _do_offer_job(store: Store, act: Act, cause: str) -> str:
                  0, monday - 1, kind="job", summary=job_summary(store, org, who, weekly, h, monday),
                  org=org, first=monday, hours=h, pay=weekly)
     store.add("requests", rq, cause)
-    return f"Sent to {store.get('people', who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    return sent(store, rq, rq.summary)
 
 
 def _check_job(store: Store, act: Act, rq: Request) -> str | None:
@@ -339,7 +345,7 @@ def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
     rq = Request(store.new_id("rq", cause), store.day, act.actor, who, SHIFTS_TEXT, 0,
                  friday - 1, kind="shifts", summary=summary, org=job.org, first=friday, hours=h, pay=pay)
     store.add("requests", rq, cause)
-    return f"Sent to {store.get('people', who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    return sent(store, rq, summary)
 
 
 def _check_shifts(store: Store, act: Act, rq: Request) -> str | None:

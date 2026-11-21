@@ -31,7 +31,7 @@ _OFFERED = re.compile(rf" offers .+ a job: ({_MONEY}) a week")
 _EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours, paid ")
 _LOAN_ASKED = re.compile(rf" asks the bank for ({_MONEY}) over ")
 _END_ASKED = re.compile(r" asks to end .+ \(ob\d+\): no payment after ")
-_AGREEMENT = re.compile(rf" pays .+ {_MONEY} (once on|every week from) ")
+_AGREEMENT = re.compile(rf" pays .+ {_MONEY} (once on|a week) ")
 _GARDEN = "help with the garden"
 _BOILER = "a new boiler"
 _OWED_LINE = re.compile(rf"^(ob\d+): (.+?), ({_MONEY}) a week (to|from) ")
@@ -223,11 +223,11 @@ def _deals(me: _Seen, day: int, num: int) -> list[dict]:
     tenants = me.known("your tenant")
     if week == 2 and num % 6 == 2 and friends:
         acts += [{"op": "propose_agreement", "to": friends[0], "amount": 10, "per": "week", "weeks": 6,
-                  "pays": "me", "what": _GARDEN},
+                  "payer": "me", "what": _GARDEN},
                  {"op": "propose_agreement", "to": friends[-1], "amount": 25, "per": "once", "start": "Saturday",
-                  "pays": "them", "what": "a share of the coal"},
+                  "payer": "them", "what": "a share of the coal"},
                  {"op": "propose_agreement", "to": friends[0], "amount": 10, "per": "week", "weeks": 2,
-                  "start": "Monday 2 March", "pays": "me", "what": _GARDEN}]
+                  "start": "Monday 2 March", "payer": "me", "what": _GARDEN}]
     if week == 2 and tenants:
         acts += [{"op": "set_rent", "tenant": tenants[0], "weekly": 340},
                  {"op": "set_rent", "tenant": tenants[0], "weekly": 5}]
@@ -313,7 +313,7 @@ def _talk_reply(key: ReplyKey, messages: list[dict]) -> str:
     end = False
     if coal and me.mine and me.spoken == 1:
         acts += [{"op": "pay", "to": me.other, "amount": 10, "note": "for the coal"},
-                 {"op": "propose_agreement", "to": me.other, "amount": 5, "per": "week", "weeks": 2, "pays": "me",
+                 {"op": "propose_agreement", "to": me.other, "amount": 5, "per": "week", "weeks": 2, "payer": "me",
                   "what": "a share of the coal"}]
         say = "Here is ten dollars for the last lot, and I would pay five a week for a share for the next two weeks."
     elif coal:

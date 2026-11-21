@@ -14,18 +14,17 @@ and notes are the actor's own. Names are resolved as the actor knows people.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Callable
 
 from townsim.town import jobs, obligations
 from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
                                from_account, knows, name_of_who, register, resolve, shown, to_cents)
-from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
+from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
-from townsim.town.names import FIRST_NAMES
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
 from townsim.town.store import Store
+from townsim.town.unknown import unknown_names, writer_text
 
 MAX_WORDS = 80            # a note on an answer
 NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
@@ -336,35 +335,13 @@ def _check_message(store: Store, act: Act) -> str | None:
     return _text(act.args.get("text"), "that is too long for one letter.", LETTER_WORDS)
 
 
-_PAIR = re.compile(r"(?=\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b)")
-_FIRST = frozenset(FIRST_NAMES)
-
-
-def unknown_names(store: Store, reader: str, sender: str, text: str) -> list[str]:
-    """The names in `text` that are no one `reader` knows, in the order they first appear:
-    every two capitalised words in a row whose first is a first name people here bear and
-    which are not the full name of the reader, the sender, anyone the reader knows or anyone
-    whose request the reader has been shown."""
-    shown = [rq.sender for rq in store.all("requests") if rq.to == reader and rq.seen]
-    known = {store.get("people", p).name.casefold() for p in [reader, *knows(store, reader), *shown]
-             if store.has("people", p)}
-    if store.has("people", sender):
-        known.add(store.get("people", sender).name.casefold())
-    found: list[str] = []
-    for m in _PAIR.finditer(text):
-        name = f"{m.group(1)} {m.group(2)}"
-        if m.group(1) in _FIRST and name.casefold() not in known and name not in found:
-            found.append(name)
-    return found
-
-
 def _do_message(store: Store, act: Act, cause: str) -> str:
     to, org = _addressee(store, act)
     text = clean_text(act.args["text"])
     message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org,
                       unknown=unknown_names(store, to, act.actor, text))
     store.add("messages", message, cause)
-    return f"Sent to {name_of_who(store, org or to)}."
+    return f"Sent to {name_of_who(store, org or to)}." + writer_text(unknown_names(store, act.actor, to, text))
 
 
 # request
@@ -415,7 +392,12 @@ def _do_request(store: Store, act: Act, cause: str) -> str:
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, clean_text(act.args["text"]),
                  _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS, ob=ob)
     store.add("requests", rq, cause)
-    return f"Sent to {name_of_who(store, to)} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    said = f"you ask them for {money(rq.cents)}" if rq.cents else "you ask them for no money"
+    if rq.cents and ob:
+        said += f" toward {memo_shown(store.get('obligations', ob).memo)} ({ob})"
+    said += "."
+    return (f"Sent to {name_of_who(store, to)} ({rq.id}): {said} It stays open until {date_in(rq.expires, store.day)}."
+            + writer_text(unknown_names(store, act.actor, to, rq.text)))
 
 
 # answer
@@ -510,8 +492,10 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     text = f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} your request {rq.id}"
     if rq.text.strip():
         text += f" ({quoted(cut(rq.text))})."
-    else:                       # nothing written: named by the first sentence of its summary, if any
+    else:                       # nothing written: named by the first sentence of its summary, if any,
         first = rq.summary.split(". ")[0].rstrip(".") if rq.summary.strip() else ""
+        if done and rq.summary.strip() and rq.summary in done:      # unless what was done tells it whole
+            first = ""
         text += "." + (f" {first}." if first else "")
     if done:
         text += " " + done

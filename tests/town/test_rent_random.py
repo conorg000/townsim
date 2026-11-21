@@ -25,9 +25,9 @@ from .test_random_play import _check_run
 
 DAYS = 84
 SEEDS = range(12)
-_CHANGE = re.compile(r"changes from \$([\d,.]+) to \$([\d,.]+) a week from (\w+ \d+ \w+)\.")
+_CHANGE = re.compile(r"changes from \$([\d,.]+) to \$([\d,.]+) a week from (\w+ \d+ \w+(?: \d{4})?)\.")
 _STAYS = re.compile(r"stays \$([\d,.]+) a week\. This replaces")
-_KEPT = re.compile(r"The rent due (\w+ \d+ \w+) stays \$([\d,.]+):")
+_KEPT = re.compile(r"The rent due (\w+ \d+ \w+(?: \d{4})?) stays \$([\d,.]+):")
 
 
 def _cents(text: str) -> int:

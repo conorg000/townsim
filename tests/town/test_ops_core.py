@@ -238,7 +238,7 @@ def test_request_is_sent_and_stays_open_two_weeks():
     s = thin()
     out = ask(s)
     rq = s.all("requests")[-1]
-    assert out.msg == f"Sent to Ruth Ashby ({rq.id}). It stays open until Monday 16 March."
+    assert out.msg == f"Sent to Ruth Ashby ({rq.id}): you ask them for $40.00. It stays open until Monday 16 March."
     assert (rq.sender, rq.to, rq.cents, rq.expires, rq.status) == ("p03", "p01", 4000, 14, "open")
 
 

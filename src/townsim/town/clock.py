@@ -47,6 +47,17 @@ def date_text(day: int) -> str:
     return f"{DAYS[d.weekday()]} {d.day} {MONTHS[d.month - 1]}"
 
 
+def date_year(day: int) -> str:
+    """A day as written with its year always: `Friday 27 March 2026`."""
+    return f"{date_text(day)} {(DAY_ZERO + timedelta(days=day)).year}"
+
+
+def date_in(day: int, today: int) -> str:
+    """A day as written, with its year when that is not the year of `today`."""
+    year = (DAY_ZERO + timedelta(days=day)).year
+    return date_text(day) + ("" if year == (DAY_ZERO + timedelta(days=today)).year else f" {year}")
+
+
 def parse_date(text: str, today: int) -> int | None:
     """The day a written date names, or None if it names none on or after `today`.
 

@@ -32,11 +32,12 @@ from townsim.town import ops_core as core
 from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, controls, fits, from_account, name_of_who,
                                register, shown, to_cents)
-from townsim.town.clock import date_text, parse_date
+from townsim.town.clock import date_text, date_year, parse_date
 from townsim.town.entities import Notice, Org, Record, Request, Tie
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
 from townsim.town.store import Store, id_key
+from townsim.town.unknown import unknown_names, writer_text
 
 WHAT_WORDS = 12
 MAX_WEEKS = 520
@@ -182,9 +183,10 @@ def _agreement_terms(store: Store, act: Act) -> tuple[Terms | None, str]:
     first, why = _start(store, act.args.get("start"))
     if first is None:
         return None, why
-    pays = _word(act.args.get("pays"), _PAYS)
+    written = act.args.get("payer", act.args.get("pays"))     # `pays`, its older name, means the same
+    pays = _word(written, _PAYS)
     if pays is None:
-        return None, f"'{shown(act.args.get('pays'))}' is not \"me\" or \"them\"."
+        return None, f"'{shown(written)}' is not \"me\" or \"them\"."
     what, why = _label(act.args.get("what"))
     if what is None:
         return None, why
@@ -192,17 +194,23 @@ def _agreement_terms(store: Store, act: Act) -> tuple[Terms | None, str]:
     return Terms(mine, who, payer, payee, cents, 7 if per == "week" else 0, first, weeks, what), ""
 
 
-def agreement_summary(payer: str, payee: str, cents: int, every: int, first: int, weeks: int, what: str) -> str:
-    """What a proposed agreement says, every name cut to 40 characters and the whole bounded."""
-    head = f"{_cut(payer)} pays {_cut(payee)} {money(cents)}"
+def agreement_summary(payer: str, payee: str, cents: int, every: int, first: int, weeks: int, what: str,
+                      verb: str = "pays") -> str:
+    """What a proposed agreement says, its dates with their years, every name cut to 40
+    characters and the whole bounded: `<payer> pays <payee> <$x> a week for <n> weeks from
+    <date> (<$y> in all): "<what>".` A payer or payee given as `you` stays so."""
+    def name(x: str) -> str:
+        return x if x == "you" else _cut(x)
+    head = f"{name(payer)} {verb} {name(payee)} {money(cents)}"
     if every == 0:
-        text = f"{head} once on {date_text(first)}: {quoted(what)}."
+        text = f"{head} once on {date_year(first)}: {quoted(what)}."
     elif weeks == 0:
-        text = f"{head} every week from {date_text(first)} until either side ends it: {quoted(what)}."
+        text = f"{head} a week from {date_year(first)} until either side ends it: {quoted(what)}."
     else:
-        text = (f"{head} every week from {date_text(first)} for {_weeks_text(weeks)} "
+        text = (f"{head} a week for {_weeks_text(weeks)} from {date_year(first)} "
                 f"({money(cents * weeks)} in all): {quoted(what)}.")
     return work._bounded(text)
+
 
 
 def _names(store: Store, mine: str, proposer: str, other_person: str, payer: str, payee: str) -> tuple[str, str]:
@@ -224,7 +232,10 @@ def _do_propose(store: Store, act: Act, cause: str) -> str:
     rq = Request(store.new_id("rq", cause), store.day, act.actor, t.who, "", 0, expires, kind="agreement", summary=summary, org=t.mine, every=t.every, first=t.first, times=t.weeks,
                  pay=t.cents, payer=t.payer, payee=t.payee)
     store.add("requests", rq, cause)
-    return f"Sent to {store.get('people', t.who).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    mine = "you" if t.mine == account_of(store, act.principal) else None
+    yours = (mine or payer, payee) if t.payer == t.mine else (payer, mine or payee)
+    said = agreement_summary(*yours, t.cents, t.every, t.first, t.weeks, t.what, verb="would pay")
+    return work.sent(store, rq, said) + writer_text(unknown_names(store, act.actor, t.who, t.what))
 
 
 def _check_agreement(store: Store, act: Act, rq: Request) -> str | None:
@@ -297,7 +308,7 @@ def _paid_ahead(store: Store, ob, last: int) -> tuple[int, list[int]]:
 def _kept_text(store: Store, ob, cents: int, days: list[int]) -> str:
     if not cents:
         return ""
-    return (f" {money(cents)} already paid toward {work._names([date_text(d) for d in days])} stays with "
+    return (f" {money(cents)} already paid toward {work._names([date_year(d) for d in days])} stays with "
             f"{_cut(_account_name(store, ob.payee))}.")
 
 
@@ -313,11 +324,11 @@ def _do_propose_end(store: Store, act: Act, cause: str) -> str:
     last = _end_day(store, ob)
     kept, days = _paid_ahead(store, ob, last)
     summary = work._bounded(f"{_cut(store.get('people', act.actor).name)} asks to end {memo_shown(ob.memo)} "
-                            f"({ob.id}): no payment after {date_text(last)}.{_kept_text(store, ob, kept, days)}")
+                            f"({ob.id}): no payment after {date_year(last)}.{_kept_text(store, ob, kept, days)}")
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, "", 0, last, kind="end",
                  summary=summary, ob=ob.id, first=last, pay=kept)
     store.add("requests", rq, cause)
-    return f"Sent to {store.get('people', to).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    return work.sent(store, rq, summary)
 
 
 def _check_end(store: Store, act: Act, rq: Request) -> str | None:
@@ -329,7 +340,7 @@ def _check_end(store: Store, act: Act, rq: Request) -> str | None:
         return f"{ob.id} is no longer between you and {name_of_who(store, rq.sender)}."
     kept, days = _paid_ahead(store, ob, rq.first)
     if kept != rq.pay:
-        now = _kept_text(store, ob, kept, days).strip() or f"Nothing is now paid toward a day after {date_text(rq.first)}."
+        now = _kept_text(store, ob, kept, days).strip() or f"Nothing is now paid toward a day after {date_year(rq.first)}."
         return f"what was paid ahead on {ob.id} has changed since {rq.id} was made. {now}"
     return None
 
@@ -339,7 +350,7 @@ def _do_end(store: Store, act: Act, rq: Request, cause: str) -> str:
     # nothing changes before the stated day: what falls by then is still collected, and the
     # agreement is finished by the ordinary path once its last instalment has been paid
     obligations.end(store, ob.id, rq.first, cause)       # what was paid ahead stays paid, and both are told
-    return f"Ended ({ob.id}): {memo_shown(ob.memo)}, no payment after {date_text(rq.first)}."
+    return f"Ended ({ob.id}): {memo_shown(ob.memo)}, no payment after {date_year(rq.first)}."
 
 
 # borrow
@@ -419,16 +430,16 @@ def _do_borrow(store: Store, act: Act, cause: str) -> str:
     first = _loan_first(store.day)
     last = first + 7 * (loan.weeks - 1)
     owed, k, overdue = _owing(store, loan.source, loan.bank.id)
-    differs = f", the last, on {date_text(last)}, {money(final)}" if final != weekly else ""
+    differs = f", the last, on {date_year(last)}, {money(final)}" if final != weekly else ""
     summary = work._bounded(
         f"{_cut(_side_name(store, loan.source, act.principal))} asks the bank for {money(loan.cents)} over "
-        f"{loan.weeks} weeks, repaying {money(weekly)} a week ({money(total)} in all) from {date_text(first)}"
+        f"{loan.weeks} weeks, repaying {money(weekly)} a week ({money(total)} in all) from {date_year(first)}"
         f"{differs}: {quoted(loan.purpose)}. They now owe the bank {money(owed)} on {k} loan{'' if k == 1 else 's'}, "
         f"{money(overdue)} of it overdue.")
     rq = Request(store.new_id("rq", cause), store.day, act.actor, loan.banker, "", 0, first - 1, kind="loan", summary=summary, org=loan.source, first=first,
                  times=loan.weeks, pay=loan.cents, payer=loan.source, payee=loan.bank.id)
     store.add("requests", rq, cause)
-    return f"Sent to {store.get('people', loan.banker).name} ({rq.id}). It stays open until {date_text(rq.expires)}."
+    return work.sent(store, rq, summary)
 
 
 def _check_loan(store: Store, act: Act, rq: Request) -> str | None:
@@ -457,10 +468,10 @@ def _do_loan(store: Store, act: Act, rq: Request, cause: str) -> str:
                                                    for t in store.where("ties", person=rq.sender)):
         store.add("ties", Tie(store.new_id("ti", cause), rq.sender, banker, "banker"), cause)
     head = (f"{name_of(store, rq.payee)} lends {_side_name(store, rq.payer, rq.sender)} {money(rq.pay)} ({ob}): "
-            f"{money(weekly)} a week from {date_text(rq.first)}")
+            f"{money(weekly)} a week from {date_year(rq.first)}")
     if final != weekly:
-        return f"{head} ({money(total)} in all), the last, on {date_text(last)}, {money(final)}."
-    return f"{head} to {date_text(last)} ({money(total)} in all)."
+        return f"{head} ({money(total)} in all), the last, on {date_year(last)}, {money(final)}."
+    return f"{head} to {date_year(last)} ({money(total)} in all)."
 
 
 # repay
@@ -511,7 +522,7 @@ def _do_repay(store: Store, act: Act, cause: str) -> str:
         return f"{head}: nothing more is owed on it."
     last = ""
     if ob.status in SCHEDULED and ob.last is not None and obligations._last_instalment(ob) >= store.day:
-        last = f", the last payment, {money(last_cents(ob))}, on {date_text(obligations._last_instalment(ob))}"
+        last = f", the last payment, {money(last_cents(ob))}, on {date_year(obligations._last_instalment(ob))}"
     return f"{head}: {money(owed)} still owed{last}."
 
 
@@ -603,11 +614,11 @@ def _do_rent(store: Store, act: Act, cause: str) -> str:
         change = f"for {_address(c.h)} stays {money(c.cents)} a week."
     else:
         change = (f"for {_address(c.h)} changes from {money(c.ob.cents)} to {money(c.cents)} a week "
-                  f"from {date_text(c.day)}.")
+                  f"from {date_year(c.day)}.")
     if c.pending is not None:
-        change += f" This replaces the change to {money(c.pending[0])} that was to start on {date_text(c.pending[1])}."
+        change += f" This replaces the change to {money(c.pending[0])} that was to start on {date_year(c.pending[1])}."
     for d in c.kept:
-        change += (f" The rent due {date_text(d.day)} stays {money(d.cents)}: "
+        change += (f" The rent due {date_year(d.day)} stays {money(d.cents)}: "
                    f"{money(d.paid)} has been paid toward it already.")
     _tell(store, _adults(store, c.h.id), f"Your rent {change}", cause)
     return f"The rent {change}"
@@ -673,7 +684,7 @@ core.ANSWERERS.update(ANSWERERS_OF_DEALS)
 for _spec in (
     OpSpec("propose_agreement", '{"op": "propose_agreement", "to": "<name>", "amount": <dollars>, '
                                 '"per": "week" | "once", "weeks": <number, or 0 for until ended>, '
-                                '"start": "<first date>", "pays": "me" | "them", "what": "<plain words>"}',
+                                '"start": "<first date>", "payer": "me" | "them", "what": "<plain words>"}',
            "Propose an agreement to pay or be paid.", 0.5, _check_propose, _do_propose, 180, takes_from=True),
     OpSpec("propose_end", '{"op": "propose_end", "id": "<id of the agreement>"}',
            "Ask the other side to end an agreement.", 0.25, _check_propose_end, _do_propose_end, 190),

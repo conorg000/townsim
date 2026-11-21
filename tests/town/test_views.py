@@ -273,8 +273,10 @@ def test_a_name_the_reader_does_not_know_is_noted_under_the_letter():
 
 def test_a_name_known_to_the_reader_or_not_a_first_name_is_not_noted():
     s = thin_town()
-    send(s, "p01", "p03", "Megan Pryce and Tom Ashby send their love. Wenlow Lettings wrote. Edith Marsh too.")
-    assert s.all("messages")[-1].unknown == []                 # Edith is not a first name the place uses
+    send(s, "p01", "p03", "Megan Pryce sends her love. Wenlow Lettings wrote. Good Morning, Thursday.")
+    assert s.all("messages")[-1].unknown == []                 # his household, his landlord, ordinary words
+    send(s, "p01", "p03", "Tom Ashby and Edith Marsh send their love.")
+    assert s.all("messages")[-1].unknown == ["Tom Ashby", "Edith Marsh"]     # no one he knows
     send(s, "p01", "p03", "Ask Ada Lovell about Ruth Ashby.")
     assert s.all("messages")[-1].unknown == ["Ada Lovell"]
 
@@ -551,15 +553,15 @@ def test_at_most_nine_results_are_shown_and_only_the_latest_read_in_full():
     assert len(rows) == 8 and not rows[0].startswith("(")
 
 
-def test_a_result_is_cut_plainly_to_30_words_and_240_characters():
+def test_a_result_is_cut_plainly_to_80_words_and_640_characters():
     s = thin_town()
-    s.add("results", Result("res1", 0, "p03", "pay", "Paid " + "word " * 50, True), "routine:t")
-    s.add("results", Result("res2", 0, "p03", "pay", "Paid " + " ".join(["x" * 40] * 20), True), "routine:t")
-    s.add("results", Result("res3", 0, "p03", "pay", "Paid (aa0) " + "(ab1) " * 60, True), "routine:t")
+    s.add("results", Result("res1", 0, "p03", "pay", "Paid " + "word " * 120, True), "routine:t")
+    s.add("results", Result("res2", 0, "p03", "pay", "Paid " + " ".join(["x" * 40] * 40), True), "routine:t")
+    s.add("results", Result("res3", 0, "p03", "pay", "Paid (aa0) " + "(ab1) " * 120, True), "routine:t")
     rows = section(person_view(s, "p03")[1]["content"], "WHAT CAME OF YOUR LAST ACTS")
-    assert rows[0].endswith("\u2026") and len(rows[0].split()) == 30
-    assert all(len(r) <= 241 for r in rows) and rows[1].endswith("\u2026")
-    assert len(rows[2].split()) == 30                            # nothing is appended to a cut
+    assert rows[0].endswith("\u2026") and len(rows[0].split()) == 80
+    assert all(len(r) <= 641 for r in rows) and rows[1].endswith("\u2026")
+    assert len(rows[2].split()) == 80                            # nothing is appended to a cut
 
 
 def test_what_is_owed_lists_loans_agreements_standing_payments_and_arrears():

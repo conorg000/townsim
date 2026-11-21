@@ -23,11 +23,10 @@ a heading, `From `, `With `, `<id> from `, `<name> said:` or `(` and a digit was
 
 from __future__ import annotations
 
-import re
 from typing import Any, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import acts, aims, facts, talk
+from townsim.town import acts, aims, facts, talk, unknown
 from townsim.town.acts import CHARS_A_WORD, accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
@@ -47,8 +46,7 @@ TALK_CUT = 20
 APPOINTMENTS_SHOWN = 5
 PEOPLE_KEPT = 6
 RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
-RESULT_WORDS = 30
-UNKNOWN_LINES = 3
+RESULT_WORDS = 80                  # room for a proposal's result, which repeats what the other reads
 NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
 READ_CUT = 120
@@ -121,11 +119,7 @@ def _item_lines(store: Store, row: Any) -> list[str]:
     if not isinstance(row, Message):
         return [" ".join(row.text.split())]
     lines = [f"From {_letter_head(store, row)}:"] + _quoted(row.text)
-    names = [n for n in row.unknown if re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", row.text)]
-    lines += [f"({n} is not someone you know.)" for n in names[:UNKNOWN_LINES]]
-    if len(names) > UNKNOWN_LINES:
-        lines.append(f"({len(names) - UNKNOWN_LINES} more names in it are not people you know.)")
-    return lines
+    return lines + unknown.reader_lines(unknown.present(row.unknown, row.text))
 
 
 def _item_text(store: Store, row: Any) -> str:
@@ -181,7 +175,7 @@ def _fit(text: str, words: int, chars: int) -> str:
 
 
 def _result_text(r, latest_read: str | None, read_words: int) -> str:
-    """`<op>: <text>`, each line after the first indented: cut to 30 words and 240
+    """`<op>: <text>`, each line after the first indented: cut to 80 words and 640
     characters; the latest read to `read_words` words and eight characters a word; an
     older read in the same batch is not shown."""
     if _is_read(r) and r.id != latest_read:
@@ -206,12 +200,22 @@ def _request_lines(store: Store, rq) -> list[str]:
     offer, a proposed agreement, a loan asked for) has no text of theirs: its summary alone
     follows the header."""
     head = f"{rq.id} from {name_of_who(store, rq.sender)}:"
+    summary = [" ".join(rq.summary.split())] if rq.summary.strip() else []
     if not rq.text.strip():
-        return [head] + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
+        return [head] + summary + unknown.flags(store, rq.to, rq.sender, request_words(rq))
     lines = [head] + _quoted(rq.text)
     if rq.cents > 0:
         lines.append(f"They ask you for {money(rq.cents)}.")
-    return lines + ([" ".join(rq.summary.split())] if rq.summary.strip() else [])
+    return lines + unknown.flags(store, rq.to, rq.sender, rq.text) + summary
+
+
+def request_words(rq) -> str:
+    """What the sender of a request wrote in it: its text, or the words quoted in the summary
+    code wrote of an agreement or a loan asked for."""
+    if rq.text.strip() or rq.kind not in ("agreement", "loan"):
+        return rq.text
+    end = rq.summary.rfind('"')
+    return rq.summary[rq.summary.rfind('"', 0, end) + 1:end] if end > 0 else ""
 
 
 def _hours(h: float) -> str:
@@ -224,8 +228,11 @@ def _appointments(store: Store, pid: str) -> list[str]:
     rows = sorted((ap for ap in store.all("appointments")
                    if ap.status == "booked" and pid in (ap.a, ap.b) and ap.day >= store.day),
                   key=lambda ap: (ap.day, id_key(ap.id)))
-    out = [f"{ap.id}: with {name_of_who(store, ap.b if ap.a == pid else ap.a)} on {date_text(ap.day)}, "
-           f"about {ap.about}" for ap in rows[:APPOINTMENTS_SHOWN]]
+    out = []
+    for ap in rows[:APPOINTMENTS_SHOWN]:
+        other = ap.b if ap.a == pid else ap.a
+        out.append(f"{ap.id}: with {name_of_who(store, other)} on {date_text(ap.day)}, about {ap.about}")
+        out += unknown.flags(store, pid, ap.a, ap.about)
     if len(rows) > APPOINTMENTS_SHOWN:
         out.append(Counted(f"({len(rows) - APPOINTMENTS_SHOWN} more not shown)"))
     return out
@@ -438,7 +445,7 @@ def layout(store: Store, pid: str) -> Layout:
     (`acts.fits`: a letter 150 words, a request 80, notes 150, an answer's note 80, a
     payment's note 12; an aim 20 words and 160 characters), and everything a view shows from
     the store is bounded: what people wrote in memos is cut to labels of 12 words and 100
-    characters; results are cut to 30 words and 240 characters (the latest read to 250 words
+    characters; results are cut to 80 words and 640 characters (the latest read to 250 words
     and 2,000 characters), and counted past nine; upcoming payments are counted past ten
     going out and six coming in; what is owed past eight lines an account; names not known past three
     a letter. Everything is built once, then laid out again only as each step of giving way
