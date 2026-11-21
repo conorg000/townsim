@@ -127,7 +127,9 @@ def test_forms_are_the_eight_in_order():
     assert names[:8] == ["pay", "standing_payment", "stop", "message", "request", "answer", "read", "write_notes"]
     assert forms(thin(), "p01")[0] == ('{"op": "pay", "to": "<name>", "amount": <dollars>, '
                                        '"note": "<what for>", "for": "<id of what it is owed on, if any>"}')
-    assert len(forms(thin(), "p01")) == len([s for s in REGISTRY.values() if s.who == "all"]) == 8
+    everyone = [s.name for s in sorted(REGISTRY.values(), key=lambda s: s.order) if s.who == "all"]
+    assert everyone == names[:8] + ["propose_agreement", "propose_end", "borrow", "repay"]
+    assert len(forms(thin(), "p01")) == len(everyone)
 
 
 def test_registering_twice_is_harmless_but_a_different_spec_is_refused():
@@ -149,9 +151,9 @@ def test_forms_go_by_order_whatever_the_order_of_registering():
     for spec in reversed(specs):
         register(spec)
     assert forms(s, "p01") == before
-    register(OpSpec("borrow", "{borrow}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
+    register(OpSpec("barter", "{barter}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
     register(OpSpec("aardvark", "{aardvark}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
-    assert forms(s, "p01")[:4] == [before[0], "{aardvark}", "{borrow}", before[1]]   # ties go by name
+    assert forms(s, "p01")[:4] == [before[0], "{aardvark}", "{barter}", before[1]]   # ties go by name
     assert [REGISTRY[n].order for n in ("pay", "standing_payment", "write_notes")] == [10, 20, 80]
 
 

@@ -8,7 +8,7 @@ from bisect import bisect_left
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
-from townsim.town.obligations import OWED, SCHEDULED, Upcoming, money, name_of, upcoming
+from townsim.town.obligations import OWED, SCHEDULED, Upcoming, last_cents, money, name_of, upcoming
 from townsim.town.store import Store
 
 
@@ -176,7 +176,7 @@ def agreements_text(store: Store, account: str) -> str:
     """Every obligation `account` pays or receives, ordered for its reader: those in force
     (active or breached) that it pays, then those in force that it receives, each by id, then
     the rest by id; at most forty lines, then a line counting the rest. Each memo is cut to a
-    label as views show it."""
+    label as views show it; a last instalment that differs from the rest is told with its sum."""
     mine = [ob for ob in store.all("obligations") if account in (ob.payer, ob.payee)]
     live = [ob for ob in mine if ob.status in SCHEDULED]
     order = ([ob for ob in live if ob.payer == account] + [ob for ob in live if ob.payer != account]
@@ -190,6 +190,8 @@ def agreements_text(store: Store, account: str) -> str:
             continue
         how = {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
         until = f", until {date_text(ob.last)}" if ob.last is not None else ""
+        if ob.last is not None and last_cents(ob) != ob.cents:
+            until = f", the last, on {date_text(ob.last)}, {money(last_cents(ob))}"
         rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, "
                     f"{ob.status}")
     if len(rows) > AGREEMENT_LINES:

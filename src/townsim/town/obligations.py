@@ -64,11 +64,12 @@ def _is_int(x: object) -> bool:
 
 def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first: int, every: int = 0,
            last: int | None = None, memo: str, ends: str, made_by: str, cause: str,
-           penalty: bool = False) -> str:
+           penalty: bool = False, final_cents: int = 0) -> str:
     """Add an obligation and return its id. Raises ValueError, changing nothing, on bad arguments.
 
     `first` may not be before today. If an instalment falls today its due is opened here,
-    so an obligation made after that day's `open_dues` is still collected today.
+    so an obligation made after that day's `open_dues` is still collected today. A
+    `final_cents` above 0 is the instalment that falls on `last`, which must then be given.
     """
     if kind not in KIND_ORDER:
         raise ValueError(f"kind {kind!r} is not one of {KIND_ORDER}")
@@ -87,8 +88,10 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
             raise ValueError(f"no ledger account {account!r}")
     if payer == payee:
         raise ValueError(f"payer and payee are both {payer!r}")
+    if not _is_int(final_cents) or final_cents < 0 or (final_cents > 0 and last is None):
+        raise ValueError(f"final_cents must be an int >= 0, and above 0 only with a last day, got {final_cents!r}")
     ob = Obligation(store.new_id("ob", cause), kind, payer, payee, cents, first, every, last, memo, ends,
-                    made_by, store.day, penalty)
+                    made_by, store.day, penalty, final_cents=final_cents)
     store.add("obligations", ob, cause)
     if falls_on(ob, store.day):
         ensure_due(store, ob.id, store.day, cause)
@@ -110,6 +113,17 @@ def _last_instalment(ob: Obligation) -> int | None:
     return ob.first + (ob.last - ob.first) // ob.every * ob.every
 
 
+def instalment_cents(ob: Obligation, day: int) -> int:
+    """What the instalment of `ob` on `day` is for: `final_cents` on its last instalment when
+    that is above 0, else `cents`."""
+    return ob.final_cents if ob.final_cents > 0 and day == _last_instalment(ob) else ob.cents
+
+
+def last_cents(ob: Obligation) -> int:
+    """What the last instalment of `ob` is for."""
+    return ob.final_cents if ob.final_cents > 0 else ob.cents
+
+
 def _find_due(store: Store, ob_id: str, day: int) -> Due | None:
     found = store.where("dues", obligation=ob_id, day=day)
     return found[0] if found else None
@@ -124,7 +138,7 @@ def ensure_due(store: Store, ob_id: str, day: int, cause: str) -> Due:
     """The one row for this obligation's instalment on `day`, created if absent."""
     due = _find_due(store, ob_id, day)
     if due is None:
-        due = Due(store.new_id("du", cause), ob_id, day, store.get("obligations", ob_id).cents)
+        due = Due(store.new_id("du", cause), ob_id, day, instalment_cents(store.get("obligations", ob_id), day))
         store.add("dues", due, cause)
     return due
 
@@ -267,7 +281,7 @@ def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
         if ob.status in SCHEDULED:
             for day in range(store.day, end + 1):
                 if falls_on(ob, day) and _find_due(store, ob.id, day) is None:
-                    found[(ob.id, day)] = ob.cents
+                    found[(ob.id, day)] = instalment_cents(ob, day)
     rows = []
     for (ob_id, day), cents in found.items():
         ob = obs[ob_id]
@@ -370,7 +384,7 @@ def _plan(store: Store, obs: list[Obligation], cents: int,
         if nexts:
             day, _, _, ob = min(nexts, key=lambda n: n[:3])
             due = _find_due(store, ob.id, day)
-            owed = ob.cents if due is None else due.cents - due.paid
+            owed = instalment_cents(ob, day) if due is None else due.cents - due.paid
             plan.append((ob, day, min(left, owed)))
     return plan
 
@@ -461,7 +475,10 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
         if last_day < ob.first:          # no instalment ever falls
             store.set("obligations", ob_id, cause, status="finished")
             return
+        before = _last_instalment(ob)
         store.set("obligations", ob_id, cause, last=last_day)
+        if ob.final_cents and _last_instalment(store.get("obligations", ob_id)) != before:
+            store.set("obligations", ob_id, cause, final_cents=0)     # the instalment that differed no longer falls
         if not _left_to_pay(store, store.get("obligations", ob_id)):
             store.set("obligations", ob_id, cause, status="finished")
 
@@ -471,4 +488,69 @@ def _left_to_pay(store: Store, ob: Obligation) -> bool:
     instalment from today with no due opened for it."""
     if any(d.status in ("due",) + OWED for d in store.where("dues", obligation=ob.id)):
         return True
-    return any(_find_due(store, ob.id, day) is None for day in instalment_days(ob, store.day, 2))
+    for day in _instalment_days(ob, store.day):      # dues opened ahead are few, so this ends soon
+        if _find_due(store, ob.id, day) is None:
+            return True
+    return False
+
+
+def outstanding(store: Store, ob: Obligation) -> int:
+    """What is still owed on `ob`: what is unpaid on its dues not void or paid, and every
+    instalment still to fall from today with no due opened for it. One that runs until ended
+    owes only its next instalment beyond what has fallen due."""
+    owed = sum(d.cents - d.paid for d in store.where("dues", obligation=ob.id) if d.status in ("due",) + OWED)
+    if ob.status not in SCHEDULED:
+        return owed
+    for day in _instalment_days(ob, store.day):
+        if _find_due(store, ob.id, day) is None:
+            owed += instalment_cents(ob, day)
+        if ob.last is None:
+            break
+    return owed
+
+
+def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
+    """Pay `cents` on `ob_id` from its payer to its payee in one transfer, ahead of its days:
+    toward its arrears oldest first, then its next instalment, then whole instalments taken
+    off the end of its schedule (`last` moving one period earlier each time, the last at its
+    own sum); a remainder smaller than the last instalment then remaining makes that one
+    smaller (`final_cents`). An obligation with nothing left to pay is finished. Nothing is
+    counted toward a void due or a day after `last`. Returns what was counted toward dues.
+    Raises ValueError, changing nothing, for an unknown obligation, cents not a positive int,
+    or more than is still owed (`outstanding`); `Overdraft` if the payer cannot pay it."""
+    if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
+        raise ValueError(f"no obligation {ob_id!r}")
+    if not _is_int(cents) or cents <= 0:
+        raise ValueError(f"cents must be a positive int, got {cents!r}")
+    ob = store.get("obligations", ob_id)
+    owed = outstanding(store, ob)
+    if cents > owed:
+        raise ValueError(f"{cents} is more than the {owed} still owed on {ob_id}")
+    account = store.ledger.accounts[ob.payer]
+    if account.balance < cents and not account.allow_credit:
+        raise Overdraft(f"{ob.payer} has {account.balance}, cannot repay {cents} on {ob_id}")
+    nxt = next_instalment(store, ob) if ob.status in SCHEDULED else None
+    plan = _plan(store, [ob], cents, True) if ob.status in SCHEDULED else _plan(store, [ob], cents, "arrears")
+    left = cents - sum(take for _, _, take in plan)
+    last, final = ob.last, ob.final_cents
+    end_day = _last_instalment(ob) if ob.every > 0 and ob.last is not None and ob.status in SCHEDULED else None
+    while left > 0 and end_day is not None and nxt is not None and end_day > nxt \
+            and _find_due(store, ob.id, end_day) is None:
+        sum_ = final if final > 0 else ob.cents        # only the last instalment can differ
+        if left < sum_:
+            final, left = sum_ - left, 0
+            break
+        left -= sum_
+        end_day -= ob.every
+        last, final = end_day, 0
+    if left > 0:
+        raise ValueError(f"{cents} cannot all be counted toward {ob_id}")
+    with store.transaction():
+        store.transfer(ob.payer, ob.payee, cents, f"repayment of {ob.memo}", cause)
+        matches = _count(store, plan, cause)
+        if (last, final) != (ob.last, ob.final_cents):
+            store.set("obligations", ob.id, cause, last=last, final_cents=final)
+        ob = store.get("obligations", ob.id)
+        if ob.status in SCHEDULED and outstanding(store, ob) == 0:
+            store.set("obligations", ob.id, cause, status="finished")
+        return matches

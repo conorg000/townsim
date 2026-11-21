@@ -29,6 +29,12 @@ _ORDER = re.compile(r"(\d+) units from (.+)$")
 _STAFF = re.compile(rf"^  ({_FULL}), [\d.]+ hours, ({_MONEY}) a week$")
 _OFFERED = re.compile(rf" offers .+ a job: ({_MONEY}) a week")
 _EXTRA = re.compile(r" offers .+ ([\d.]+) extra hours, paid ")
+_LOAN_ASKED = re.compile(rf" asks the bank for ({_MONEY}) over ")
+_END_ASKED = re.compile(r" asks to end .+ \(ob\d+\): no payment after ")
+_AGREEMENT = re.compile(rf" pays .+ {_MONEY} (once on|every week from) ")
+_GARDEN = "help with the garden"
+_BOILER = "a new boiler"
+_OWED_LINE = re.compile(rf"^(ob\d+): (.+?), ({_MONEY}) a week (to|from) ")
 
 
 def _cents(text: str) -> int:
@@ -83,7 +89,7 @@ class _Seen:
                 self.requests.append((m.group(1), m.group(2), 0))
             elif (m := _ASKED.match(line)) and self.requests:
                 self.requests[-1] = self.requests[-1][:2] + (_cents(m.group(1)),)
-            elif self.requests and not line.startswith("  ") and (_OFFERED.search(line) or _EXTRA.search(line)):
+            elif self.requests and not line.startswith(("  ", "(")):
                 self.summaries[self.requests[-1][0]] = line
         self.owed = self.sections.get("WHAT IS OWED", [])
         business = self.sections.get("YOUR BUSINESS", [])
@@ -101,6 +107,7 @@ class _Seen:
         mine = {self.business, self.name}
         self.places = [p for p in dict.fromkeys(_AT.findall(system)) if p not in mine and " " in p]
         self.minded = "ON YOUR MIND" in self.sections
+        self.banker = "THE BANK'S BOOK" in self.sections
         self.notes = "\n".join(self.sections.get("YOUR NOTES", []))
 
     def known(self, *words: str) -> list[str]:
@@ -184,6 +191,56 @@ def _work(me: _Seen, day: int, num: int) -> list[dict]:
     return acts
 
 
+def _deals_mark(day: int) -> str:
+    return f"Dealings seen to in week {day // 7 + 1}."
+
+
+def _owed(me: _Seen, memo: str, way: str) -> list[tuple[str, int]]:
+    """(id, weekly cents) of what is owed whose memo is `memo` and that goes `way` (`to` or `from`)."""
+    return [(m.group(1), _cents(m.group(3))) for line in me.owed
+            if (m := _OWED_LINE.match(line)) and m.group(2).endswith(f'"{memo}"') and m.group(4) == way]
+
+
+def _deals(me: _Seen, day: int, num: int) -> list[dict]:
+    """Agreements, loans and rent, week by week: an agreement proposed and later ended by
+    agreement, one turned down; a loan asked for and granted, one turned down, and part of it
+    repaid early; a landlord's change of rent and notice; with a slip in each that is refused."""
+    week = day // 7 + 1
+    acts: list[dict] = []
+    if _deals_mark(day) in me.notes:
+        return acts
+    friends = me.known("friend")
+    tenants = me.known("your tenant")
+    if week == 2 and num % 6 == 2 and friends:
+        acts += [{"op": "propose_agreement", "to": friends[0], "amount": 10, "per": "week", "weeks": 6,
+                  "pays": "me", "what": _GARDEN},
+                 {"op": "propose_agreement", "to": friends[-1], "amount": 25, "per": "once", "start": "Saturday",
+                  "pays": "them", "what": "a share of the coal"},
+                 {"op": "propose_agreement", "to": friends[0], "amount": 10, "per": "week", "weeks": 2,
+                  "start": "Monday 2 March", "pays": "me", "what": _GARDEN}]
+    if week == 2 and tenants:
+        acts += [{"op": "set_rent", "tenant": tenants[0], "weekly": 340},
+                 {"op": "set_rent", "tenant": tenants[0], "weekly": 5}]
+    if week == 3 and num % 6 == 4:
+        if me.business:
+            acts.append({"op": "borrow", "amount": 9000, "weeks": 52, "purpose": "a second van",
+                         "from": me.business})
+        else:
+            acts.append({"op": "borrow", "amount": 1500, "weeks": 26, "purpose": _BOILER})
+        acts.append({"op": "borrow", "amount": 50000, "weeks": 26, "purpose": _BOILER})
+    if week >= 3 and tenants:                 # notice on one tenant a week, in turn
+        acts.append({"op": "serve_notice", "tenant": tenants[week % len(tenants)]})
+    if week == 5 and num % 6 == 2:
+        for ob, _ in _owed(me, _GARDEN, "to")[:1]:
+            acts += [{"op": "propose_end", "id": ob}, {"op": "propose_end", "id": "ob1"}]
+    if week == 5 and num % 6 == 4:
+        for ob, weekly in _owed(me, _BOILER, "to")[:1]:
+            if me.balance > 4 * weekly:
+                acts += [{"op": "repay", "id": ob, "amount": _dollars(3 * weekly + 500)},
+                         {"op": "repay", "id": ob, "amount": 99999}]
+    return acts
+
+
 def script(key: ReplyKey, messages: list[dict]) -> str:
     """A scripted life for anyone in a generated place: what they do is decided from the day,
     who they are and the text of their view alone, with `Random(f"script:<day>:<actor>")`
@@ -204,10 +261,17 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
     for rq, sender, cents in me.requests:
         summary = me.summaries.get(rq, "")
         offered, extra = _OFFERED.search(summary), _EXTRA.search(summary)
+        loan, agreement = _LOAN_ASKED.search(summary), _AGREEMENT.search(summary)
         if offered:            # a job: taken if it pays more than the one they have
             yes = me.my_pay is None or _cents(offered.group(1)) > me.my_pay
         elif extra:            # extra hours: taken if the week has room for them
             yes = me.hours_left >= float(extra.group(1)) + 1
+        elif loan:             # the banker lends up to $5,000
+            yes = _cents(loan.group(1)) <= 500_000
+        elif _END_ASKED.search(summary):
+            yes = True
+        elif agreement:        # an agreement: a weekly one is taken, a single payment is not
+            yes = agreement.group(1) != "once on"
         else:
             yes = rng.random() < 0.8 and (cents == 0 or cents * 3 <= me.balance)
         acts.append({"op": "answer", "request": rq, "answer": "accept" if yes else "decline",
@@ -255,17 +319,26 @@ def script(key: ReplyKey, messages: list[dict]) -> str:
                      "from": me.business})
     work = _work(me, day, num)
     acts += work
+    deals = _deals(me, day, num)
+    acts += deals
     mark = _done_mark(day) if work or _done_mark(day) in me.notes else ""
+    if deals or _deals_mark(day) in me.notes:
+        mark = f"{mark} {_deals_mark(day)}".strip()
     roll = rng.random()
     if roll < 0.06:
         acts.append({"op": "read", "what": "account in full"})
     elif roll < 0.10:
         acts.append({"op": "read", "what": "account"})
+    notes = None
     if rng.random() < 0.15:
-        acts.append({"op": "write_notes",
-                     "text": f"Day {day}: the account held ${me.balance / 100:,.2f}. {mark}".strip()})
-    elif work:
-        acts.append({"op": "write_notes", "text": mark})
+        notes = {"op": "write_notes", "text": f"Day {day}: the account held ${me.balance / 100:,.2f}. {mark}".strip()}
+    elif work or deals:
+        notes = {"op": "write_notes", "text": mark}
+    if notes is not None and deals:           # noted before the dealings, so that it is among the eight done
+        at = len(acts) - len(deals) - (1 if roll < 0.10 else 0)
+        acts.insert(at, notes)
+    elif notes is not None:
+        acts.append(notes)
     if 22 <= day < 25 and num % 7 == 3:
         acts += [{"op": "pay", "to": 7, "amount": "lots"}, {"op": "message", "to": ["someone"], "text": None},
                  {"amount": 5}]

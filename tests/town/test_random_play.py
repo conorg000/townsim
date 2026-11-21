@@ -194,6 +194,28 @@ def random_script(rng: random.Random, from_view: bool = False):
             a = {"from": account(), "to": account(), "amount": amount()}
         elif op == "quit":
             a = {"from": pick(seen["names"], JUNK_NAMES, 0.3)} if rng.random() < 0.5 else {}
+        elif from_view and op == "propose_agreement":
+            a = {"to": name(), "amount": amount(), "per": pick(["week", "once", " Week "], ["month", "", None, 7]),
+                 "weeks": pick([0, 1, 4, 52, "6"], [-1, 521, 2.5, None, True]),
+                 "start": pick(["", "Friday", "Monday 13 April", "1 May"], ["2 March", "31 February", 7, None], 0.6),
+                 "pays": pick(["me", "them", " Them "], ["you", "", None, 1]), "what": text()}
+            if rng.random() < 0.3:
+                a["from"] = account()
+        elif from_view and op == "propose_end":
+            a = {"id": pick(obs, ["ob999", "", None, 9, "rq1"])}
+        elif from_view and op == "borrow":
+            a = {"amount": pick([rng.randint(50, 3000), 20000, "1,500", "$400"], [49, 20001, amount()]),
+                 "weeks": hours([4, 26, 52, 104, "10"], [3, 105, 2.5]), "purpose": text()}
+            if rng.random() < 0.3:
+                a["from"] = account()
+        elif from_view and op == "repay":
+            a = {"id": pick(obs, ["ob999", "", None, 9, "rq1"]), "amount": amount()}
+            if rng.random() < 0.3:
+                a["from"] = account()
+        elif from_view and op == "set_rent":
+            a = {"tenant": name(), "weekly": pick([rng.randint(20, 600), "250", 2000], [19.99, 2000.01, amount()])}
+        elif from_view and op == "serve_notice":
+            a = {"tenant": name()}
         elif op == "read":
             a = {"what": pick(["account", "account in full", "agreements", " Account "],
                               ["everything", "", None, ["account"], 1])}
@@ -250,7 +272,49 @@ def _check_day(s, mark: int) -> None:
     assert all(c.cause for c in s.changes[mark:])
 
 
+def _owed_in_all(record) -> int | None:
+    """What an obligation was for in all when it was made: its instalments to its last, the
+    last at its own sum; None for one that runs until ended."""
+    if record.every == 0:
+        return record.cents
+    if record.last is None:
+        return None
+    n = (record.last - record.first) // record.every + 1
+    return record.cents * (n - 1) + (record.final_cents or record.cents)
+
+
+def _received_within_what_was_owed(s) -> None:
+    """For every loan or agreement, what its payee has received on it (collected, counted by
+    hand, and repaid early) is never more than it was for in all when it was made."""
+    made = {c.id: c.new for c in s.changes if c.table == "obligations" and c.field == "+"}
+    on: dict[str, str] = {}                                  # due id -> obligation id
+    for d in s.all("dues"):
+        on[d.id] = d.obligation
+    repaid: dict[str, set[str]] = defaultdict(set)          # obligation -> causes of repay acts on it
+    by_hand: dict[str, int] = defaultdict(int)
+    for c in s.changes:
+        ob = c.id if c.table == "obligations" else on.get(c.id) if c.table == "dues" else None
+        if ob is None:
+            continue
+        if ":repay:" in c.cause:
+            repaid[ob].add(c.cause)
+        elif c.table == "dues" and c.field == "paid" and c.cause.startswith("op:"):
+            by_hand[ob] += c.new - c.old
+    sent = {t.cause: t.cents for t in s.ledger.transfers if ":repay:" in t.cause}
+    collected: dict[str, int] = defaultdict(int)
+    for t in s.ledger.transfers:
+        if t.cause.startswith("routine:collect:"):
+            collected[on[t.cause.removeprefix("routine:collect:")]] += t.cents
+    for ob in s.all("obligations"):
+        if ob.kind not in ("loan", "agreement"):
+            continue
+        total = _owed_in_all(made[ob.id])
+        got = collected[ob.id] + by_hand[ob.id] + sum(sent[c] for c in repaid[ob.id])
+        assert total is None or got <= total, (ob, got, total)
+
+
 def _check_run(s) -> None:
+    _received_within_what_was_owed(s)
     collects = Counter(t.cause for t in s.ledger.transfers if t.cause.startswith("routine:collect:"))
     assert not collects or max(collects.values()) == 1, collects.most_common(1)
     for cause in collects:                 # nothing is taken for a day after an obligation's last
@@ -393,3 +457,17 @@ def test_random_play_in_the_hamlet_does_the_work_of_shops():
     done = sum((_hamlet_played(seed)[1] for seed in HAMLET_SEEDS), Counter())
     for op in WORK:
         assert done[op] > 0, op
+
+
+DEALS = ("propose_agreement", "propose_end", "borrow", "repay", "set_rent")
+
+
+def test_random_play_in_the_hamlet_makes_agreements_loans_and_rents():
+    """Across the hamlet seeds, each operation of agreements, loans and rent was carried out at
+    least once, and a loan was granted; notice to quit needs rent two weeks unpaid, which four
+    weeks of random play need not bring about, so it is left to its own tests."""
+    done = sum((_hamlet_played(seed)[1] for seed in HAMLET_SEEDS), Counter())
+    for op in DEALS:
+        assert done[op] > 0, op
+    assert any(r.kind == "loan" and r.status == "accepted" for seed in HAMLET_SEEDS
+               for r in _hamlet_played(seed)[0].all("requests"))

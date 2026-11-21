@@ -76,7 +76,11 @@ class Request:
     `org`, `every`, `first`, `times`, `hours` and `pay` are the terms of kinds that carry them:
     an offer of a job (`job`) has the organisation, the Monday it starts, the hours a week and
     the weekly pay in cents; an offer of extra hours (`shifts`) the organisation, the hours and
-    what they pay."""
+    what they pay. A proposed agreement (`agreement`) has the proposer's account in `org`, the
+    accounts that would pay and be paid, the sum in `pay`, `every` (7 or 0), the first day and
+    the number of weeks (`times`, 0 for until ended); a loan asked for (`loan`) the borrowing
+    account as payer and the bank as payee, the sum lent, the weeks and the first instalment;
+    a request to end an agreement (`end`) the obligation and the last day anything falls."""
 
     id: str
     day: int
@@ -96,6 +100,8 @@ class Request:
     times: int = 0
     hours: float = 0.0
     pay: int = 0
+    payer: str = ""            # an agreement or loan asked for: the account that would pay
+    payee: str = ""            # and the account that would be paid
 
 
 @dataclass
@@ -153,6 +159,7 @@ class Obligation:
     made_on: int
     penalty: bool = False
     status: str = "active"
+    final_cents: int = 0       # the instalment falling on `last`, when above 0; else `cents`
 
 
 @dataclass

@@ -74,11 +74,11 @@ def test_forms_depend_on_position_only():
     assert any('"from": "household" | "<your business>"' in f for f in forms(s, "p01"))
 
 
-def test_only_paying_and_reading_take_a_from():
+def test_only_paying_reading_agreeing_and_borrowing_take_a_from():
     s = town_with_shop()
     own = ("move_money", "quit")                    # operations whose own form names a from
     taking = [f.split('"')[3] for f in forms(s, "p01") if '"from"' in f and f.split('"')[3] not in own]
-    assert taking == ["pay", "standing_payment", "read"]
+    assert taking == ["pay", "standing_payment", "read", "propose_agreement", "borrow", "repay"]
     assert all(f.endswith('"from": "household" | "<your business>"}') for f in forms(s, "p01")
                if '"from"' in f and f.split('"')[3] not in own)
     assert not any('"from"' in f for f in forms(s, "p02"))
@@ -115,7 +115,7 @@ def test_an_operation_for_one_position_is_shown_and_done_only_by_those_who_hold_
     assert '{"op": "lend"}' not in forms(s, "p03")
     assert _act(s, "p03", "lend").msg == "Not done: there is no operation called 'lend'."
     s.set("people", "p03", T, kind="banker")
-    assert forms(s, "p03")[-1] == '{"op": "lend"}'
+    assert '{"op": "lend"}' in forms(s, "p03")
     assert _act(s, "p03", "lend", days=3).ok and s.get("people", "p03").hours_left == 64.0
 
 

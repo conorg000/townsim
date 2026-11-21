@@ -1,7 +1,7 @@
 """The first eight operations: paying, standing payments, stopping, letters, requests and
 their answers, reading the account, and notes. Registered when this module is imported,
-together with the operations of work in `ops_work`, whose requests `answer` hands to the
-checks and changes in `ANSWERERS`.
+together with the operations of work in `ops_work` and of agreements, loans and rent in
+`ops_deals`, whose requests `answer` hands to the checks and changes in `ANSWERERS`.
 
 Each `check` refuses anything its arguments do not support, so each `do` only acts.
 Arguments come from a reply and may be any JSON value.
@@ -509,3 +509,8 @@ for _spec in (
 from townsim.town import ops_work as _ops_work  # noqa: E402
 
 ANSWERERS.update(getattr(_ops_work, "ANSWERERS_OF_WORK", {}))
+
+# and so do the operations of agreements, loans and rent, from `ops_deals`
+from townsim.town import ops_deals as _ops_deals  # noqa: E402
+
+ANSWERERS.update(getattr(_ops_deals, "ANSWERERS_OF_DEALS", {}))

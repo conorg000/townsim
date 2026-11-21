@@ -19,7 +19,7 @@ from townsim.econ.firm import Firm
 from townsim.town import firms, jobs
 from townsim.town.acts import TIE_RANKS, knows, name_of_who
 from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
-from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, money, name_of, owed_dues, upcoming
+from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, money, name_of, owed_dues, upcoming
 from townsim.town.store import Store, id_key
 
 WHO_WORDS = 300
@@ -418,6 +418,11 @@ def _the(name: str, start: bool = False) -> str:
     return name
 
 
+def _last_sum(ob) -> str:
+    """`, <$y>,` when the last instalment differs from the rest; else ""."""
+    return f", {money(last_cents(ob))}," if last_cents(ob) != ob.cents else ""
+
+
 def _debts(store: Store, pid: str) -> list[tuple[int, str]]:
     """(cents, line) for what the household owes and is owed with a last date, largest first;
     the mortgage is told with the house."""
@@ -426,11 +431,12 @@ def _debts(store: Store, pid: str) -> list[tuple[int, str]]:
     for o in _active(store, payer=h):
         if o.last is not None and not (o.kind == "loan" and o.memo.startswith("mortgage")):
             rows.append((o.cents, f"Your household owes {_the(name_of(store, o.payee))}: {memo(o.memo)}, "
-                                  f"{money(o.cents)} a week, the last payment on {when(o.last)}."))
+                                  f"{money(o.cents)} a week, the last payment{_last_sum(o)} on {when(o.last)}."))
     for o in _active(store, payee=h):
         if o.last is not None:
             rows.append((o.cents, f"{_the(name_of(store, o.payer), True)} owes your household: "
-                                  f"{memo(o.memo)}, {money(o.cents)} a week, the last payment on {when(o.last)}."))
+                                  f"{memo(o.memo)}, {money(o.cents)} a week, the last payment{_last_sum(o)} on "
+                                  f"{when(o.last)}."))
     return sorted(rows, key=lambda r: -r[0])
 
 
@@ -488,6 +494,16 @@ def _arrears(store: Store, ob_id: str) -> tuple[int, int | None]:
     return sum(d.cents - d.paid for d in dues), min((d.day for d in dues), default=None)
 
 
+def _until(ob) -> str:
+    """`, until <date>`, or `, the last, on <date>, <$y>` when the last instalment differs; ""
+    for an obligation with no last day."""
+    if ob.last is None:
+        return ""
+    if last_cents(ob) != ob.cents:
+        return f", the last, on {when(ob.last)}, {money(last_cents(ob))}"
+    return f", until {when(ob.last)}"
+
+
 def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
     """What `account` owes and is owed that matters week to week: loans, agreements and
     standing payments in force, and anything at all with arrears; one line each, in id order,
@@ -504,7 +520,7 @@ def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
             how = f"once on {when(ob.first)} {party}"
         else:
             every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
-            how = f"{every} {party}" + (f", until {when(ob.last)}" if ob.last is not None else "")
+            how = f"{every} {party}" + _until(ob)
         rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
     if len(rows) > most:
         rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]
@@ -529,7 +545,7 @@ def bank_book_rows(store: Store, pid: str) -> list[str]:
     for ob in store.where("obligations", payee=bank.id):
         if ob.kind != "loan" or ob.status not in SCHEDULED:
             continue
-        until = f", until {when(ob.last)}" if ob.last is not None else ""
+        until = _until(ob)
         late, since = _arrears(store, ob.id)
         overdue = f", {money(late)} overdue since {date_text(since)}" if late else ""
         rows.append(f"{ob.id}: {name_of(store, ob.payer)}, {memo(ob.memo)}, {money(ob.cents)} a week{until}{overdue}")

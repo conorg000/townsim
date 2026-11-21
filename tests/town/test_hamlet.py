@@ -189,6 +189,19 @@ def test_the_script_lives_a_full_life():
     assert "household" in moved and any(m != "household" for m in moved)
     assert any(o.ok and o.act.op == "pay" and "counted toward wages from" in o.msg and "from" not in o.act.args
                for o in acted)                                                    # a wage paid by hand
+    # agreements, loans and rent: each done and each refused (no tenant falls two weeks behind
+    # in these eight weeks, so notice to quit is only refused here; its own tests serve it)
+    for op in ("propose_agreement", "propose_end", "borrow", "repay", "set_rent", "serve_notice"):
+        assert op == "serve_notice" or any(o.ok and o.act.op == op for o in acted), op
+        assert any(not o.ok and o.act.op == op and o.msg.startswith("Not done:") for o in acted), op
+    for kind in ("agreement", "loan"):
+        assert {"accepted", "declined"} <= {r.status for r in rqs if r.kind == kind}, kind
+    ended = [s.get("obligations", r.ob) for r in rqs if r.kind == "end" and r.status == "accepted"]
+    assert ended and all(o.kind == "agreement" and o.status == "finished" for o in ended)
+    assert not any(r.kind == "breach" and any(o.memo in r.text for o in ended) for r in s.all("records"))
+    assert any(c.table == "obligations" and c.field == "last" and ":repay:" in c.cause for c in s.changes)
+    changed = [o for o in s.all("obligations") if o.kind == "rent" and o.made_by != "routine"]
+    assert changed and any(d.status == "paid" for o in changed for d in s.where("dues", obligation=o.id))
 
 
 def test_shops_have_customers_and_tills_every_week():

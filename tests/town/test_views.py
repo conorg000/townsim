@@ -969,9 +969,11 @@ def test_the_last_guard_holds_the_character_ceiling_and_keeps_counted_lines():
 # Every registered operation, by whether its confirmation names something people refer to by id.
 # An operation not in either set fails the tripwire below: classify it, and if it names an id,
 # add a sample of it here.
-GIVES_AN_ID = {"standing_payment", "request", "offer_job", "offer_shifts"}
+GIVES_AN_ID = {"standing_payment", "request", "offer_job", "offer_shifts", "propose_agreement", "propose_end",
+               "borrow"}
 NAMES_NO_ID = {"pay", "stop", "message", "answer", "read", "write_notes",   # a letter's id is shown to no one
-               "dismiss", "move_money", "order_stock", "quit", "set_price", "set_staff_pay", "work_extra_hours"}
+               "dismiss", "move_money", "order_stock", "quit", "set_price", "set_staff_pay", "work_extra_hours",
+               "repay", "set_rent", "serve_notice"}
 
 
 def test_every_confirmation_carries_its_id_within_twelve_words():
@@ -984,6 +986,13 @@ def test_every_confirmation_carries_its_id_within_twelve_words():
     made["standing_payment"] = (out, s.all("obligations")[-1].id)
     out = apply_act(s, Act("p01", "p01", "request", {"to": "Craig Pryce", "text": "Could you help on Saturday?"}), 1)
     made["request"] = (out, s.all("requests")[-1].id)
+    out = apply_act(s, Act("p01", "p01", "propose_agreement", {"to": "Megan Pryce", "amount": 20, "per": "week",
+                                                               "weeks": 4, "pays": "me", "what": "the shopping"}), 2)
+    made["propose_agreement"] = (out, s.all("requests")[-1].id)
+    ob = O.create(s, kind="agreement", payer="h1", payee="h2", cents=1000, first=4, every=7, memo='"help"',
+                  ends="both", made_by="p01", cause="routine:t")
+    out = apply_act(s, Act("p01", "p01", "propose_end", {"id": ob}), 3)
+    made["propose_end"] = (out, s.all("requests")[-1].id)
     g = place(1)
     owner = _owner_of_most(g)
     org = next(o.id for o in g.all("orgs") if o.owner == owner)
@@ -991,7 +1000,8 @@ def test_every_confirmation_carries_its_id_within_twelve_words():
     idle = next(p.id for p in g.all("people") if p.kind in ("unemployed", "home", "retired"))
     ready(g, owner)
     samples = {"offer_job": {"to": g.get("people", idle).name, "weekly_pay": 150, "hours": 10},
-               "offer_shifts": {"to": g.get("people", staff).name, "hours": 2}}
+               "offer_shifts": {"to": g.get("people", staff).name, "hours": 2},
+               "borrow": {"amount": 500, "weeks": 10, "purpose": "a new till"}}
     for n, (op, args) in enumerate(samples.items()):
         if op in REGISTRY:
             out = apply_act(g, Act(owner, owner, op, args), n)
