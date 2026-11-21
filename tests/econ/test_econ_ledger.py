@@ -37,10 +37,10 @@ def test_credit_accounts_may_go_negative():
 
 def test_every_transfer_is_recorded_with_its_cause():
     led = _ledger()
-    led.week = 3
+    led.t = 3
     led.transfer("hh:01", "firm:1", 250, "food x1", "routine:shopping")
     t = led.transfers[-1]
-    assert (t.week, t.src, t.dst, t.cents, t.cause) == (3, "hh:01", "firm:1", 250, "routine:shopping")
+    assert (t.t, t.src, t.dst, t.cents, t.cause) == (3, "hh:01", "firm:1", 250, "routine:shopping")
     with pytest.raises(ValueError):
         led.transfer("hh:01", "firm:1", 1, "no cause", "")
 

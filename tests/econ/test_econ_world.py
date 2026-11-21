@@ -68,7 +68,7 @@ def test_partial_deliveries_happen_and_are_paid_for_what_arrived():
     for r in econ.history["firm:1"][first:]:
         for (sid, o), (_, d), (_, price) in zip(r.ordered, r.delivered, r.paid_unit):
             paid = sum(t.cents for t in econ.ledger.transfers
-                       if t.week == r.week and t.src == "firm:1" and t.dst == "outside:suppliers")
+                       if t.t == r.week and t.src == "firm:1" and t.dst == "outside:suppliers")
             assert paid == d * price
             if d < o:
                 shorts += 1

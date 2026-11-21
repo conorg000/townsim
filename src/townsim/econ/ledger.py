@@ -16,7 +16,7 @@ class Overdraft(Exception):
 
 
 class Transfer(NamedTuple):
-    week: int
+    t: int
     src: str
     dst: str
     cents: int
@@ -35,7 +35,7 @@ class Account:
 class Ledger:
     accounts: dict[str, Account] = field(default_factory=dict)
     transfers: list[Transfer] = field(default_factory=list)
-    week: int = 0
+    t: int = 0  # the caller's time index: weeks in econ, days in town
 
     def open(self, account_id: str, allow_credit: bool = False) -> Account:
         if account_id in self.accounts:
@@ -64,7 +64,7 @@ class Ledger:
             raise Overdraft(f"{src} has {a.balance}, cannot pay {cents} to {dst} ({memo})")
         a.balance -= cents
         b.balance += cents
-        self.transfers.append(Transfer(self.week, src, dst, cents, memo, cause))
+        self.transfers.append(Transfer(self.t, src, dst, cents, memo, cause))
 
     def total(self) -> int:
         return sum(a.balance for a in self.accounts.values())

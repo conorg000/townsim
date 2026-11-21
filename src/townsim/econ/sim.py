@@ -305,7 +305,7 @@ class Economy:
     # --- the week -------------------------------------------------------------------
     def step(self, managers: dict[str, Manager]) -> None:
         w = self.week
-        self.ledger.week = w
+        self.ledger.t = w
         cause = "routine"
         # 1. deliveries arrive and are paid on delivery
         deliveries: dict[str, tuple[list, list, list]] = {}
