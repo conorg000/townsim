@@ -62,7 +62,10 @@ def names(path: str) -> list[str]:
 
 
 def check_price(name: str, model: str, price: Price) -> None:
-    """Raise ValueError if `price` is above the ceiling."""
+    """Raise ValueError if `price` is 0 or less (no spend could be counted) or above the ceiling."""
+    if not (price.input_per_mtok > 0 and price.output_per_mtok > 0):
+        raise ValueError(f"family {name!r}: {model} is priced at ${price.input_per_mtok} per million tokens in and "
+                         f"${price.output_per_mtok} out; a listed model must cost more than $0 each way")
     if not price.input_per_mtok <= MAX_IN or not price.output_per_mtok <= MAX_OUT:
         raise ValueError(f"family {name!r}: {model} costs ${price.input_per_mtok} per million tokens in and "
                          f"${price.output_per_mtok} out, above the ceiling of ${MAX_IN} in and ${MAX_OUT} out")

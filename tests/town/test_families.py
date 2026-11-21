@@ -153,3 +153,14 @@ def test_a_familys_params_are_a_frozen_copy():
     with pytest.raises(TypeError):
         f.params["n"] = 5
     assert {**f.params} == {"max_tokens": 10}
+
+
+@pytest.mark.parametrize("price", ["{input_per_mtok: 0, output_per_mtok: 0.5}", "{input_per_mtok: 0.1, output_per_mtok: 0}"])
+def test_a_price_of_nothing_is_refused(tmp_path, price):
+    f, p = write(tmp_path, family("a", "free/one") + family("b", "cheap/one"), PRICES + f"free/one: {price}\n")
+    with pytest.raises(ValueError, match="'a'.*free/one.*more than \\$0"):
+        families.load(f, p)
+    f, p = write(tmp_path, family("a", "free/one") + family("b", "cheap/one"),
+                 PRICES + "free/one: {input_per_mtok: -0.1, output_per_mtok: 0.5}\n")
+    with pytest.raises(ValueError):
+        families.load(f, p)

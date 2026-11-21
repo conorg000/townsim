@@ -48,6 +48,7 @@ class RunDB:
     """Every write commits, or rolls back if it fails, so no write lock is left held."""
 
     def __init__(self, path: str) -> None:
+        self.path = path
         self._db = sqlite3.connect(path)
         with self._db:
             self._db.executescript(_TABLES)

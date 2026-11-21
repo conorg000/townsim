@@ -14,6 +14,8 @@ imports a provider's client or reads a key.
 from __future__ import annotations
 
 import math
+import os
+import re
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +26,29 @@ from townsim.town.families import TOKENS_PER_MESSAGE, Family, check_family, inpu
 from townsim.town.replies import Reply, ReplyKey, StopRun
 
 ATTEMPTS = len(RETRY_SLEEPS) + 1   # the attempts `model.complete` makes at one call
+
+
+SAFE_CHARS = 300    # the most of a provider's error text that is kept or shown
+_SECRET = [
+    (re.compile(r"sk-[\w-]{8,}", re.I), "[removed]"),
+    (re.compile(r"Bearer\s+\S+", re.I), "[removed]"),
+    (re.compile(r"(Authorization:|api_key=|x-api-key:|api-key:)\s*\S+", re.I), r"\1 [removed]"),
+]
+
+
+def safe(text: str) -> str:
+    """Text from a provider or its client, fit to store or show: anything shaped like a key
+    or a credential header's value is `[removed]`, as is the value of any environment variable
+    named `*_API_KEY` or `*_TOKEN` (of 8 or more characters) wherever it appears; whitespace
+    collapsed; cut to `SAFE_CHARS` characters."""
+    text = str(text)
+    for name, value in os.environ.items():
+        if name.endswith(("_API_KEY", "_TOKEN")) and len(value) >= 8:
+            text = text.replace(value, "[removed]")
+    for pattern, by in _SECRET:
+        text = pattern.sub(by, text)
+    text = " ".join(text.split())
+    return text if len(text) <= SAFE_CHARS else text[:SAFE_CHARS - 1] + "…"
 
 
 def _usage_count(resp, name: str) -> int | None:
@@ -61,7 +86,10 @@ class ModelReplier:
     order; a raising `lost` stops this replier (`unavailable: lost-spend callback failed`)
     after the batch is returned whole. An answer that cannot be read counts as one lost
     attempt. `spent()` gives the dollars already spent on the run: what its stored replies cost
-    plus everything `lost` was given. `stopped` says why this replier last stopped a run:
+    plus everything `lost` was given. A reply that cost more than the worst case of its attempt
+    stops this replier once its batch is returned (`cap: a reply cost ...`), since the cap's
+    reckoning no longer holds. Text from the provider or its client is passed through `safe`
+    before it is kept in an error or `stopped`. `stopped` says why this replier last stopped a run:
     `cap: ...`, `refused: <model>: ...` or `unavailable: <model>: ...`.
 
     Raises ValueError if a family sets a parameter `families.check_params` does not allow,
@@ -90,7 +118,7 @@ class ModelReplier:
         self.sleep_fn = sleep_fn
         self.lost = lost
         self.stopped: str | None = None
-        self._halted = False     # a refusal, or a lost-spend callback that failed: nothing more is sent
+        self._halted = False     # a refusal, an overbilled reply or a failed lost-spend callback: nothing more is sent
 
     def _family(self, actor: str) -> Family:
         return self.families[self.family_of[actor]]
@@ -141,7 +169,7 @@ class ModelReplier:
                 return self._call(counted, family, messages)
             except Exception as e:      # noqa: BLE001  (an answer that could not be read)
                 failed[i] += 1          # it was answered, so perhaps billed: one attempt lost
-                return StopRun(f"unavailable: {family.model}: {type(e).__name__}: {e}")
+                return StopRun(safe(f"unavailable: {family.model}: {type(e).__name__}: {e}"))
 
         with ThreadPoolExecutor(max_workers=min(self.workers, len(pairs))) as pool:
             results = list(pool.map(one, range(len(pairs))))
@@ -152,6 +180,11 @@ class ModelReplier:
                 why.append(got.error)
             elif isinstance(got, StopRun):
                 why.append(str(got))
+        over = [(got.cost, w, f.model) for got, w, f in zip(results, worsts, fams)
+                if isinstance(got, Reply) and got.cost > w]
+        if over:
+            self._halted = True
+            why.append("cap: a reply cost ${:.4f}, more than its worst case ${:.4f} ({})".format(*over[0]))
         if why:
             self.stopped = why[0]
         if self.lost is not None:
@@ -161,7 +194,7 @@ class ModelReplier:
                     try:
                         self.lost(w)
                     except Exception as e:      # noqa: BLE001  (the run cannot keep its spend)
-                        broken = broken or f"unavailable: lost-spend callback failed: {type(e).__name__}: {e}"
+                        broken = broken or safe(f"unavailable: lost-spend callback failed: {type(e).__name__}: {e}")
             if broken is not None:
                 self._halted = True
                 self.stopped = broken
@@ -172,7 +205,7 @@ class ModelReplier:
             resp = complete(completion_fn, model="openrouter/" + family.model, messages=messages,
                             sleep_fn=self.sleep_fn, **family.params)
         except ModelUnavailable as e:
-            return StopRun(f"unavailable: {family.model}: {e}")
+            return StopRun(safe(f"unavailable: {family.model}: {e}"))
         return self._reply(family, messages, resp)
 
     def _reply(self, family: Family, messages: list[dict], resp) -> Reply:
@@ -195,7 +228,7 @@ class ModelReplier:
         error = None
         refusal = _refusal(resp)
         if refusal is not None:
-            error = f"refused: {family.model}: {' '.join(refusal.split())}"
+            error = safe(f"refused: {family.model}: {refusal}")
         elif finish == "content_filter" and not (text or "").strip():
             error = f"refused: {family.model}: the provider's content filter gave no reply"
         return Reply(text=text, reasoning=reasoning, finish=finish, tokens_in=tokens_in, tokens_out=tokens_out,

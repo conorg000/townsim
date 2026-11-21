@@ -277,7 +277,7 @@ def test_a_key_in_the_environment_never_reaches_a_call_or_a_reply(monkeypatch):
     for name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.setenv(name, marker)
     fake = Fake(lambda m, msgs: response("fine"))
-    r = replier(fake, cost_fn=lambda resp: 0.001)
+    r = replier(fake, cost_fn=lambda resp: 1e-6)
     replies = [r.ask(key("p01"), MESSAGES)] + r.ask_many([(key(p), MESSAGES) for p in PEOPLE[:4]])
     assert fake.calls and marker not in repr(fake.calls)
     assert all(marker not in encode_reply(x) for x in replies)
@@ -397,3 +397,54 @@ def test_a_key_added_to_params_after_the_check_never_reaches_the_call():
         r.families["a"].params["n"] = 50
     r.ask(key("p02"), MESSAGES)
     assert set(fake.calls[0]) == {"model", "messages", "timeout", "max_tokens"}
+
+
+@pytest.mark.parametrize("raw, kept", [
+    ("bad key sk-or-v1-abcdef123456 given", "bad key [removed] given"),
+    ("header Bearer abc.def-ghi here", "header [removed] here"),
+    ("Authorization: Bearer xyz123", "Authorization: [removed]"),
+    ("authorization:secretvalue rest", "authorization: [removed] rest"),
+    ("url?api_key=abcdef&x=1", "url?api_key= [removed]"),
+    ("API-KEY: abcdef0123", "API-KEY: [removed]"),
+    ("x-api-key: abcdef0123 more", "x-api-key: [removed] more"),
+    ("many   spaces\n\tand lines", "many spaces and lines"),
+])
+def test_safe_removes_what_looks_like_a_key(raw, kept):
+    from townsim.town.modelreplier import safe
+    assert safe(raw) == kept
+
+
+def test_safe_removes_a_key_in_the_environment_and_cuts(monkeypatch):
+    from townsim.town.modelreplier import SAFE_CHARS, safe
+    monkeypatch.setenv("SOME_SERVICE_API_KEY", "plainvalue42")
+    monkeypatch.setenv("GITHUB_TOKEN", "tokenvalue99")
+    monkeypatch.setenv("SHORT_TOKEN", "abc")
+    assert safe("got plainvalue42 and tokenvalue99 and abc") == "got [removed] and [removed] and abc"
+    long = safe("x" * 1000)
+    assert len(long) == SAFE_CHARS and long.endswith("\u2026")
+
+
+def test_a_key_in_a_provider_error_is_not_kept(monkeypatch):
+    marker = "sk-or-v1-SECRETVALUE"
+    monkeypatch.setenv("OPENROUTER_API_KEY", marker)
+
+    def fail(model, msgs):
+        raise RuntimeError(f"401 Unauthorized: Authorization: Bearer {marker}")
+    r = replier(Fake(fail))
+    with pytest.raises(StopRun) as got:
+        r.ask(key(), MESSAGES)
+    assert "SECRET" not in str(got.value) and "SECRET" not in r.stopped
+    refusing = replier(Fake(lambda m, msgs: response(None, refusal=f"Bad credentials {marker}")))
+    reply = refusing.ask(key(), MESSAGES)
+    assert reply.error.startswith("refused: ") and "SECRET" not in reply.error
+
+
+def test_a_reply_costing_more_than_its_worst_case_stops_after_its_batch():
+    fake = Fake(lambda m, msgs: response("ok", usage=(10, 10 * 100 * 10)))      # ten times max_tokens and more
+    r = replier(fake)
+    pairs = [(key(p), MESSAGES) for p in PEOPLE[:4]]
+    first = r.ask_many(pairs)
+    assert all(isinstance(x, Reply) for x in first) and len(fake.calls) == 4
+    assert r.stopped.startswith("cap: a reply cost $") and "more than its worst case $" in r.stopped
+    second = r.ask_many(pairs)
+    assert all(isinstance(x, StopRun) for x in second) and len(fake.calls) == 4

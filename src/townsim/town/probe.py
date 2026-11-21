@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from townsim.estimate import Price
-from townsim.town import gen, hamlet_script, loop, talk
+from townsim.town import aims, gen, hamlet_script, loop, talk
 from townsim.town.acts import apply_act
 from townsim.town.clock import dow
 from townsim.town.families import Family
@@ -38,6 +38,14 @@ DAYS = 10          # scripted days before the cases are chosen
 TALK_AFTER = 3     # the talk case is the first talk held after this day
 TALK_DAYS = 28     # days run at most looking for a talk
 DUE_AHEAD = 3      # days ahead a payment counts as due for the case short of money
+MIN_CASES = 3      # cases a seed must give
+
+# what a family must reach in `table` to pass
+PASS_READABLE = 0.90        # share of replies that can be read
+PASS_WITH_ACT = 0.50        # share of readable replies that write at least one act
+PASS_ACTS_DONE = 0.60       # share of written acts the engine carried out
+PASS_SECONDS = 30.0         # mean seconds a call, at most
+# and no provider refusal
 
 
 @dataclass
@@ -126,44 +134,52 @@ def _scripted(seed: int, family_names: list[str]) -> tuple[list[_Seen], int]:
     return seen, days
 
 
-def cases(seed: int, family_names: list[str]) -> list[Case]:
-    """Four views from the seed's hamlet run on its script: a shop owner on their stock day;
-    a person whose household owes, now or within three days, more than its balance (else the
-    person with the lowest balance); a person with an open request to answer; and the first
-    talk held after day 3, at its second turn. The first three are from the first ten days,
-    the latest that fits, and go to different people where they can; the talk is looked for
-    up to day 28. Raises ValueError if a case cannot be found."""
+def _shop_owner(x: _Seen) -> bool:
+    st = pickle.loads(x.store)
+    return (st.get("people", x.pid).stock_day == dow(x.day)
+            and any(o.kind == "shop" and o.owner == x.pid for o in st.all("orgs")))
+
+
+def _has_request(x: _Seen) -> bool:
+    return any(rq.to == x.pid for rq in pickle.loads(x.store).where("requests", status="open"))
+
+
+def _balance(x: _Seen) -> int:
+    st = pickle.loads(x.store)
+    return st.balance(st.get("people", x.pid).household)
+
+
+def cases(seed: int, family_names: list[str], echo: Callable[[str], None] = print) -> list[Case]:
+    """Up to four views from the seed's hamlet run on its script: a shop owner on their stock
+    day; a person whose household owes, now or within three days, more than its balance (else
+    the person with the lowest balance); a person with an open request to answer; and the
+    first talk held after day 3, at its second turn. The first three are from the first ten
+    days, the latest that fits, and go to different people where they can; the talk is looked
+    for up to day 28. A case that fits no one is left out, with a line to `echo` saying so.
+    Raises ValueError if fewer than `MIN_CASES` are found."""
     seen, _ = _scripted(seed, family_names)
     turns = [x for x in seen if x.purpose == "turn" and x.day < DAYS]
     chosen: list[tuple[str, _Seen]] = []
 
     def take(label: str, fits: list[_Seen], key=None) -> None:
         if not fits:
-            raise ValueError(f"seed {seed}: no view fits the case {label!r}")
+            echo(f"seed {seed}: no view fits the case {label!r}; it is left out")
+            return
         used = {x.pid for _, x in chosen}
         fresh = [x for x in fits if x.pid not in used] or fits
         chosen.append((label, max(fresh, key=key) if key else fresh[-1]))
 
-    def shop_owner(x: _Seen) -> bool:
-        st = pickle.loads(x.store)
-        return (st.get("people", x.pid).stock_day == dow(x.day)
-                and any(o.kind == "shop" and o.owner == x.pid for o in st.all("orgs")))
-
-    take("stock day", [x for x in turns if shop_owner(x)])
+    take("stock day", [x for x in turns if _shop_owner(x)])
     short = [(x, _shortfall(pickle.loads(x.store), x.pid)) for x in turns]
     if any(f > 0 for _, f in short):
-        take("short of money", [x for x, f in short if f > 0], key=lambda x: (_shortfall(pickle.loads(x.store), x.pid), x.day))
+        gaps = {id(x): f for x, f in short}
+        take("short of money", [x for x, f in short if f > 0], key=lambda x: (gaps[id(x)], x.day))
     else:
-        def balance(x: _Seen) -> int:
-            st = pickle.loads(x.store)
-            return st.balance(st.get("people", x.pid).household)
-        take("short of money", turns, key=lambda x: (-balance(x), x.day))
-    take("request to answer", [x for x in turns if any(
-        rq.to == x.pid for rq in pickle.loads(x.store).where("requests", status="open"))])
-    talks = [x for x in seen if x.purpose == "talk" and x.day > TALK_AFTER and x.turn == 1]
-    if not talks:
-        raise ValueError(f"seed {seed}: no talk held after day {TALK_AFTER} in {TALK_DAYS} days")
-    chosen.append(("talk", talks[0]))
+        take("short of money", turns, key=lambda x: (-_balance(x), x.day))
+    take("request to answer", [x for x in turns if _has_request(x)])
+    take("talk", [x for x in seen if x.purpose == "talk" and x.day > TALK_AFTER and x.turn == 1][:1])
+    if len(chosen) < MIN_CASES:
+        raise ValueError(f"seed {seed}: only {len(chosen)} of the four cases fit, fewer than {MIN_CASES}")
     return [Case(label, x.pid, "talk" if x.purpose == "talk" else "turn", x.messages, pickle.loads(x.store),
                  x.day, x.ref) for label, x in chosen]
 
@@ -175,7 +191,9 @@ def score(case: Case, text: str | None) -> tuple[bool, int, int, list[str]]:
     """Whether `text` can be read as a reply to the case, how many acts it wrote, how many of
     those the engine carried out, and the messages of those it refused, in order, applied to
     a fresh copy of the case's store as a day applies them (at most eight acts a turn, four in
-    a talk; one past the limit counts as not carried out)."""
+    a talk; acts past the limit are not carried out, and the engine's message saying so is
+    listed once among the refusals). A turn's `aims` are applied to the copy before its acts,
+    as a day applies them."""
     if case.kind == "talk":
         parsed = talk.parse_say(text)
         most = talk.MAX_ACTS
@@ -186,8 +204,11 @@ def score(case: Case, text: str | None) -> tuple[bool, int, int, list[str]]:
         return False, 0, 0, []
     elements = parsed["acts"]
     store = pickle.loads(pickle.dumps(case.store))
-    ok, refusals = 0, []
-    for n, element in enumerate(elements[:most]):
+    ok, refusals, n0 = 0, [], 0
+    if case.kind == "turn" and "aims" in parsed:
+        aims.update(store, case.pid, parsed["aims"], f"op:{case.pid}:aims:d{store.day}.0")
+        n0 = 1
+    for n, element in enumerate(elements[:most], start=n0):
         try:
             outcome = (talk._apply(store, case.pid, element, n) if case.kind == "talk"
                        else apply_act(store, loop.act_of(case.pid, element), n))
@@ -198,6 +219,11 @@ def score(case: Case, text: str | None) -> tuple[bool, int, int, list[str]]:
             ok += 1
         else:
             refusals.append(outcome.msg)
+    if len(elements) > most:
+        k = len(elements) - most
+        refusals.append(f"Not done: {k} more operations were written than the four carried out each time you speak."
+                        if case.kind == "talk" else
+                        f"Not done: {k} more operations were written than the eight carried out in a day.")
     return True, len(elements), ok, refusals
 
 
@@ -264,22 +290,41 @@ def _cut(text: str, n: int = 70) -> str:
     return text if len(text) <= n else text[:n - 1] + "…"
 
 
+def passes(rs: list[Row]) -> bool:
+    """Whether a family's rows reach every bar: readable, writing acts, acts carried out, no
+    provider refusal, quick enough."""
+    if not rs:
+        return False
+    readable = [r for r in rs if r.readable]
+    acts, done = sum(r.acts for r in rs), sum(r.acts_ok for r in rs)
+    return (len(readable) >= PASS_READABLE * len(rs)
+            and bool(readable) and sum(r.acts > 0 for r in readable) >= PASS_WITH_ACT * len(readable)
+            and acts > 0 and done >= PASS_ACTS_DONE * acts
+            and not any(r.provider_refused for r in rs)
+            and sum(r.seconds for r in rs) / len(rs) <= PASS_SECONDS)
+
+
 def table(rows: list[Row]) -> str:
-    """Per family, in the order the rows have them: calls, readable %, acts per reply, acts
-    carried out %, provider refusals, mean tokens in and out, dollars and mean seconds; then
-    the three commonest messages of acts the engine refused."""
+    """Per family, in the order the rows have them: calls, readable %, share of readable
+    replies with an act, acts per reply, acts carried out (done/written and %), provider
+    refusals, mean tokens in and out, dollars, mean seconds and whether it passes (`passes`);
+    then the three commonest messages of acts the engine refused."""
     order = list(dict.fromkeys(r.family for r in rows))
-    head = f"{'family':<12} {'calls':>5} {'readable':>8} {'acts/reply':>10} {'acts done':>9} {'refused':>7} " \
-           f"{'tok in':>7} {'tok out':>7} {'dollars':>9} {'secs':>6}"
+    head = (f"{'family':<12} {'calls':>5} {'readable':>8} {'with act':>8} {'acts/reply':>10} {'acts done':>14} "
+            f"{'refused':>7} {'tok in':>7} {'tok out':>7} {'dollars':>9} {'secs':>6} {'passes':>6}")
     out = [head]
     for name in order:
         rs = [r for r in rows if r.family == name]
         k = len(rs)
+        readable = [r for r in rs if r.readable]
         acts, ok = sum(r.acts for r in rs), sum(r.acts_ok for r in rs)
-        out.append(f"{name:<12} {k:>5} {_pct(sum(r.readable for r in rs), k):>8} {acts / k:>10.1f} "
-                   f"{_pct(ok, acts):>9} {sum(r.provider_refused for r in rs):>7} "
+        done = f"{ok}/{acts}" + (f" {_pct(ok, acts)}" if acts else "")
+        out.append(f"{name:<12} {k:>5} {_pct(len(readable), k):>8} "
+                   f"{_pct(sum(r.acts > 0 for r in readable), len(readable)):>8} {acts / k:>10.1f} {done:>14} "
+                   f"{sum(r.provider_refused for r in rs):>7} "
                    f"{sum(r.tokens_in for r in rs) / k:>7.0f} {sum(r.tokens_out for r in rs) / k:>7.0f} "
-                   f"{sum(r.cost for r in rs):>9.4f} {sum(r.seconds for r in rs) / k:>6.1f}")
+                   f"{sum(r.cost for r in rs):>9.4f} {sum(r.seconds for r in rs) / k:>6.1f} "
+                   f"{'yes' if passes(rs) else 'no':>6}")
         for msg, times in Counter(m for r in rs for m in r.refusals).most_common(3):
             out.append(f"    {times} x {_cut(msg)}")
     return "\n".join(out)

@@ -143,9 +143,16 @@ def _need_key(command: str) -> None:
         _fail(f"no {_KEY} in the environment; run with: uv run --env-file .env townsim {command} …")
 
 
-def _cap(cap: float, most: float) -> None:
+def _cap(typed: str, most: float) -> float:
+    """The cap as dollars, or one plain line, showing it as typed, and exit code 1 unless it
+    is a number above 0 and at most `most`."""
+    try:
+        cap = float(typed)
+    except ValueError:
+        cap = float("nan")
     if not (cap > 0 and cap <= most):
-        _fail(f"the cap must be above $0 and at most ${most:g}, got ${cap:g}")
+        _fail(f"the cap must be a number of dollars above 0 and at most {most:g}, got {typed}")
+    return cap
 
 
 def _shown(path: str) -> str:
@@ -180,13 +187,14 @@ def _litellm():
 def town_live_cmd(
     db: Annotated[str, typer.Option("--db", help="SQLite file to keep the run in.")],
     weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run in all, from day 0.")],
-    cap: Annotated[float, typer.Option("--cap", help="Dollars the run may spend in all, at most 5.")],
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the run may spend in all, at most 5.")],
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "live",
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
                                           show_default="config/families.yaml")] = _FAMILIES,
     prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
                                         show_default="config/prices.yaml")] = _PRICES,
+    past_refusal: Annotated[bool, typer.Option("--past-refusal", help="Resume a run past a stored refusal.")] = False,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -195,18 +203,18 @@ def town_live_cmd(
     from townsim.town.replies import ReplayMismatch
     from townsim.town.rundb import RunDB
 
-    _cap(cap, live.MAX_CAP)
+    dollars = _cap(cap, live.MAX_CAP)
     _need_key("town-live")
     fams, price_list = _load_families(families, prices)
     completion_fn, cost_fn = _litellm()
     with _plainly(db), RunDB(db) as rdb:
         try:
-            got = live.play(rdb, run_id, seed, weeks, fams, price_list, cap, completion_fn, cost_fn=cost_fn,
-                            echo=typer.echo)
+            got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
+                            past_refusal=past_refusal, echo=typer.echo)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
-        for name, n, dollars in live.spend_by_family(rdb, run_id):
-            typer.echo(f"  {name}  {n} replies  ${dollars:.4f}")
+        for name, n, spent in live.spend_by_family(rdb, run_id):
+            typer.echo(f"  {name}  {n} replies  ${spent:.4f}")
         typer.echo(f"stored spend: ${rdb.spent(run_id):.4f}")
         typer.echo(f"lost to failed attempts: ${live.lost_spend(rdb, run_id):.4f}")
         errors = rdb.errors(run_id)
@@ -215,7 +223,7 @@ def town_live_cmd(
             typer.echo(f"  day {day}: {text}")
         _replay(rdb, run_id)
         if got.stopped and got.stopped.startswith("cap: "):
-            typer.echo(f"stopped by the cap of ${cap:g} after {got.days_done} days; run again with a larger cap to go on")
+            typer.echo(f"stopped by the cap of ${dollars:g} after {got.days_done} days; run again with a larger cap to go on")
         if errors or (got.stopped and not got.stopped.startswith("cap: ")):
             raise typer.Exit(code=1)
 
@@ -225,7 +233,7 @@ _PROBE_OUT = "runs/probe.json"
 
 @app.command("town-probe")
 def town_probe_cmd(
-    cap: Annotated[float, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
     families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
                                           show_default="config/families.yaml")] = _FAMILIES,
     prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
@@ -241,20 +249,20 @@ def town_probe_cmd(
 
     from townsim.town import probe
 
-    _cap(cap, probe.MAX_CAP)
+    dollars = _cap(cap, probe.MAX_CAP)
     _need_key("town-probe")
     fams, price_list = _load_families(families, prices)
     try:
-        cs = probe.cases(seed, list(fams))
+        cs = probe.cases(seed, list(fams), echo=typer.echo)
     except (ValueError, RuntimeError) as e:
         _fail(f"cannot make the cases: {e}")
     completion_fn, cost_fn = _litellm()
     stopped = None
     try:
-        rows = probe.run(cs, fams, price_list, completion_fn, cap, n=n, cost_fn=cost_fn)
+        rows = probe.run(cs, fams, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
     except probe.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
-    kept = {"seed": seed, "n": n, "cap": cap, "stopped": stopped,
+    kept = {"seed": seed, "n": n, "cap": dollars, "stopped": stopped,
             "families": {name: f.model for name, f in fams.items()},
             "cases": [{"label": c.label, "pid": c.pid, "kind": c.kind, "day": c.day} for c in cs],
             "rows": [dataclasses.asdict(r) for r in rows]}

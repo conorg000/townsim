@@ -17,8 +17,8 @@ from townsim.town.replies import StopRun
 
 NAMES = ["a", "b", "c", "d"]
 FAMILIES = {
-    "a": Family("a", "maker/alpha", {"max_tokens": 100}),
-    "b": Family("b", "maker/beta", {"max_tokens": 100}),
+    "a": Family("a", "maker/alpha", {"max_tokens": 4000}),
+    "b": Family("b", "maker/beta", {"max_tokens": 4000}),
 }
 PRICES = {f.model: Price(input_per_mtok=0.10, output_per_mtok=0.50) for f in FAMILIES.values()}
 COST = 0.001
@@ -166,7 +166,7 @@ def test_cli_writes_rows_and_prints_the_table(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "not-a-real-key")
     monkeypatch.setattr(cli, "_litellm", lambda: (fake, lambda resp: COST))
     families = tmp_path / "families.yaml"
-    families.write_text("".join(f"{n}:\n  model: {f.model}\n  params: {{max_tokens: 100}}\n" for n, f in FAMILIES.items()))
+    families.write_text("".join(f"{n}:\n  model: {f.model}\n  params: {{max_tokens: 4000}}\n" for n, f in FAMILIES.items()))
     prices = tmp_path / "prices.yaml"
     prices.write_text("".join(f"{m}:\n  input_per_mtok: 0.1\n  output_per_mtok: 0.5\n" for m in PRICES))
     out = tmp_path / "probe" / "probe.json"
@@ -184,3 +184,89 @@ def test_cli_writes_rows_and_prints_the_table(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY")
     got = runner.invoke(app, [*base, "--cap", "0.5"])
     assert got.exit_code == 1 and got.output.strip().startswith("no OPENROUTER_API_KEY in the environment")
+
+
+def test_table_fails_a_family_that_writes_no_acts():
+    cs = cases()
+
+    def answer(model, messages):
+        if model.endswith("beta"):
+            if talking(messages):
+                return response(json.dumps({"say": "Fine.", "acts": [], "end": True}))
+            return response('{"acts": []}')
+        return note_reply(model, messages)
+    rows, _ = run(cs, answer, n=1)
+    lines = probe.table(rows).splitlines()
+    assert lines[0].split()[-1] == "passes" and "with act" in lines[0]
+    a, b = [ln for ln in lines if ln.split()[0] in ("a", "b")]
+    assert a.split()[-1] == "yes" and "4/4 100%" in a
+    assert b.split()[-1] == "no" and " 0/0 " in b + " " and b.split()[3] == "0%"
+    assert probe.passes([r for r in rows if r.family == "a"]) and not probe.passes([r for r in rows if r.family == "b"])
+
+
+def test_scoring_keeps_the_rules_of_a_day_and_a_talk():
+    cs = cases()
+    turn, chat = cs[0], cs[3]
+    notes = [{"op": "write_notes", "text": f"note {i}"} for i in range(10)]
+    readable, acts, ok, refusals = probe.score(turn, json.dumps({"aims": ["Keep the shop going"], "acts": notes}))
+    assert (readable, acts, ok) == (True, 10, 8)
+    assert refusals == ["Not done: 2 more operations were written than the eight carried out in a day."]
+    fenced = "Here it is:\n```json\n" + json.dumps({"acts": notes[:1]}) + "\n```"
+    assert probe.score(turn, fenced)[:3] == (True, 1, 1)
+    other = next(p.name for p in chat.store.all("people") if p.id != chat.pid)
+    said = json.dumps({"say": "Let's talk later.", "acts": [{"op": "converse", "with": other, "opening": "Hello"}]})
+    readable, acts, ok, refusals = probe.score(chat, said)
+    assert (readable, acts, ok) == (True, 1, 0)
+    assert refusals == ["Not done: that cannot be done in the middle of a talk."]
+    readable, acts, ok, refusals = probe.score(chat, json.dumps({"say": "Hm.", "acts": notes[:6]}))
+    assert (acts, ok) == (6, 4) and refusals[-1].startswith("Not done: 2 more operations were written than the four")
+
+
+def test_a_case_that_fits_no_one_is_left_out(monkeypatch):
+    lines = []
+    monkeypatch.setattr(probe, "_shop_owner", lambda x: False)
+    got = probe.cases(1, NAMES, echo=lines.append)
+    assert [c.label for c in got] == ["short of money", "request to answer", "talk"]
+    assert lines == ["seed 1: no view fits the case 'stock day'; it is left out"]
+    monkeypatch.setattr(probe, "_has_request", lambda x: False)
+    with pytest.raises(ValueError, match="only 2 of the four cases"):
+        probe.cases(1, NAMES, echo=lines.append)
+
+
+def _cli_files(tmp_path):
+    families = tmp_path / "families.yaml"
+    families.write_text("".join(f"{n}:\n  model: {f.model}\n  params: {{max_tokens: 4000}}\n" for n, f in FAMILIES.items()))
+    prices = tmp_path / "prices.yaml"
+    prices.write_text("".join(f"{m}:\n  input_per_mtok: 0.1\n  output_per_mtok: 0.5\n" for m in PRICES))
+    return str(families), str(prices)
+
+
+def test_cli_writes_the_rows_when_the_probe_stops(tmp_path, monkeypatch):
+    import townsim.cli as cli
+    marker = "sk-or-v1-SECRETVALUE"
+    monkeypatch.setenv("OPENROUTER_API_KEY", marker)
+
+    def answer(model, messages):
+        if model.endswith("beta"):
+            raise RuntimeError(f"401 Unauthorized: Authorization: Bearer {marker}")
+        return note_reply(model, messages)
+    fake = Fake(answer)
+    monkeypatch.setattr(cli, "_litellm", lambda: (fake, None))
+    monkeypatch.setattr("townsim.model.RETRY_SLEEPS", (0, 0))     # no waiting between attempts
+    families, prices = _cli_files(tmp_path)
+    out = tmp_path / "o.json"
+    got = CliRunner().invoke(app, ["town-probe", "--families", families, "--prices", prices, "--out", str(out),
+                                   "--n", "1", "--cap", "0.5"])
+    assert got.exit_code == 1 and "stopped: unavailable: maker/beta" in got.output
+    assert "SECRET" not in got.output and "SECRET" not in out.read_text()
+    kept = json.loads(out.read_text())
+    assert [r["family"] for r in kept["rows"]] == ["a"] * 4 and kept["stopped"].startswith("unavailable: ")
+
+    refusing = Fake(lambda model, messages: response(None, refusal="no") if model.endswith("beta")
+                    else note_reply(model, messages))
+    monkeypatch.setattr(cli, "_litellm", lambda: (refusing, None))
+    got = CliRunner().invoke(app, ["town-probe", "--families", families, "--prices", prices, "--out", str(out),
+                                   "--n", "1", "--cap", "0.5"])
+    kept = json.loads(out.read_text())
+    assert got.exit_code == 1 and [r["family"] for r in kept["rows"]] == ["a"] * 4 + ["b"] * 4
+    assert kept["stopped"].startswith("refused: maker/beta") and all(r["provider_refused"] for r in kept["rows"][4:])

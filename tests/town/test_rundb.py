@@ -254,7 +254,10 @@ def test_a_provider_that_overspends_is_held_to_the_cap(tmp_path, name, provider)
         end = run(db, "o", s, r, 120)
         recorded = db.spent("o") + sum(lost)
         assert end.day < 120 and r.stopped.startswith("cap:")
-        assert len(r.batches) >= 3                                   # several batches were sent
+        if getattr(p, "out_mult", 1) > 1:                            # an overbilled reply stops it after its batch
+            assert len(r.batches) == 1 and r.stopped.startswith("cap: a reply cost $")
+        else:
+            assert len(r.batches) >= 3                               # several batches were sent
         excess = max(0.0, max(billed - allowed for billed, allowed in r.batches))
         assert recorded <= cap + excess + 1e-12
         print(f"{name}: billed {p.billed / cap:.2f} x the cap, recorded {recorded / cap:.2f} x")
