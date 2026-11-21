@@ -16,8 +16,8 @@ import re
 from typing import Any
 
 from townsim.town import obligations
-from townsim.town.acts import (Act, OpSpec, account_of, clean_text, controls, cut, dollars, from_account, knows,
-                               name_of_who, register, resolve, shown, to_cents)
+from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
+                               from_account, knows, name_of_who, register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
 from townsim.town.names import FIRST_NAMES
@@ -30,7 +30,6 @@ NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
 LETTER_WORDS = 150
 REQUEST_WORDS = 80
 NOTES_WORDS = 150
-MAX_CHARS = 3000
 REQUEST_DAYS = 14
 MAX_WEEKS = 520
 _READS = ("account", "account in full", "agreements")
@@ -43,7 +42,14 @@ def _blank(value: Any) -> bool:
 
 
 def _too_long(text: str, words: int = MAX_WORDS) -> bool:
-    return len(text) > MAX_CHARS or len(text.split()) > words
+    return not fits(text, words)
+
+
+def _resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
+    """`acts.resolve`, except that a name longer than any name can be is no one."""
+    if isinstance(name, str) and len(name) > LONGEST_NAME:
+        return None
+    return resolve(store, name, actor)
 
 
 def _own(store: Store, act: Act) -> str:
@@ -59,7 +65,7 @@ def _source(store: Store, act: Act) -> str:
 def _payee(store: Store, act: Act) -> tuple[str | None, str]:
     """The account `to` names, or None and why not. The act's `from` must already read."""
     to = act.args.get("to")
-    who = resolve(store, to, act.actor)
+    who = _resolve(store, to, act.actor)
     if who is None:
         return None, f"no one called '{shown(to)}' is known in the town."
     if account_of(store, who) == _source(store, act):
@@ -89,7 +95,7 @@ def _short_of(store: Store, account: str, cents: int) -> str | None:
 
 
 def _person_to(store: Store, act: Act) -> str | None:
-    who = resolve(store, act.args.get("to"), act.actor)
+    who = _resolve(store, act.args.get("to"), act.actor)
     return who if who is not None and store.has("people", who) else None
 
 
@@ -240,7 +246,7 @@ def _do_stop(store: Store, act: Act, cause: str) -> str:
 def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
     """Who a letter reaches and the org it was addressed to (or ""): a person, or the owner
     of an org in the town, or its contact if it has no owner. None if it comes back."""
-    who = resolve(store, act.args.get("to"), act.actor)
+    who = _resolve(store, act.args.get("to"), act.actor)
     if who is not None and store.has("people", who):
         return who, ""
     if who is not None and store.has("orgs", who):
@@ -314,7 +320,7 @@ def _owed_on(store: Store, act: Act, who: str) -> str | None:
 
 def _check_request(store: Store, act: Act) -> str | None:
     to = act.args.get("to")
-    who = resolve(store, to, act.actor)
+    who = _resolve(store, to, act.actor)
     if who is None:
         return f"no one called '{shown(to)}' is known in the town."
     if not store.has("people", who):

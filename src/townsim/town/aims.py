@@ -11,7 +11,7 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 from typing import Any
 
-from townsim.town.acts import clean_text
+from townsim.town.acts import LONGEST_WORD, clean_text
 from townsim.town.entities import Aim
 from townsim.town.store import Store, id_key
 
@@ -19,13 +19,20 @@ __all__ = ["Aim", "MAX_AIMS", "MAX_WORDS", "SIMILAR", "update", "lines", "held"]
 
 MAX_AIMS = 5
 MAX_WORDS = 20
+MAX_CHARS = 160
 SIMILAR = 0.6
 
 
 def _cleaned(value: Any) -> str:
-    """An aim as kept: cleaned, on one line, at most 20 words; "" for anything else."""
+    """An aim as kept: cleaned, on one line, at most 20 words and 160 characters; "" for
+    anything else, and for an aim with a word longer than 40 characters."""
     text = clean_text(value)
-    return " ".join(text.split()[:MAX_WORDS]) if text else ""
+    if not text:
+        return ""
+    words = text.split()
+    if any(len(w) > LONGEST_WORD for w in words):
+        return ""
+    return " ".join(words[:MAX_WORDS])[:MAX_CHARS].rstrip()
 
 
 def held(store: Store, pid: str) -> list[Aim]:

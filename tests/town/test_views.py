@@ -509,13 +509,12 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
     assert 1200 < total < 2000
-    assert "guard" not in v.steps
-    order = ["statement", "people", "till", "owed", "inbox", "requests", "cut", "read"]
-    assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests", "cut"} <= set(v.steps)
+    order = ["statement", "people", "till", "owed", "inbox", "requests", "read", "guard"]
+    assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
-    assert len(shown[0].split()) <= 104 and shown[0].endswith("\u2026") and shown[-1].startswith("(4 more:")
+    assert shown[0].split(": ", 1)[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut
     waiting = section(v.user, "WAITING FOR YOUR ANSWER")
-    assert waiting[-1] == "(2 more requests waiting)" and waiting[0].split(": ", 1)[1].count("please") == 60 - 2
+    assert waiting[-1] == "(2 more requests waiting)" and waiting[0].split(": ", 1)[1].count("please") == 78
     views.mark_seen(s, owner, v.ids, f"routine:seen:{owner}")
     assert [s.get("messages", m).seen for m in letters].count(True) == 1
     assert [s.get("requests", r).seen for r in asked].count(True) == 1
@@ -525,7 +524,8 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
 @pytest.mark.parametrize("seed", (1, 2, 3))
 def test_no_one_s_worst_case_reaches_2000_words(seed):
     s, owner, _, _ = _worst(seed)
-    assert words(views.person_view(s, owner)) < 2000
+    msgs = views.person_view(s, owner)
+    assert words(msgs) < 2000 and sum(len(m["content"]) for m in msgs) <= 16000
 
 
 def test_at_most_nine_results_are_shown_and_only_the_latest_read_in_full():
@@ -770,6 +770,24 @@ def test_the_last_guard_holds_the_ceiling():
         [x for x in letters if x.startswith("From ")]))]
 
 
+def _hostile(rng, words, tag=""):
+    """Text at, or just past, a limit of `words`: plain words, one token of 3,000 characters,
+    words filling the characters allowed, or words of 40 and 41 characters."""
+    head = [tag] if tag else []
+    kind = rng.choice(["plain", "token", "chars", "long", "longest"])
+    if kind == "plain":
+        body = ["word"] * (words - len(head))
+    elif kind == "token":
+        body = ["T" * 3000]
+    elif kind == "chars":
+        body = ["abcdefg"] * (words - len(head))
+    elif kind == "long":
+        body = ["y" * 40] * max(1, (8 * words) // 41 - len(head))
+    else:
+        body = ["z" * 41] * 2
+    return " ".join(head + body)
+
+
 def _pile_on(s, rng, targets):
     """Everything the operations allow, in random amounts, on `targets`, through `apply_act`."""
     people = [p.id for p in s.all("people")]
@@ -790,41 +808,47 @@ def _pile_on(s, rng, targets):
                 continue
             if rng.random() < 0.6:
                 k += 1
-                text = _name_pairs(rng, 150, f"L{k}") if rng.random() < 0.4 else f"L{k} " + "word " * 149
+                text = _name_pairs(rng, 150, f"L{k}") if rng.random() < 0.3 else _hostile(rng, 150, f"L{k}")
                 apply_act(s, Act(o, o, "message", {"to": name, "text": text}), 0)
             if rng.random() < 0.4:
                 apply_act(s, Act(o, o, "standing_payment", {"to": rng.choice([name, shop or name]), "amount": 0.01,
                                                              "day": rng.choice(["Friday", "Monday"]),
-                                                             "note": "label " * rng.randint(1, 12)}), 0)
+                                                             "note": _hostile(rng, 12)}), 0)
             if rng.random() < 0.3:
                 apply_act(s, Act(t, t, "standing_payment", {"to": s.get("people", o).name, "amount": 0.01,
-                                                             "day": "Wednesday", "note": "label " * 12}), 0)
+                                                             "day": rng.choice(["Wednesday", "W" * 3000]),
+                                                             "note": _hostile(rng, 12)}), 0)
             if rng.random() < 0.4:
                 k += 1
-                args = {"to": name, "text": f"R{k} " + "please " * 79, "amount": rng.choice([0, 5])}
+                args = {"to": name, "text": _hostile(rng, 80, f"R{k}"), "amount": rng.choice([0, 5])}
                 mine = [ob.id for ob in s.where("obligations", payer=s.get("people", t).household)
                         if ob.payee == s.get("people", o).household and ob.status == "active"]
                 if mine and rng.random() < 0.5:
                     args["for"] = mine[0]
                 apply_act(s, Act(o, o, "request", args), 0)
-        apply_act(s, Act(t, t, "write_notes", {"text": "note " * 150}), 0)
-        aims.update(s, t, [f"aim {i} " + "thing " * 18 for i in range(5)], f"op:{t}:aims:d{s.day}.0")
+        apply_act(s, Act(t, t, "write_notes", {"text": _hostile(rng, 150)}), 0)
+        aims.update(s, t, [_hostile(rng, rng.choice([20, 400])) for _ in range(rng.choice([5, 9]))],
+                    f"op:{t}:aims:d{s.day}.0")
         ready(s, t)
         for _ in range(8):
             op = rng.choice(["pay", "standing_payment", "stop", "message", "request", "answer", "read", "read",
                              "write_notes", "fly"])
             other = s.get("people", rng.choice([p for p in people if p != t])).name
+            if rng.random() < 0.15:
+                other = "Q" * 3000
             obs = [ob.id for ob in s.where("obligations", payer=s.get("people", t).household)]
             rqs = [rq.id for rq in s.where("requests", status="open") if rq.to == t]
-            args = {"pay": {"to": other, "amount": 1, "note": "label " * 12},
-                    "standing_payment": {"to": other, "amount": 1, "day": "Friday", "note": "label " * 12},
+            args = {"pay": {"to": other, "amount": 1, "note": _hostile(rng, 12), "for": rng.choice(obs + ["F" * 3000])
+                            if obs else None},
+                    "standing_payment": {"to": other, "amount": 1, "day": rng.choice(["Friday", "D" * 3000]),
+                                         "start": rng.choice(["", "S" * 3000]), "note": _hostile(rng, 12)},
                     "stop": {"id": rng.choice(obs) if obs else "ob1"},
-                    "message": {"to": other, "text": "word " * 150},
-                    "request": {"to": other, "text": "word " * 80},
+                    "message": {"to": other, "text": _hostile(rng, 150)},
+                    "request": {"to": other, "text": _hostile(rng, 80)},
                     "answer": {"request": rng.choice(rqs) if rqs else "rq1", "answer": rng.choice(["accept", "decline"]),
-                               "note": "word " * 80},
+                               "note": _hostile(rng, 80)},
                     "read": {"what": rng.choice(["account", "account in full", "agreements"])},
-                    "write_notes": {"text": "note " * 150}, "fly": {}}[op]
+                    "write_notes": {"text": _hostile(rng, 150)}, "fly": {}}[op]
             _result(s, t, op, **args)
 
 
@@ -851,10 +875,15 @@ def _check_view(s, pid):
         tag = m.text.split(" ", 1)[0]
         shown = sum(1 for x in lines if x.startswith("From ") and x.split(": ", 1)[-1].startswith(tag + " "))
         assert shown == (1 if m.id in v.ids else 0), (m.id, tag)
-    for nt in s.where("notices", to=pid, seen=False):
+    unseen_notices = s.where("notices", to=pid, seen=False)
+    for nt in unseen_notices:
         if nt.id in v.ids:
             assert nt.text in lines
-    return total, v.steps
+        elif nt.text in lines:
+            assert any(o.text == nt.text and o.id in v.ids for o in unseen_notices), nt.id
+    chars = len(v.system) + len(v.user)
+    assert chars <= 16000, (pid, chars, v.steps)
+    return total, v.steps, chars
 
 
 @pytest.mark.parametrize("seed", range(30))
@@ -865,3 +894,83 @@ def test_hostile_input_never_breaks_the_view(seed):
     _pile_on(s, random.Random(f"hostile:{seed}"), targets)
     for pid in targets:
         _check_view(s, pid)
+
+
+def test_long_tokens_cannot_swell_a_view_in_characters():
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    victim = s.get("people", owner)
+    big = "P" * 3000
+    payers = [p.id for p in s.all("people") if p.household != victim.household]
+    targets = [victim.name] + [o.name for o in s.all("orgs") if o.id in acts.accounts_of(s, owner)]
+    ready(s, *payers, owner)
+    for payer in payers:
+        for to in targets:
+            assert not apply_act(s, Act(payer, payer, "pay", {"to": to, "amount": 0.01, "note": big}), 0).ok
+            assert not apply_act(s, Act(payer, payer, "standing_payment", {"to": to, "amount": 0.01, "day": "Tuesday",
+                                                                           "weeks": 3, "note": big}), 0).ok
+            assert apply_act(s, Act(payer, payer, "pay", {"to": to, "amount": 0.01, "note": "y" * 40 + " z"}), 0).ok
+    for o in payers[:4]:
+        assert not apply_act(s, Act(o, o, "message", {"to": victim.name, "text": big}), 0).ok
+        assert apply_act(s, Act(o, o, "message", {"to": victim.name, "text": " ".join(["y" * 40] * 29)}), 0).ok
+    for o in payers[4:8]:
+        assert not apply_act(s, Act(o, o, "request", {"to": victim.name, "text": big, "amount": 5}), 0).ok
+        assert apply_act(s, Act(o, o, "request", {"to": victim.name, "text": " ".join(["y" * 40] * 15),
+                                                  "amount": 5}), 0).ok
+    assert not _result(s, owner, "write_notes", text=big).ok
+    _result(s, owner, "write_notes", text=" ".join(["n" * 40] * 29))
+    aims.update(s, owner, [" ".join(["a" * 39] * 20) for _ in range(5)], "op:x:aims:d21.0")
+    for _ in range(7):
+        _result(s, owner, "pay", to="q" * 3000, amount=1)
+    _result(s, owner, "read", what="account")
+    v = views.layout(s, owner)
+    assert len(v.system.split()) + len(v.user.split()) < 2000 and len(v.system) + len(v.user) <= 16000
+    assert all(len(line) <= 1300 for line in v.user.split("\n"))
+
+
+def test_aims_of_any_size_leave_the_view_under_the_ceiling():
+    s = _after_three_weeks()
+    owner = _owner_of_most(s)
+    aims.update(s, owner, ["x" * 2_000_000] * 5, "op:x:aims:d21.0")
+    assert aims.lines(s, owner) == []                              # a word over 40 characters: no aim at all
+    aims.update(s, owner, [" ".join(["a" * 40] * 50)] * 5, "op:x:aims:d21.1")
+    assert all(len(x.split(": ", 1)[1]) <= 160 for x in aims.lines(s, owner))
+    v = views.layout(s, owner)
+    assert len(v.system) + len(v.user) <= 16000 and len(v.system.split()) + len(v.user.split()) < 2000
+
+
+def test_the_last_guard_holds_the_character_ceiling_and_keeps_counted_lines():
+    s = thin_town()
+    s.set("people", "p03", "routine:t", notes="\n".join(["N" * 1000] * 30))     # past what the operations allow
+    for i in range(5):
+        s.add("messages", Message(f"msg{i + 1}", 0, "p01", "p03", f"letter{i} " + "x" * 2000), "routine:t")
+    v = views.layout(s, "p03")
+    assert v.steps[-1] == "guard" and len(v.system) + len(v.user) <= 16000
+    assert "(2 more: 2 letters, 0 notices)" in v.user and "(not everything is shown today)" in v.user
+
+
+def test_every_id_code_wrote_survives_the_cut():
+    r = Result("resX", 1, "p1", "pay", " ".join(f"w{i}" for i in range(27)) + " (ob1) " +
+               " ".join(f"v{i}" for i in range(10)) + " (ob2) (ob3)", True)
+    text = views._result_text(r, None, 250)
+    assert all(i in text for i in ("(ob1)", "(ob2)", "(ob3)")) and len(text.split()) <= 32
+    r = Result("resY", 1, "p1", "read", "Paid (ob1) " + "x " * 300 + "(ob2) (ob3) (ob4)", True)
+    for words_ in (250, 120):
+        text = views._result_text(r, "resY", words_)
+        assert all(i in text for i in ("(ob1)", "(ob2)", "(ob3)", "(ob4)"))
+
+
+def test_unknown_names_are_matched_as_whole_words():
+    s = thin_town()
+    m = Message("msg1", 0, "p01", "p03", "Ask Ada Lovellson.", unknown=["Ada Lovell"])
+    assert views._item_lines(s, m) == ["From Ruth Ashby: Ask Ada Lovellson."]
+    m = Message("msg2", 0, "p01", "p03", "Ask Ada Lovell.", unknown=["Ada Lovell"])
+    assert views._item_lines(s, m)[1] == "(Ada Lovell is not someone you know.)"
+
+
+def test_a_memo_keeps_what_code_wrote():
+    long = "word " * 20
+    text = facts.memo(f"{long}(counted toward {'x ' * 30}due Monday 9 March; rent due Monday 16 March)")
+    assert text.endswith("… due Monday 9 March; rent due Monday 16 March)") and text.count("word") == 12
+    assert facts.memo("rent for 3 Mill Lane, due Monday 9 March") == "rent for 3 Mill Lane, due Monday 9 March"
+    assert len(facts.memo("P" * 3000)) == 101

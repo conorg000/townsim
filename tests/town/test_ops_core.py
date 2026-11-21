@@ -2,7 +2,7 @@ import pytest
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import acts
-from townsim.town.acts import Act, apply_act
+from townsim.town.acts import Act, apply_act, fits
 from townsim.town.entities import Org, Request
 from townsim.town.statement import agreements_text, statement, statement_text
 
@@ -300,10 +300,35 @@ def test_declining_a_request_tells_the_sender():
 
 def test_the_notice_cuts_a_long_request_and_cleans_the_note():
     s = thin()
-    do(s, "p03", "request", to="Ruth Ashby", text="a" * 100)
+    long = " ".join(["a" * 9] * 10)                                   # 99 characters
+    assert do(s, "p03", "request", to="Ruth Ashby", text=long).ok
     rq = s.all("requests")[-1].id
     do(s, "p01", "answer", 1, request=rq, answer="decline", note="no\x07 thanks\x00")
-    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} ({'a' * 80}\u2026). They wrote: no thanks"
+    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} ({long[:80]}\u2026). They wrote: no thanks"
+
+
+def test_everything_people_write_fits_one_rule():
+    s = thin()
+    for op, field, words, extra in (("message", "text", 150, {"to": "Craig Pryce"}),
+                                    ("request", "text", 80, {"to": "Craig Pryce"}),
+                                    ("write_notes", "text", 150, {}),
+                                    ("pay", "note", 12, {"to": "Craig Pryce", "amount": 1}),
+                                    ("standing_payment", "note", 12, {"to": "Craig Pryce", "amount": 1, "day": "Friday"})):
+        for bad in ("x" * 41, "x" * 3000, " ".join(["abcdefghi"] * words)):     # one long word; too many characters
+            assert " too long" in refused(s, "p01", op, **extra, **{field: bad}), (op, bad[:20])
+        assert do(s, "p01", op, 9, **extra, **{field: " ".join(["abcdefg"] * words)}).ok, op
+    assert fits("x" * 40, 5) and not fits("x" * 41, 5) and fits("ab " * 12, 12) and not fits("abcdefghi " * 12, 12)
+
+
+def test_a_name_longer_than_any_name_is_no_one():
+    s = thin()
+    padded = "Craig Pryce" + " " * 100
+    assert refused(s, "p01", "message", to=padded, text="Hello.").startswith("Not done: your letter to")
+    assert refused(s, "p01", "pay", to=padded, amount=1).startswith("Not done: no one called")
+    assert refused(s, "p01", "request", to=padded, text="Hello.").startswith("Not done: no one called")
+    assert refused(s, "p01", "stop", id="ob" + "1" * 200).startswith("Not done: you have nothing")
+    assert refused(s, "p01", "standing_payment", to="Craig Pryce", amount=1, day="Friday" * 30).startswith(
+        "Not done: 'Friday")
 
 
 def test_answer_refusals():
