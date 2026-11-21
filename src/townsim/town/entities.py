@@ -162,6 +162,7 @@ class Obligation:
     final_cents: int = 0       # the instalment falling on `last`, when above 0; else `cents`
     next_cents: int = 0        # with `next_from`: what instalments on and after that day are for
     next_from: int = -1        # the day a change of amount takes effect, or -1 for none pending
+    stopped_on: int = -1       # the day its payer stopped it (stopped or breached), or -1
 
 
 @dataclass

@@ -323,6 +323,10 @@ def collect(store: Store) -> None:
         remainder = due.cents - due.paid
         if remainder < 0:
             store.engine_errors.append(f"{due.id} has paid {due.paid} of {due.cents} cents")
+        if after_its_end(ob, due.day):           # never: `stop` and `end` void such dues
+            store.engine_errors.append(f"{due.id} on day {due.day} falls after its obligation {ob.id} "
+                                       f"stopped or ended; nothing was taken")
+            continue
         account = store.ledger.accounts[ob.payer]
         if remainder > 0 and (ob.status == "breached" or (account.balance < remainder and not account.allow_credit)):
             if due.status == "due":
@@ -339,6 +343,12 @@ def collect(store: Store) -> None:
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
+
+
+def after_its_end(ob: Obligation, day: int) -> bool:
+    """Whether `day` lies after the last day of `ob`, or after the day it was stopped (left or
+    stopped by its payer; a breach keeps its schedule)."""
+    return (ob.last is not None and day > ob.last) or (ob.status == "stopped" and 0 <= ob.stopped_on < day)
 
 
 def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
@@ -504,11 +514,14 @@ def count_toward(store: Store, ob_id: str, cents: int, cause: str) -> list[Match
 
 
 def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
-    """End an active obligation for its payer `by`. Dues already opened still stand.
+    """End an active obligation for its payer `by`, recording the day (`stopped_on`).
 
     Returns `stopped` (the payer may end it), `left` (leaving a service) or `breach`
     (an agreement both made: it is breached and a record says so; it still falls due,
-    but nothing is taken automatically). Raises ValueError,
+    but nothing is taken automatically, and its dues stand). On a stop or a leaving, a due
+    dated today or earlier that is still owed stays owed (and is still collected); a due
+    dated after today, opened ahead by a payment by hand, is void, as `end` leaves one, and
+    what was counted toward it stays with the payee, both sides told. Raises ValueError,
     changing nothing, if `by` is not the payer or the obligation is not active.
     """
     if not store.has("obligations", ob_id):
@@ -519,12 +532,14 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
     if ob.status != "active":
         raise ValueError(f"{ob_id} is {ob.status}, not active")
     with store.transaction():
+        store.set("obligations", ob_id, cause, stopped_on=store.day)
         if ob.ends == "both":
             store.set("obligations", ob_id, cause, status="breached")
             text = (f"{name_of(store, ob.payer)} stopped paying an agreement with {name_of(store, ob.payee)} "
                     f"({_shown(ob.memo)}).")
             store.add("records", Record(store.new_id("rec", cause), store.day, "breach", ob.payer, text), cause)
             return "breach"
+        _void_after(store, ob, store.day, cause)
         store.set("obligations", ob_id, cause, status="stopped")
         return "stopped" if ob.ends == "payer" else "left"
 
@@ -564,11 +579,7 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
     if ob.every == 0 or ob.status not in SCHEDULED or (ob.last is not None and ob.last <= last_day):
         return
     with store.transaction():
-        for due in store.where("dues", obligation=ob_id):
-            if due.day > last_day and due.status != "void":     # opened early by a payment by hand
-                store.set("dues", due.id, cause, status="void")
-                if due.paid > 0:
-                    _kept(store, ob, due, cause)
+        _void_after(store, ob, last_day, cause)
         if last_day < ob.first:          # no instalment ever falls
             store.set("obligations", ob_id, cause, status="finished")
             return
@@ -578,6 +589,16 @@ def end(store: Store, ob_id: str, last_day: int, cause: str) -> None:
             store.set("obligations", ob_id, cause, final_cents=0)     # the instalment that differed no longer falls
         if not _left_to_pay(store, store.get("obligations", ob_id)):
             store.set("obligations", ob_id, cause, status="finished")
+
+
+def _void_after(store: Store, ob: Obligation, last_day: int, cause: str) -> None:
+    """Void the dues of `ob` dated after `last_day` (opened early by a payment by hand); what
+    was counted toward each stays with the payee, and both sides are told."""
+    for due in store.where("dues", obligation=ob.id):
+        if due.day > last_day and due.status != "void":
+            store.set("dues", due.id, cause, status="void")
+            if due.paid > 0:
+                _kept(store, ob, due, cause)
 
 
 def _kept(store: Store, ob: Obligation, due: Due, cause: str) -> None:

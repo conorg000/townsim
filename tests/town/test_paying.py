@@ -241,3 +241,51 @@ def test_repay_still_counts_ahead_and_never_leaves_a_due_after_last():
     assert ob.status == "finished" and all(d.day <= ob.last for d in s.where("dues", obligation=loan))
     run_days(s, 30)
     assert s.balance("h2") == 3_000 and s.ledger.total() == 0
+
+
+def test_a_stopped_payment_takes_nothing_more_and_what_was_paid_ahead_stays_with_the_payee():
+    """A standing payment paid toward ahead and then stopped: the due opened ahead is void, what
+    was counted toward it stays with the payee, both sides are told, and nothing more is taken."""
+    s = town(h1=50_000)
+    sp = O.create(s, kind="standing", payer="h1", payee="h2", cents=3_000, first=4, every=7, memo="to Brook",
+                  ends="payer", made_by="p1", cause="op:p1:standing_payment:d0.0")
+    O.pay(s, "h1", "h2", 1_000, "toward it", "op:p1:pay:d0.1", ref=sp)
+    assert O.stop(s, sp, "h1", "op:p1:stop:d0.2") == "stopped"
+    [due] = [d for d in s.all("dues") if d.obligation == sp]
+    assert (due.day, due.paid, due.status) == (4, 1_000, "void")
+    assert [n.text for n in s.where("notices", to="p1")] == ["$10.00 already paid toward to Brook due Friday 6 March "
+                                                             "stays with Brook."]
+    assert [n.text for n in s.where("notices", to="p3")] == ["$10.00 already paid toward to Brook due Friday 6 March "
+                                                             "is yours to keep."]
+    run_days(s, 20)
+    assert received(s, "h2") == 1_000 and s.engine_errors == []
+
+
+def test_a_stopped_service_still_owes_its_arrears_and_they_are_taken():
+    s = town(h1=0)
+    bill = O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, every=7,
+                    memo="power", ends="service", **SETUP)
+    run_days(s, 3)                                                   # day 0 goes to arrears
+    assert O.stop(s, bill, "h1", "op:p1:stop:d3.0") == "left"
+    s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test")
+    run_days(s, 14)
+    assert [(t.t, t.cents) for t in to(s, "outside:northgrid")] == [(3, 4_800)]
+    assert s.engine_errors == []
+
+
+def test_collect_never_takes_a_due_after_its_obligation_stopped_or_ended():
+    s = town(h1=50_000)
+    sp = O.create(s, kind="standing", payer="h1", payee="h2", cents=3_000, first=0, every=7, memo="to Brook",
+                  ends="payer", made_by="p1", cause="routine:setup")
+    loan = O.create(s, kind="loan", payer="h1", payee="h2", cents=2_000, first=0, every=7, memo="a loan",
+                    ends="both", made_by="p1", cause="routine:setup")
+    run_days(s, 1)
+    O.stop(s, sp, "h1", "op:p1:stop:d1.0")
+    O.end(s, loan, 1, "routine:test")
+    late = O.ensure_due(s, sp, 7, "routine:test")          # as a fault would leave them
+    after = O.ensure_due(s, loan, 7, "routine:test")
+    before = received(s, "h2")
+    run_days(s, 8)
+    assert received(s, "h2") == before
+    assert {d.status for d in (late, after)} == {"due"}
+    assert len(s.engine_errors) >= 2 and all("after its obligation" in e for e in s.engine_errors)
