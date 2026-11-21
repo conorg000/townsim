@@ -169,3 +169,42 @@ def test_hash_is_the_same_in_separate_processes_with_different_hash_seeds():
                              capture_output=True, text=True, check=True)
         hashes.append(out.stdout.strip())
     assert hashes[0] == hashes[1] and len(hashes[0]) == 64
+
+
+def test_a_failed_add_changes_nothing_and_logs_nothing():
+    s = small_store(); before = s.hash(); n = len(s.changes)
+    with pytest.raises(TypeError): s.add("notices", {"id": "n1"}, "routine:x")
+    with pytest.raises(ValueError): s.add("notices", Notice("n٣", 0, "p1", "x"), "routine:x")
+    assert s.hash() == before and len(s.changes) == n and not s.has("notices", "n1")
+
+
+def test_set_copies_the_list_it_is_given():
+    s = small_store()
+    members = ["p1", "p3"]
+    s.set("households", "h1", "routine:x", members=members)
+    members.append("p4")
+    assert s.get("households", "h1").members == ["p1", "p3"] and s.changes[-1].new == ["p1", "p3"]
+
+
+def test_the_add_record_does_not_share_lists_with_the_row():
+    s = Store(); s.add("households", Household("h1", "A", ["p1"]), "routine:x")
+    s.get("households", "h1").members.append("p2")
+    assert s.changes[0].new.members == ["p1"]
+
+
+def test_all_orders_ids_that_tie_on_id_key_the_same_way_every_time():
+    a, b = Store(), Store()
+    for s, ids in ((a, ("p01", "p1")), (b, ("p1", "p01"))):
+        for i in ids: s.add("notices", Notice(i, 0, "p1", i), "routine:x")
+    assert [n.id for n in a.all("notices")] == [n.id for n in b.all("notices")] == ["p01", "p1"]
+
+
+def test_id_key_rejects_non_ascii_digits():
+    with pytest.raises(ValueError): id_key("p٣")
+
+
+def test_undo_raises_if_the_ledger_disagrees_with_the_log():
+    s = small_store(); m = s.mark()
+    s.transfer("h1", "h2", 5, "x", "op:p1:pay:d0.0")
+    s.ledger.transfers[-1] = s.ledger.transfers[-1]._replace(cents=6)
+    with pytest.raises(RuntimeError): s.undo_to(m)

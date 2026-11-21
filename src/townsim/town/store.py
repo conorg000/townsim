@@ -9,6 +9,7 @@ apply in full or not at all. The log is history, not state: `canonical()` and
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import hashlib
 import json
@@ -20,7 +21,7 @@ from townsim.econ.ledger import Ledger
 
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records")
 
-_ID = re.compile(r"([A-Za-z:]+)(\d+)")
+_ID = re.compile(r"([A-Za-z:]+)(\d+)", re.ASCII)
 _FLOAT_PLACES = 6
 
 
@@ -51,6 +52,10 @@ def id_key(id: str) -> tuple[str, int]:
 def _need_cause(cause: str) -> None:
     if not cause:
         raise ValueError("every change needs a cause")
+
+
+def _copy_list(value: Any) -> Any:
+    return list(value) if isinstance(value, list) else value
 
 
 def _plain(value: Any) -> Any:
@@ -94,16 +99,20 @@ class Store:
         """Store `obj` itself in `table`. Its id must be new to that table."""
         _need_cause(cause)
         rows = self._table(table)
+        if not dataclasses.is_dataclass(obj) or isinstance(obj, type):
+            raise TypeError(f"a row must be a dataclass instance, got {type(obj).__name__}")
         id_key(obj.id)
         if obj.id in rows:
             raise ValueError(f"{table} already has {obj.id!r}")
+        record = copy.deepcopy(obj)
         rows[obj.id] = obj
-        self.changes.append(Change(self.day, table, obj.id, "+", None, dataclasses.replace(obj), cause))
+        self.changes.append(Change(self.day, table, obj.id, "+", None, record, cause))
 
     def set(self, table: str, id: str, cause: str, **fields: Any) -> None:
         """Set fields on a row. Nothing changes if this raises.
 
-        A list-valued field is replaced whole: pass a new list, never mutate the old one.
+        A list-valued field is replaced whole by a copy of the list passed, so later
+        changes to the caller's list do not reach the store.
         """
         _need_cause(cause)
         obj = self._table(table)[id]
@@ -113,8 +122,8 @@ class Store:
                 raise AttributeError(f"{type(obj).__name__} has no field {name!r}")
         for name, value in fields.items():
             old = getattr(obj, name)
-            setattr(obj, name, value)
-            self.changes.append(Change(self.day, table, id, name, old, value, cause))
+            setattr(obj, name, _copy_list(value))
+            self.changes.append(Change(self.day, table, id, name, _copy_list(old), _copy_list(value), cause))
 
     def get(self, table: str, id: str) -> Any:
         return self._table(table)[id]
@@ -126,7 +135,7 @@ class Store:
         """Every row in `table`, in id order. These are the live rows, not copies:
         do not mutate them; change them with `set`."""
         rows = self._table(table)
-        return [rows[k] for k in sorted(rows, key=id_key)]
+        return [rows[k] for k in sorted(rows, key=lambda k: (id_key(k), k))]
 
     # money
 
@@ -165,7 +174,8 @@ class Store:
     def _reverse(self, c: Change) -> None:
         if c.table == "ledger":
             last = self.ledger.transfers.pop()
-            assert last == c.new, "the ledger's transfers do not match the change log"
+            if last != c.new:
+                raise RuntimeError("the ledger's last transfer does not match the change log")
             self.ledger.accounts[last.src].balance += last.cents
             self.ledger.accounts[last.dst].balance -= last.cents
         elif c.table == "account":
