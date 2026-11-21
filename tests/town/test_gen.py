@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "17af76ac50e168cc38ad5fead4dee3b7ca1459c4949e0ace89784fbbb4f17e41"
+SEED_1_HASH = "3579f38ac8b5c7d2a122d0445dc2345a8fd75d769d9bfd2d7b1f2903bbed0c0b"
 
 
 @functools.lru_cache(maxsize=None)
@@ -71,21 +71,42 @@ def test_families_are_dealt_within_kinds():
 
 
 def test_the_deck_is_dated_and_fixed_at_generation():
+    from townsim.town import hamlet
+    weeks = set()
     for seed in (1, 2, 3, 4):
         s = place(seed)
         deck = s.all("events")
-        assert 4 <= len(deck) <= 7 and all(0 < e.day < 84 and not e.done for e in deck)
+        assert deck and all(0 <= e.day < 7 * hamlet.RUN_WEEKS and not e.done for e in deck)
+        weeks |= {e.day // 7 for e in deck}
         for e in deck:
-            assert e.kind in ("illness", "job_lost", "repair", "supplier_short", "cold_month")
-            table = {"illness": "people", "job_lost": "people", "repair": "households",
-                     "supplier_short": "suppliers", "cold_month": "orgs"}[e.kind]
+            assert e.kind in hamlet.KINDS
+            table = {"illness": "people", "job_lost": "people", "hours_cut": "people", "repair": "households",
+                     "agency_rent": "households", "supplier_short": "suppliers", "supplier_price": "suppliers",
+                     "energy_price": "orgs", "cold_month": "orgs"}[e.kind]
             assert s.has(table, e.who)
-            if e.kind == "job_lost":
-                assert s.get("people", e.who).kind == "outside_worker"
+            if e.kind in ("job_lost", "hours_cut"):
+                assert any(s.get("orgs", j.org).outside for j in s.where("jobs", person=e.who))
             if e.kind == "repair":
-                assert e.amount > 0
+                assert e.amount > 0 and e.what in hamlet.REPAIRS
+            if e.kind == "agency_rent":
+                assert s.get("orgs", s.get("households", e.who).landlord).outside
+        dealt = Counter(hamlet.household_of(s, e) for e in deck if hamlet.household_of(s, e))
+        assert max(dealt.values()) <= hamlet.EVENTS_A_HOUSEHOLD
+        assert gen.check(s) == []
+    assert max(weeks) >= 12                                       # the deck spans the run, not its first weeks
     again = gen.generate(2, FAMILIES).all("events")
     assert again == place(2).all("events")
+    assert len(gen.generate(2, FAMILIES, weeks=4).all("events")) < len(again)
+
+
+def test_the_check_refuses_a_deck_that_crowds_a_household():
+    from townsim.town import hamlet
+    from townsim.town.entities import Event
+    s = gen.generate(3, FAMILIES)
+    h = s.all("households")[0].id
+    for i in range(hamlet.EVENTS_A_HOUSEHOLD + 1):
+        s.add("events", Event(f"ev{900 + i}", 10 + i, "repair", h, 10_000, 1, what="roof"), "routine:t")
+    assert any("more than 3 events" in x for x in gen.check(s))
 
 
 def test_nothing_in_a_generated_place_mentions_what_it_is_for():

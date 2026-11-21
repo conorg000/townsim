@@ -700,8 +700,9 @@ def test_a_letter_of_name_pairs_notes_at_most_three_names():
     notes = [x for x in letters if x.endswith("is not someone you know.)")]
     assert len(notes) <= 3 * len([x for x in letters if x.startswith("From ")])
     assert any(re.fullmatch(r"\(\d+ more names in it are not people you know\.\)", x) for x in letters)
-    shown = letters[1]
-    for x in letters[2:5]:
+    at = next(i for i, x in enumerate(letters) if x.startswith("From "))
+    shown = letters[at + 1]
+    for x in letters[at + 2:at + 5]:
         if x.endswith("is not someone you know.)"):
             assert x[1:].split(" is not")[0] in shown                 # only names in the part shown
 

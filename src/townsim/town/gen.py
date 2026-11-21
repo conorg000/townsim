@@ -24,7 +24,7 @@ from datetime import timedelta
 from townsim.econ.demand import NEEDS, DemandRule, Offering, true_choice_probabilities
 from townsim.econ.demand import Household as EconHousehold
 from townsim.econ.suppliers import default_suppliers
-from townsim.town import acts, facts, firms, hours, jobs, names, ties
+from townsim.town import acts, facts, firms, hamlet, hours, jobs, names, ties
 from townsim.town import obligations as O
 from townsim.town.clock import DAY_ZERO, date_text
 from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie
@@ -464,7 +464,8 @@ def _shop_costs(store: Store, f: FirmRow, units: float) -> tuple[int, int, int]:
     return wages, round(units * unit), fixed
 
 
-def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0) -> Store:
+def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
+           weeks: int = hamlet.RUN_WEEKS) -> Store:
     s = Store()
     s.seed = seed
     s.place = rng.choice(names.PLACES)
@@ -750,7 +751,7 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0)
                      bank=bank, firm=firm, employer=employer, emp_lines=emp_lines, investor=investor,
                      landlord=landlord, pension_of=pension_of))
     _deal(s, random.Random(f"gen:{seed}:{attempt}:families"), families)
-    _deck(s, rng, hs, sup_rows, utility)
+    _deck(s, random.Random(f"gen:{seed}:{attempt}:deck"), weeks)
     for p in s.all("people"):
         free = hours.free_hours(s, p.id)
         s.set("people", p.id, SETUP, hours_week=free, hours_left=free)
@@ -816,56 +817,46 @@ def _deal(s: Store, rng: random.Random, families: list[str]) -> None:
         offset += len(ids)
 
 
-def _deck(s: Store, rng: random.Random, hs: list[_H], sup_rows: list[str], utility: str) -> None:
-    """Four to seven ordinary events over the first twelve weeks."""
-    n = rng.randint(4, 7)
-    kinds = ["illness", "job_lost", "repair", "supplier_short", "cold_month"]
-    rng.shuffle(kinds)
-    kinds = kinds[:min(n, 5)] + [rng.choice(("illness", "repair")) for _ in range(n - 5)]
-    ill = rng.sample([p.id for p in s.all("people")], n)
-    events = []
-    for k, who_ill in zip(kinds, ill):
-        day = rng.randint(7, 83)
-        if k == "illness":
-            events.append((day, k, who_ill, 0, 1))
-        elif k == "job_lost":
-            events.append((day, k, rng.choice([p.id for p in s.all("people") if p.kind == "outside_worker"]), 0, 0))
-        elif k == "repair":
-            events.append((day, k, rng.choice(hs).id, rng.randrange(15_000, 90_001, 500), 0))
-        elif k == "supplier_short":
-            events.append((day, k, rng.choice(sup_rows), 0, 1))
-        else:
-            events.append((day, k, utility, 30, 4))
-    for day, k, who, amount, weeks in sorted(events):
-        s.add("events", Event(s.new_id("ev", SETUP), day, k, who, amount, weeks), SETUP)
+def _deck(s: Store, rng: random.Random, weeks: int) -> None:
+    """The dated events of the run's weeks, at the base rates of `hamlet` (`hamlet.deal`)."""
+    for e in hamlet.deal(s, rng, weeks):
+        s.add("events", Event(s.new_id("ev", SETUP), e.day, e.kind, e.who, e.amount, e.weeks, what=e.what), SETUP)
 
 
 # --- generate and check -------------------------------------------------------------------
 
 
-def generate_counted(seed: int, families: list[str]) -> tuple[Store, int]:
-    """The place for `seed` and the number of attempts it took."""
+def generate_counted(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS) -> tuple[Store, int]:
+    """The place for `seed`, its deck dealt for `weeks` weeks, and the number of attempts it took."""
     if len(families) < 2 or len(set(families)) != len(families):
         raise ValueError(f"families must be two or more distinct names, got {families!r}")
     for attempt in range(MAX_ATTEMPTS):
         rng = random.Random(f"gen:{seed}:{attempt}")
         try:
-            s = _build(seed, list(families), rng, attempt)
+            s = _build(seed, list(families), rng, attempt, weeks)
         except _Redraw:
             continue
-        if not check(s):
+        if not check(s, weeks):
             return s, attempt + 1
     raise RuntimeError(f"no sound place for seed {seed} in {MAX_ATTEMPTS} attempts")
 
 
-def generate(seed: int, families: list[str]) -> Store:
-    """The place for `seed`, at day 0, played by `families`."""
-    return generate_counted(seed, families)[0]
+def generate(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS) -> Store:
+    """The place for `seed`, at day 0, played by `families`, its deck dealt for `weeks` weeks."""
+    return generate_counted(seed, families, weeks)[0]
 
 
-def check(s: Store) -> list[str]:
+def check(s: Store, weeks: int = hamlet.RUN_WEEKS) -> list[str]:
     """What is structurally unsound about a place; empty when it is sound."""
     bad: list[str] = []
+    # the deck: every week can draw an event, and no household has more than three
+    if not any(chance > 0 and kind != "cold_month" for kind, _, _, chance in hamlet.chances(s)):
+        bad.append("some week of the deck can draw no event")
+    if any(not 0 <= e.day < 7 * weeks for e in s.all("events")):
+        bad.append(f"an event falls outside the deck's {weeks} weeks")
+    dealt = Counter(hamlet.household_of(s, e) for e in s.all("events") if hamlet.household_of(s, e))
+    if dealt and max(dealt.values()) > hamlet.EVENTS_A_HOUSEHOLD:
+        bad.append(f"a household is dealt more than {hamlet.EVENTS_A_HOUSEHOLD} events")
     people = s.all("people")
     households = s.all("households")
     orgs = s.all("orgs")
@@ -1106,12 +1097,19 @@ def _since(day: int) -> str:
 def _event_text(s: Store, e: Event) -> str:
     if e.kind == "illness":
         return f"{_who(s, e.who)} falls ill for a week."
-    if e.kind == "job_lost":
+    if e.kind in ("job_lost", "hours_cut"):
         job = s.where("jobs", person=e.who)
         where = _who(s, job[0].org) if job else "work"
-        return f"{_who(s, e.who)} loses the job at {where}."
+        return (f"{_who(s, e.who)} loses the job at {where}." if e.kind == "job_lost" else
+                f"{where} cuts {_who(s, e.who)}'s hours by {e.amount}%.")
     if e.kind == "repair":
-        return f"The {_who(s, e.who)} needs a repair costing {money(e.amount)}."
+        return f"The {_who(s, e.who)} needs the {e.what or 'house'} repaired, costing {money(e.amount)}."
     if e.kind == "supplier_short":
         return f"{_who(s, s.get('suppliers', e.who).org)} is short of stock for a week."
+    if e.kind == "supplier_price":
+        return f"{_who(s, s.get('suppliers', e.who).org)} changes its price by {e.amount}%."
+    if e.kind == "energy_price":
+        return f"{_who(s, e.who)} changes its prices by {e.amount}%, with four weeks' notice."
+    if e.kind == "agency_rent":
+        return f"The {_who(s, e.who)}'s letting agency raises the rent by {e.amount}%, with four weeks' notice."
     return f"A cold spell: {_who(s, e.who)} bills go up by {e.amount}% for {e.weeks} weeks."

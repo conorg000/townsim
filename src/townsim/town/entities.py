@@ -334,9 +334,10 @@ class Aim:
 @dataclass
 class Event:
     """Something ordinary that will happen on `day`, dealt when the place was made. `kind` is
-    illness, job_lost, repair, supplier_short or cold_month; `who` the person, household,
-    supplier or organisation it falls on; `amount` the cents of a one-off bill (for
-    cold_month, the percent energy bills rise); `weeks` how long it lasts."""
+    one of `hamlet.KINDS`; `who` the person, household, supplier or organisation it falls on;
+    `amount` the cents of a one-off bill, or a percent (energy bills rise in a cold month, hours
+    are cut, a price or a rent changes: negative for a fall); `weeks` how long it lasts; `what`
+    the thing it is about, in plain words (the boiler, for a repair)."""
 
     id: str
     day: int
@@ -345,6 +346,7 @@ class Event:
     amount: int
     weeks: int
     done: bool = False
+    what: str = ""
 
 
 @dataclass

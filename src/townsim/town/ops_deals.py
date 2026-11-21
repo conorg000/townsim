@@ -579,6 +579,12 @@ def _rent_change(store: Store, act: Act) -> tuple[RentChange | None, str]:
     if cents is None or not MIN_RENT <= cents <= MAX_RENT:
         return None, (f"'{shown(act.args.get('weekly'))}' is not an amount from {money(MIN_RENT)} "
                       f"to {money(MAX_RENT)}.")
+    return change_of_rent(store, h, ob, cents)
+
+
+def change_of_rent(store: Store, h, ob, cents: int) -> tuple[RentChange | None, str]:
+    """A change of `h`'s rent `ob` to `cents` a week, by the rule `_rent_change` states: by a
+    landlord here (`set_rent`) or by a letting agency outside the town (a dated event)."""
     pending = (ob.next_cents, ob.next_from) if ob.next_from > store.day else None
     if pending is None and cents == ob.cents:
         return None, f"the rent for {_address(h)} is {money(cents)} a week already."
@@ -605,6 +611,12 @@ def _check_rent(store: Store, act: Act) -> str | None:
 
 def _do_rent(store: Store, act: Act, cause: str) -> str:
     c, _ = _rent_change(store, act)
+    return f"The rent {make_rent_change(store, c, cause)}"
+
+
+def make_rent_change(store: Store, c: RentChange, cause: str) -> str:
+    """Re-price the rent as `c` says and tell the tenants' adults `Your rent <change>`; return the
+    change in words (`for <street> changes from <$a> to <$b> a week from <date>.` and so on)."""
     obligations.reprice(store, c.ob.id, c.cents, c.day, cause)
     if c.cents == c.ob.cents:
         change = f"for {_address(c.h)} stays {money(c.cents)} a week."
@@ -617,7 +629,7 @@ def _do_rent(store: Store, act: Act, cause: str) -> str:
         change += (f" The rent due {date_year(d.day)} stays {money(d.cents)}: "
                    f"{money(d.paid)} has been paid toward it already.")
     _tell(store, _adults(store, c.h.id), f"Your rent {change}", cause)
-    return f"The rent {change}"
+    return change
 
 
 def _notice(store: Store, act: Act) -> tuple[Any, str]:

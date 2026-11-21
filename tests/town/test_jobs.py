@@ -824,7 +824,7 @@ def test_benefit_after_a_pay_change_and_a_dismissal_at_a_weekend_starts_after_th
     assert [d for d, src, c in _wages_in(s, 12) if src == "org10"] == []
     benefit = [(t.t, t.cents) for t in s.ledger.transfers if t.dst == "h5" and "benefit" in t.memo]
     assert benefit == [(18, 23_000)]
-    assert told(s, "p9")[-1] == "Jobseeker's benefit of $230.00 a week starts on Friday 20 March."
+    assert "Jobseeker's benefit of $230.00 a week starts on Friday 20 March." in told(s, "p9")
 
 
 def test_a_stopped_wage_is_not_replaced_and_the_job_left_takes_no_wage_after_the_last_pay():

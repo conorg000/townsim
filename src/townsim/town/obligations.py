@@ -364,16 +364,18 @@ def collect(store: Store) -> None:
                 store.set("dues", due.id, cause, status="arrears")
                 _tell_not_taken(store, ob, due, remainder, cause)
             continue
+        owed = due.status in OWED
         if remainder > 0:
             memo = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)}"
             store.transfer(ob.payer, ob.payee, remainder, memo, cause)
             store.set("dues", due.id, cause, paid=due.cents)
-            if due.status in OWED:
+            if owed:
                 _tell(store, ob.payer, f"{_cap(_payment(ob, due.day, remainder))} was taken on "
                                        f"{date_text(store.day)}.", cause)
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
+        settled(store, ob.id, owed, cause)
 
 
 def after_its_end(ob: Obligation, day: int) -> bool:
@@ -519,14 +521,29 @@ def _count(store: Store, plan: list[tuple[Obligation, int, int]], cause: str) ->
         due = ensure_due(store, ob.id, day, cause)
         store.set("dues", due.id, cause, paid=due.paid + take)
         if due.paid >= due.cents:
+            owed = due.status in OWED
             store.set("dues", due.id, cause, status="paid")
             now = store.get("obligations", ob.id)
             if now.status == "active" and due.day == _last_instalment(now):
                 store.set("obligations", ob.id, cause, status="finished")
             elif now.status == "breached" and not _left_to_pay(store, now):
                 store.set("obligations", ob.id, cause, status="finished")     # a breach paid off in full
+            settled(store, ob.id, owed, cause)
         matches.append(Match(due.id, take))
     return matches
+
+
+def settled(store: Store, ob_id: str, was_owed: bool, cause: str) -> None:
+    """Tell the payer's people when a payment settles something of theirs (design 3.3): a loan,
+    an agreement with an end or a bill that falls once, finished by it (`<memo> is paid in
+    full.`); or the last of what was overdue on anything (`<memo> is up to date.`)."""
+    ob = store.get("obligations", ob_id)
+    whole = ob.kind == "loan" or (ob.kind == "agreement" and ob.last is not None) or \
+        (ob.kind == "bill" and ob.every == 0)
+    if ob.status == "finished" and whole and not owed_dues(store, ob_id):
+        _tell(store, ob.payer, f"{_cap(_shown(ob.memo))} is paid in full.", cause)
+    elif was_owed and not owed_dues(store, ob_id):
+        _tell(store, ob.payer, f"{_cap(_shown(ob.memo))} is up to date.", cause)
 
 
 def count_toward(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
@@ -785,4 +802,5 @@ def repay(store: Store, ob_id: str, cents: int, cause: str) -> list[Match]:
         ob = store.get("obligations", ob.id)
         if ob.status in SCHEDULED and not open_ended(ob) and outstanding(store, ob) == 0:
             store.set("obligations", ob.id, cause, status="finished")
+            settled(store, ob.id, False, cause)
         return matches

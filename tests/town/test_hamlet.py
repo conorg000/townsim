@@ -373,8 +373,11 @@ def at(day, seed=1):
     return s
 
 
-def event(s, kind, who, amount=0, weeks=1, eid="ev99"):
-    s.add("events", Event(eid, s.day, kind, who, amount, weeks), T)
+def event(s, kind, who, amount=0, weeks=1, eid="ev99", what=""):
+    for e in s.all("events"):                    # only this one falls today
+        if e.day == s.day and not e.done:
+            s.set("events", e.id, T, done=True)
+    s.add("events", Event(eid, s.day, kind, who, amount, weeks, what=what), T)
     mark = s.mark()
     hamlet.apply_events(s)
     changed = [c for c in s.changes[mark:]]
@@ -417,9 +420,17 @@ def test_an_illness_mid_week_takes_the_hours_left_at_once():
     assert notices(s, changes) == [("p2", "You are ill this week.")]
 
 
+def _only(s, kind, day, who, amount=0, weeks=1):
+    """The place with its deck taken away and one event of `kind` on `day`."""
+    for e in s.all("events"):
+        s.set("events", e.id, T, done=True)
+    s.add("events", Event("ev99", day, kind, who, amount, weeks), T)
+    return s.get("events", "ev99")
+
+
 def test_a_job_lost_ends_after_this_fridays_pay():
     s = place(1)
-    [ev] = [e for e in s.all("events") if e.kind == "job_lost"]
+    ev = _only(s, "job_lost", 16, "p4")
     assert (ev.day, ev.who) == (16, "p4")
     job = jobs.held(s, person="p4")[0]
     before = hours.free_hours(s, "p4")
@@ -456,8 +467,8 @@ def test_a_repair_is_a_bill_due_in_a_week():
 
 def test_a_supplier_short_halves_that_weeks_delivery_only():
     with_short, without = place(1), place(1)
-    [ev] = [e for e in with_short.all("events") if e.kind == "supplier_short"]
-    assert (ev.day, ev.who) == (23, "sp2")
+    ev = _only(with_short, "supplier_short", 23, "sp2")
+    _only(without, "supplier_short", 23, "sp2")
     without.set("events", ev.id, T, done=True)
     days(with_short, 42); days(without, 42)
     assert with_short.get("suppliers", "sp2").short_week == 5
@@ -479,7 +490,7 @@ def test_a_supplier_short_halves_that_weeks_delivery_only():
 
 def test_a_cold_month_adds_four_weeks_of_energy_bills():
     s = at(28)
-    [ev] = [e for e in s.all("events") if e.kind == "cold_month"]
+    ev = _only(s, "cold_month", 28, next(o.id for o in s.all("orgs") if o.kind == "utility"), 30, 4)
     assert ev.day == 28
     mark = s.mark()
     hamlet.apply_events(s)
@@ -633,8 +644,11 @@ def test_a_late_fee_is_told_by_its_memo_alone():
     texts = [n.text for n in s.all("notices") if n.to == "p1"]
     assert ("A late fee of $25.00 on a payment due Monday 2 March (energy) could not be taken. "
             "The Ashby account held $0.00.") in texts
-    assert texts[-2:] == ["A payment of $48.00 due Monday 2 March (energy) was taken on Tuesday 10 March.",
-                          "A late fee of $25.00 on a payment due Monday 2 March (energy) was taken on Tuesday 10 March."]
+    taken = [x for x in texts if x.endswith("was taken on Tuesday 10 March.")]
+    assert taken == ["A payment of $48.00 due Monday 2 March (energy) was taken on Tuesday 10 March.",
+                     "A late fee of $25.00 on a payment due Monday 2 March (energy) was taken on Tuesday 10 March."]
+    assert texts[-4:] == [taken[0], "Energy is paid in full.", taken[1],              # a bill that fell once, settled
+                          "Late fee on energy due Monday 2 March is paid in full."]
 
 
 def test_a_repair_is_billed_after_regular_spending_has_stopped():
@@ -658,7 +672,7 @@ def test_a_repair_to_a_house_that_never_bought_anything_is_passed_over():
 
 def test_a_cold_spell_near_an_energy_bills_end_tells_the_weeks_it_has():
     s = at(28)
-    [ev] = [e for e in s.all("events") if e.kind == "cold_month"]
+    ev = _only(s, "cold_month", 28, next(o.id for o in s.all("orgs") if o.kind == "utility"), 30, 4)
     energy = [o for o in s.where("obligations", payee=ev.who) if o.memo == "energy"]
     O.end(s, energy[0].id, 37, T)                            # two more energy days, 30 and 37
     mark = s.mark()
@@ -680,23 +694,25 @@ def _stop(s, pid, ob_id, n=0):
 def test_a_household_cannot_stop_what_it_costs_to_live_or_a_bill_for_work_done():
     s = place()
     routine(s)
-    spending, energy = (next(o.id for o in s.where("obligations", payer="h2") if o.memo == m)
+    home = next(h for h in s.all("households") if not h.landlord)          # a house its household owns
+    pid = home.members[0]
+    spending, energy = (next(o.id for o in s.where("obligations", payer=home.id) if o.memo == m)
                         for m in ("regular spending", "energy"))
     before = s.hash()
-    assert _stop(s, "p3", spending).msg == "Not done: that is what the household spends to live; it cannot be stopped."
-    assert _stop(s, "p3", energy).msg == "Not done: the house's energy cannot be stopped while you live there."
-    event(s, "repair", "h2", amount=10_000)
+    assert _stop(s, pid, spending).msg == "Not done: that is what the household spends to live; it cannot be stopped."
+    assert _stop(s, pid, energy).msg == "Not done: the house's energy cannot be stopped while you live there."
+    event(s, "repair", home.id, amount=10_000)
     bill = s.all("obligations")[-1]
     assert bill.memo == "repair to the house" and bill.every == 0
     before = s.hash()
-    assert _stop(s, "p3", bill.id).msg == "Not done: that is a bill for work already done."
+    assert _stop(s, pid, bill.id).msg == "Not done: that is a bill for work already done."
     assert s.hash() == before
     event(s, "cold_month", next(o.id for o in s.all("orgs") if o.kind == "utility"), amount=20, weeks=2, eid="ev98")
-    extra = next(o for o in s.where("obligations", payer="h2") if o.memo == "extra energy, cold spell")
-    assert _stop(s, "p3", extra.id).msg == "Not done: the house's energy cannot be stopped while you live there."
+    extra = next(o for o in s.where("obligations", payer=home.id) if o.memo == "extra energy, cold spell")
+    assert _stop(s, pid, extra.id).msg == "Not done: the house's energy cannot be stopped while you live there."
     for ob in (spending, energy, bill.id):
         with pytest.raises(ValueError):
-            O.stop(s, ob, "h2", T)
+            O.stop(s, ob, home.id, T)
 
 
 def test_stopping_rent_is_withholding_it_and_says_so():
