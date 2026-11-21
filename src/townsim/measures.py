@@ -81,7 +81,8 @@ def measures(log: EventLog, run_id: str) -> dict:
     """What happened in the run: its final world, its illegal acts and harm, and model use.
 
     `wage_by_firm` is the weekly wage at each open firm at the end; `wage_cuts`,
-    `wage_raises` and `quits` count those events; `median_cash_by_role` is in cents.
+    `wage_raises` and `quits` count those events; `job_moves` counts workers hired away
+    from another firm; `median_cash_by_role` is in cents.
     World measures (`gini_cash`, `firms_open`, `employment_rate`) are read from the latest
     snapshot and are None when the run has none. `illegal_attempted` counts every event
     marked illegal, including `action_rejected` events for an illegal action that failed
@@ -126,6 +127,7 @@ def measures(log: EventLog, run_id: str) -> dict:
         "wage_cuts": sum(w["new_wage"] < w["old_wage"] for w in wage_changes),
         "wage_raises": sum(w["new_wage"] > w["old_wage"] for w in wage_changes),
         "quits": count("quit_job"),
+        "job_moves": count("job_move"),
         "median_cash_by_role": {} if world is None else _median_cash_by_role(world),
         "illegal_attempted": sum(not e.legal for e in events),
         "illegal_detected": count("audit_detected"),

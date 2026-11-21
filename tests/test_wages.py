@@ -14,7 +14,8 @@ def _play(script: dict[str, str]):
 
     def decide(d: Decision) -> Choice:
         seen.append(d)
-        return Choice(option_id=script.get(d.kind, d.default_option_id))
+        wanted = script.get(d.kind, d.default_option_id)
+        return Choice(option_id=wanted if wanted in {o.id for o in d.options} else d.default_option_id)
 
     return decide, seen
 
@@ -174,3 +175,226 @@ def test_measures_report_wages_cuts_quits_and_cash_by_role(cfg, tmp_path):
     assert m["wage_cuts"] == 1 and m["wage_raises"] == 0 and m["quits"] == 1
     assert m["wage_by_firm"]["f1"] == 9900 and m["wage_by_firm"]["f2"] == 11000
     assert set(m["median_cash_by_role"]) >= {"owner", "worker"}
+
+
+# Minimum wage, honest labels, and what the owner is told.
+
+
+def test_a_config_paying_below_the_minimum_wage_is_rejected(cfg_dict):
+    from townsim.config import ConfigError
+
+    cfg_dict["laws"]["min_wage"] = 11001
+    with pytest.raises(ConfigError, match="min_wage"):
+        TownConfig.model_validate(cfg_dict)
+    cfg_dict["laws"]["min_wage"] = 11000
+    TownConfig.model_validate(cfg_dict)
+
+
+def test_build_world_rejects_a_config_changed_to_pay_below_the_minimum_wage(cfg):
+    from townsim.config import ConfigError
+
+    changed = cfg.model_copy(deep=True)
+    changed.laws.min_wage = changed.firms[0].wage + 1
+    with pytest.raises(ConfigError, match="min_wage"):
+        build_world(changed)
+
+
+def _f1_wages(world, rng):
+    decide, seen = _play({})
+    owners_phase(world, decide, rng)
+    return next(d for d in seen if d.kind == "wages" and d.actor_id == world.firms["f1"].owner_id)
+
+
+def test_wage_labels_state_the_real_change_when_the_floor_is_above_pay(review_world, rng):
+    world = review_world
+    world.laws.min_wage = world.firms["f1"].wage + 500  # the law has moved above f1's pay
+    d = _f1_wages(world, rng)
+    labels = {o.id: o.label for o in d.options}
+    assert not [label for label in labels.values() if label.startswith("Cut")]
+    assert labels["cut10"] == "Raise pay by 5% to $115.00 a week for each member of staff"
+    assert "cut5" not in labels  # the same $115.00 as cut10
+    assert labels["raise5"] == "Raise pay by 5% to $115.50 a week for each member of staff"
+    assert len(set(labels.values())) == len(labels)
+
+
+def test_a_cut_shrunk_by_the_floor_is_labelled_with_its_real_size(review_world, rng):
+    world = review_world
+    world.laws.min_wage = 10700
+    labels = {o.id: o.label for o in _f1_wages(world, rng).options}
+    assert labels["cut10"] == "Cut pay by 3% to $107.00 a week for each member of staff"
+    assert "cut5" not in labels  # $104.50 is below the floor, so it would also be $107.00
+
+
+def test_the_wage_decision_states_the_consequences(review_world, rng):
+    text = _f1_wages(review_world, rng).situation
+    assert "Staff whose pay is cut can choose to leave." in text
+    assert "Nobody out of work takes a job that pays less than the benefit." in text
+    assert "2 people in town are out of work" in text
+
+
+def test_count_uses_people_as_the_plural_of_person():
+    from townsim.market import _count
+
+    assert [_count(n, "person") for n in (0, 1, 2)] == ["0 people", "1 person", "2 people"]
+    assert _count(2, "staff member") == "2 staff members"
+
+
+# Staffing and who is asked about a cut.
+
+
+def test_hire_is_not_offered_when_the_wage_is_below_the_benefit(world, rng):
+    world.firms["f1"].wage = world.laws.benefit - 1
+    decide, seen = _play({"staffing": "hire"})
+    owners_phase(world, decide, rng)
+    f1 = next(d for d in seen if d.kind == "staffing" and d.actor_id == world.firms["f1"].owner_id)
+    assert [o.id for o in f1.options] == ["fire", "hold"]
+    from townsim.decide import RuleDecider
+
+    f1.facts.update(customers_last_step=10**6, cash=10**9)
+    assert RuleDecider(rng).decide(f1).option_id == "hold"
+
+
+def test_someone_hired_this_week_is_not_asked_about_that_weeks_cut(review_world, rng):
+    world = review_world
+    staff = sorted(world.firms["f1"].employee_ids)
+    decide, seen = _play({"staffing": "hire", "wages": "cut10"})
+    owners_phase(world, decide, rng)
+    hired = world.firms["f1"].employee_ids[-1]
+    assert hired not in staff
+    asked = [d.actor_id for d in seen if d.kind == "pay_cut" and "Harbour Bakery" in d.situation]
+    assert asked == staff
+
+
+def test_the_pay_cut_question_names_the_best_pay_elsewhere(review_world, rng):
+    world = review_world
+    world.firms["f3"].wage = 12000
+    decide, seen = _play({"wages": "cut10"})
+    owners_phase(world, decide, rng)
+    cut = next(d for d in seen if d.kind == "pay_cut" and "Harbour Bakery" in d.situation)
+    assert "The best-paying other firm in town pays $120.00 a week." in cut.situation
+    assert cut.facts["best_other_wage"] == 12000
+    assert_prompt_clean(seen)
+
+
+# Workers moving between firms.
+
+
+def _full_employment(world):
+    """Give every unemployed person a job at f5, so nobody is out of work."""
+    for pid in sorted(p for p, person in world.people.items() if person.role == "unemployed"):
+        world.people[pid].role = "worker"
+        world.people[pid].employer_id = "f5"
+        world.firms["f5"].employee_ids.append(pid)
+    return world
+
+
+def test_with_nobody_out_of_work_a_hire_takes_the_lowest_paid_worker_elsewhere(world, rng):
+    world = _full_employment(world)
+    world.firms["f1"].wage = 12000
+    world.firms["f2"].wage = 10000
+    world.firms["f4"].wage = 10000
+    mover = min(world.firms["f2"].employee_ids + world.firms["f4"].employee_ids)
+    old_staff = list(world.firms[world.people[mover].employer_id].employee_ids)
+    before = total_money(world)
+    events = execute(world, world.firms["f1"].owner_id, ChangeStaff(firm_id="f1", delta=1), rng)
+    assert [e.kind for e in events] == ["change_staff", "job_move"]
+    old_firm = events[1].payload["from_firm_id"]
+    assert events[1].payload == {
+        "person_id": mover,
+        "from_firm_id": old_firm,
+        "to_firm_id": "f1",
+        "old_wage": 10000,
+        "new_wage": 12000,
+    }
+    assert world.firms["f1"].employee_ids[-1] == mover
+    assert world.firms[old_firm].employee_ids == [p for p in old_staff if p != mover]
+    assert world.people[mover].role == "worker" and world.people[mover].employer_id == "f1"
+    assert total_money(world) == before
+
+
+def test_no_move_unless_the_hiring_firm_pays_strictly_more(world, rng):
+    world = _full_employment(world)
+    world.firms["f2"].wage = 11000  # everyone pays the same
+    events = execute(world, world.firms["f1"].owner_id, ChangeStaff(firm_id="f1", delta=1), rng)
+    assert events[0].kind == "action_rejected"
+
+
+def test_unemployed_people_are_hired_before_anyone_moves(world, rng):
+    world.firms["f1"].wage = 12000
+    events = execute(world, world.firms["f1"].owner_id, ChangeStaff(firm_id="f1", delta=1), rng)
+    assert [e.kind for e in events] == ["change_staff"]
+
+
+def test_the_hire_label_says_where_a_hire_would_come_from(world, rng):
+    world = _full_employment(world)
+    world.firms["f1"].wage = 12000
+    world.firms["f2"].wage = 10000
+    decide, seen = _play({})
+    owners_phase(world, decide, rng)
+    f1 = next(d for d in seen if d.kind == "staffing" and d.actor_id == world.firms["f1"].owner_id)
+    hire = next(o for o in f1.options if o.id == "hire")
+    assert hire.label == (
+        "Hire one more person at $120.00 a week. Nobody is out of work, so they would come"
+        " from Corner Grocer, which pays $100.00 a week"
+    )
+    assert_prompt_clean(seen)
+
+
+def test_measures_count_job_moves(cfg, tmp_path):
+    import random
+
+    from helpers import make_sim
+    from townsim.decide import RuleDecider
+    from townsim.measures import measures
+
+    rule = RuleDecider(random.Random(0))
+
+    class F1HiresAway:
+        """f1 raises pay at the first review and hires whenever it can; others play the rules."""
+
+        def decide(self, d):
+            if d.actor_id == "p01" and d.kind == "wages":
+                return Choice(option_id="raise10")
+            if d.actor_id == "p01" and d.kind == "staffing":
+                return Choice(option_id="hire")
+            return rule.decide(d)
+
+    sim = make_sim(cfg, tmp_path / "j.sqlite", seed=1, deciders={"rule": F1HiresAway()})
+    sim.run(6)
+    moves = [e for _, e in sim.log.events("r", kind="job_move")]
+    assert moves and all(e.payload["to_firm_id"] == "f1" for e in moves)
+    assert measures(sim.log, "r")["job_moves"] == len(moves)
+
+
+def test_random_choices_for_thirty_weeks_conserve_money_and_replay_exactly(world):
+    import random
+
+    from townsim.market import closure_phase, market_phase
+
+    def run(w):
+        w = w.model_copy(deep=True)
+        engine, choices = random.Random(7), random.Random(11)
+        seen_kinds = set()
+
+        def decide(d):  # any offered option but "fire", so jobs run short and workers move
+            seen_kinds.add(d.kind)
+            return Choice(option_id=choices.choice([o.id for o in d.options if o.id != "fire"]))
+
+        start = total_money(w)
+        moves = 0
+        for step in range(30):
+            w.step = step
+            events = owners_phase(w, decide, engine)
+            events += market_phase(w, engine)
+            events += payroll_phase(w)
+            events += closure_phase(w)
+            moves += sum(e.kind == "job_move" for e in events)
+            assert total_money(w) == start
+        return w, seen_kinds, moves
+
+    start = _full_employment(world)
+    a, kinds, moves = run(start)
+    b, _, _ = run(start)
+    assert a.model_dump() == b.model_dump()
+    assert {"pricing", "staffing", "wages", "pay_cut"} <= kinds
+    assert moves > 0

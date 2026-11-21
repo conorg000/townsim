@@ -214,7 +214,12 @@ class SetPrice(Action):
 
 @register
 class ChangeStaff(Action):
-    """`delta=+1` hires one unemployed person chosen by `rng`; `-1` lets the most recent hire go."""
+    """`delta=+1` hires one person; `-1` lets the most recent hire go.
+
+    A hire is an unemployed person chosen by `rng`. If nobody is out of work, it is
+    the worker at the lowest-paying other firm (ties by wage, then person id), and only
+    if this firm pays strictly more; that worker moves and a `job_move` event follows.
+    """
 
     kind = "change_staff"
     firm_id: str
@@ -226,8 +231,8 @@ class ChangeStaff(Action):
         reason = _owned_open_firm(world, actor_id, self.firm_id)
         if reason is not None:
             return reason
-        if self.delta == 1 and not _unemployed_ids(world):
-            return "nobody is looking for work"
+        if self.delta == 1 and not _unemployed_ids(world) and _mover_id(world, self.firm_id) is None:
+            return "nobody is looking for work, and no other firm pays its staff less"
         if self.delta == 1 and world.firms[self.firm_id].wage < world.laws.benefit:
             return "nobody out of work will take a job that pays less than the benefit"
         if self.delta == -1 and not world.firms[self.firm_id].employee_ids:
@@ -236,8 +241,28 @@ class ChangeStaff(Action):
 
     def apply(self, world: World, actor_id: str, rng: random.Random) -> list[Event]:
         f = world.firms[self.firm_id]
+        moved: list[Event] = []
         if self.delta == 1:
-            pid = rng.choice(_unemployed_ids(world))
+            unemployed = _unemployed_ids(world)
+            if unemployed:
+                pid = rng.choice(unemployed)
+            else:
+                pid = _mover_id(world, self.firm_id)
+                old = world.firms[world.people[pid].employer_id]
+                old.employee_ids.remove(pid)
+                moved.append(
+                    Event(
+                        kind="job_move",
+                        actor_id=pid,
+                        payload={
+                            "person_id": pid,
+                            "from_firm_id": old.id,
+                            "to_firm_id": self.firm_id,
+                            "old_wage": old.wage,
+                            "new_wage": f.wage,
+                        },
+                    )
+                )
             f.employee_ids.append(pid)
             person = world.people[pid]
             person.role = "worker"
@@ -253,7 +278,26 @@ class ChangeStaff(Action):
                 actor_id=actor_id,
                 payload={"firm_id": self.firm_id, "delta": self.delta, "person_id": pid},
             )
-        ]
+        ] + moved
+
+
+def _mover_id(world: World, firm_id: str) -> str | None:
+    """The worker a hire by `firm_id` would take when nobody is out of work, if any.
+
+    That is the worker at the lowest-paying other open firm (ties by wage, then person
+    id), and only when `firm_id` pays them strictly more than they now earn.
+    """
+    candidates = [
+        (g.wage, pid)
+        for g in world.firms.values()
+        if g.open and g.id != firm_id
+        for pid in g.employee_ids
+        if world.people[pid].role == "worker"
+    ]
+    if not candidates:
+        return None
+    low_wage, pid = min(candidates)
+    return pid if world.firms[firm_id].wage > low_wage else None
 
 
 def wage_floor(world: World) -> int:
@@ -350,7 +394,8 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
     """Each open firm's owner, in firm id order, makes a pricing then a staffing decision.
 
     Every `wage_review_weeks` weeks the owner also decides what to pay staff. When pay
-    is cut, each member of that firm's staff, in id order, decides whether to stay.
+    is cut, each member of that firm's staff who was there before this week's staffing
+    decision, in id order, decides whether to stay.
     """
     events: list[Event] = []
     seqs: dict[tuple[str, str], int] = {}
@@ -358,6 +403,7 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
     if _is_wage_review_week(world):
         builders.append(_wage_decision)
     for fid in sorted(world.firms):
+        staff_before = set(world.firms[fid].employee_ids)  # pricing does not change staff
         for build in builders:
             f = world.firms[fid]
             if not f.open:
@@ -366,7 +412,7 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
             events += _take(world, decide, build(world, f, seqs), f.owner_id, rng)
             f = world.firms[fid]
             if f.wage < old_wage:
-                for pid in sorted(f.employee_ids):
+                for pid in sorted(p for p in f.employee_ids if p in staff_before):
                     decision = _pay_cut_decision(world, world.firms[fid], pid, old_wage, seqs)
                     events += _take(world, decide, decision, pid, rng)
     return events
@@ -426,8 +472,11 @@ def _dollars(cents: int) -> str:
     return f"{sign}${whole:,}.{part:02d}"
 
 
+_PLURALS = {"person": "people"}
+
+
 def _count(n: int, noun: str) -> str:
-    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+    return f"{n} {noun}" if n == 1 else f"{n} {_PLURALS.get(noun, noun + 's')}"
 
 
 def _describe_firm(f: Firm, facts: dict) -> str:
@@ -483,16 +532,20 @@ def _describe_labour_market(lm: dict) -> str:
 def _wage_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -> Decision:
     facts = {**_firm_facts(world, f), **_labour_market(world, f.id)}
     options = []
+    offered: set[int] = set()
     for oid, factor in WAGE_FACTORS.items():
         new = _new_wage(world, f.wage, factor)
         if oid == "hold":
             options.append(Option(id=oid, label=f"Keep pay at {_dollars(f.wage)} a week"))
             continue
-        if new == f.wage:
-            continue  # already at the floor
-        verb = "Cut" if factor < 1 else "Raise"
-        pct = round(abs(factor - 1) * 100)
-        label = f"{verb} pay by {pct}% to {_dollars(new)} a week for each member of staff"
+        if new == f.wage or new in offered:
+            continue  # no change, or the same new wage as an option already offered
+        offered.add(new)
+        # The floor can turn a cut into a raise, or shrink it: label the real change.
+        verb = "Cut" if new < f.wage else "Raise"
+        pct = round(abs(new - f.wage) * 100 / f.wage) if f.wage > 0 else 0
+        by = f" by {pct}%" if pct > 0 else ""
+        label = f"{verb} pay{by} to {_dollars(new)} a week for each member of staff"
         options.append(
             Option(id=oid, label=label, action=_action_dict(SetWage(firm_id=f.id, factor=factor)))
         )
@@ -504,7 +557,10 @@ def _wage_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -> D
             _describe_firm(f, facts)
             + " "
             + _describe_labour_market(facts)
-            + " You can change what you pay your staff, starting this week."
+            + " Staff whose pay is cut can choose to leave. Nobody out of work takes a job"
+            " that pays less than the benefit. When nobody is out of work, a firm that hires"
+            " takes on a worker from the lowest-paying other firm, if it pays that worker more."
+            " You can change what you pay your staff, starting this week."
         ),
         options=options,
         default_option_id="hold",
@@ -517,6 +573,10 @@ def _pay_cut_decision(
 ) -> Decision:
     lm = _labour_market(world, f.id)
     owner = world.people[f.owner_id].name
+    best_other = max((g.wage for g in world.firms.values() if g.open and g.id != f.id), default=None)
+    elsewhere = ""
+    if best_other is not None and best_other > f.wage:
+        elsewhere = f" The best-paying other firm in town pays {_dollars(best_other)} a week."
     return Decision(
         id=_decision_id(world, pid, "pay_cut", seqs),
         actor_id=pid,
@@ -525,13 +585,14 @@ def _pay_cut_decision(
             f"You work at {f.name}. {owner}, who owns it, has cut your pay from "
             f"{_dollars(old_wage)} to {_dollars(f.wage)} a week, starting this week. "
             + _describe_labour_market(lm)
+            + elsewhere
         ),
         options=[
             Option(id="stay", label=f"Keep working at {f.name} for {_dollars(f.wage)} a week"),
             Option(id="quit", label="Leave your job", action=_action_dict(QuitJob())),
         ],
         default_option_id="stay",
-        facts={"wage": f.wage, "old_wage": old_wage, **lm},
+        facts={"wage": f.wage, "old_wage": old_wage, "best_other_wage": best_other, **lm},
     )
 
 
@@ -560,17 +621,26 @@ def _pricing_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -
 
 def _staffing_decision(world: World, f: Firm, seqs: dict[tuple[str, str], int]) -> Decision:
     facts = _firm_facts(world, f)
+    options = []
+    if f.wage >= world.laws.benefit:  # below the benefit, nobody out of work would take it
+        label = f"Hire one more person at {_dollars(f.wage)} a week"
+        mover = None if _unemployed_ids(world) else _mover_id(world, f.id)
+        if mover is not None:
+            source = world.firms[world.people[mover].employer_id]
+            label += (
+                f". Nobody is out of work, so they would come from {source.name},"
+                f" which pays {_dollars(source.wage)} a week"
+            )
+        options.append(
+            Option(id="hire", label=label, action=_action_dict(ChangeStaff(firm_id=f.id, delta=1)))
+        )
     return Decision(
         id=_decision_id(world, f.owner_id, "staffing", seqs),
         actor_id=f.owner_id,
         kind="staffing",
         situation=_describe_firm(f, facts) + " You can change the size of your staff this week.",
-        options=[
-            Option(
-                id="hire",
-                label=f"Hire one more person at {_dollars(f.wage)} a week",
-                action=_action_dict(ChangeStaff(firm_id=f.id, delta=1)),
-            ),
+        options=options
+        + [
             Option(
                 id="fire",
                 label="Let your most recent hire go",
@@ -600,7 +670,8 @@ def _pricing_rule(decision: Decision, rng: random.Random) -> str:
 def _staffing_rule(decision: Decision, rng: random.Random) -> str:
     facts = decision.facts
     customers, capacity = facts["customers_last_step"], facts["capacity"]
-    if customers >= capacity and facts["cash"] > 8 * facts["weekly_wage_bill"]:
+    can_hire = any(o.id == "hire" for o in decision.options)
+    if can_hire and customers >= capacity and facts["cash"] > 8 * facts["weekly_wage_bill"]:
         return "hire"
     if customers < 0.5 * capacity and facts["staff"] > 1:
         return "fire"
@@ -614,4 +685,5 @@ def _wages_rule(decision: Decision, rng: random.Random) -> str:
 
 @rule("pay_cut")
 def _pay_cut_rule(decision: Decision, rng: random.Random) -> str:
+    # Better pay elsewhere is not a job offer: leave only when the benefit pays more.
     return "quit" if decision.facts["wage"] < decision.facts["benefit"] else "stay"

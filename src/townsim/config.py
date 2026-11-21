@@ -128,6 +128,9 @@ class TownConfig(_Strict):
         firm_ids = [f.id for f in self.firms]
         if len(set(firm_ids)) != len(firm_ids):
             raise ValueError(f"duplicate firm ids: {firm_ids}")
+        below = _below_min_wage(self)
+        if below:
+            raise ValueError(below)
 
         needed = sum(1 + f.staff for f in self.firms) + self.people.auditors + self.people.journalists
         if needed > self.people.count:
@@ -167,6 +170,14 @@ class TownConfig(_Strict):
             if not goal.strip():
                 raise ValueError(f"agents.{pid}: the standing instruction is empty")
         return self
+
+
+def _below_min_wage(cfg: TownConfig) -> str | None:
+    """Why the config breaks its own minimum wage, or None if every firm pays at least it."""
+    low = [f"{f.id} ({f.wage})" for f in cfg.firms if f.wage < cfg.laws.min_wage]
+    if not low:
+        return None
+    return f"firm wage below laws.min_wage ({cfg.laws.min_wage}): {', '.join(low)}"
 
 
 def _person_ids(count: int) -> list[str]:
@@ -209,6 +220,9 @@ def build_world(cfg: TownConfig) -> World:
     auditors, then journalists; everyone left over is unemployed. Personas follow
     the same order.
     """
+    below = _below_min_wage(cfg)  # a config changed after validation is checked again here
+    if below:
+        raise ConfigError(below)
     ids = _person_ids(cfg.people.count)
     slots: list[tuple[Role, str | None]] = []
     for f in cfg.firms:
