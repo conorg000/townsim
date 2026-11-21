@@ -223,8 +223,11 @@ def test_the_script_lives_a_full_life():
     assert ended and all(o.kind == "agreement" and o.status == "finished" for o in ended)
     assert not any(r.kind == "breach" and any(o.memo in r.text for o in ended) for r in s.all("records"))
     assert any(c.table == "obligations" and c.field == "last" and ":repay:" in c.cause for c in s.changes)
-    changed = [o for o in s.all("obligations") if o.kind == "rent" and o.made_by != "routine"]
-    assert changed and any(d.status == "paid" for o in changed for d in s.where("dues", obligation=o.id))
+    changed = {c.id: c.day for c in s.changes if c.table == "obligations" and c.field == "next_from"
+               and ":set_rent:" in c.cause}                     # a let's one rent, re-priced
+    assert changed and all(s.get("obligations", o).kind == "rent" for o in changed)
+    assert any(d.status == "paid" and d.day > day + 27 for o, day in changed.items()
+               for d in s.where("dues", obligation=o))
 
 
 def test_shops_have_customers_and_tills_every_week():

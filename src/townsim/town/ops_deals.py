@@ -540,48 +540,55 @@ def _household(h) -> str:
     return f"the {h.name.split(' household')[0]} household"
 
 
-def _rents(store: Store, act: Act, h) -> tuple[list, list]:
-    """(in force today, agreed to start later): the rents `h` pays the principal (`facts.rents`:
-    one in force may have paid its last instalment already, when a change is coming)."""
+def _rent(store: Store, act: Act, h) -> Any:
+    """The one rent `h` pays the principal for its whole let (`facts.rent_of`), or None."""
     mine = accounts_of(store, act.principal)
-    now, later = facts.rents(store, h.id)
-    return [o for o in now if o.payee in mine and o.every > 0], [o for o in later if o.payee in mine]
-
-
-def _rent_day(store: Store, ob) -> int:
-    """The first day `ob` falls on at least 28 days from today, on its own schedule."""
-    start = store.day + RENT_NOTICE_DAYS
-    return ob.first + -(-(start - ob.first) // ob.every) * ob.every
+    found = [o for o in facts.rents(store, h.id) if o.payee in mine and o.every > 0]
+    return found[0] if found else None
 
 
 class RentChange(NamedTuple):
     h: Any
-    present: Any
-    pending: list
+    ob: Any
     cents: int
-    day: int
-    last: int | None
+    day: int                       # the first rent day at the new amount
+    pending: tuple[int, int] | None      # (cents, day) of a change announced and not yet come
+    kept: list                     # dues already opened at or after the day, which keep their amount
 
 
 def _rent_change(store: Store, act: Act) -> tuple[RentChange | None, str]:
+    """A change of rent re-prices the let's one rent obligation (as a change of pay re-prices a
+    wage): from the first rent day at least `RENT_NOTICE_DAYS` on; or, while a change is
+    pending, in its place on its day when the new rent is no more than the pending one (taking
+    back a rise needs no notice). A rent day whose due is already opened and paid toward in full,
+    or by more than the new rent, keeps its amount, and the change starts after it."""
     h, why = _tenancy(store, act)
     if h is None:
         return None, why
-    now, pending = _rents(store, act, h)
-    if not now:
+    ob = _rent(store, act, h)
+    if ob is None:
         return None, f"no rent for {_address(h)} is paid to you."
     cents = to_cents(act.args.get("weekly"))
     if cents is None or not MIN_RENT <= cents <= MAX_RENT:
         return None, (f"'{shown(act.args.get('weekly'))}' is not an amount from {money(MIN_RENT)} "
                       f"to {money(MAX_RENT)}.")
-    present = now[0]
-    day = _rent_day(store, present)
-    if not pending and cents == present.cents:
+    pending = (ob.next_cents, ob.next_from) if ob.next_from > store.day else None
+    if pending is None and cents == ob.cents:
         return None, f"the rent for {_address(h)} is {money(cents)} a week already."
-    last = pending[0].last if pending else present.last
-    if last is not None and last < day:
-        return None, f"the rent for {_address(h)} ends on {date_text(last)}."
-    return RentChange(h, present, pending, cents, day, last), ""
+    if pending is not None and cents == pending[0]:
+        return None, f"the rent for {_address(h)} is to be {money(cents)} a week from {date_text(pending[1])} already."
+    if pending is not None and cents <= pending[0]:
+        day = pending[1]
+    else:
+        day = obligations.next_on_schedule(ob, store.day + RENT_NOTICE_DAYS)
+    kept = []
+    while (d := next((d for d in store.where("dues", obligation=ob.id, day=day) if d.status != "void"), None)) \
+            and (d.paid >= d.cents or d.paid > cents):
+        kept.append(d)
+        day += ob.every
+    if ob.last is not None:
+        return None, f"the rent for {_address(h)} ends on {date_text(ob.last)}."
+    return RentChange(h, ob, cents, day, pending, kept), ""
 
 
 def _check_rent(store: Store, act: Act) -> str | None:
@@ -591,17 +598,17 @@ def _check_rent(store: Store, act: Act) -> str | None:
 
 def _do_rent(store: Store, act: Act, cause: str) -> str:
     c, _ = _rent_change(store, act)
-    for ob in c.pending:                       # a change not yet begun never starts
-        obligations.end(store, ob.id, ob.first - 1, cause)
-    if c.pending or c.present.status != "active":     # the present rent runs on to the new day
-        store.set("obligations", c.present.id, cause, last=c.day - 1, status="active")
+    obligations.reprice(store, c.ob.id, c.cents, c.day, cause)
+    if c.cents == c.ob.cents:
+        change = f"for {_address(c.h)} stays {money(c.cents)} a week."
     else:
-        obligations.end(store, c.present.id, c.day - 1, cause)
-    obligations.create(store, kind="rent", payer=c.h.id, payee=c.present.payee, cents=c.cents, first=c.day,
-                       every=c.present.every, last=c.last, memo=c.present.memo, ends=c.present.ends,
-                       made_by=act.actor, cause=cause)
-    change = (f"for {_address(c.h)} changes from {money(c.present.cents)} to {money(c.cents)} a week "
-              f"from {date_text(c.day)}.")
+        change = (f"for {_address(c.h)} changes from {money(c.ob.cents)} to {money(c.cents)} a week "
+                  f"from {date_text(c.day)}.")
+    if c.pending is not None:
+        change += f" This replaces the change to {money(c.pending[0])} that was to start on {date_text(c.pending[1])}."
+    for d in c.kept:
+        change += (f" The rent due {date_text(d.day)} stays {money(d.cents)}: "
+                   f"{money(d.paid)} has been paid toward it already.")
     _tell(store, _adults(store, c.h.id), f"Your rent {change}", cause)
     return f"The rent {change}"
 

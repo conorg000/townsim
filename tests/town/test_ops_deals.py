@@ -424,42 +424,120 @@ def test_a_loan_repaid_by_repay_is_not_also_taken_in_full_by_its_schedule():
 
 # rent
 
+def _rent_paid(s, since=0):
+    """(day, cents) of what the Pryces paid their landlord from day `since`, late fees aside."""
+    return [(t.t, t.cents) for t in s.ledger.transfers
+            if t.src == "h2" and t.dst == "h4" and t.t >= since and not t.memo.startswith("late fee")]
+
+
 def test_a_rent_change_takes_28_days_and_the_tenant_is_told():
     s = deals_town()
     set_cash(s, "h2", 10_000_000)
-    old = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    n = len(s.all("obligations"))
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
     assert out.msg == "The rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 30 March."
     for pid in ("p03", "p04"):
         assert told(s, pid)[-1] == "Your rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 30 March."
-    first = s.all("obligations")[-1]
-    assert (first.kind, first.payer, first.payee, first.cents, first.first, first.memo) == \
-        ("rent", "h2", "h4", 20_000, 28, old.memo)
-    assert s.get("obligations", old.id).last == 27
+    ob = s.get("obligations", rent.id)                     # one rent for the let, re-priced
+    assert len(s.all("obligations")) == n and (ob.cents, ob.next_cents, ob.next_from, ob.last) == (18_500, 20_000, 28, None)
+    assert f"{rent.id}: rent, $185.00 every week to Hale, $200.00 from Monday 30 March, first" in agreements_text(s, "h2")
     live(s, 3)
-    # (and a change made after the old rent's last instalment has been taken, on day 22, is made the same way)
+    # (a change made on day 22, after a rent day paid at the old amount, is made the same way)
     s2 = pickle.loads(pickle.dumps(s))
     to_day(s2, 22)
-    assert s2.get("obligations", old.id).status == "finished"
-    ok(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=220)
-    assert (s2.get("obligations", old.id).status, s2.get("obligations", old.id).last) == ("active", 55)
+    assert refused(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=200) == \
+        "Not done: the rent for 4 Mill Lane is to be $200.00 a week from Monday 30 March already."
+    out = ok(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=220)
+    assert out.msg == ("The rent for 4 Mill Lane changes from $185.00 to $220.00 a week from Monday 27 April. "
+                       "This replaces the change to $200.00 that was to start on Monday 30 March.")
     to_day(s2, 57)
-    assert [(t.t, t.cents) for t in s2.ledger.transfers if t.src == "h2" and t.dst == "h4" and t.t >= 21] == \
-        [(21, 18_500), (28, 18_500), (35, 18_500), (42, 18_500), (49, 18_500), (56, 22_000)]
-    ok(s, "p06", "set_rent", tenant="Megan", weekly=210)
-    assert told(s, "p04")[-1] == "Your rent for 4 Mill Lane changes from $185.00 to $210.00 a week from Monday 6 April."
-    assert s.get("obligations", first.id).status == "finished"
-    assert s.get("obligations", old.id).last == 34
+    assert _rent_paid(s2, 21) == [(21, 18_500), (28, 18_500), (35, 18_500), (42, 18_500), (49, 18_500), (56, 22_000)]
+    out = ok(s, "p06", "set_rent", tenant="Megan", weekly=210)      # more than the change pending: 28 days from today
+    assert told(s, "p04")[-1] == ("Your rent for 4 Mill Lane changes from $185.00 to $210.00 a week from Monday 6 April. "
+                                  "This replaces the change to $200.00 that was to start on Monday 30 March.")
     to_day(s, 43)
-    assert [(t.t, t.cents) for t in s.ledger.transfers if t.src == "h2" and t.dst == "h4"] == \
-        [(0, 18_500), (7, 18_500), (14, 18_500), (21, 18_500), (28, 18_500), (35, 21_000), (42, 21_000)]
-    assert s.where("dues", obligation=first.id) == []
+    assert _rent_paid(s) == [(0, 18_500), (7, 18_500), (14, 18_500), (21, 18_500), (28, 18_500), (35, 21_000),
+                             (42, 21_000)]
+    assert [o.id for o in s.where("obligations", payer="h2") if o.kind == "rent"] == [rent.id]
     assert refused(s, "p03", "set_rent", tenant="Craig Pryce", weekly=1) == \
         "Not done: there is no operation called 'set_rent'."
     assert refused(s, "p06", "set_rent", tenant="Ruth Ashby", weekly=200) == \
         "Not done: you do not let the house Ruth Ashby lives in."
     assert refused(s, "p06", "set_rent", tenant="Craig Pryce", weekly=19.99) == \
         "Not done: '19.99' is not an amount from $20.00 to $2,000.00."
+
+
+def test_taking_back_a_rise_needs_no_notice():
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)                  # from Monday 30 March
+    to_day(s, 10)
+    out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=190)
+    assert out.msg == ("The rent for 4 Mill Lane changes from $185.00 to $190.00 a week from Monday 30 March. "
+                       "This replaces the change to $200.00 that was to start on Monday 30 March.")
+    out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=185)
+    assert out.msg == ("The rent for 4 Mill Lane stays $185.00 a week. "
+                       "This replaces the change to $190.00 that was to start on Monday 30 March.")
+    assert told(s, "p03")[-1] == "Your " + out.msg.removeprefix("The ")
+    to_day(s, 36)
+    assert _rent_paid(s) == [(d, 18_500) for d in (0, 7, 14, 21, 28, 35)]
+
+
+def test_a_rent_changed_twice_with_a_rent_day_paid_by_hand_is_taken_once_a_day():
+    """The reviewer's sequence: changes on days 0, 3, 22 and 29, the tenant paying the day-28
+    rent by hand on day 22; every rent day is taken once, at the amount last told for it."""
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)                  # from day 28
+    to_day(s, 3)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=210)                  # more: from day 35
+    to_day(s, 22)
+    out = ok(s, "p03", "pay", to="Len Hale", amount=185, **{"for": rent.id})
+    assert out.msg == "Paid $185.00 to Len Hale. It was counted toward rent due Monday 30 March."
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=220)                  # more: from day 56
+    to_day(s, 29)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=230)                  # more: from day 63
+    to_day(s, 80)
+    dues = sorted((d.day, d.cents, d.paid, d.status) for d in s.where("dues", obligation=rent.id))
+    assert [d[0] for d in dues] == list(range(0, 78, 7)) and all(d[3] == "paid" and d[1] == d[2] for d in dues)
+    assert [d[1] for d in dues] == [18_500] * 9 + [23_000] * 3
+    assert _rent_paid(s) == [(d, 18_500) for d in (0, 7, 14, 21)] + [(22, 18_500)] + \
+        [(d, 18_500) for d in (35, 42, 49, 56)] + [(d, 23_000) for d in (63, 70, 77)]
+    assert [o.id for o in s.where("obligations", payer="h2") if o.kind == "rent"] == [rent.id]
+
+
+def test_a_rent_paid_ahead_at_a_coming_amount_and_then_changed_is_taken_once():
+    """The reviewer's second sequence: the tenant pays the day-28 rent at its new amount on day
+    22, and the landlord changes it again: day 28 is paid once, at the amount paid toward it."""
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
+    to_day(s, 22)
+    ok(s, "p03", "pay", to="Len Hale", amount=200)
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=210)
+    to_day(s, 64)
+    assert _rent_paid(s, 21) == [(21, 18_500), (22, 20_000)] + [(d, 20_000) for d in (35, 42, 49)] + \
+        [(d, 21_000) for d in (56, 63)]
+    assert sorted(d.day for d in s.where("dues", obligation=rent.id)) == list(range(0, 64, 7))
+
+
+def test_a_change_of_rent_leaves_a_breached_rent_breached_at_the_new_price():
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
+    assert do(s, "p03", "stop", id=rent.id).ok
+    to_day(s, 8)
+    out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
+    assert out.msg == "The rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 13 April."
+    to_day(s, 50)
+    assert s.get("obligations", rent.id).status == "breached"
+    assert _rent_paid(s, 1) == []                                     # nothing taken: it is withheld
+    owed = sorted((d.day, d.cents, d.status) for d in s.where("dues", obligation=rent.id))
+    assert [d[0] for d in owed] == list(range(0, 50, 7))
+    assert [d[1] for d in owed] == [18_500] * 6 + [20_000] * 2 and all(d[2] != "paid" for d in owed[1:])
 
 
 def _behind(s, days):

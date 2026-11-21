@@ -20,7 +20,7 @@ from townsim.town import firms, jobs
 from townsim.town.acts import TIE_RANKS, knows, name_of_who
 from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
 from townsim.town.obligations import (LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, last_instalment, money, name_of,
-                                      owed_dues, upcoming)
+                                      cents_now, owed_dues, pending_change, upcoming)
 from townsim.town.store import Store, id_key
 
 WHO_WORDS = 300
@@ -189,14 +189,12 @@ def ends_on(ob) -> str:
     return UNTIL_ENDED if day is None else when(day)
 
 
-def rents(store: Store, payer: str, payee: str | None = None) -> tuple[list, list]:
-    """(in force today, agreed to start later): the rents `payer` pays (to `payee`). One in
-    force runs over today, though its last instalment may already have been paid (a rent
-    changing on its next rent day); one agreed to start later is active."""
-    obs = [o for o in store.where("obligations", payer=payer) if o.kind == "rent" and (payee is None or o.payee == payee)]
-    now = [o for o in obs if o.status in SCHEDULED + ("finished",) and o.first <= store.day
-           and (o.last is None or o.last >= store.day) and (o.status != "finished" or o.last is not None)]
-    return now, [o for o in obs if o.status in SCHEDULED and o.first > store.day]
+def rents(store: Store, payer: str, payee: str | None = None) -> list:
+    """The rents `payer` pays (to `payee`) that are in force: a let has one rent obligation for
+    its life, re-priced when the rent changes (`obligations.pending_change` gives a change
+    announced and not yet come)."""
+    return [o for o in store.where("obligations", payer=payer)
+            if o.kind == "rent" and o.status in SCHEDULED and (payee is None or o.payee == payee)]
 
 
 def _home(store: Store, pid: str) -> list[str]:
@@ -207,14 +205,15 @@ def _home(store: Store, pid: str) -> list[str]:
     hname = h.name if "household" in h.name else f"{h.name} household"
     alone = "" if len(h.members) > 1 else " alone"
     lines = [f"You live{alone}{where}; your household is the {hname}."]
-    now, later = rents(store, h.id)
-    rent = now or later
+    rent = rents(store, h.id)
     mortgage = [o for o in _active(store, payer=h.id) if o.kind == "loan" and o.memo.startswith("mortgage")]
     if rent:
         lord = name_of_who(store, h.landlord) if h.landlord else name_of(store, rent[0].payee)
-        line = f"The house is rented from {lord} for {money(rent[0].cents)} a week, paid on {_payday(rent[0])}."
-        if now and later:
-            line += f" The rent changes to {money(later[0].cents)} a week from {when(later[0].first)}."
+        line = (f"The house is rented from {lord} for {money(cents_now(store, rent[0]))} a week, paid on "
+                f"{_payday(rent[0])}.")
+        coming = pending_change(store, rent[0])
+        if coming:
+            line += f" The rent changes to {money(coming[0])} a week from {when(coming[1])}."
         lines.append(line)
     elif mortgage:
         m = mortgage[0]
@@ -340,9 +339,10 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
         if mine_ob.status in SCHEDULED and mine_ob.cents <= all_cents[len(all_cents) // 2]:
             found.append(f"Getting by on your pension of {money(mine_ob.cents)} a week.")
     if store.has("people", h.landlord) and h.landlord != pid:
-        rent = rents(store, home)[0]
+        rent = rents(store, home)
         if rent:
-            found.append(f"Your rent of {money(rent[0].cents)} a week to {store.get('people', h.landlord).name}.")
+            found.append(f"Your rent of {money(cents_now(store, rent[0]))} a week to "
+                         f"{store.get('people', h.landlord).name}.")
     mortgage = [o for o in _live(store, payer=home) if o.memo.startswith("mortgage")]
     if mortgage and mine:
         found.append(f"Your mortgage of {money(mortgage[0].cents)} a week.")
@@ -422,11 +422,11 @@ def _work(store: Store, pid: str) -> list[str]:
             lines.append(f"Also working at {org.name}: {_and(staff)}.")
     for other in store.all("households"):
         if other.landlord in (pid, home) and other.id != home:
-            now, later = rents(store, other.id, home)
-            got = now or later
-            what = f" for {money(got[0].cents)} a week" if got else ""
-            if now and later:
-                what += f"; it changes to {money(later[0].cents)} from {when(later[0].first)}"
+            got = rents(store, other.id, home)
+            what = f" for {money(cents_now(store, got[0]))} a week" if got else ""
+            coming = pending_change(store, got[0]) if got else None
+            if coming:
+                what += f"; it changes to {money(coming[0])} from {when(coming[1])}"
             who = "You let" if other.landlord == pid else "Your household lets"
             lines.append(f"{who} {other.street or 'a house'} to the {other.name.split(' household')[0]} household{what}.")
     if not held:

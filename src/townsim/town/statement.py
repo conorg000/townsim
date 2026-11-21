@@ -8,7 +8,8 @@ from bisect import bisect_left
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
-from townsim.town.obligations import OWED, SCHEDULED, Upcoming, last_cents, last_instalment, money, name_of, upcoming
+from townsim.town.obligations import (OWED, SCHEDULED, Upcoming, last_cents, last_instalment, money, name_of,
+                                      cents_now, pending_change, upcoming)
 from townsim.town.store import Store
 
 
@@ -179,7 +180,8 @@ def agreements_text(store: Store, account: str) -> str:
     """Every obligation `account` pays or receives, ordered for its reader: those in force
     (active or breached) that it pays, then those in force that it receives, each by id, then
     the rest by id; at most forty lines, then a line counting the rest. Each memo is cut to a
-    label as views show it; a last instalment that differs from the rest is told with its sum;
+    label as views show it; a change of amount announced and not yet come is told with its
+    new sum and day; a last instalment that differs from the rest is told with its sum;
     one that finished before any instalment fell says so in place of its dates."""
     mine = [ob for ob in store.all("obligations") if account in (ob.payer, ob.payee)]
     live = [ob for ob in mine if ob.status in SCHEDULED]
@@ -202,8 +204,10 @@ def agreements_text(store: Store, account: str) -> str:
         until = f", until {date_text(end)}" if ob.last is not None else ""
         if ob.last is not None and last_cents(ob) != ob.cents:
             until = f", the last, on {date_text(end)}, {money(last_cents(ob))}"
-        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, "
-                    f"{ob.status}")
+        coming = pending_change(store, ob)            # a rent or wage re-priced from a day not yet come
+        change = f", {money(coming[0])} from {date_text(coming[1])}" if coming else ""
+        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(cents_now(store, ob))} {how} {party}{change}, first {date_text(ob.first)}"
+                    f"{until}, {ob.status}")
     if len(rows) > AGREEMENT_LINES:
         rows = rows[:AGREEMENT_LINES] + [f"({len(rows) - AGREEMENT_LINES} more not shown)"]
     return "\n".join(rows) or "nothing"

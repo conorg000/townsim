@@ -185,14 +185,15 @@ def reprice(store: Store, ob_id: str, cents: int, from_day: int, cause: str) -> 
     `from_day` for `cents`; those before keep their amount. A second change before `from_day`
     replaces the one pending. A due already opened on or after `from_day` and not yet paid
     takes the new amount. `cents` may be 0: an instalment of nothing opens no due and is
-    taken from no one. Raises ValueError, changing nothing: for an unknown obligation, one
-    not active, once-only, with a `last` or a `final_cents`; cents not an int of 0 or more; a
+    taken from no one. It never changes the obligation's status: a breached one stays breached
+    at its new price. Raises ValueError, changing nothing: for an unknown obligation, one
+    neither active nor breached, once-only, with a `last` or a `final_cents`; cents not an int of 0 or more; a
     `from_day` that is not a day of its schedule after today; or a due on or after `from_day`
     already paid in full or paid more than `cents` (any due at all, for 0)."""
     if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
         raise ValueError(f"no obligation {ob_id!r}")
     ob = store.get("obligations", ob_id)
-    if ob.status != "active" or ob.every == 0 or ob.last is not None or ob.final_cents:
+    if ob.status not in SCHEDULED or ob.every == 0 or ob.last is not None or ob.final_cents:
         raise ValueError(f"{ob_id} cannot be re-priced: it is {ob.status}, every {ob.every}, last {ob.last}")
     if not _is_int(cents) or cents < 0:
         raise ValueError(f"cents must be an int of 0 or more, got {cents!r}")
@@ -214,6 +215,17 @@ def open_dues(store: Store) -> None:
         _fold(store, ob, "routine:due")
         if falls_on(ob, store.day):
             ensure_due(store, ob.id, store.day, "routine:due")
+
+
+def cents_now(store: Store, ob: Obligation) -> int:
+    """What each instalment of `ob` is for as of today: a change of amount whose day has come
+    counts even before the morning folds it in."""
+    return ob.next_cents if ob.next_from != -1 and ob.next_from <= store.day else ob.cents
+
+
+def pending_change(store: Store, ob: Obligation) -> tuple[int, int] | None:
+    """(cents, day) of a change of amount announced for `ob` whose day has not yet come, or None."""
+    return (ob.next_cents, ob.next_from) if ob.next_from > store.day else None
 
 
 def _fold(store: Store, ob: Obligation, cause: str) -> None:

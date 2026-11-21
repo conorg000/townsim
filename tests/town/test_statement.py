@@ -1,4 +1,6 @@
-from townsim.town import obligations as O
+from townsim.town import gen, obligations as O
+from townsim.town.acts import Act, apply_act
+from townsim.town.loop import routine
 from townsim.town.statement import agreements_text, statement, statement_text
 
 from town.helpers import SETUP, make_rent, make_wage, run_days, town
@@ -166,3 +168,13 @@ def test_an_agreement_ended_before_its_first_payment_says_so():
     s.set("obligations", ob, "routine:t", status="finished")
     line = next(x for x in agreements_text(s, "h1").split("\n") if x.startswith(ob + ":"))
     assert line == f'{ob}: "help", $10.00 every week to Pryce, ended before its first payment, finished'
+
+
+def test_agreements_show_a_wage_s_change_of_pay_coming_with_its_day():
+    s = gen.generate(1, ["a", "b", "c", "d"])
+    routine(s)
+    out = apply_act(s, Act("p16", "p16", "set_staff_pay", {"who": "Karen Whiteley", "weekly_pay": 300}), 0)
+    assert out.ok, out.msg
+    wage = s.get("jobs", next(j.id for j in s.all("jobs") if j.person == "p15")).wage_ob
+    line = next(r for r in agreements_text(s, "h8").split("\n") if r.startswith(f"{wage}:"))
+    assert "$287.10 every week from Lumb's Grocer, $300.00 from Friday 13 March, first" in line, line
