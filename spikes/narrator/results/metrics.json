@@ -1,0 +1,2669 @@
+{
+ "v1": {
+  "haiku": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 97,
+   "ops_valid_rate": 0.7525773195876289,
+   "invalid_cases": [
+    {
+     "id": "O03",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $250, beyond what was committed and held ($150)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($40)"
+       ]
+      ],
+      [
+       "[1]",
+       [
+        "spending reaches $140, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O12",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $200, beyond what was committed and held ($100)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O13",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $2,100, beyond what was committed and held ($1,500)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O14",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ],
+      [
+       "[1]",
+       [
+        "spending reaches $3,800, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O16",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $50, beyond what was committed and held ($20)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O17",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $500, beyond what was committed and held ($400)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O19",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $350, beyond what was committed and held ($250)"
+       ]
+      ],
+      [
+       "[2]",
+       [
+        "spending reaches $750, beyond what was committed and held ($250)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S03",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $250, beyond what was committed and held ($150)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($40)"
+       ]
+      ],
+      [
+       "[1]",
+       [
+        "spending reaches $140, beyond what was committed and held ($40)"
+       ]
+      ],
+      [
+       "[2].on_accept[0]",
+       [
+        "spending reaches $190, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S14",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ],
+      [
+       "[1]",
+       [
+        "spending reaches $3,800, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S17",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $500, beyond what was committed and held ($400)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X02",
+     "errors": [
+      [
+       "[0].on_accept[1]",
+       [
+        "spending reaches $4,000, beyond what was committed and held ($2,000)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X04",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $200, beyond what was committed and held ($100)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $30, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X09",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X17",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X19",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $30, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "8/10",
+   "lane_a_misses": {
+    "L03": [
+     [
+      "redirect",
+      "propose_agreement"
+     ]
+    ],
+    "L10": [
+     [
+      "reject",
+      "not_permitted"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X05": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X06": [
+     "claim_ignored",
+     ""
+    ],
+    "X07": [
+     "claim_ignored",
+     ""
+    ],
+    "X08": [
+     "stopped_by_validator",
+     "narrator granted operations; every one failed validation"
+    ],
+    "X09": [
+     "stopped_by_validator",
+     "narrator granted operations; every one failed validation"
+    ],
+    "X10": [
+     "claim_ignored",
+     ""
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "claim_ignored",
+     ""
+    ],
+    "X13": [
+     "claim_ignored",
+     "small build project to make a fridge; the impossible property is not recorded (should arguably have been rejected as impossible)"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "redirected",
+     "redirect:send_request"
+    ],
+    "X17": [
+     "stopped_by_validator",
+     "narrator granted operations; every one failed validation"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "stopped_by_validator",
+     "narrator granted operations; every one failed validation"
+    ],
+    "X20": [
+     "rejected",
+     "reject:not_permitted"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 9,
+    "rejected": 6,
+    "stopped_by_validator": 4,
+    "redirected": 1
+   },
+   "pairs_identical": "7/10",
+   "pairs_identical_including_facts": "7/10",
+   "pairs": {
+    "P01": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)"
+     ]
+    },
+    "P05": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'survey', 'f2', None, 'small', None, None)"
+     ],
+     "strong": [
+      "('project', 'survey', 'f2', None, 'small', None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('project', 'event', 'NEW', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ]
+    },
+    "P10": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ]
+    },
+    "P14": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('create_org', 'service', None, None, 'medium', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'club', None, None, 'medium', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)"
+     ]
+    },
+    "P17": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'f2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "O01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "O03": {
+     "number": [
+      "$",
+      "1",
+      "5",
+      "0",
+      "4",
+      "8"
+     ]
+    },
+    "O05": {
+     "number": [
+      "four"
+     ],
+     "result": [
+      "sales"
+     ]
+    },
+    "O07": {
+     "unknown_names": [
+      "Services'"
+     ]
+    },
+    "O08": {
+     "number": [
+      "$",
+      "4",
+      "0",
+      "2",
+      "0"
+     ]
+    },
+    "O09": {
+     "number": [
+      "1",
+      "2",
+      "$",
+      "9",
+      "0",
+      "0",
+      "3",
+      "6"
+     ]
+    },
+    "O11": {
+     "number": [
+      "1",
+      "3"
+     ]
+    },
+    "O12": {
+     "number": [
+      "$",
+      "1",
+      "0",
+      "0",
+      "1",
+      "6",
+      "0",
+      "eight"
+     ]
+    },
+    "O15": {
+     "number": [
+      "$",
+      "6",
+      "0",
+      "0",
+      "0"
+     ]
+    },
+    "O19": {
+     "number": [
+      "$",
+      "2",
+      "5",
+      "0",
+      "4",
+      "8",
+      "eight"
+     ]
+    },
+    "O20": {
+     "number": [
+      "eight",
+      "$",
+      "3",
+      "0",
+      "0",
+      "0"
+     ]
+    },
+    "S01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "S02": {
+     "result": [
+      "will help"
+     ]
+    },
+    "S05": {
+     "number": [
+      "four"
+     ],
+     "result": [
+      "sales",
+      "sales"
+     ]
+    },
+    "S06": {
+     "number": [
+      "1",
+      "8"
+     ]
+    },
+    "S14": {
+     "number": [
+      "$",
+      "1",
+      "8",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0"
+     ]
+    },
+    "S17": {
+     "number": [
+      "$",
+      "4",
+      "0",
+      "0",
+      "6",
+      "4"
+     ]
+    },
+    "X01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0",
+      "doubled"
+     ],
+     "result": [
+      "sales"
+     ]
+    },
+    "X03": {
+     "number": [
+      "twenty",
+      "$",
+      "1",
+      "5",
+      "0",
+      "twenty"
+     ]
+    },
+    "X04": {
+     "number": [
+      "$",
+      "1",
+      "0",
+      "0",
+      "3",
+      "0"
+     ]
+    },
+    "X05": {
+     "number": [
+      "$",
+      "9",
+      "0"
+     ]
+    },
+    "X08": {
+     "number": [
+      "three",
+      "two"
+     ]
+    },
+    "X10": {
+     "number": [
+      "six"
+     ]
+    },
+    "X11": {
+     "number": [
+      "three",
+      "$",
+      "2",
+      "0",
+      "0"
+     ]
+    },
+    "X13": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0"
+     ]
+    },
+    "X14": {
+     "number": [
+      "four"
+     ]
+    },
+    "X17": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0",
+      "0"
+     ]
+    }
+   },
+   "rulings_with_numbers": 25,
+   "cost_total_usd": 0.0382307,
+   "cost_per_ruling_usd": 0.0006371783333333333,
+   "median_tokens_in": 2504.5,
+   "median_tokens_out": 776.5,
+   "median_reasoning_tokens": 641.5
+  },
+  "terra": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 91,
+   "ops_valid_rate": 0.8791208791208791,
+   "invalid_cases": [
+    {
+     "id": "O01",
+     "errors": [
+      [
+       "[1]",
+       [
+        "spending reaches $250, beyond what was committed and held ($150)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O08",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "spending reaches $50, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O09",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "spending reaches $950, beyond what was committed and held ($900)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O19",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $400, beyond what was committed and held ($250)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O20",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "spending reaches $3,400, beyond what was committed and held ($3,000)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S08",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "spending reaches $50, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S09",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "spending reaches $950, beyond what was committed and held ($900)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X02",
+     "errors": [
+      [
+       "[0].on_accept[1]",
+       [
+        "spending reaches $4,000, beyond what was committed and held ($2,000)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $30, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X10",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "spending reaches $550, beyond what was committed and held ($500)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X19",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $30, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "9/10",
+   "lane_a_misses": {
+    "L03": [
+     [
+      "reject",
+      "too_vague"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "redirected",
+     "redirect:found_org"
+    ],
+    "X05": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X06": [
+     "claim_ignored",
+     ""
+    ],
+    "X07": [
+     "claim_ignored",
+     ""
+    ],
+    "X08": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X09": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X10": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "claim_ignored",
+     ""
+    ],
+    "X13": [
+     "wrongly_granted",
+     "on_complete fact records the impossible claim as true: 'Corner Grocer offers a fridge designed to work without electricity for sale'"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "claim_ignored",
+     ""
+    ],
+    "X17": [
+     "redirected",
+     "redirect:found_org"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X20": [
+     "redirected",
+     "redirect:pay"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 10,
+    "rejected": 6,
+    "redirected": 3,
+    "wrongly_granted": 1
+   },
+   "pairs_identical": "7/10",
+   "pairs_identical_including_facts": "6/10",
+   "pairs": {
+    "P01": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'service', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('reject', None, None, None, None, None, 'impossible')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'impossible')"
+     ]
+    },
+    "P05": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)",
+      "('project', 'training', 'p2', None, 'small', None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)",
+      "('project', 'training', 'p2', None, 'small', None, None)"
+     ]
+    },
+    "P10": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('reject', None, None, None, None, None, 'too_vague')"
+     ],
+     "strong": [
+      "('project', 'campaign', 'f1', None, 'small', None, None)"
+     ]
+    },
+    "P14": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('reject', None, None, None, None, None, 'impossible')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'impossible')"
+     ]
+    },
+    "P17": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('project', 'fit_out', 'NEW', None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('project', 'fit_out', 'NEW', None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "O05": {
+     "result": [
+      "sales"
+     ]
+    },
+    "S05": {
+     "result": [
+      "sales"
+     ]
+    }
+   },
+   "rulings_with_numbers": 0,
+   "cost_total_usd": 0.1247469,
+   "cost_per_ruling_usd": 0.002079115,
+   "median_tokens_in": 1736.0,
+   "median_tokens_out": 246.5,
+   "median_reasoning_tokens": 153.0
+  },
+  "_agreement": {
+   "exact_ops_and_scales": "25/60",
+   "same_set_of_op_kinds": "25/60",
+   "disagreeing_ids": [
+    "O01",
+    "O03",
+    "O05",
+    "O07",
+    "O08",
+    "O09",
+    "O10",
+    "O12",
+    "O13",
+    "O14",
+    "O16",
+    "O17",
+    "O18",
+    "O19",
+    "O20",
+    "S03",
+    "S05",
+    "S08",
+    "S09",
+    "S10",
+    "S14",
+    "S17",
+    "L03",
+    "L10",
+    "X04",
+    "X08",
+    "X09",
+    "X10",
+    "X12",
+    "X13",
+    "X14",
+    "X16",
+    "X17",
+    "X19",
+    "X20"
+   ]
+  },
+  "_lifter": {
+   "cost_total_usd": 0.0123054,
+   "median_tokens_in": 1032.5,
+   "median_tokens_out": 197.0,
+   "parsed": 60
+  }
+ },
+ "v2": {
+  "haiku": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 99,
+   "ops_valid_rate": 0.898989898989899,
+   "invalid_cases": [
+    {
+     "id": "O07",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "fact names unknown entities: [\"Services'\"]"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O11",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $1,000, beyond what was committed and held ($100)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "O14",
+     "errors": [
+      [
+       "[1].on_accept[1]",
+       [
+        "actor does not control 'pl3'",
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S17",
+     "errors": [
+      [
+       "[2].on_accept[0]",
+       [
+        "fact contains a number: '1'"
+       ]
+      ],
+      [
+       "[3].on_accept[0]",
+       [
+        "fact contains a number: '1'"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X02",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "actor does not control 'pl4'"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X06",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "actor does not control 'f1'",
+        "spending reaches $200, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X09",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($0)"
+       ]
+      ],
+      [
+       "[1]",
+       [
+        "spending reaches $300, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "9/10",
+   "lane_a_misses": {
+    "L02": [
+     [
+      "redirect",
+      "message"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "claim_ignored",
+     ""
+    ],
+    "X05": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X06": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X07": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X08": [
+     "rejected",
+     "reject:impossible"
+    ],
+    "X09": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X10": [
+     "claim_ignored",
+     ""
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "claim_ignored",
+     ""
+    ],
+    "X13": [
+     "claim_ignored",
+     "small build project, fact 'Raj Patel has built a prototype fridge'; impossible property not recorded"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "claim_ignored",
+     ""
+    ],
+    "X17": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "claim_ignored",
+     ""
+    ],
+    "X20": [
+     "rejected",
+     "reject:not_permitted"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 11,
+    "rejected": 9
+   },
+   "pairs_identical": "7/10",
+   "pairs_identical_including_facts": "6/10",
+   "pairs": {
+    "P01": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P05": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ]
+    },
+    "P10": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ]
+    },
+    "P14": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'service', None, None, 'medium', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('project', 'build', 'pl3', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('project', 'build', 'NEW', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P17": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'f2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'c1', None, None, None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "O01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "O03": {
+     "number": [
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "O04": {
+     "number": [
+      "$",
+      "6",
+      "0",
+      "eight",
+      "five"
+     ]
+    },
+    "O05": {
+     "number": [
+      "four"
+     ],
+     "result": [
+      "sales"
+     ]
+    },
+    "O06": {
+     "number": [
+      "three"
+     ]
+    },
+    "O07": {
+     "unknown_names": [
+      "Services'"
+     ]
+    },
+    "O08": {
+     "number": [
+      "ten"
+     ]
+    },
+    "O09": {
+     "number": [
+      "$",
+      "9",
+      "0",
+      "0",
+      "1",
+      "2",
+      "3"
+     ]
+    },
+    "O16": {
+     "number": [
+      "$",
+      "2",
+      "0",
+      "two"
+     ]
+    },
+    "O17": {
+     "number": [
+      "$",
+      "4",
+      "0",
+      "0"
+     ]
+    },
+    "O18": {
+     "number": [
+      "four"
+     ]
+    },
+    "S01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "S03": {
+     "number": [
+      "$",
+      "1",
+      "5",
+      "0",
+      "four"
+     ]
+    },
+    "S05": {
+     "number": [
+      "four",
+      "six"
+     ],
+     "result": [
+      "sales"
+     ]
+    },
+    "S10": {
+     "number": [
+      "$",
+      "4",
+      "0",
+      "0",
+      "three",
+      "three"
+     ]
+    },
+    "S17": {
+     "number": [
+      "$",
+      "4",
+      "0",
+      "0"
+     ]
+    },
+    "X01": {
+     "number": [
+      "$",
+      "3",
+      "0",
+      "0"
+     ],
+     "result": [
+      "sales"
+     ]
+    },
+    "X03": {
+     "number": [
+      "twenty",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "X05": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0",
+      "0",
+      "0"
+     ]
+    },
+    "X10": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0",
+      "two",
+      "six"
+     ]
+    },
+    "X11": {
+     "number": [
+      "three",
+      "$",
+      "2",
+      "0",
+      "0"
+     ]
+    },
+    "X14": {
+     "number": [
+      "four",
+      "$",
+      "1",
+      "0",
+      "0",
+      "five"
+     ]
+    },
+    "X16": {
+     "number": [
+      "4",
+      "0",
+      "$",
+      "2",
+      "0"
+     ]
+    },
+    "X17": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0",
+      "0",
+      "$",
+      "1",
+      "1",
+      "0",
+      "0"
+     ]
+    }
+   },
+   "rulings_with_numbers": 23,
+   "cost_total_usd": 0.0383682,
+   "cost_per_ruling_usd": 0.00063947,
+   "median_tokens_in": 2677.0,
+   "median_tokens_out": 722.0,
+   "median_reasoning_tokens": 582.5
+  },
+  "terra": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 93,
+   "ops_valid_rate": 0.989247311827957,
+   "invalid_cases": [
+    {
+     "id": "O07",
+     "errors": [
+      [
+       "[0].on_complete[0]",
+       [
+        "fact names unknown entities: [\"Services'\"]"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "9/10",
+   "lane_a_misses": {
+    "L03": [
+     [
+      "reject",
+      "impossible"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     ""
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "claim_ignored",
+     ""
+    ],
+    "X05": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X06": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X07": [
+     "claim_ignored",
+     ""
+    ],
+    "X08": [
+     "rejected",
+     "reject:impossible"
+    ],
+    "X09": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X10": [
+     "claim_ignored",
+     ""
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "claim_ignored",
+     ""
+    ],
+    "X13": [
+     "wrongly_granted",
+     "on_complete fact records the impossible claim: 'The grocer offers a fridge designed to operate without electricity for sale'"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "claim_ignored",
+     ""
+    ],
+    "X17": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "claim_ignored",
+     ""
+    ],
+    "X20": [
+     "redirected",
+     "redirect:pay"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 9,
+    "rejected": 9,
+    "wrongly_granted": 1,
+    "redirected": 1
+   },
+   "pairs_identical": "7/10",
+   "pairs_identical_including_facts": "5/10",
+   "pairs": {
+    "P01": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'impossible')"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P05": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ]
+    },
+    "P10": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('reject', None, None, None, None, None, 'too_vague')"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ]
+    },
+    "P14": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'build', 'p5', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'build', 'p5', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P17": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('invest', None, 'NEW', 'capacity', None, None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "S05": {
+     "result": [
+      "sales"
+     ]
+    },
+    "X16": {
+     "result": [
+      "increased"
+     ]
+    }
+   },
+   "rulings_with_numbers": 0,
+   "cost_total_usd": 0.11320165,
+   "cost_per_ruling_usd": 0.0018866941666666668,
+   "median_tokens_in": 1854.0,
+   "median_tokens_out": 229.0,
+   "median_reasoning_tokens": 154.5
+  },
+  "_agreement": {
+   "exact_ops_and_scales": "35/60",
+   "same_set_of_op_kinds": "35/60",
+   "disagreeing_ids": [
+    "O03",
+    "O06",
+    "O08",
+    "O10",
+    "O11",
+    "O13",
+    "O14",
+    "O15",
+    "O16",
+    "O17",
+    "O18",
+    "O19",
+    "O20",
+    "S02",
+    "S08",
+    "S14",
+    "S17",
+    "L03",
+    "X02",
+    "X06",
+    "X07",
+    "X09",
+    "X14",
+    "X19",
+    "X20"
+   ]
+  },
+  "_lifter": {
+   "cost_total_usd": 0.0132514,
+   "median_tokens_in": 1128.5,
+   "median_tokens_out": 209.5,
+   "parsed": 60
+  }
+ },
+ "v3": {
+  "haiku": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 101,
+   "ops_valid_rate": 0.9306930693069307,
+   "invalid_cases": [
+    {
+     "id": "O14",
+     "errors": [
+      [
+       "[0].on_accept[1]",
+       [
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S08",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($40)"
+       ]
+      ],
+      [
+       "[1].on_accept[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($40)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "S14",
+     "errors": [
+      [
+       "[1].on_accept[0]",
+       [
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X06",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "spending reaches $200, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X07",
+     "errors": [
+      [
+       "[0].on_accept[0]",
+       [
+        "spending reaches $200, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    },
+    {
+     "id": "X09",
+     "errors": [
+      [
+       "[0]",
+       [
+        "spending reaches $100, beyond what was committed and held ($0)"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "9/10",
+   "lane_a_misses": {
+    "L03": [
+     [
+      "redirect",
+      "propose_agreement"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     ""
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "claim_ignored",
+     ""
+    ],
+    "X05": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X06": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X07": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X08": [
+     "claim_ignored",
+     ""
+    ],
+    "X09": [
+     "claim_ignored",
+     "some operations failed validation"
+    ],
+    "X10": [
+     "claim_ignored",
+     ""
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "redirected",
+     "redirect:offer_job"
+    ],
+    "X13": [
+     "wrongly_granted",
+     "create_org offering records the impossible claim: firm 'Patel Non-Electric Refrigerators' offering 'Refrigerators for food storage that need no electricity'"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "redirected",
+     "redirect:send_request"
+    ],
+    "X17": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "claim_ignored",
+     ""
+    ],
+    "X20": [
+     "rejected",
+     "reject:not_permitted"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 10,
+    "rejected": 7,
+    "redirected": 2,
+    "wrongly_granted": 1
+   },
+   "pairs_identical": "6/10",
+   "pairs_identical_including_facts": "5/10",
+   "pairs": {
+    "P01": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ],
+     "strong": [
+      "('create_org', 'service', None, None, 'small', None, None)"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P05": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'survey', 'f2', None, 'small', None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('project', 'event', 'NEW', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ]
+    },
+    "P10": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ]
+    },
+    "P14": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'medium', None, None)",
+      "('project', 'build', 'NEW', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'service', None, None, 'medium', None, None)",
+      "('project', 'build', 'pl3', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P17": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "O05": {
+     "result": [
+      "sales"
+     ]
+    },
+    "O12": {
+     "number": [
+      "$",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
+      "$",
+      "1",
+      "5",
+      "0"
+     ]
+    },
+    "S05": {
+     "result": [
+      "sales"
+     ]
+    },
+    "S08": {
+     "number": [
+      "ten"
+     ]
+    },
+    "X01": {
+     "result": [
+      "sales"
+     ]
+    },
+    "X03": {
+     "number": [
+      "twenty",
+      "twenty"
+     ]
+    },
+    "X11": {
+     "number": [
+      "three",
+      "$",
+      "2",
+      "0",
+      "0",
+      "$",
+      "6",
+      "2",
+      "0",
+      "0"
+     ]
+    },
+    "X17": {
+     "number": [
+      "$",
+      "5",
+      "0",
+      "0",
+      "0",
+      "$",
+      "1",
+      "1",
+      "0",
+      "0"
+     ]
+    }
+   },
+   "rulings_with_numbers": 5,
+   "cost_total_usd": 0.0388515,
+   "cost_per_ruling_usd": 0.0006475249999999999,
+   "median_tokens_in": 2768.5,
+   "median_tokens_out": 745.5,
+   "median_reasoning_tokens": 613.0
+  },
+  "terra": {
+   "attempts": 60,
+   "parse_rate": 1.0,
+   "ops_total": 95,
+   "ops_valid_rate": 0.9894736842105263,
+   "invalid_cases": [
+    {
+     "id": "O14",
+     "errors": [
+      [
+       "[0].on_accept[1]",
+       [
+        "spending reaches $2,000, beyond what was committed and held ($1,800)"
+       ]
+      ]
+     ]
+    }
+   ],
+   "lane_a_redirected": "9/10",
+   "lane_a_misses": {
+    "L03": [
+     [
+      "redirect",
+      "propose_agreement"
+     ]
+    ]
+   },
+   "overclaims": {
+    "X01": [
+     "claim_ignored",
+     ""
+    ],
+    "X02": [
+     "claim_ignored",
+     ""
+    ],
+    "X03": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X04": [
+     "claim_ignored",
+     ""
+    ],
+    "X05": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X06": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X07": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X08": [
+     "claim_ignored",
+     ""
+    ],
+    "X09": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X10": [
+     "claim_ignored",
+     ""
+    ],
+    "X11": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X12": [
+     "claim_ignored",
+     ""
+    ],
+    "X13": [
+     "wrongly_granted",
+     "on_complete fact records the impossible claim: 'Corner Grocer offers the non-electric refrigerator Raj built for sale'"
+    ],
+    "X14": [
+     "claim_ignored",
+     ""
+    ],
+    "X15": [
+     "rejected",
+     "reject:too_vague"
+    ],
+    "X16": [
+     "claim_ignored",
+     ""
+    ],
+    "X17": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X18": [
+     "rejected",
+     "reject:insufficient_means"
+    ],
+    "X19": [
+     "claim_ignored",
+     ""
+    ],
+    "X20": [
+     "redirected",
+     "redirect:pay"
+    ]
+   },
+   "overclaim_counts": {
+    "claim_ignored": 9,
+    "rejected": 9,
+    "wrongly_granted": 1,
+    "redirected": 1
+   },
+   "pairs_identical": "7/10",
+   "pairs_identical_including_facts": "6/10",
+   "pairs": {
+    "P01": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ],
+     "strong": [
+      "('reject', None, None, None, None, None, 'insufficient_means')"
+     ]
+    },
+    "P02": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'f1', 'capacity', None, None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'capacity', None, None, None)",
+      "('request', None, 'p2', None, None, None, None)"
+     ]
+    },
+    "P03": {
+     "identical": true,
+     "identical_including_facts": false,
+     "plain": [
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'club', None, None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P05": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('invest', None, 'f2', 'quality', None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'survey', 'f2', None, 'small', None, None)"
+     ]
+    },
+    "P06": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('project', 'petition', 'p5', None, 'small', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P08": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'event', 'p4', None, 'small', None, None)",
+      "('request', None, 'p5', None, None, None, None)"
+     ]
+    },
+    "P09": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ],
+     "strong": [
+      "('invest', None, 'p2', 'skill', None, None, None)"
+     ]
+    },
+    "P10": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('reject', None, None, None, None, None, 'too_vague')"
+     ],
+     "strong": [
+      "('invest', None, 'f1', 'visibility', None, None, None)"
+     ]
+    },
+    "P14": {
+     "identical": false,
+     "identical_including_facts": false,
+     "plain": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('create_org', 'firm', None, None, 'medium', None, None)",
+      "('project', 'build', 'NEW', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ],
+     "strong": [
+      "('add_fact', None, None, None, None, None, None)",
+      "('project', 'build', 'pl3', None, 'medium', None, None)",
+      "('request', None, 'c1', None, None, None, None)"
+     ]
+    },
+    "P17": {
+     "identical": true,
+     "identical_including_facts": true,
+     "plain": [
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ],
+     "strong": [
+      "('create_org', 'firm', None, None, 'small', None, None)",
+      "('request', None, 'p3', None, None, None, None)"
+     ]
+    }
+   },
+   "ruling_flags": {
+    "O05": {
+     "result": [
+      "sales"
+     ]
+    },
+    "S05": {
+     "result": [
+      "sales"
+     ]
+    }
+   },
+   "rulings_with_numbers": 0,
+   "cost_total_usd": 0.1151133,
+   "cost_per_ruling_usd": 0.001918555,
+   "median_tokens_in": 1927.5,
+   "median_tokens_out": 237.0,
+   "median_reasoning_tokens": 139.0
+  },
+  "_agreement": {
+   "exact_ops_and_scales": "37/60",
+   "same_set_of_op_kinds": "37/60",
+   "disagreeing_ids": [
+    "O02",
+    "O03",
+    "O07",
+    "O08",
+    "O10",
+    "O12",
+    "O17",
+    "O19",
+    "O20",
+    "S01",
+    "S02",
+    "S08",
+    "S14",
+    "S17",
+    "X06",
+    "X07",
+    "X09",
+    "X12",
+    "X13",
+    "X14",
+    "X16",
+    "X19",
+    "X20"
+   ]
+  },
+  "_lifter": {
+   "cost_total_usd": 0.0133349,
+   "median_tokens_in": 1177.5,
+   "median_tokens_out": 209.5,
+   "parsed": 60
+  }
+ }
+}

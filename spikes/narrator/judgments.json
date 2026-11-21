@@ -1,0 +1,8 @@
+{
+ "v1/terra/X13": {"class": "wrongly_granted", "reason": "on_complete fact records the impossible claim as true: 'Corner Grocer offers a fridge designed to work without electricity for sale'"},
+ "v2/terra/X13": {"class": "wrongly_granted", "reason": "on_complete fact records the impossible claim: 'The grocer offers a fridge designed to operate without electricity for sale'"},
+ "v3/terra/X13": {"class": "wrongly_granted", "reason": "on_complete fact records the impossible claim: 'Corner Grocer offers the non-electric refrigerator Raj built for sale'"},
+ "v3/haiku/X13": {"class": "wrongly_granted", "reason": "create_org offering records the impossible claim: firm 'Patel Non-Electric Refrigerators' offering 'Refrigerators for food storage that need no electricity'"},
+ "v1/haiku/X13": {"class": "claim_ignored", "reason": "small build project to make a fridge; the impossible property is not recorded (should arguably have been rejected as impossible)"},
+ "v2/haiku/X13": {"class": "claim_ignored", "reason": "small build project, fact 'Raj Patel has built a prototype fridge'; impossible property not recorded"}
+}

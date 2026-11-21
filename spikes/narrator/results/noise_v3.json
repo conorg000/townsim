@@ -1,0 +1,60 @@
+{
+ "haiku": {
+  "identical_on_rerun": "11/20",
+  "differing": {
+   "O02": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('project', 'fit_out', 'f1', None, 'medium', None, None)",
+    "('request', None, 'p2', None, None, None, None)"
+   ],
+   "O03": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('create_org', 'club', None, None, 'small', None, None)",
+    "('invest', None, 'NEW', 'capacity', None, None, None)",
+    "('request', None, 'c1', None, None, None, None)"
+   ],
+   "O05": [
+    "('redirect', None, None, None, None, 'order_stock', None)"
+   ],
+   "S01": [
+    "('reject', None, None, None, None, None, 'insufficient_means')"
+   ],
+   "S02": [
+    "('project', 'fit_out', 'f1', None, 'medium', None, None)"
+   ],
+   "S03": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('create_org', 'club', None, None, 'small', None, None)",
+    "('invest', None, 'NEW', 'capacity', None, None, None)",
+    "('request', None, 'c1', None, None, None, None)"
+   ],
+   "S05": [
+    "('project', 'survey', 'f2', None, 'small', None, None)"
+   ],
+   "S14": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('create_org', 'club', None, None, 'medium', None, None)",
+    "('project', 'build', 'NEW', None, 'medium', None, None)",
+    "('request', None, 'c1', None, None, None, None)"
+   ],
+   "S17": [
+    "('create_org', 'firm', None, None, 'small', None, None)",
+    "('request', None, 'p3', None, None, None, None)"
+   ]
+  }
+ },
+ "terra": {
+  "identical_on_rerun": "18/20",
+  "differing": {
+   "O05": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('project', 'survey', 'f2', None, 'small', None, None)"
+   ],
+   "O14": [
+    "('add_fact', None, None, None, None, None, None)",
+    "('project', 'build', 'pl3', None, 'medium', None, None)",
+    "('request', None, 'c1', None, None, None, None)"
+   ]
+  }
+ }
+}

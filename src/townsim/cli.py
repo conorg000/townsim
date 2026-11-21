@@ -349,6 +349,23 @@ def estimate_cmd(
         typer.echo(f"  {'total':<40}{_dollars(result['mix']['cost_usd']):>12}")
 
 
+@app.command("skill")
+def skill_cmd(
+    seeds: Annotated[int, typer.Option("--seeds", min=1, help="How many seeds to run.")] = 10,
+    first_seed: Annotated[int, typer.Option("--first-seed", help="The first seed.")] = 1,
+    weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks in each trial.")] = 52,
+    levers: Annotated[
+        bool, typer.Option("--levers/--no-levers", help="Also rerun Skilled with each skill off.")
+    ] = True,
+    as_json: Annotated[bool, typer.Option("--json", help="Print JSON instead of a table.")] = False,
+) -> None:
+    """Plan step 0, "Does skill pay?": scripted managers in the small economy. No model is called."""
+    from townsim.econ.skilltest import experiment, format_table
+
+    result = experiment(list(range(first_seed, first_seed + seeds)), weeks, levers)
+    typer.echo(json.dumps(result, indent=2) if as_json else format_table(result))
+
+
 def _parse_mix(text: str) -> dict[str, str] | None:
     if not text.strip():
         return None

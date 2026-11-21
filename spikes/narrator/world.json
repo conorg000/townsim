@@ -1,0 +1,347 @@
+{
+ "needs": [
+  "food",
+  "housing",
+  "repairs",
+  "care",
+  "clothing",
+  "leisure",
+  "transport",
+  "education",
+  "money_advice",
+  "supplies",
+  "deliveries",
+  "bookkeeping",
+  "advertising"
+ ],
+ "households": {
+  "h1": {
+   "members": [
+    "p1",
+    "p2"
+   ],
+   "dwelling": "owned terraced house on Harbour Road"
+  },
+  "h2": {
+   "members": [
+    "p3",
+    "p4"
+   ],
+   "dwelling": "flat above the Corner Grocer, owned"
+  },
+  "h3": {
+   "members": [
+    "p5",
+    "p6"
+   ],
+   "dwelling": "rented semi on Mill Lane"
+  },
+  "h4": {
+   "members": [
+    "p7",
+    "p8",
+    "p9"
+   ],
+   "dwelling": "owned house on Church Street, with a mortgage"
+  },
+  "h5": {
+   "members": [
+    "p10"
+   ],
+   "dwelling": "rented room on Market Street"
+  }
+ },
+ "people": {
+  "p1": {
+   "name": "Maggie Doyle",
+   "household": "h1",
+   "job": "owner of Harbour Bakery",
+   "cash_cents": 620000,
+   "skills": [
+    "baking",
+    "bookkeeping"
+   ],
+   "controls": [
+    "f1"
+   ],
+   "facts": []
+  },
+  "p2": {
+   "name": "Tom Doyle",
+   "household": "h1",
+   "job": "handyman at Fixit Services",
+   "cash_cents": 110000,
+   "skills": [
+    "carpentry",
+    "plumbing"
+   ],
+   "controls": [],
+   "facts": [
+    "has a shed with woodworking tools"
+   ]
+  },
+  "p3": {
+   "name": "Raj Patel",
+   "household": "h2",
+   "job": "owner of Corner Grocer",
+   "cash_cents": 950000,
+   "skills": [
+    "retail",
+    "ordering stock"
+   ],
+   "controls": [
+    "f2"
+   ],
+   "facts": []
+  },
+  "p4": {
+   "name": "Anita Patel",
+   "household": "h2",
+   "job": "part-time shop assistant at Corner Grocer; council member",
+   "cash_cents": 80000,
+   "skills": [
+    "languages",
+    "organising"
+   ],
+   "controls": [],
+   "facts": [
+    "has children at the primary school"
+   ]
+  },
+  "p5": {
+   "name": "Gloria Mensah",
+   "household": "h3",
+   "job": "retired; chair of the Town Council",
+   "cash_cents": 2200000,
+   "skills": [
+    "sewing",
+    "gardening"
+   ],
+   "controls": [],
+   "facts": [
+    "has a large front room"
+   ]
+  },
+  "p6": {
+   "name": "Kwame Mensah",
+   "household": "h3",
+   "job": "owner of Fixit Services",
+   "cash_cents": 340000,
+   "skills": [
+    "electrical work",
+    "carpentry"
+   ],
+   "controls": [
+    "f3"
+   ],
+   "facts": []
+  },
+  "p7": {
+   "name": "Helen Ward",
+   "household": "h4",
+   "job": "banker at Town Savings Bank",
+   "cash_cents": 1200000,
+   "skills": [
+    "finance",
+    "lending"
+   ],
+   "controls": [
+    "b1"
+   ],
+   "facts": []
+  },
+  "p8": {
+   "name": "Ben Ward",
+   "household": "h4",
+   "job": "out of work",
+   "cash_cents": 15000,
+   "skills": [
+    "driving",
+    "cooking"
+   ],
+   "controls": [],
+   "facts": [
+    "lost his job at the delivery depot recently",
+    "has the use of his late father's old car"
+   ]
+  },
+  "p9": {
+   "name": "Lily Ward",
+   "household": "h4",
+   "job": "student; weekend counter assistant at Harbour Bakery",
+   "cash_cents": 9000,
+   "skills": [
+    "drawing",
+    "social media"
+   ],
+   "controls": [],
+   "facts": [
+    "is seventeen"
+   ]
+  },
+  "p10": {
+   "name": "Sam Okafor",
+   "household": "h5",
+   "job": "shelf stacker at Corner Grocer",
+   "cash_cents": 45000,
+   "skills": [
+    "football coaching",
+    "cooking"
+   ],
+   "controls": [],
+   "facts": []
+  }
+ },
+ "orgs": {
+  "f1": {
+   "name": "Harbour Bakery",
+   "kind": "firm",
+   "need": "food",
+   "offering": "bread, cakes and buns",
+   "owner": "p1",
+   "staff": [
+    "p1",
+    "p9"
+   ],
+   "cash_cents": 400000,
+   "quality": "middling",
+   "capacity": "low",
+   "reputation": "good",
+   "visibility": "low",
+   "facts": [
+    "has an unused back room full of old equipment",
+    "is on a side street off the main road"
+   ]
+  },
+  "f2": {
+   "name": "Corner Grocer",
+   "kind": "firm",
+   "need": "food",
+   "offering": "groceries and household goods",
+   "owner": "p3",
+   "staff": [
+    "p3",
+    "p4",
+    "p10"
+   ],
+   "cash_cents": 700000,
+   "quality": "middling",
+   "capacity": "middling",
+   "reputation": "middling",
+   "visibility": "high",
+   "facts": [
+    "the empty shop unit next door belongs to the Town Council"
+   ]
+  },
+  "f3": {
+   "name": "Fixit Services",
+   "kind": "firm",
+   "need": "repairs",
+   "owner": "p6",
+   "offering": "household repairs",
+   "staff": [
+    "p6",
+    "p2"
+   ],
+   "cash_cents": 250000,
+   "quality": "good",
+   "capacity": "low",
+   "reputation": "good",
+   "visibility": "middling",
+   "facts": [
+    "its van needs new brakes"
+   ]
+  },
+  "c1": {
+   "name": "Town Council",
+   "kind": "council",
+   "need": null,
+   "offering": "the town's rules, roads and public land",
+   "owner": null,
+   "officers": [
+    "p5",
+    "p4",
+    "p6"
+   ],
+   "chair": "p5",
+   "cash_cents": 3000000,
+   "facts": [
+    "a by-law bans street stalls on Market Street",
+    "owns the empty shop unit next to Corner Grocer",
+    "owns the waste ground behind St Mary's church"
+   ]
+  },
+  "b1": {
+   "name": "Town Savings Bank",
+   "kind": "bank",
+   "need": "money_advice",
+   "offering": "savings accounts and loans",
+   "owner": null,
+   "officers": [
+    "p7"
+   ],
+   "cash_cents": 50000000,
+   "quality": "middling",
+   "capacity": "middling",
+   "reputation": "good",
+   "visibility": "low",
+   "facts": [
+    "has a meeting room on the ground floor"
+   ]
+  }
+ },
+ "places": {
+  "pl1": {
+   "name": "the recreation ground",
+   "owner": "c1",
+   "facts": [
+    "open grass where people play games"
+   ]
+  },
+  "pl2": {
+   "name": "the beach",
+   "owner": "c1",
+   "facts": [
+    "open to the public"
+   ]
+  },
+  "pl3": {
+   "name": "the waste ground behind St Mary's church",
+   "owner": "c1",
+   "facts": [
+    "unused and overgrown"
+   ]
+  },
+  "pl4": {
+   "name": "the empty shop unit next to Corner Grocer",
+   "owner": "c1",
+   "facts": [
+    "empty"
+   ]
+  },
+  "pl5": {
+   "name": "Market Street",
+   "owner": "c1",
+   "facts": [
+    "a by-law bans street stalls here"
+   ]
+  },
+  "pl6": {
+   "name": "the primary school",
+   "owner": "c1",
+   "facts": [
+    "on a busy road with no crossing"
+   ]
+  }
+ },
+ "outside": "Garages, course providers, wholesalers and other suppliers beyond the town sell to anyone who pays; they are not named in the record.",
+ "rules": {
+  "r1": {
+   "name": "the by-law banning street stalls on Market Street",
+   "made_by": "c1",
+   "facts": [
+    "can be changed by a council vote"
+   ]
+  }
+ }
+}
