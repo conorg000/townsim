@@ -19,7 +19,8 @@ from townsim.econ.firm import Firm
 from townsim.town import firms, jobs
 from townsim.town.acts import TIE_RANKS, knows, name_of_who
 from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
-from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, money, name_of, owed_dues, upcoming
+from townsim.town.obligations import (LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, last_instalment, money, name_of,
+                                      owed_dues, upcoming)
 from townsim.town.store import Store, id_key
 
 WHO_WORDS = 300
@@ -178,6 +179,21 @@ def _payday(ob) -> str:
     return DAYS[dow(ob.first)] + "s"
 
 
+def ends_on(ob) -> str:
+    """The day the last instalment of `ob` falls, as written: never its raw `last` day."""
+    return when(last_instalment(ob))
+
+
+def rents(store: Store, payer: str, payee: str | None = None) -> tuple[list, list]:
+    """(in force today, agreed to start later): the rents `payer` pays (to `payee`). One in
+    force runs over today, though its last instalment may already have been paid (a rent
+    changing on its next rent day); one agreed to start later is active."""
+    obs = [o for o in store.where("obligations", payer=payer) if o.kind == "rent" and (payee is None or o.payee == payee)]
+    now = [o for o in obs if o.status in SCHEDULED + ("finished",) and o.first <= store.day
+           and (o.last is None or o.last >= store.day) and (o.status != "finished" or o.last is not None)]
+    return now, [o for o in obs if o.status in SCHEDULED and o.first > store.day]
+
+
 def _home(store: Store, pid: str) -> list[str]:
     p = store.get("people", pid)
     h = store.get("households", p.household)
@@ -186,14 +202,18 @@ def _home(store: Store, pid: str) -> list[str]:
     hname = h.name if "household" in h.name else f"{h.name} household"
     alone = "" if len(h.members) > 1 else " alone"
     lines = [f"You live{alone}{where}; your household is the {hname}."]
-    rent = [o for o in _active(store, payer=h.id) if o.kind == "rent"]
+    now, later = rents(store, h.id)
+    rent = now or later
     mortgage = [o for o in _active(store, payer=h.id) if o.kind == "loan" and o.memo.startswith("mortgage")]
     if rent:
         lord = name_of_who(store, h.landlord) if h.landlord else name_of(store, rent[0].payee)
-        lines.append(f"The house is rented from {lord} for {money(rent[0].cents)} a week, paid on {_payday(rent[0])}.")
+        line = f"The house is rented from {lord} for {money(rent[0].cents)} a week, paid on {_payday(rent[0])}."
+        if now and later:
+            line += f" The rent changes to {money(later[0].cents)} a week from {when(later[0].first)}."
+        lines.append(line)
     elif mortgage:
         m = mortgage[0]
-        last = f", the last payment on {when(m.last)}" if m.last is not None else ""
+        last = f", the last payment on {ends_on(m)}" if m.last is not None else ""
         lines.append(f"The house is yours, with a mortgage of {money(m.cents)} a week to "
                      f"{name_of(store, m.payee)}{last}.")
     elif h.street:
@@ -282,13 +302,13 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
             owed = [o for o in _live(store, payer=payer) if o.payee == payee and o.kind == "agreement"]
             if owed:
                 o, first = owed[0], other.name.split()[0]
-                found.append(f"Paying back {first}: {money(o.cents)} a week until {when(o.last)}."
+                found.append(f"Paying back {first}: {money(o.cents)} a week until {ends_on(o)}."
                              if t.kind == "creditor" else
                              f"Whether {first} keeps up the {money(o.cents)} a week owed to you.")
     mine = _relation_counts(store, pid)
     for o in _live(store, payer=home):
         if o.kind == "loan" and not o.memo.startswith("mortgage") and mine:
-            found.append(f"The {o.memo} costs {money(o.cents)} a week until {when(o.last)}.")
+            found.append(f"The {o.memo} costs {money(o.cents)} a week until {ends_on(o)}.")
     food = [f for f in store.all("firms") if f.need == firms.NEED]
     smallest = min(food, key=lambda f: (f.last_units, id_key(f.id))).org if food else ""
     for org in [o for o in store.all("orgs") if o.owner == pid and not o.outside and store.where("firms", org=o.id)]:
@@ -315,7 +335,7 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
         if mine_ob.status in SCHEDULED and mine_ob.cents <= all_cents[len(all_cents) // 2]:
             found.append(f"Getting by on your pension of {money(mine_ob.cents)} a week.")
     if store.has("people", h.landlord) and h.landlord != pid:
-        rent = [o for o in _live(store, payer=home) if o.kind == "rent"]
+        rent = rents(store, home)[0]
         if rent:
             found.append(f"Your rent of {money(rent[0].cents)} a week to {store.get('people', h.landlord).name}.")
     mortgage = [o for o in _live(store, payer=home) if o.memo.startswith("mortgage")]
@@ -397,10 +417,13 @@ def _work(store: Store, pid: str) -> list[str]:
             lines.append(f"Also working at {org.name}: {_and(staff)}.")
     for other in store.all("households"):
         if other.landlord in (pid, home) and other.id != home:
-            got = [o for o in _active(store, payer=other.id) if o.kind == "rent" and o.payee == home]
+            now, later = rents(store, other.id, home)
+            got = now or later
             what = f" for {money(got[0].cents)} a week" if got else ""
+            if now and later:
+                what += f"; it changes to {money(later[0].cents)} from {when(later[0].first)}"
             who = "You let" if other.landlord == pid else "Your household lets"
-            lines.append(f"{who} {other.street or 'a house'} to {_the(other.name)}{what}.")
+            lines.append(f"{who} {other.street or 'a house'} to the {other.name.split(' household')[0]} household{what}.")
     if not held:
         wages = {j.wage_ob for j in store.all("jobs")}
         for o in _active(store, payee=home):
@@ -425,25 +448,26 @@ def _last_sum(ob) -> str:
 
 def _debts(store: Store, pid: str) -> list[tuple[int, str]]:
     """(cents, line) for what the household owes and is owed with a last date, largest first;
-    the mortgage is told with the house."""
+    the mortgage and the rent are told with the house."""
     h = store.get("people", pid).household
     rows = []
     for o in _active(store, payer=h):
-        if o.last is not None and not (o.kind == "loan" and o.memo.startswith("mortgage")):
+        if o.last is not None and o.kind != "rent" and not (o.kind == "loan" and o.memo.startswith("mortgage")):
             rows.append((o.cents, f"Your household owes {_the(name_of(store, o.payee))}: {memo(o.memo)}, "
-                                  f"{money(o.cents)} a week, the last payment{_last_sum(o)} on {when(o.last)}."))
+                                  f"{money(o.cents)} a week, the last payment{_last_sum(o)} on {ends_on(o)}."))
     for o in _active(store, payee=h):
-        if o.last is not None:
+        if o.last is not None and o.kind != "rent":
             rows.append((o.cents, f"{_the(name_of(store, o.payer), True)} owes your household: "
                                   f"{memo(o.memo)}, {money(o.cents)} a week, the last payment{_last_sum(o)} on "
-                                  f"{when(o.last)}."))
+                                  f"{ends_on(o)}."))
     return sorted(rows, key=lambda r: -r[0])
 
 
 def who(store: Store, pid: str) -> str:
-    """The person in the second person, from their rows, in at most 300 words where it can
-    be: what gives way is their interests, then their friends, then their family in other
-    houses (`PEOPLE YOU KNOW` has both), then debts past the three largest."""
+    """The person in the second person, from their rows, in at most 300 words: what gives way
+    is debts past the three largest by weekly sum (one line counts them), then their interests,
+    then their friends, then their family in other houses (`PEOPLE YOU KNOW` has both), then
+    their beliefs, worries and voice; and if that is still too long, the words past the 299th."""
     p = store.get("people", pid)
     known = people_known(store, pid)
     head = [f"You are {p.name}, {p.age}."] + _home(store, pid) + _housemates(store, pid, known) + _work(store, pid)
@@ -463,18 +487,28 @@ def who(store: Store, pid: str) -> str:
     def text() -> str:
         return "\n".join(head + debts + kin_line + friends_line + beliefs + interests + worry_line + voice)
 
-    for give in ("interests", "friends", "kin", "debts"):
+    for give in ("debts", "interests", "friends", "kin", "beliefs", "worries", "voice"):
         if _words(text()) <= WHO_WORDS:
             break
-        if give == "interests":
+        if give == "debts" and len(debts) > 3:
+            more = len(debts) - 3
+            debts = debts[:3] + [f"and {more} more debt{'' if more == 1 else 's'}."]
+        elif give == "interests":
             interests = []
         elif give == "friends":
             friends_line = []
         elif give == "kin":
             kin_line = []
-        else:
-            debts = debts[:3]
-    return text()
+        elif give == "beliefs":
+            beliefs = []
+        elif give == "worries":
+            worry_line = []
+        elif give == "voice":
+            voice = []
+    out = text()
+    if _words(out) > WHO_WORDS:                    # only the account of their own rows is left: cut it
+        out = cut_words(out, WHO_WORDS - 1)
+    return out
 
 
 # --- what is owed, and the bank's book --------------------------------------------------------
@@ -500,8 +534,8 @@ def _until(ob) -> str:
     if ob.last is None:
         return ""
     if last_cents(ob) != ob.cents:
-        return f", the last, on {when(ob.last)}, {money(last_cents(ob))}"
-    return f", until {when(ob.last)}"
+        return f", the last, on {ends_on(ob)}, {money(last_cents(ob))}"
+    return f", until {ends_on(ob)}"
 
 
 def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:

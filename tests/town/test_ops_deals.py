@@ -12,7 +12,7 @@ import pytest
 from townsim.town import obligations as O
 from townsim.town.acts import REGISTRY, Act, apply_act
 from townsim.town.entities import Org
-from townsim.town.facts import bank_book, owed_lines
+from townsim.town.facts import bank_book, owed_lines, who
 from townsim.town.statement import agreements_text
 
 from .helpers import add_person, set_cash, tie, town_with_shop
@@ -73,9 +73,10 @@ SHOPPING = dict(to="Megan Pryce", amount=20, per="week", weeks=4, start="Friday 
                 what="towards the shopping")
 
 
-def agreed(s, n=0):
-    """Ruth proposes SHOPPING on day 0 and Megan accepts it; the obligation."""
-    ok(s, "p01", "propose_agreement", n, **SHOPPING)
+def agreed(s, n=0, **terms):
+    """Ruth proposes SHOPPING (with `terms` in place of its own) on day 0 and Megan accepts it;
+    the obligation."""
+    ok(s, "p01", "propose_agreement", n, **{**SHOPPING, **terms})
     rq = s.all("requests")[-1]
     ok(s, "p04", "answer", n + 1, request=rq.id, answer="accept")
     return s.all("obligations")[-1]
@@ -94,17 +95,16 @@ def test_an_agreement_is_one_thing_listed_for_both_with_its_start_date():
     s = deals_town()
     out = ok(s, "p01", "propose_agreement", **SHOPPING)
     rq = s.all("requests")[-1]
-    assert out.msg == f"Sent to Megan Pryce ({rq.id}). It stays open until Monday 16 March."
+    assert out.msg == f"Sent to Megan Pryce ({rq.id}). It stays open until Thursday 5 March."
     summary = ('Ruth Ashby pays Megan Pryce $20.00 every week from Friday 6 March for 4 weeks ($80.00 in all): '
                '"towards the shopping".')
-    assert (rq.kind, rq.to, rq.cents, rq.summary) == ("agreement", "p04", 0, summary)
+    assert (rq.kind, rq.to, rq.cents, rq.text, rq.summary) == ("agreement", "p04", 0, "", summary)
     assert s.where("obligations", kind="agreement") == []
     live(s, 1)
     out = ok(s, "p04", "answer", 1, request=rq.id, answer="accept")
     ob = s.all("obligations")[-1]
     assert out.msg == f"Accepted. Agreed ({ob.id}): {summary}"
-    assert told(s, "p01")[-1] == f'Megan Pryce accepted your request {rq.id} ("towards the shopping"). ' \
-                                 f"Agreed ({ob.id}): {summary}"
+    assert told(s, "p01")[-1].endswith(f"Agreed ({ob.id}): {summary}")
     assert (ob.kind, ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.last, ob.ends, ob.made_by, ob.memo) == \
         ("agreement", "h1", "h2", 2000, 4, 7, 25, "both", "p01", '"towards the shopping"')
     line = f'{ob.id}: "towards the shopping", $20.00 every week to Pryce, first Friday 6 March, ' \
@@ -127,11 +127,12 @@ def test_a_single_payment_and_one_until_ended_are_worded_so():
                                              '"towards the shopping".')
     ok(s, "p01", "propose_agreement", 1, **{**SHOPPING, "weeks": 0, "pays": "them", "start": None})
     rq = s.all("requests")[-1]
-    assert rq.summary == ('Megan Pryce pays Ruth Ashby $20.00 every week from Tuesday 3 March until either side '
-                          'ends it: "towards the shopping".')
+    assert rq.summary == ('Megan Pryce pays Ruth Ashby $20.00 every week from Wednesday 4 March until either side '
+                          'ends it: "towards the shopping".')            # no start written: the day after tomorrow
+    live(s, 1)
     ok(s, "p04", "answer", 2, request=rq.id, answer="accept")
     ob = s.all("obligations")[-1]
-    assert (ob.payer, ob.payee, ob.first, ob.last) == ("h2", "h1", 1, None)
+    assert (ob.payer, ob.payee, ob.first, ob.last) == ("h2", "h1", 2, None)
 
 
 def test_what_was_only_said_in_a_letter_is_listed_nowhere():
@@ -153,29 +154,114 @@ def test_terms_are_checked_again_when_accepted():
     msg = refused(s, "p04", "answer", request=rq.id, answer="accept")
     assert msg == "Not done: Ruth Ashby no longer owns Marsh's Stores."
     assert s.get("requests", rq.id).status == "open"
-    # a start that has passed moves to the next same weekday, and acceptance says so
-    s = deals_town()
-    ok(s, "p01", "propose_agreement", **SHOPPING)
-    rq = s.all("requests")[-1]
-    to_day(s, 5)
-    out = ok(s, "p04", "answer", request=rq.id, answer="accept")
-    ob = s.all("obligations")[-1]
-    assert out.msg == (f"Accepted. Agreed ({ob.id}): Ruth Ashby pays Megan Pryce $20.00 every week from "
-                       f'Friday 13 March for 4 weeks ($80.00 in all): "towards the shopping". '
-                       f"The first date proposed, Friday 6 March, had passed.")
-    assert (ob.first, ob.last) == (11, 32)
-    # one accepted on its first day starts a week on, as that day's payments have been taken
-    s2 = deals_town()
-    ok(s2, "p01", "propose_agreement", **SHOPPING)
-    to_day(s2, 4)
-    out = ok(s2, "p04", "answer", request=s2.all("requests")[-1].id, answer="accept")
-    assert out.msg.endswith("from Friday 13 March for 4 weeks ($80.00 in all): \"towards the shopping\". "
-                            "The first date proposed, Friday 6 March, is today.")
     # proposals that would start in the past, or today, are refused
+    to_day(s, 5)
     assert refused(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Monday 2 March"}) == \
         "Not done: Monday 2 March has passed."
     assert refused(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Saturday 7 March"}) == \
         "Not done: Saturday 7 March is today."
+
+
+def test_an_agreement_lapses_before_it_would_start():
+    s = deals_town()
+    ok(s, "p01", "propose_agreement", **SHOPPING)
+    rq = s.all("requests")[-1]
+    to_day(s, 3)                                                 # its last day: Thursday, the day before it starts
+    out = ok(s, "p04", "answer", request=rq.id, answer="accept")
+    ob = s.all("obligations")[-1]
+    assert out.msg == f"Accepted. Agreed ({ob.id}): {rq.summary}" and (ob.first, ob.last) == (4, 25)
+    s = deals_town()
+    ok(s, "p01", "propose_agreement", **SHOPPING)
+    rq = s.all("requests")[-1]
+    to_day(s, 4)
+    assert refused(s, "p04", "answer", request=rq.id, answer="accept").startswith("Not done: you have no open request")
+    live(s, 1)
+    assert s.get("requests", rq.id).status == "lapsed"
+    assert s.where("obligations", kind="agreement") == []
+    # fourteen days at most, for a start further off
+    s = deals_town()
+    ok(s, "p01", "propose_agreement", **{**SHOPPING, "start": "Friday 3 April"})
+    assert s.all("requests")[-1].expires == 14
+
+
+def test_ending_says_what_was_already_paid_toward_the_days_after():
+    s = deals_town()
+    ob = agreed(s)
+    live(s, 2)                                                   # Wednesday
+    ok(s, "p01", "repay", id=ob.id, amount=5)                    # toward Friday's instalment
+    assert [(d.day, d.paid, d.status) for d in s.where("dues", obligation=ob.id)] == [(4, 500, "due")]
+    ok(s, "p01", "propose_end", 1, id=ob.id)
+    rq = s.all("requests")[-1]
+    assert (rq.to, rq.first, rq.pay, rq.text) == ("p03", 3, 500, "")
+    assert rq.summary == (f'Ruth Ashby asks to end "towards the shopping" ({ob.id}): no payment after Thursday '
+                          f"5 March. $5.00 already paid toward Friday 6 March stays with the Pryce household.")
+    ok(s, "p01", "repay", 2, id=ob.id, amount=5)                 # the figure changes before it is answered
+    assert refused(s, "p03", "answer", request=rq.id, answer="accept") == (
+        f"Not done: what was paid ahead on {ob.id} has changed since {rq.id} was made. $10.00 already paid "
+        f"toward Friday 6 March stays with the Pryce household.")
+    ok(s, "p01", "propose_end", 3, id=ob.id)                     # asked again, with the new figure
+    rq = s.all("requests")[-1]
+    live(s, 1)
+    ok(s, "p03", "answer", request=rq.id, answer="accept")
+    assert s.get("obligations", ob.id).status == "finished"
+    assert [(d.day, d.paid, d.status) for d in s.where("dues", obligation=ob.id)] == [(4, 1000, "void")]
+    assert '$10.00 already paid toward "towards the shopping" due Friday 6 March stays with Pryce.' in told(s, "p01")
+    assert '$10.00 already paid toward "towards the shopping" due Friday 6 March is yours to keep.' in told(s, "p04")
+    to_day(s, 30)
+    assert [t.cents for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == [500, 500]
+    assert refused(s, "p01", "repay", id=ob.id, amount=1).startswith("Not done: you have no loan or agreement")
+
+
+def test_ending_a_single_payment_already_paid_toward():
+    s = deals_town()
+    ob = agreed(s, **{"per": "once"})
+    ok(s, "p01", "repay", 5, id=ob.id, amount=5)
+    ok(s, "p01", "propose_end", 6, id=ob.id)
+    rq = s.all("requests")[-1]
+    assert rq.summary.endswith("no payment after Thursday 5 March. $5.00 already paid toward Friday 6 March stays "
+                               "with the Pryce household.")
+    ok(s, "p03", "answer", 7, request=rq.id, answer="accept")
+    assert s.get("obligations", ob.id).status == "finished"
+    assert [(d.paid, d.status) for d in s.where("dues", obligation=ob.id)] == [(500, "void")]
+    assert told(s, "p04")[-1].endswith("is yours to keep.")
+    to_day(s, 10)
+    assert [t.cents for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2"] == [500]
+    # one due tomorrow has nothing after it to end
+    s = deals_town()
+    ok(s, "p01", "propose_agreement", **{**SHOPPING, "per": "once", "start": "Tuesday 3 March"})
+    ok(s, "p04", "answer", 1, request=s.all("requests")[-1].id, answer="accept")
+    once = s.all("obligations")[-1]
+    assert refused(s, "p01", "propose_end", id=once.id) == (
+        f"Not done: {once.id} has one payment left, on Tuesday 3 March, and that is tomorrow: there is nothing "
+        f"after it to end.")
+
+
+def test_repaying_an_agreement_pays_it_ahead_and_never_past_its_end():
+    s = deals_town()
+    ob = agreed(s)
+    set_cash(s, "h1", 100_000)
+    assert refused(s, "p01", "repay", id=ob.id, amount=80.01) == "Not done: that is more than the $80.00 still owed."
+    ok(s, "p01", "repay", 5, id=ob.id, amount=50)
+    assert [(d.day, d.paid, d.status) for d in s.where("dues", obligation=ob.id)] == \
+        [(4, 2000, "paid"), (11, 2000, "paid"), (18, 1000, "due")]
+    assert s.get("obligations", ob.id).last == 25
+    ok(s, "p01", "repay", 6, id=ob.id, amount=30)
+    assert s.get("obligations", ob.id).status == "finished"
+    to_day(s, 30)
+    assert sum(t.cents for t in s.ledger.transfers if t.src == "h1" and t.dst == "h2") == 8000
+    assert all(d.day <= 25 and d.status == "paid" for d in s.where("dues", obligation=ob.id))
+
+
+def test_a_breach_paid_off_in_full_is_finished():
+    s = deals_town()
+    ob = agreed(s, **{"weeks": 2})
+    ok(s, "p01", "stop", 5, id=ob.id)
+    assert s.get("obligations", ob.id).status == "breached"
+    to_day(s, 12)
+    assert [d.status for d in s.where("dues", obligation=ob.id)] == ["arrears", "arrears"]
+    set_cash(s, "h1", 100_000)
+    ok(s, "p01", "pay", to="Megan Pryce", amount=40, **{"for": ob.id})
+    assert s.get("obligations", ob.id).status == "finished"
 
 
 def test_ending_by_agreement_is_no_breach():
@@ -206,7 +292,7 @@ def test_a_loan_of_1000_over_26_weeks_repays_4077_a_week_and_1060_in_all():
     s = deals_town()
     out = ok(s, "p03", "borrow", amount=1000, weeks=26, purpose="a van")
     rq = s.all("requests")[-1]
-    assert out.msg == f"Sent to Dora Penn ({rq.id}). It stays open until Sunday 8 March."
+    assert out.msg == f"Sent to Dora Penn ({rq.id}). It stays open until Thursday 12 March."
     summary = ('Craig Pryce asks the bank for $1,000.00 over 26 weeks, repaying $40.77 a week ($1,060.00 in all) '
                'from Friday 13 March, the last, on Friday 4 September, $40.75: "a van". '
                'They now owe the bank $0.00 on 0 loans, $0.00 of it overdue.')
@@ -230,6 +316,18 @@ def test_a_loan_of_1000_over_26_weeks_repays_4077_a_week_and_1060_in_all():
     ok(s, "p04", "borrow", 2, amount=50, weeks=4, purpose="shoes")
     assert s.all("requests")[-1].summary.endswith("They now owe the bank $1,060.00 on 1 loan, $0.00 of it overdue.")
     assert [u.cents for u in O.upcoming(s, "h2", 200) if u.obligation == ob.id][-1] == 4075
+
+
+def test_a_loan_asked_for_at_the_weekend_names_its_first_friday_and_stays_open_until_the_day_before():
+    s = deals_town()
+    to_day(s, 5)                                                 # Saturday 7 March
+    ok(s, "p03", "borrow", amount=1000, weeks=26, purpose="a van")
+    rq = s.all("requests")[-1]
+    assert (rq.first, rq.expires, rq.text) == (11, 10, "")
+    assert "from Friday 13 March" in rq.summary
+    to_day(s, 10)
+    ok(s, "p05", "answer", request=rq.id, answer="accept")
+    assert s.all("obligations")[-1].first == 11
 
 
 def test_the_banker_decides_and_the_money_moves_once():
@@ -333,6 +431,15 @@ def test_a_rent_change_takes_28_days_and_the_tenant_is_told():
         ("rent", "h2", "h4", 20_000, 28, old.memo)
     assert s.get("obligations", old.id).last == 27
     live(s, 3)
+    # (and a change made after the old rent's last instalment has been taken, on day 22, is made the same way)
+    s2 = pickle.loads(pickle.dumps(s))
+    to_day(s2, 22)
+    assert s2.get("obligations", old.id).status == "finished"
+    ok(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=220)
+    assert (s2.get("obligations", old.id).status, s2.get("obligations", old.id).last) == ("active", 55)
+    to_day(s2, 57)
+    assert [(t.t, t.cents) for t in s2.ledger.transfers if t.src == "h2" and t.dst == "h4" and t.t >= 21] == \
+        [(21, 18_500), (28, 18_500), (35, 18_500), (42, 18_500), (49, 18_500), (56, 22_000)]
     ok(s, "p06", "set_rent", tenant="Megan", weekly=210)
     assert told(s, "p04")[-1] == "Your rent for 4 Mill Lane changes from $185.00 to $210.00 a week from Monday 6 April."
     assert s.get("obligations", first.id).status == "finished"
@@ -512,3 +619,53 @@ def test_every_refusal_states_a_fact():
     assert refused(s, "p03", "borrow", amount=100, weeks=10, purpose="x") == "Not done: the bank has no banker."
     s.set("orgs", "org4", T, kind="lender")
     assert refused(s, "p03", "borrow", amount=100, weeks=10, purpose="x") == "Not done: there is no bank in the town."
+
+
+# what people are told of their lives stays true
+
+def test_who_tells_the_rent_in_force_and_a_change_coming_on_both_sides():
+    s = deals_town()
+    set_cash(s, "h2", 10_000_000)
+    rented = "The house is rented from Len Hale for $185.00 a week, paid on Mondays."
+    assert rented in who(s, "p03").split("\n")
+    assert "You let 4 Mill Lane to the Pryce household for $185.00 a week." in who(s, "p06").split("\n")
+    ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
+    for day in (0, 27):
+        to_day(s, day)
+        assert f"{rented} The rent changes to $200.00 a week from Monday 30 March." in who(s, "p03").split("\n")
+        assert ("You let 4 Mill Lane to the Pryce household for $185.00 a week; it changes to $200.00 from "
+                "Monday 30 March.") in who(s, "p06").split("\n")
+        assert "rent" not in " ".join(line for line in who(s, "p03").split("\n") if line.startswith("Your household owes"))
+    to_day(s, 28)
+    assert "The house is rented from Len Hale for $200.00 a week, paid on Mondays." in who(s, "p03").split("\n")
+    assert "You let 4 Mill Lane to the Pryce household for $200.00 a week." in who(s, "p06").split("\n")
+    assert "changes" not in who(s, "p03") + who(s, "p06")
+
+
+def test_a_last_payment_is_the_day_its_last_instalment_falls():
+    s = deals_town()
+    ob = agreed(s)
+    O.end(s, ob.id, 20, T)                                       # a Sunday: the last instalment is Friday 20 March
+    assert s.get("obligations", ob.id).last == 20
+    assert "until Friday 20 March, active" in agreements_text(s, "h1")
+    assert any(r.endswith("until Friday 20 March") for r in owed_lines(s, "h1"))
+    assert "the last payment on Friday 20 March." in who(s, "p04")
+    assert "Sunday 22 March" not in agreements_text(s, "h1") + " ".join(owed_lines(s, "h1")) + who(s, "p04")
+    loan = lent(s, n=5)
+    O.end(s, loan.id, 30, T)
+    assert f"{loan.id}: Pryce, loan for \"a van\", $40.77 a week, until Friday 27 March" in bank_book(s, "p05")
+
+
+def test_who_is_at_most_300_words_for_everyone():
+    """On seeds 1 to 5 on day 0, and on seed 1 after eight weeks of the scripted life."""
+    from townsim.town import gen, hamlet_script
+    from townsim.town.loop import run_day
+    from townsim.town.replies import Keys, ScriptedReplier
+    stores = [gen.generate(seed, ["a", "b", "c", "d"]) for seed in range(1, 6)]
+    s = gen.generate(1, ["a", "b", "c", "d"])
+    keys = Keys("w")
+    for _ in range(56):
+        run_day(s, ScriptedReplier(hamlet_script.script), keys)
+    for s in stores + [s]:
+        for p in s.all("people"):
+            assert len(who(s, p.id).split()) <= 300, (s.seed, s.day, p.id, len(who(s, p.id).split()))

@@ -8,7 +8,7 @@ from bisect import bisect_left
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
-from townsim.town.obligations import OWED, SCHEDULED, Upcoming, last_cents, money, name_of, upcoming
+from townsim.town.obligations import OWED, SCHEDULED, Upcoming, last_cents, last_instalment, money, name_of, upcoming
 from townsim.town.store import Store
 
 
@@ -192,9 +192,10 @@ def agreements_text(store: Store, account: str) -> str:
                         f"{ob.status}")
             continue
         how = {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
-        until = f", until {date_text(ob.last)}" if ob.last is not None else ""
+        end = last_instalment(ob)                    # the day its last instalment falls, not its raw `last`
+        until = f", until {date_text(end)}" if ob.last is not None else ""
         if ob.last is not None and last_cents(ob) != ob.cents:
-            until = f", the last, on {date_text(ob.last)}, {money(last_cents(ob))}"
+            until = f", the last, on {date_text(end)}, {money(last_cents(ob))}"
         rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, first {date_text(ob.first)}{until}, "
                     f"{ob.status}")
     if len(rows) > AGREEMENT_LINES:
