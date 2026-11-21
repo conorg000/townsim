@@ -69,13 +69,14 @@ def _is_int(x: object) -> bool:
 
 def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first: int, every: int = 0,
            last: int | None = None, memo: str, ends: str, made_by: str, cause: str,
-           penalty: bool = False, final_cents: int = 0, cannot_stop: str = "") -> str:
+           penalty: bool = False, final_cents: int = 0, cannot_stop: str = "", party: str = "") -> str:
     """Add an obligation and return its id. Raises ValueError, changing nothing, on bad arguments.
 
     `first` may not be before today. If an instalment falls today its due is opened here,
     so an obligation made after that day's `open_dues` is still collected today. A
     `final_cents` above 0 is the instalment that falls on `last`, which must then be given.
-    `cannot_stop`, a key of `UNSTOPPABLE`, marks one its payer may not stop.
+    `cannot_stop`, a key of `UNSTOPPABLE`, marks one its payer may not stop. `party` is the
+    person who agreed to an agreement `made_by` proposed.
     """
     if kind not in KIND_ORDER:
         raise ValueError(f"kind {kind!r} is not one of {KIND_ORDER}")
@@ -99,7 +100,7 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
     if cannot_stop and cannot_stop not in UNSTOPPABLE:
         raise ValueError(f"cannot_stop {cannot_stop!r} is not one of {tuple(UNSTOPPABLE)}")
     ob = Obligation(store.new_id("ob", cause), kind, payer, payee, cents, first, every, last, memo, ends,
-                    made_by, store.day, penalty, final_cents=final_cents, cannot_stop=cannot_stop)
+                    made_by, store.day, penalty, final_cents=final_cents, cannot_stop=cannot_stop, party=party)
     store.add("obligations", ob, cause)
     if falls_on(ob, store.day):
         ensure_due(store, ob.id, store.day, cause)

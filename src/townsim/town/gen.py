@@ -712,7 +712,7 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
         first = rng.choice((MONDAY, FRIDAY, SATURDAY))
         O.create(s, kind="agreement", payer=dh, payee=ch, cents=cents, first=first, every=7,
                  last=first + 7 * (weeks - 1), memo=f"paying back {s.get('people', creditor).name}", ends="both",
-                 made_by=debtor, cause=SETUP)
+                 made_by=debtor, cause=SETUP, party=creditor)
         in_debt |= {dh, ch}
         made += 1
 

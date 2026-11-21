@@ -164,6 +164,7 @@ class Obligation:
     next_from: int = -1        # the day a change of amount takes effect, or -1 for none pending
     stopped_on: int = -1       # the day its payer stopped it (stopped or breached), or -1
     cannot_stop: str = ""      # why its payer may not stop it: "living", "energy", "work" (`obligations.UNSTOPPABLE`)
+    party: str = ""            # an agreement: the person who agreed to what `made_by` proposed
 
 
 @dataclass

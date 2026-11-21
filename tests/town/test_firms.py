@@ -34,10 +34,10 @@ def test_shopping_conserves_money_and_logs_every_move():
     s = shops_town(seed=3); firms.deliver(s); before = len(s.ledger.transfers)
     for _ in range(7): firms.shop_today(s); s.advance_day()
     assert s.ledger.total() == 0 and len(s.ledger.transfers) > before
-    assert all(t.cause == "routine:shopping" and t.memo.startswith("food x") or
-               t.cause == "routine:shopping" and t.memo.startswith("food out of town x")
+    assert all(t.cause == "routine:shopping" and t.memo.endswith(" of food") or
+               t.cause == "routine:shopping" and t.memo.endswith(" of food out of town")
                for t in s.ledger.transfers[before:])
-    assert any(t.memo.startswith("food x") for t in s.ledger.transfers[before:])
+    assert any(t.memo.endswith(" of food") for t in s.ledger.transfers[before:])
 
 
 def test_money_taken_matches_units_sold_at_the_price():
@@ -45,7 +45,7 @@ def test_money_taken_matches_units_sold_at_the_price():
     for _ in range(7): firms.shop_today(s); s.advance_day()
     for f in s.all("firms"):
         taken = sum(t.cents for t in shopping(s) if t.dst == f.org)
-        units = sum(int(t.memo.split("x")[-1]) for t in shopping(s) if t.dst == f.org)
+        units = sum(int(t.memo.split()[0]) for t in shopping(s) if t.dst == f.org)
         assert f.sold > 0 and units == f.sold and taken == f.sold * f.price
 
 
@@ -98,7 +98,7 @@ def test_a_days_shopping_makes_one_transfer_per_payer_and_payee():
         pairs = {(t.src, t.dst) for t in day}
         assert len(day) == len(pairs) <= len({t.src for t in day}) * len({t.dst for t in day})
         assert [(t.src, t.dst) for t in day] == sorted(pairs)
-        units += sum(int(t.memo.split("x")[-1]) for t in day); transfers += len(day)
+        units += sum(int(t.memo.split()[0]) for t in day); transfers += len(day)
     assert units > 3 * transfers   # many units, few transfers
 
 
@@ -106,8 +106,8 @@ def test_with_every_shelf_empty_food_is_bought_out_of_town():
     s = shops_town(); assert not s.ledger.has("outside:market")
     for _ in range(7): firms.shop_today(s); s.advance_day()
     out = shopping(s)
-    assert out and all(t.dst == "outside:market" and t.memo.startswith("food out of town x") for t in out)
-    assert sum(t.cents for t in out) == 1150 * sum(int(t.memo.split("x")[-1]) for t in out)
+    assert out and all(t.dst == "outside:market" and t.memo.endswith(" of food out of town") for t in out)
+    assert sum(t.cents for t in out) == 1150 * sum(int(t.memo.split()[0]) for t in out)
     assert s.ledger.accounts["outside:market"].allow_credit is False and s.ledger.total() == 0
 
 

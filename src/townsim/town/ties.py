@@ -8,7 +8,8 @@ read from the records on the day it is asked about, so it follows what has happe
   others who work in the same place are coworkers;
 - `landlord` and `tenant` from who lets the house a household lives in;
 - `creditor` and `debtor` from agreements in force between two accounts, or with something
-  still owed on them: the adults of a household, or the owner of a business, on each side;
+  still owed on them: on each side the one of the two who made it (`agreed`), or failing that
+  the adults of a household or the owner of a business;
 - `banker` from a loan from the bank in force, and `borrower` the other way;
 - `former_employee` and `former_employer`, with the last day worked, from a job that ended
   (and no job held there today).
@@ -38,6 +39,18 @@ def _people_of(store: Store, account: str) -> list[str]:
         owner = store.get("orgs", account).owner
         return [owner] if owner and store.has("people", owner) else []
     return []
+
+
+def agreed(store: Store, ob, account: str) -> list[str]:
+    """Who stands for `account` in the agreement `ob`: of the two who made it (`made_by` and
+    `party`), those whose account it is; or, when neither is, its adults or owner."""
+    def theirs(p: str) -> bool:
+        if not store.has("people", p):
+            return False
+        return store.get("people", p).household == account or (
+            store.has("orgs", account) and store.get("orgs", account).owner == p)
+    made = [p for p in dict.fromkeys((ob.made_by, ob.party)) if theirs(p)]
+    return made or _people_of(store, account)
 
 
 def _in_force(store: Store, ob) -> bool:
@@ -118,15 +131,17 @@ def _kinds(store: Store, pid: str) -> dict[str, list[str]]:
     mine = {home, *owned}
     for account in mine:
         for ob in store.where("obligations", payer=account):
-            if ob.kind == "agreement" and ob.payee not in mine and _in_force(store, ob):
-                for p in _people_of(store, ob.payee):
+            if ob.kind == "agreement" and ob.payee not in mine and _in_force(store, ob) \
+                    and pid in agreed(store, ob, ob.payer):
+                for p in agreed(store, ob, ob.payee):
                     add(p, "creditor")
             elif ob.kind == "loan" and store.has("orgs", ob.payee) and store.get("orgs", ob.payee).kind == "bank" \
                     and _in_force(store, ob):
                 add(store.get("orgs", ob.payee).contact, "banker")
         for ob in store.where("obligations", payee=account):
-            if ob.kind == "agreement" and ob.payer not in mine and _in_force(store, ob):
-                for p in _people_of(store, ob.payer):
+            if ob.kind == "agreement" and ob.payer not in mine and _in_force(store, ob) \
+                    and pid in agreed(store, ob, ob.payee):
+                for p in agreed(store, ob, ob.payer):
                     add(p, "debtor")
     for bank in store.all("orgs"):
         if bank.kind == "bank" and bank.contact == pid:

@@ -1053,9 +1053,10 @@ def test_a_job_that_has_ended_is_no_longer_shown():
     who = facts.who(s, pid)
     mine = "\n".join(_who_lines_without_the_persons_own_words(s, pid, who))    # worries are as they stand
     assert employer not in mine and f"{job.hours:g} hours a week" not in mine
-    pensions = [o for o in s.where("obligations", payee=s.get("people", pid).household)
-                if o.kind == "wage" and o.status == "active" and o.id not in {j.wage_ob for j in s.all("jobs")}]
-    assert ("You have no work at present." in who) == (not pensions) or "Your household is paid" in who
+    assert "You have no work at present." in who
+    if jobs.benefit_held(s, pid):
+        amount = money(s.get("obligations", jobs.benefit_held(s, pid)).cents)
+        assert f"You are paid jobseeker's benefit of {amount} a week by " in who
     for m in s.get("households", s.get("people", pid).household).members:
         if m != pid:
             line = next(x for x in facts.who(s, m).split("\n") if x.startswith(s.get("people", pid).name + ", "))

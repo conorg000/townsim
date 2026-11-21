@@ -898,7 +898,7 @@ def test_an_agreement_until_ended_between_debtor_and_creditor_is_told_without_an
     from townsim.town.facts import worries
     s = deals_town()
     agreed(s, weeks=0)                       # the tie is read from the agreement: no row is needed
-    assert "Paying the Pryce household $20.00 a week until either side ends it." in worries(s, "p01", 20)
+    assert "Paying Megan $20.00 a week until either side ends it." in worries(s, "p01", 20)      # she agreed
     assert "Whether Ruth keeps up the $20.00 a week owed to you." in worries(s, "p04", 20)
     for pid in ("p01", "p04"):
         who(s, pid)

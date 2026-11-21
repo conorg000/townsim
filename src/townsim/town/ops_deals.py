@@ -254,7 +254,7 @@ def _do_agreement(store: Store, act: Act, rq: Request, cause: str) -> str:
     last = rq.first + 7 * (rq.times - 1) if rq.every and rq.times else None
     ob = obligations.create(store, kind="agreement", payer=rq.payer, payee=rq.payee, cents=rq.pay, first=rq.first,
                             every=rq.every, last=last, memo=_quoted_part(rq.summary), ends="both",
-                            made_by=rq.sender, cause=cause)
+                            made_by=rq.sender, cause=cause, party=act.principal)
     return f"Agreed ({ob}): {rq.summary}"
 
 

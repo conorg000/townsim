@@ -197,7 +197,8 @@ def shop_today(store: Store) -> None:
         if any(payee == OUT_OF_TOWN for _, payee in totals) and not store.ledger.has(OUT_OF_TOWN):
             store.open_account(OUT_OF_TOWN, SHOPPING)
         for (payer, payee), (cents, units) in sorted(totals.items()):
-            memo = f"{NEED} out of town x{units}" if payee == OUT_OF_TOWN else f"{NEED} x{units}"
+            basket = "basket" if units == 1 else "baskets"
+            memo = f"{units} {basket} of {NEED} out of town" if payee == OUT_OF_TOWN else f"{units} {basket} of {NEED}"
             store.transfer(payer, payee, cents, memo, SHOPPING)
         for b, hh in zip(buyers, households):
             store.set("buyers", b.id, SHOPPING, shopped_week=week,

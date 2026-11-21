@@ -185,7 +185,7 @@ def _result_text(r, latest_read: str | None, read_words: int) -> str:
     if _is_read(r) and r.id != latest_read:
         return f"{r.op}: not shown, a later read follows"
     words = read_words if r.id == latest_read else RESULT_WORDS
-    op = r.op if r.op.strip().lower() in acts.REGISTRY or r.op == "(no operation named)" else f"'{r.op}'"
+    op = r.op if r.op.strip().lower() in acts.REGISTRY or r.op in ("(no operation named)", "(more)") else f"'{r.op}'"
     if _is_read(r):                                                # a listing code wrote: its lines stay
         return _fit(f"{op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
     return _fit(" ".join(f"{op}: {r.text}".split()), words, CHARS_A_WORD * words)

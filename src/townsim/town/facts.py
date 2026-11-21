@@ -303,13 +303,11 @@ def _live(store: Store, **where: str) -> list:
 
 
 def _side(store: Store, household: str, ob) -> str:
-    """Who one household's side of an agreement is, in a sentence: the person who made it if
-    they live there, else its one adult, else `the <name> household`."""
+    """Who one household's side of an agreement is, in a sentence: the one of those who made it
+    who lives there, or its one adult (`ties.agreed`), else `the <name> household`."""
     h = store.get("households", household)
-    if ob.made_by in h.members:
-        return store.get("people", ob.made_by).name.split()[0]
-    grown = [p for p in h.members if store.get("people", p).age >= ties.ADULT]
-    return store.get("people", grown[0]).name.split()[0] if len(grown) == 1 else \
+    who = ties.agreed(store, ob, household)
+    return store.get("people", who[0]).name.split()[0] if len(who) == 1 else \
         f"the {h.name.split(' household')[0]} household"
 
 
@@ -330,12 +328,12 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
         found.append(f"More goes out each week ({money(out)}) than comes in ({money(inn)}).")
     mine = _relation_counts(store, pid)
     for o in _live(store, payer=home):
-        if o.kind == "agreement" and store.has("households", o.payee) and p.age >= ties.ADULT:
+        if o.kind == "agreement" and store.has("households", o.payee) and pid in ties.agreed(store, o, home):
             back = o.memo.removeprefix("paying back ").split()[0] if o.memo.startswith("paying back ") else ""
             found.append(f"Paying back {back}: {money(o.cents)} a week until {ends_on(o)}." if back else
                          f"Paying {_side(store, o.payee, o)} {money(o.cents)} a week until {ends_on(o)}.")
     for o in _live(store, payee=home):
-        if o.kind == "agreement" and store.has("households", o.payer) and p.age >= ties.ADULT:
+        if o.kind == "agreement" and store.has("households", o.payer) and pid in ties.agreed(store, o, home):
             found.append(f"Whether {_side(store, o.payer, o)} keeps up the {money(o.cents)} a week owed to you.")
     for o in _live(store, payer=home):
         if o.kind == "loan" and not o.memo.startswith("mortgage") and mine:
@@ -488,11 +486,20 @@ def _work(store: Store, pid: str) -> list[str]:
             lines.append(f"{who} {other.street or 'a house'} to the {other.name.split(' household')[0]} household{what}.")
     if not held:
         wages = {j.wage_ob for j in store.all("jobs")}
+        others = {x for q in store.get("households", home).members if q != pid
+                  for x in (jobs.benefit_held(store, q), getattr(_pension_of(store, q), "id", None)) if x}
+        mine = {jobs.benefit_held(store, pid), getattr(_pension_of(store, pid), "id", None)}
+        if store.where("jobs", person=pid):
+            lines.append("You have no work at present.")
         for o in _active(store, payee=home):
-            if o.kind == "wage" and o.id not in wages and not store.has("households", o.payer):
+            if o.kind != "wage" or o.id in wages or store.has("households", o.payer) or o.id in others:
+                continue
+            if o.id in mine:
+                what = "a state pension" if o.memo == "state pension" else memo(o.memo)
+                lines.append(f"You are paid {what} of {money(o.cents)} a week by {name_of(store, o.payer)}, "
+                             f"on {_payday(o)}.")
+            else:
                 lines.append(f"Your household is paid {memo(o.memo)}: {money(o.cents)} a week, on {_payday(o)}.")
-    if not lines and store.where("jobs", person=pid):
-        lines.append("You have no work at present.")
     return lines
 
 
