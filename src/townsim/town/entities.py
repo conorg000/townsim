@@ -296,6 +296,17 @@ class Job:
 
 
 @dataclass
+class Aim:
+    """Something on `person`'s mind, in their own words, held since day `since`. A row
+    whose `text` is empty is a slot not in use: rows are reused, never removed."""
+
+    id: str
+    person: str
+    text: str
+    since: int
+
+
+@dataclass
 class Event:
     """Something ordinary that will happen on `day`, dealt when the place was made. `kind` is
     illness, job_lost, repair, supplier_short or cold_month; `who` the person, household,

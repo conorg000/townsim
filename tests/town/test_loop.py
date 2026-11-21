@@ -246,7 +246,7 @@ def test_results_are_never_held_back_by_the_word_cap():
     run_day(s, ScriptedReplier(lambda key, messages: reply if key.actor == "p03" and key.day == 0 else "x"), Keys("x"))
     text = person_view(s, "p03")[1]["content"]
     assert "fly: Not done: there is no operation called 'fly'.\nread: Balance: " in text
-    assert "more not shown yet)" in text
+    assert " more: " in text and " letters, 0 notices)" in text
 
 
 def test_ids_are_counted_under_the_cause_of_what_made_them(weeks8):

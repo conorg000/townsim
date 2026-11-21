@@ -306,3 +306,13 @@ def test_rows_of_a_table_this_store_lacks_are_none_but_other_errors_rise():
     s = thin(); s._tables["ties"] = None                               # a broken store is not hidden
     with pytest.raises(Exception):
         _rows(s, "ties")
+
+
+def test_family_in_another_house_ranks_as_kin():
+    s = thin()
+    for kind in ("partner", "parent", "child", "sibling"):
+        t = tie(s, "p01", "p03", kind)
+        assert tie_rank(s, "p01", "p03") == 1, kind
+        s.set("ties", t, T, kind="friend")
+    t = tie(s, "p01", "p02", "partner")
+    assert tie_rank(s, "p01", "p02") == 0                              # the same household is closer still

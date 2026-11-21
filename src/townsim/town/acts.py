@@ -219,7 +219,7 @@ def knows(store: Store, pid: str) -> list[str]:
     return sorted((p for p in found if p != pid and store.has("people", p)), key=id_key)
 
 
-_TIE_RANKS = {"kin": 1, "friend": 2, "employer": 3, "employee": 3, "coworker": 3,
+_TIE_RANKS = {"kin": 1, "partner": 1, "parent": 1, "child": 1, "sibling": 1, "friend": 2, "employer": 3, "employee": 3, "coworker": 3,
               "landlord": 4, "tenant": 4, "creditor": 4, "debtor": 4, "banker": 4}
 UNKNOWN = 6
 
@@ -230,7 +230,8 @@ def _rows(store: Store, table: str) -> list:
 
 
 def tie_rank(store: Store, pid: str, other: str) -> int:
-    """How close `other` is to `pid`: 0 household, 1 kin, 2 friend, 3 employer, employee or
+    """How close `other` is to `pid`: 0 household, 1 kin (a partner, parent, child or sibling
+    in another house is kin), 2 friend, 3 employer, employee or
     coworker, 4 landlord, tenant, creditor, debtor or banker, 5 anyone else known, 6 unknown.
     For an organisation: 3 if they work there or own it, 4 if it is their household's
     landlord or a bank, else 6."""

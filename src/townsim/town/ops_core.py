@@ -12,13 +12,15 @@ and notes are the actor's own. Names are resolved as the actor knows people.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from townsim.town import obligations
-from townsim.town.acts import (Act, OpSpec, account_of, clean_text, controls, cut, dollars, from_account,
+from townsim.town.acts import (Act, OpSpec, account_of, clean_text, controls, cut, dollars, from_account, knows,
                                name_of_who, register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
+from townsim.town.names import FIRST_NAMES
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, statement, statement_text
 from townsim.town.store import Store
@@ -253,9 +255,30 @@ def _check_message(store: Store, act: Act) -> str | None:
     return _text(act.args.get("text"), "that is too long for one letter.")
 
 
+_PAIR = re.compile(r"(?=\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b)")
+_FIRST = frozenset(FIRST_NAMES)
+
+
+def unknown_names(store: Store, reader: str, sender: str, text: str) -> list[str]:
+    """The names in `text` that are no one `reader` knows, in the order they first appear:
+    every two capitalised words in a row whose first is a first name people here bear and
+    which are not the full name of the reader, the sender or anyone the reader knows."""
+    known = {store.get("people", p).name.casefold() for p in [reader, *knows(store, reader)]}
+    if store.has("people", sender):
+        known.add(store.get("people", sender).name.casefold())
+    found: list[str] = []
+    for m in _PAIR.finditer(text):
+        name = f"{m.group(1)} {m.group(2)}"
+        if m.group(1) in _FIRST and name.casefold() not in known and name not in found:
+            found.append(name)
+    return found
+
+
 def _do_message(store: Store, act: Act, cause: str) -> str:
     to, org = _addressee(store, act)
-    message = Message(store.new_id("msg", cause), store.day, act.actor, to, clean_text(act.args["text"]), org=org)
+    text = clean_text(act.args["text"])
+    message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org,
+                      unknown=unknown_names(store, to, act.actor, text))
     store.add("messages", message, cause)
     return f"Sent to {name_of_who(store, org or to)}."
 
