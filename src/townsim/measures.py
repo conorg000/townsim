@@ -88,7 +88,9 @@ def measures(log: EventLog, run_id: str) -> dict:
     marked illegal, including `action_rejected` events for an illegal action that failed
     its preconditions. `cost_usd` sums the known costs of model
     calls; `cost_unknown_calls` counts the model calls whose cost was not known, so a
-    nonzero count means `cost_usd` is a lower bound.
+    nonzero count means `cost_usd` is a lower bound. `assistant_actions` counts the AI
+    system's tool uses by tool, `assistant_messages_sent` the messages it sent, and
+    `assistant_payments_total` the cents its firms paid out with `pay`.
     """
     events = [e for _, e in log.events(run_id) if e.kind != "run_aborted"]
     world = _final_world(log, run_id)
@@ -101,7 +103,7 @@ def measures(log: EventLog, run_id: str) -> dict:
     model_calls = cost_unknown = 0
     cost = 0.0
     for e in events:
-        if e.kind != "decision":
+        if e.kind not in ("decision", "text"):
             continue
         meta = e.payload.get("meta") or {}
         if not any(k in meta for k in MODEL_META_KEYS):
@@ -113,6 +115,10 @@ def measures(log: EventLog, run_id: str) -> dict:
             cost += meta["cost_usd"]
 
     wage_changes = [e.payload for e in events if e.kind == "set_wage"]
+    tool_uses: dict[str, int] = {}
+    for e in events:
+        if e.kind == "assistant_action":
+            tool_uses[e.payload["tool"]] = tool_uses.get(e.payload["tool"], 0) + 1
 
     def count(kind: str) -> int:
         return sum(e.kind == kind for e in events)
@@ -139,6 +145,11 @@ def measures(log: EventLog, run_id: str) -> dict:
         "model_calls": model_calls,
         "cost_usd": cost,
         "cost_unknown_calls": cost_unknown,
+        "assistant_actions": dict(sorted(tool_uses.items())),
+        "assistant_messages_sent": sum(
+            e.kind == "message" and e.payload.get("from_assistant") for e in events
+        ),
+        "assistant_payments_total": sum(e.payload["amount"] for e in events if e.kind == "payment"),
     }
 
 

@@ -8,7 +8,7 @@ began, a `run_aborted` event is committed on its own and the exception propagate
 import functools
 import random
 
-from townsim import bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
+from townsim import assistant, bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
 from townsim.actions import _load, _save
 from townsim.compare import SystemOneDecider
 from townsim.config import ConfigError, TownConfig
@@ -134,14 +134,39 @@ class Simulation:
             seen.add(decision.id)
             return recorders[world.people[decision.actor_id].decider].decide(decision)
 
+        written: set[str] = set()
+
+        def write(key: str, person_id: str, decider: str, messages: list[dict]):
+            """Ask `decider` for free text, and record what it wrote as a hidden `text` event."""
+            if key in written:
+                raise ValueError(f"text key used twice in step {step}: {key!r}")
+            written.add(key)
+            fn = getattr(self.deciders[decider], "write", None)
+            text, meta = (None, {"no_writer": True}) if fn is None else fn(key, person_id, messages)
+            events.append(
+                Event(
+                    kind="text",
+                    actor_id=person_id,
+                    payload={"key": key, "person_id": person_id, "text": text, "meta": meta},
+                    visible=False,
+                )
+            )
+            return text, meta
+
+        # The assistant's weekly and tax turns share decision-id counters, since both can
+        # put a pay cut to the same staff in one week.
+        seqs: dict[tuple[str, str], int] = {}
+        events += assistant.assistant_phase(world, decide, write, rng, seqs)
         events += market.owners_phase(world, decide, rng)
         events += market.market_phase(world, rng)
         events += market.payroll_phase(world)
-        events += tax.tax_phase(world, decide, rng)
+        events += tax.tax_phase(world, decide, rng, write=write, seqs=seqs)
         events += press.tips_phase(world, decide, rng)
         events += tax.audit_phase(world, decide, rng)
         events += press.press_phase(world, decide, rng)
+        events += assistant.replies_phase(world, write)
         events += market.closure_phase(world)
+        assistant.note_week(world, events)
         events.append(Event(kind="state_hash", payload={"hash": state_hash(world)}))
         self.log.append(self.run_id, step, events)
         world.step += 1

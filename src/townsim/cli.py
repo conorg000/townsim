@@ -211,13 +211,6 @@ def compare_deciders_cmd(
     ] = "config/probe_decisions.yaml",
     n: Annotated[int, typer.Option("--n", min=1, help="Calls per decider per probe.")] = 50,
     seed: Annotated[int, typer.Option("--seed", help="Seed for the deciders' rng.")] = 1,
-    agent_goal: Annotated[
-        str,
-        typer.Option(
-            "--agent-goal",
-            help="Put each probe to an AI agent acting for the person, with this standing instruction.",
-        ),
-    ] = "",
 ) -> None:
     """Put the same probe decisions to each decider and print what each chose as one JSON object."""
     try:
@@ -236,9 +229,6 @@ def compare_deciders_cmd(
     _check_system_one_keys(selected)
     try:
         people = probe_people(probe_list)
-        if agent_goal.strip():
-            for person in people.values():
-                person.agent_goal = agent_goal.strip()
         built = make_deciders(selected, _decider_rng(seed), people)
     except ConfigError as exc:
         _fail(f"bad config: {exc}")
@@ -307,12 +297,19 @@ def estimate_cmd(
         result["mix"]["cost_usd"] *= factor
         for row in result["mix"]["roles"].values():
             row["cost_usd"] *= factor
+    if cfg.assistant is not None:
+        result["note"] = (
+            f"Not counted: the calls of {cfg.assistant.name}, the AI system running "
+            f"{len(cfg.assistant.clients)} firm(s), and townspeople's replies to its messages."
+        )
     if as_json:
         typer.echo(json.dumps(result, indent=2))
         return
     source = "OpenRouter's live list" if ids else prices
     fee = f", plus a {fee_pct:g}% fee" if fee_pct else ""
     typer.echo(f"{runs} run(s) of {steps} weeks, seed {seed}. Estimate only; no model was called.")
+    if "note" in result:
+        typer.echo(result["note"])
     typer.echo(f"Prices from {source}{fee}.\n")
     typer.echo("Per run, by who is deciding:")
     for role, u in result["per_run"].items():

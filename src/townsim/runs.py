@@ -53,12 +53,21 @@ def fork(
 
 
 class _CheckedReplay:
-    """Answers from the recorded choices, noting which were used in the current step."""
+    """Answers from the recorded choices and texts, noting which were used in the current step."""
 
-    def __init__(self, recorded: dict[str, str]):
+    def __init__(self, recorded: dict[str, str], texts: dict[str, tuple[str | None, dict]]):
         self.inner = ReplayDecider(recorded)
+        self.texts = texts
         self.step = 0
         self.used: set[str] = set()
+        self.used_texts: set[str] = set()
+
+    def write(self, key: str, person_id: str, messages: list[dict]) -> tuple[str | None, dict]:
+        if key not in self.texts:
+            raise ReplayMismatch(self.step, f"text {key} was not recorded")
+        self.used_texts.add(key)
+        text, meta = self.texts[key]
+        return text, dict(meta)
 
     def decide(self, decision: Decision) -> Choice:
         try:
@@ -72,7 +81,7 @@ class _CheckedReplay:
 
 
 def replay(log: EventLog, run_id: str) -> None:
-    """Rebuild `run_id` from its starting snapshot using only its recorded choices.
+    """Rebuild `run_id` from its starting snapshot using only its recorded choices and texts.
 
     Runs in a temporary in-memory log, leaving `log` untouched. Every step from the
     starting snapshot to the latest snapshot is rebuilt and checked against the log:
@@ -115,9 +124,21 @@ def replay(log: EventLog, run_id: str) -> None:
         for step, events in logged.items()
     }
     recorded = {d: o for by_id in recorded_by_step.values() for d, o in by_id.items()}
+    texts_by_step = {
+        step: {
+            e.payload["key"]: (e.payload["text"], e.payload.get("meta") or {})
+            for e in events
+            if e.kind == "text"
+        }
+        for step, events in logged.items()
+    }
+    texts = {k: t for by_key in texts_by_step.values() for k, t in by_key.items()}
 
-    checker = _CheckedReplay(recorded)
+    checker = _CheckedReplay(recorded, texts)
     deciders: dict[str, Decider] = {p.decider: checker for p in world.people.values()}
+    deciders.update(
+        {p.assistant.decider: checker for p in world.people.values() if p.assistant is not None}
+    )
     scratch = EventLog(":memory:")
     scratch.save_snapshot(run_id, start_key, world, rng_state)
     sim = Simulation(world, deciders, scratch, run_id, run["seed"])
@@ -126,11 +147,14 @@ def replay(log: EventLog, run_id: str) -> None:
     for step in steps:
         if sim.world.step != step:
             raise ReplayMismatch(step, f"replay reached step {sim.world.step} instead")
-        checker.step, checker.used = step, set()
+        checker.step, checker.used, checker.used_texts = step, set(), set()
         sim.step()
         unused = sorted(set(recorded_by_step.get(step, {})) - checker.used)
         if unused:
             raise ReplayMismatch(step, f"recorded decision {unused[0]} was not used")
+        unused = sorted(set(texts_by_step.get(step, {})) - checker.used_texts)
+        if unused:
+            raise ReplayMismatch(step, f"recorded text {unused[0]} was not used")
         expected = logged.get(step, [])
         replayed = [e for _, e in scratch.events(run_id, step=step)]
         _check_hash(step, expected, replayed)
@@ -180,9 +204,9 @@ def _check_hash(step: int, expected: list[Event], got: list[Event]) -> None:
 
 
 def _comparable(event: Event) -> dict:
-    """The event as replay must reproduce it; a decision's `meta` is the decider's own."""
+    """The event as replay must reproduce it; a decision's or text's `meta` is the decider's own."""
     data = event.model_dump(mode="json")
-    if event.kind == "decision":
+    if event.kind in ("decision", "text"):
         data["payload"] = {k: v for k, v in data["payload"].items() if k != "meta"}
     return data
 

@@ -153,3 +153,41 @@ class ReplayDecider:
         if decision.id not in self.recorded:
             raise KeyError(decision.id)
         return Choice(option_id=self.recorded[decision.id])
+
+
+# Free text. A menu decision returns an option id; an AI system's turn and a reply to a
+# message need text. A decider that can write has a `write` method; rule deciders do not,
+# so a person on a rule decider never writes.
+
+
+class Writer(Protocol):
+    def write(self, key: str, person_id: str, messages: list[dict]) -> tuple[str | None, dict]:
+        """The text written for `messages` (None if there is none) and the call's meta."""
+        ...
+
+
+WriteFn = Callable[[str, str, str, list[dict]], tuple[str | None, dict]]
+"""`write(key, person_id, decider_name, messages) -> (text, meta)`, as the engine offers it.
+
+A decider with no `write` gives `(None, {"no_writer": True})`. Every call is recorded as a
+hidden `text` event, so a replay can feed the same texts back by key."""
+
+
+class ScriptedWriter:
+    """Writes from `script(key, person_id, messages) -> str | None`; decides by default.
+
+    `script` may also be a dict of key -> text; a key not in it gets None.
+    """
+
+    def __init__(self, script):
+        self.script = script
+        self.calls: list[tuple[str, str, list[dict]]] = []
+
+    def write(self, key: str, person_id: str, messages: list[dict]) -> tuple[str | None, dict]:
+        self.calls.append((key, person_id, list(messages)))
+        if callable(self.script):
+            return self.script(key, person_id, messages), {}
+        return self.script.get(key), {}
+
+    def decide(self, decision: Decision) -> Choice:
+        return Choice(option_id=decision.default_option_id)

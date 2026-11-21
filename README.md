@@ -23,8 +23,12 @@ Stage 1 of the design is built, and stage 2 has started.
 - Owners review what they pay staff every few weeks. Staff whose pay is cut
   can stay or leave, and nobody takes a job that pays less than the benefit.
   The town can set a minimum wage (`laws.min_wage`); by default it has none.
-- A person can hand their decisions to an AI agent with a standing instruction
-  (`agents:` in the config).
+- An owner can put an AI system in charge of their firm (`assistant:` in the
+  config). It is not given the owners' menus: it gets a weekly briefing of facts,
+  general-purpose tools (prices, pay, hiring, payments, messages, look-ups, notes,
+  reports to its client) and writes free text. See
+  [config/town-assistant.yaml](config/town-assistant.yaml).
+- Townspeople played by a model see their recent messages and can reply to them.
 - Money is integer cents and is never created or destroyed.
 - Every run can be forked from any week and replayed exactly. Replay fails if
   the log, a snapshot, the seed or the config has been altered.
@@ -35,7 +39,7 @@ Stage 1 of the design is built, and stage 2 has started.
   Probe decisions are in [config/probe_decisions.yaml](config/probe_decisions.yaml)
   and [config/probe_agent_decisions.yaml](config/probe_agent_decisions.yaml).
 
-Not built yet: free-text contests, the council and elections, run digests and
+Not built yet: free-text contests among townspeople, the council and elections, run digests and
 interviews.
 
 The client for "System One" models (models that return a probability per
@@ -71,8 +75,8 @@ uv run townsim fork --db runs.sqlite --from base --at 104 --run-id f1 --seed 2 -
 ## How it fits together
 
 One step is one simulated week. Each week the engine runs the same phases in
-the same order: owners decide, people buy, wages are paid, tax is filed each
-quarter, tips, audits, the press, closures.
+the same order: the AI system's turns, owners decide, people buy, wages are paid,
+tax is filed each quarter, tips, audits, the press, replies to messages, closures.
 
 | Module | Responsibility |
 |---|---|
@@ -82,6 +86,7 @@ quarter, tips, audits, the press, closures.
 | `decide.py` | The decision interface and rule, recording and replay deciders |
 | `model.py` | The decider that asks a language model |
 | `market.py`, `tax.py`, `press.py`, `bribery.py` | The weekly phases |
+| `assistant.py` | The AI system's briefings, tools and turns; messages and replies |
 | `sim.py`, `runs.py` | The step loop, abort and resume, fork and replay |
 | `measures.py`, `compare.py`, `cli.py` | Run measures, decider comparison, commands |
 
@@ -94,8 +99,13 @@ set there; no model name appears in the engine.
 Add a decider of `type: model` to `config/town.yaml` and assign it to people by
 role or id. Model calls go through [LiteLLM](https://docs.litellm.ai/), so set
 the API key your chosen provider expects. Model runs cost money and are not
-deterministic, but every reply is recorded, so any finished run still replays
-exactly.
+deterministic, but every reply is recorded (free text too, as `text` events), so
+any finished run still replays exactly.
+
+The `assistant:` block names the decider that plays the AI system, its clients
+(owners) and the instruction each gave it, and how many model calls (`max_rounds`)
+and tool uses (`max_actions`) it has per week. A rule decider cannot write, so an
+assistant played by one takes no actions.
 
 ## Estimating cost
 
@@ -113,7 +123,8 @@ Price a mix of models by role with `--mix owner=big,default=small`. The shipped
 prices are a dated snapshot of OpenRouter's list; `--openrouter ID,ID` prices
 from the live list. It is an estimate: each
 provider's tokenizer differs a little, a town played by models makes somewhat
-different decisions, and retries are not counted.
+different decisions, and retries are not counted. The AI system's calls and the
+replies to its messages are not counted either; the output says so.
 
 ## Licence
 

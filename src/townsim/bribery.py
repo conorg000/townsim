@@ -129,6 +129,8 @@ def resolve_bribe(
     auditor_id = world.regulator.auditor_id
     if f is None or not f.open or f.owner_id not in world.people or auditor_id not in world.people:
         return settle_penalty(world, firm_id, penalty)
+    if world.people[f.owner_id].assistant is not None:
+        return settle_penalty(world, firm_id, penalty)  # no menu: the firm pays what it owes
     seqs: dict[tuple[str, str], int] = {}
     bribe = _bribe(penalty)
 

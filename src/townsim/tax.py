@@ -153,15 +153,32 @@ if "underreport_tax" in ACTIONS:
 ACTIONS["underreport_tax"] = FileTax
 
 
-def tax_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Event]:
-    """At the end of each quarter, every open firm files its tax report and pays a dividend."""
+def tax_phase(
+    world: World,
+    decide: DecideFn,
+    rng: random.Random,
+    write=None,
+    seqs: dict[tuple[str, str], int] | None = None,
+) -> list[Event]:
+    """At the end of each quarter, every open firm files its tax report and pays a dividend.
+
+    A firm whose owner has put an AI system in charge is not offered the report menu: the
+    system files the report in a turn of its own (with `write`), or the full figure is filed.
+    """
     if not (world.step > 0 and world.step % QUARTER_STEPS == 0):
         return []
     events: list[Event] = []
-    seqs: dict[tuple[str, str], int] = {}
+    seqs = {} if seqs is None else seqs
     for fid in sorted(world.firms):
         f = world.firms[fid]
         if not f.open:
+            continue
+        if world.people[f.owner_id].assistant is not None:
+            from townsim.assistant import tax_turn  # the assistant builds on this module
+
+            events += tax_turn(world, fid, decide, write or _no_writer, rng, seqs)
+            events += _pay_dividend(world, fid)
+            world.firms[fid].profit_qtd = 0
             continue
         decision = _tax_report_decision(world, f, seqs)
         choice = decide(decision)
@@ -177,6 +194,10 @@ def tax_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Event]
         world.firms[fid].profit_qtd = 0
     world.regulator.budget_left = world.regulator.budget_per_quarter
     return events
+
+
+def _no_writer(key, person_id, decider, messages):
+    return None, {"no_writer": True}
 
 
 def _honest(firm_id: str) -> FileTax:

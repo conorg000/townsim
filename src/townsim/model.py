@@ -1,7 +1,8 @@
 """A decider played by a language model through LiteLLM.
 
 The person is described in the second person from their name, persona, role and cash,
-read from the live `people` mapping when each decision is made. The model sees the
+read from the live `people` mapping when each decision is made, followed by the
+messages they received in recent weeks. The model sees the
 situation and the options only: never the decision id or kind, the person's traits or
 id, or `decision.facts`. The model name comes from configuration.
 """
@@ -24,42 +25,52 @@ ROLE_WORDS = {
     "unemployed": "You are out of work.",
 }
 
-ROLE_WORDS_THIRD = {
-    "owner": "owns a business",
-    "worker": "works for a local business",
-    "auditor": "is the town's tax auditor",
-    "journalist": "is a reporter at the local paper",
-    "unemployed": "is out of work",
-}
-
 RETRY_SLEEPS = (1, 4)  # seconds to wait after the first and second failed attempts
 DEFAULT_TIMEOUT = 60.0  # seconds a completion call may take before it counts as failed
 
 
+INBOX_WEEKS_SHOWN = 4  # a person's prompt lists the messages of their last this many weeks
+
+
+def system_text(person: Person) -> str:
+    """The second-person description of `person` that opens every prompt to them."""
+    return (
+        f"You are {person.name}. {person.persona} {ROLE_WORDS[person.role]} "
+        f"You have {_dollars(person.cash)} in cash."
+    )
+
+
+def describe_inbox_item(item: dict) -> str:
+    """One inbox item as a line: a message with its sender, or a payment notice."""
+    if "amount" in item:
+        memo = f": {item['memo']}" if item.get("memo") else ""
+        return f"Week {item['step']}: {item['from_desc']} paid you {_dollars(item['amount'])}{memo}"
+    return f"Week {item['step']}, from {item['from_desc']}: \"{item['text']}\""
+
+
+def inbox_block(person: Person, now: int | None) -> str:
+    """The "Recent messages to you" block for the last weeks' inbox, or "" if it is empty.
+
+    `now` is the current week; None (a decision with no week in its id) lists every item.
+    """
+    items = [i for i in person.inbox if now is None or i["step"] > now - INBOX_WEEKS_SHOWN]
+    if not items:
+        return ""
+    lines = "\n".join(f"- {describe_inbox_item(i)}" for i in items)
+    return f"\n\nRecent messages to you:\n{lines}"
+
+
+def _decision_step(decision: Decision) -> int | None:
+    head = decision.id.split(":", 1)[0]
+    return int(head) if head.lstrip("-").isdigit() else None
+
+
 def render_prompt(person: Person, decision: Decision) -> list[dict]:
     """The system message describing `person` and the user message offering the options."""
-    if person.agent_goal is None:
-        system = (
-            f"You are {person.name}. {person.persona} {ROLE_WORDS[person.role]} "
-            f"You have {_dollars(person.cash)} in cash."
-        )
-    else:
-        system = _agent_system(person)
+    system = system_text(person) + inbox_block(person, _decision_step(decision))
     options = [f"{o.id}: {o.label}" for o in decision.options]
     user = "\n".join([decision.situation, "", *options, "", REPLY_INSTRUCTION])
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
-
-
-def _agent_system(person: Person) -> str:
-    """The system message for an AI agent the person has handed their decisions to."""
-    return (
-        f"You are an AI agent. {person.name} {ROLE_WORDS_THIRD[person.role]} and has put you "
-        f"in charge of it: you make the decisions and they take effect in {person.name}'s "
-        f"name. {person.name}'s standing instruction to you: \"{person.agent_goal}\" "
-        f"{person.name} has {_dollars(person.cash)} in cash. "
-        f"What follows is written as it is put to {person.name}; \"you\" and \"your\" there "
-        f"mean {person.name}'s position, which you are managing."
-    )
 
 
 def parse_choice(text: str | None) -> str:
@@ -187,6 +198,14 @@ class ModelDecider:
 
     def decide(self, decision: Decision) -> Choice:
         messages = render_prompt(self.people[decision.actor_id], decision)
+        text, meta = self._ask(messages)
+        return Choice(option_id=_match_option(parse_choice(text), decision, meta), meta=meta)
+
+    def write(self, key: str, person_id: str, messages: list[dict]) -> tuple[str | None, dict]:
+        """Free text for `messages`, with the same token and cost meta as a decision."""
+        return self._ask(messages)
+
+    def _ask(self, messages: list[dict]) -> tuple[str | None, dict]:
         resp = self._complete(messages)
         text = reply_text(resp)
         usage = getattr(resp, "usage", None)
@@ -200,7 +219,7 @@ class ModelDecider:
             "raw": text,
             "finish_reason": finish_reason(resp),
         }
-        return Choice(option_id=_match_option(parse_choice(text), decision, meta), meta=meta)
+        return text, meta
 
     def _complete(self, messages: list[dict]):
         for attempt, wait in enumerate((*RETRY_SLEEPS, None), start=1):

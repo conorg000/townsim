@@ -5,6 +5,21 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class Assistant(BaseModel):
+    """An AI system a firm's owner has put in charge of their business.
+
+    `reports` holds {step, text} items written for the client. `since` and `paper` are
+    lines gathered at the end of each week for the next briefing, and cleared by it.
+    """
+
+    instruction: str
+    decider: str
+    notes: str = ""
+    reports: list[dict] = Field(default_factory=list)
+    since: list[str] = Field(default_factory=list)
+    paper: list[str] = Field(default_factory=list)
+
+
 class Person(BaseModel):
     id: str
     name: str
@@ -16,9 +31,11 @@ class Person(BaseModel):
     scruples: float
     decider: str
     loyalty: dict[str, float] = Field(default_factory=dict)
-    # Set when this person has handed their decisions to an AI agent: the standing
-    # instruction they gave it. The agent acts in their name with their powers.
-    agent_goal: str | None = None
+    # Set when this person owns a firm and has put an AI system in charge of it.
+    assistant: Assistant | None = None
+    # Messages {step, from_id, from_assistant, from_desc, text} and payment notices
+    # {step, from_id, from_desc, amount, memo}, oldest first; kept for 8 weeks.
+    inbox: list[dict] = Field(default_factory=list)
 
 
 class Firm(BaseModel):
@@ -39,6 +56,9 @@ class Firm(BaseModel):
     # [price, customers, takings, wages paid] entry per week. The owner can see these.
     recent_weeks: list[list[int]] = Field(default_factory=list)
     last_reported_profit: int | None = None
+    # The firm's books for its last 8 weeks, oldest first: one
+    # [step, customers, capacity, takings, wage bill] entry per week.
+    books: list[list[int]] = Field(default_factory=list)
 
 
 class Treasury(BaseModel):
@@ -87,6 +107,11 @@ class World(BaseModel):
     laws: Laws
     infos: dict[str, Info] = Field(default_factory=dict)
     params: dict[str, float] = Field(default_factory=dict)
+    # The AI system some owners have put in charge of their firms; empty when there is none.
+    assistant_name: str = ""
+    assistant_provider: str = ""
+    assistant_max_rounds: int = 0
+    assistant_max_actions: int = 0
 
 
 def total_money(world: World) -> int:

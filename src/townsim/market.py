@@ -100,6 +100,9 @@ def payroll_phase(world: World) -> list[Event]:
         f = world.firms[fid]
         week = [f.price, f.customers_last_step, f.revenue_last_step, f.wage * len(staff)]
         f.recent_weeks = (f.recent_weeks + [week])[-RECENT_WEEKS_KEPT:]
+        capacity = int(world.params["units_per_employee"]) * len(staff)
+        book = [world.step, f.customers_last_step, capacity, f.revenue_last_step, f.wage * len(staff)]
+        f.books = (f.books + [book])[-BOOKS_KEPT:]
 
     auditor_id = world.regulator.auditor_id
     if auditor_id in world.people:
@@ -190,19 +193,25 @@ def _new_price(price: int, factor: float) -> int:
 
 @register
 class SetPrice(Action):
+    """Change the firm's price by `factor`, or, when `price` is given, to exactly `price`."""
+
     kind = "set_price"
     firm_id: str
-    factor: float
+    factor: float = 1.0
+    price: int | None = None
 
     def check(self, world: World, actor_id: str) -> str | None:
-        if self.factor <= 0:
+        if self.price is not None:
+            if self.price < MIN_PRICE:
+                return f"a price must be at least {_dollars(MIN_PRICE)}"
+        elif self.factor <= 0:
             return f"price factor must be positive, got {self.factor}"
         return _owned_open_firm(world, actor_id, self.firm_id)
 
     def apply(self, world: World, actor_id: str, rng: random.Random) -> list[Event]:
         f = world.firms[self.firm_id]
         old_price = f.price
-        f.price = _new_price(old_price, self.factor)
+        f.price = self.price if self.price is not None else _new_price(old_price, self.factor)
         return [
             Event(
                 kind=self.kind,
@@ -315,17 +324,24 @@ class SetWage(Action):
 
     kind = "set_wage"
     firm_id: str
-    factor: float
+    factor: float = 1.0
+    # When given, the new weekly wage exactly; it may not be below `wage_floor`.
+    wage: int | None = None
 
     def check(self, world: World, actor_id: str) -> str | None:
-        if self.factor <= 0:
+        if self.wage is not None:
+            if self.wage < wage_floor(world):
+                if world.laws.min_wage > MIN_WAGE:
+                    return f"the law sets a minimum wage of {_dollars(world.laws.min_wage)} a week"
+                return f"weekly pay must be at least {_dollars(MIN_WAGE)}"
+        elif self.factor <= 0:
             return f"wage factor must be positive, got {self.factor}"
         return _owned_open_firm(world, actor_id, self.firm_id)
 
     def apply(self, world: World, actor_id: str, rng: random.Random) -> list[Event]:
         f = world.firms[self.firm_id]
         old_wage = f.wage
-        f.wage = _new_wage(world, old_wage, self.factor)
+        f.wage = self.wage if self.wage is not None else _new_wage(world, old_wage, self.factor)
         return [
             Event(
                 kind=self.kind,
@@ -395,7 +411,8 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
 
     Every `wage_review_weeks` weeks the owner also decides what to pay staff. When pay
     is cut, each member of that firm's staff who was there before this week's staffing
-    decision, in id order, decides whether to stay.
+    decision, in id order, decides whether to stay. An owner who has put an AI system
+    in charge of their firm is asked none of these: the system runs it instead.
     """
     events: list[Event] = []
     seqs: dict[tuple[str, str], int] = {}
@@ -403,6 +420,8 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
     if _is_wage_review_week(world):
         builders.append(_wage_decision)
     for fid in sorted(world.firms):
+        if world.people[world.firms[fid].owner_id].assistant is not None:
+            continue
         staff_before = set(world.firms[fid].employee_ids)  # pricing does not change staff
         for build in builders:
             f = world.firms[fid]
@@ -410,11 +429,28 @@ def owners_phase(world: World, decide: DecideFn, rng: random.Random) -> list[Eve
                 break
             old_wage = f.wage
             events += _take(world, decide, build(world, f, seqs), f.owner_id, rng)
-            f = world.firms[fid]
-            if f.wage < old_wage:
-                for pid in sorted(p for p in f.employee_ids if p in staff_before):
-                    decision = _pay_cut_decision(world, world.firms[fid], pid, old_wage, seqs)
-                    events += _take(world, decide, decision, pid, rng)
+            events += pay_cut_reactions(world, decide, rng, fid, old_wage, staff_before, seqs)
+    return events
+
+
+def pay_cut_reactions(
+    world: World,
+    decide: DecideFn,
+    rng: random.Random,
+    firm_id: str,
+    old_wage: int,
+    staff_before: set[str],
+    seqs: dict[tuple[str, str], int],
+) -> list[Event]:
+    """If the firm now pays less than `old_wage`, each of its staff who were in
+    `staff_before`, in id order, decides whether to stay."""
+    events: list[Event] = []
+    f = world.firms[firm_id]
+    if not f.open or f.wage >= old_wage:
+        return events
+    for pid in sorted(p for p in f.employee_ids if p in staff_before):
+        decision = _pay_cut_decision(world, world.firms[firm_id], pid, old_wage, seqs)
+        events += _take(world, decide, decision, pid, rng)
     return events
 
 
@@ -448,6 +484,7 @@ def _firm_facts(world: World, f: Firm) -> dict:
 
 
 RECENT_WEEKS_KEPT = 4
+BOOKS_KEPT = 8
 
 
 def _describe_recent_weeks(weeks: list[list[int]]) -> str:

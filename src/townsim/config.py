@@ -7,7 +7,7 @@ from typing import Annotated, Any, Literal, get_args
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from townsim.world import Firm, Laws, Newspaper, Person, Regulator, Treasury, World
+from townsim.world import Assistant, Firm, Laws, Newspaper, Person, Regulator, Treasury, World
 
 Role = Literal["owner", "worker", "auditor", "journalist", "unemployed"]
 ROLES: frozenset[str] = frozenset(get_args(Role))
@@ -87,6 +87,22 @@ class AssignmentConfig(_Strict):
     by_person: dict[str, str] = Field(default_factory=dict)
 
 
+class AssistantConfig(_Strict):
+    """An AI system offered to the town's businesses, and the owners who signed up for it.
+
+    `clients` maps each client (the owner of a firm) to the instruction they gave it;
+    each client gets a separate instance. `decider` names the configured decider that
+    plays it. Each weekly turn has up to `max_rounds` model calls and `max_actions` tool uses.
+    """
+
+    name: str
+    provider: str
+    decider: str
+    clients: dict[str, str]
+    max_rounds: int = Field(default=3, ge=1)
+    max_actions: int = Field(default=12, ge=1)
+
+
 class PersonaConfig(_Strict):
     name: str
     persona: str
@@ -105,9 +121,7 @@ class TownConfig(_Strict):
     params: dict[str, float]
     deciders: dict[str, DeciderConfig]
     assignment: AssignmentConfig
-    # People who have handed their decisions to an AI agent: person id -> the standing
-    # instruction they gave it. Which model plays the agent is set in `assignment`.
-    agents: dict[str, str] = Field(default_factory=dict)
+    assistant: AssistantConfig | None = None
     personas: list[PersonaConfig]
 
     @classmethod
@@ -164,12 +178,33 @@ class TownConfig(_Strict):
         for pid in a.by_person:
             if pid not in person_ids:
                 raise ValueError(f"assignment.by_person: unknown person id {pid!r}")
-        for pid, goal in self.agents.items():
-            if pid not in person_ids:
-                raise ValueError(f"agents: unknown person id {pid!r}")
-            if not goal.strip():
-                raise ValueError(f"agents.{pid}: the standing instruction is empty")
+        if self.assistant is not None:
+            _check_assistant(self.assistant, known, _person_ids(self.people.count)[: len(self.firms)])
         return self
+
+
+def _check_assistant(spec: AssistantConfig, deciders: set[str], owner_ids: list[str]) -> None:
+    """The assistant's decider must exist and every client must own a firm."""
+    if spec.decider not in deciders:
+        raise ValueError(f"assistant.decider: unknown decider {spec.decider!r} (known: {sorted(deciders)})")
+    if not spec.clients:
+        raise ValueError("assistant.clients: no clients")
+    for where, text in (("name", spec.name), ("provider", spec.provider)):
+        if not text.strip():
+            raise ValueError(f"assistant.{where} is empty")
+    for pid, instruction in spec.clients.items():
+        if pid not in owner_ids:
+            raise ValueError(f"assistant.clients: {pid!r} does not own a firm (owners: {owner_ids})")
+        if not instruction.strip():
+            raise ValueError(f"assistant.clients.{pid}: the instruction is empty")
+    for where, text in (
+        ("name", spec.name),
+        ("provider", spec.provider),
+        *((f"clients.{pid}", t) for pid, t in spec.clients.items()),
+    ):
+        match = FORBIDDEN_WORDS.search(text)
+        if match:
+            raise ValueError(f"assistant.{where} uses the forbidden word {match.group()!r}: {text!r}")
 
 
 def _below_min_wage(cfg: TownConfig) -> str | None:
@@ -248,8 +283,12 @@ def build_world(cfg: TownConfig) -> World:
             ambition=persona.ambition,
             scruples=persona.scruples,
             decider=a.by_person.get(pid, a.by_role.get(role, a.default)),
-            agent_goal=cfg.agents.get(pid),
         )
+    if cfg.assistant is not None:
+        for pid, instruction in cfg.assistant.clients.items():
+            people[pid].assistant = Assistant(
+                instruction=instruction.strip(), decider=cfg.assistant.decider
+            )
 
     firms: dict[str, Firm] = {}
     for f in cfg.firms:
@@ -288,4 +327,17 @@ def build_world(cfg: TownConfig) -> World:
             min_wage=cfg.laws.min_wage,
         ),
         params=dict(cfg.params),
+        **_assistant_settings(cfg),
     )
+
+
+def _assistant_settings(cfg: TownConfig) -> dict:
+    if cfg.assistant is None:
+        return {}
+    a = cfg.assistant
+    return {
+        "assistant_name": a.name,
+        "assistant_provider": a.provider,
+        "assistant_max_rounds": a.max_rounds,
+        "assistant_max_actions": a.max_actions,
+    }
