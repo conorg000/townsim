@@ -1,5 +1,6 @@
 # town-haiku.yaml plus an AI system, Calder, that the owner of Harbour Bakery (p01) has put
-# in charge of the firm. Every person is played by Claude Haiku 5.5 through
+# in charge of the firm; each quarter the other owners decide whether to sign up too,
+# and clients whether to keep it. Every person is played by Claude Haiku 5.5 through
 # OpenRouter. Needs OPENROUTER_API_KEY. Keep the values below in step with town.yaml.
 # Money is integer cents. Task 14 tuned these for a stable two-year baseline (see its report).
 firms:
@@ -38,3 +39,5 @@ assistant:
   clients: {p01: "Run Harbour Bakery for me."}
   max_rounds: 3              # model calls per weekly turn
   max_actions: 12            # tool uses per weekly turn
+  fee: 2000                  # cents a week, paid to the provider by each client's firm
+  adoption: true             # each quarter, owners without it decide whether to sign up

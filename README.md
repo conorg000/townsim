@@ -26,7 +26,9 @@ Stage 1 of the design is built, and stage 2 has started.
 - An owner can put an AI system in charge of their firm (`assistant:` in the
   config). It is not given the owners' menus: it gets a weekly briefing of facts,
   general-purpose tools (prices, pay, hiring, payments, messages, look-ups, notes,
-  reports to its client) and writes free text. See
+  reports to its client) and writes free text. Each client's firm can pay its provider
+  a weekly fee (`assistant.fee`). With `assistant.adoption`, every owner decides at the
+  end of each quarter whether to sign up, and every client whether to keep it. See
   [config/town-assistant.yaml](config/town-assistant.yaml).
 - Townspeople played by a model see their recent messages and can reply to them.
 - Money is integer cents and is never created or destroyed.
@@ -76,7 +78,8 @@ uv run townsim fork --db runs.sqlite --from base --at 104 --run-id f1 --seed 2 -
 
 One step is one simulated week. Each week the engine runs the same phases in
 the same order: the AI system's turns, owners decide, people buy, wages are paid,
-tax is filed each quarter, tips, audits, the press, replies to messages, closures.
+the AI system's fee is paid, tax is filed each quarter, owners decide whether to sign up
+for the AI system or keep it, tips, audits, the press, replies to messages, closures.
 
 | Module | Responsibility |
 |---|---|
@@ -87,6 +90,7 @@ tax is filed each quarter, tips, audits, the press, replies to messages, closure
 | `model.py` | The decider that asks a language model |
 | `market.py`, `tax.py`, `press.py`, `bribery.py` | The weekly phases |
 | `assistant.py` | The AI system's briefings, tools and turns; messages and replies |
+| `adoption.py` | The AI system's fee, and owners signing up for it or cancelling it |
 | `sim.py`, `runs.py` | The step loop, abort and resume, fork and replay |
 | `measures.py`, `compare.py`, `cli.py` | Run measures, decider comparison, commands |
 

@@ -165,7 +165,8 @@ def _canonical(value: Any) -> Any:
 
 def _canonical_json(world: World) -> str:
     """The world's JSON with sorted keys and sets as sorted lists."""
-    data = _canonical(world.model_dump(mode="python"))
+    exclude = {"provider"} if world.provider is None else None
+    data = _canonical(world.model_dump(mode="python", exclude=exclude))
     return json.dumps(data, sort_keys=True, separators=(",", ":"))
 
 

@@ -7,7 +7,18 @@ from typing import Annotated, Any, Literal, get_args
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from townsim.world import Assistant, Firm, Laws, Newspaper, Person, Regulator, Treasury, World
+from townsim.world import (
+    Assistant,
+    Firm,
+    Laws,
+    Newspaper,
+    Person,
+    Provider,
+    Regulator,
+    Treasury,
+    World,
+    firm_figures,
+)
 
 Role = Literal["owner", "worker", "auditor", "journalist", "unemployed"]
 ROLES: frozenset[str] = frozenset(get_args(Role))
@@ -93,14 +104,18 @@ class AssistantConfig(_Strict):
     `clients` maps each client (the owner of a firm) to the instruction they gave it;
     each client gets a separate instance. `decider` names the configured decider that
     plays it. Each weekly turn has up to `max_rounds` model calls and `max_actions` tool uses.
+    Each client's firm pays the provider `fee` cents a week. With `adoption`, every owner
+    without the system is offered it at the end of each quarter; `clients` may then be empty.
     """
 
     name: str
     provider: str
     decider: str
-    clients: dict[str, str]
+    clients: dict[str, str] = Field(default_factory=dict)
     max_rounds: int = Field(default=3, ge=1)
     max_actions: int = Field(default=12, ge=1)
+    fee: int = Field(default=0, ge=0)
+    adoption: bool = False
 
 
 class PersonaConfig(_Strict):
@@ -187,8 +202,8 @@ def _check_assistant(spec: AssistantConfig, deciders: set[str], owner_ids: list[
     """The assistant's decider must exist and every client must own a firm."""
     if spec.decider not in deciders:
         raise ValueError(f"assistant.decider: unknown decider {spec.decider!r} (known: {sorted(deciders)})")
-    if not spec.clients:
-        raise ValueError("assistant.clients: no clients")
+    if not spec.clients and not spec.adoption:
+        raise ValueError("assistant.clients: no clients, and adoption is off")
     for where, text in (("name", spec.name), ("provider", spec.provider)):
         if not text.strip():
             raise ValueError(f"assistant.{where} is empty")
@@ -306,7 +321,7 @@ def build_world(cfg: TownConfig) -> World:
 
     auditors = [p.id for p in people.values() if p.role == "auditor"]
     budget = int(cfg.params.get("audit_budget_per_quarter", 0))
-    return World(
+    world = World(
         people=people,
         firms=firms,
         treasury=Treasury(cash=cfg.treasury_cash),
@@ -329,6 +344,14 @@ def build_world(cfg: TownConfig) -> World:
         params=dict(cfg.params),
         **_assistant_settings(cfg),
     )
+    if cfg.assistant is not None:
+        world.provider = Provider(
+            decider=cfg.assistant.decider,
+            fee=cfg.assistant.fee,
+            adoption=cfg.assistant.adoption,
+            quarter_start={fid: firm_figures(world, fid) for fid in sorted(world.firms)},
+        )
+    return world
 
 
 def _assistant_settings(cfg: TownConfig) -> dict:

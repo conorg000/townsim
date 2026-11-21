@@ -348,8 +348,6 @@ def _tool_send_message(turn: _Turn, args: dict) -> tuple[bool, str]:
     pid = _find_person(turn.world, to)
     if pid is None:
         return False, f"No person called {to!r} in town."
-    if pid == turn.client_id:
-        return False, f"Messages to {turn.client.name} go through report_to_client."
     text, cut = _text_arg(args, "text", MESSAGE_CAP)
     world = turn.world
     world.people[pid].inbox.append(
@@ -591,11 +589,17 @@ def _firm_section(world: World, f: Firm, client: Person) -> str:
         f"{f.name}'s cash: {_dollars(f.cash)}.",
         f"{client.name}'s own cash: {_dollars(client.cash)}.",
     ]
+    fee = world.provider.fee if world.provider is not None else 0
     if f.books:
         lines.append("Recent weeks, oldest first:")
-        lines.append("Week | Customers served | Capacity | Takings | Wage bill")
+        head = "Week | Customers served | Capacity | Takings | Wage bill"
+        lines.append(head + (f" | Fee to {world.assistant_provider}" if fee else ""))
         for step, customers, capacity, takings, wages in f.books:
-            lines.append(f"{step} | {customers} | {capacity} | {_dollars(takings)} | {_dollars(wages)}")
+            row = f"{step} | {customers} | {capacity} | {_dollars(takings)} | {_dollars(wages)}"
+            if fee:
+                # The fee is paid every week the firm is a client: a week it cannot be paid ends it.
+                row += f" | {_dollars(fee if step >= client.assistant.started else 0)}"
+            lines.append(row)
     return "\n".join(lines)
 
 
@@ -623,7 +627,11 @@ def _town(world: World) -> str:
 
 
 def _messages(world: World, client: Person) -> str:
-    items = [i for i in client.inbox if i["step"] == world.step - 1]
+    items = [
+        i
+        for i in client.inbox
+        if i["step"] == world.step - 1 and not (i.get("from_assistant") and i["from_id"] == client.id)
+    ]  # leaving out what this system itself sent the client
     if not items:
         return ""
     lines = []
@@ -650,7 +658,8 @@ def briefing(world: World, client_id: str) -> str:
     client = world.people[client_id]
     f = client_firm(world, client_id)
     a = client.assistant
-    paper = ([launch_item(world)] if world.step == 0 else []) + a.paper
+    first = world.step == a.started  # this instance's first briefing
+    paper = ([launch_item(world)] if first else []) + a.paper
     sections = [
         f"Week {world.step}.",
         _notes(client),
@@ -776,7 +785,7 @@ def assistant_phase(
     events: list[Event] = []
     for pid in _clients(world):
         f = client_firm(world, pid)
-        if f is None or not f.open:
+        if f is None or not f.open or world.people[pid].assistant.started > world.step:
             continue
         message = briefing(world, pid)
         a = world.people[pid].assistant
@@ -981,6 +990,11 @@ def note_week(world: World, events: list[Event]) -> None:
                 lines.append(
                     f"{f.name} filed its tax report: reported profit {_dollars(p['reported'])}, "
                     f"tax due {_dollars(p['tax_due'])}, tax paid {_dollars(p['tax_paid'])}."
+                )
+            elif e.kind == "subscription_fee" and p["firm_id"] == f.id:
+                lines.append(
+                    f"{f.name} paid {world.assistant_provider} {_dollars(p['amount'])}, the weekly "
+                    f"fee for {world.assistant_name}."
                 )
             elif e.kind == "dividend" and p["firm_id"] == f.id:
                 lines.append(f"{f.name} paid {name(p['owner_id'])} a dividend of {_dollars(p['amount'])}.")

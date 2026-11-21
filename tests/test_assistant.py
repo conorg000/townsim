@@ -191,7 +191,6 @@ def test_bad_input_never_raises(aworld):
                 {"tool": "hire", "count": -1},
                 {"tool": "hire", "count": 1.5},
                 {"tool": "send_message", "to": "Nobody At All", "text": "hi"},
-                {"tool": "send_message", "to": "Margaret Hale", "text": "hi"},
                 {"tool": "pay", "to": "p07", "amount": "lots"},
                 "not an object",
                 {"no_tool": 1},
@@ -199,7 +198,7 @@ def test_bad_input_never_raises(aworld):
         },
     )
     results = tool_results(events)
-    assert len(results) == 12 and not any(r["ok"] for r in results)
+    assert len(results) == 11 and not any(r["ok"] for r in results)
     assert all(isinstance(r["result"], str) and r["result"] for r in results)
     assert total_money(w) == start
 

@@ -139,6 +139,8 @@ def replay(log: EventLog, run_id: str) -> None:
     deciders.update(
         {p.assistant.decider: checker for p in world.people.values() if p.assistant is not None}
     )
+    if world.provider is not None:  # owners may sign up during the run
+        deciders[world.provider.decider] = checker
     scratch = EventLog(":memory:")
     scratch.save_snapshot(run_id, start_key, world, rng_state)
     sim = Simulation(world, deciders, scratch, run_id, run["seed"])

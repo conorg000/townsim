@@ -8,7 +8,7 @@ began, a `run_aborted` event is committed on its own and the exception propagate
 import functools
 import random
 
-from townsim import assistant, bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
+from townsim import adoption, assistant, bribery, market, press, tax  # noqa: F401  (bribery: registers its rules)
 from townsim.actions import _load, _save
 from townsim.compare import SystemOneDecider
 from townsim.config import ConfigError, TownConfig
@@ -160,7 +160,9 @@ class Simulation:
         events += market.owners_phase(world, decide, rng)
         events += market.market_phase(world, rng)
         events += market.payroll_phase(world)
+        events += adoption.fee_phase(world)
         events += tax.tax_phase(world, decide, rng, write=write, seqs=seqs)
+        events += adoption.quarter_phase(world, decide, rng)
         events += press.tips_phase(world, decide, rng)
         events += tax.audit_phase(world, decide, rng)
         events += press.press_phase(world, decide, rng)

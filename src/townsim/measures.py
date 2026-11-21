@@ -8,6 +8,7 @@ import statistics
 from collections.abc import Iterator
 
 from townsim.events import EventLog
+from townsim.tax import QUARTER_STEPS
 from townsim.world import World, total_money
 
 MODEL_META_KEYS = ("prompt_tokens", "completion_tokens", "cost_usd", "raw")
@@ -91,6 +92,10 @@ def measures(log: EventLog, run_id: str) -> dict:
     nonzero count means `cost_usd` is a lower bound. `assistant_actions` counts the AI
     system's tool uses by tool, `assistant_messages_sent` the messages it sent, and
     `assistant_payments_total` the cents its firms paid out with `pay`.
+    `assistant_clients_by_quarter` is the number of owners with the system after each
+    quarter's decisions (the snapshots of weeks 13, 26, ... that the run has);
+    `assistant_signups` and `assistant_cancellations` count those events (a cancellation
+    for want of the fee included) and `assistant_fees_total` is the cents paid in fees.
     """
     events = [e for _, e in log.events(run_id) if e.kind != "run_aborted"]
     world = _final_world(log, run_id)
@@ -150,13 +155,38 @@ def measures(log: EventLog, run_id: str) -> dict:
             e.kind == "message" and e.payload.get("from_assistant") for e in events
         ),
         "assistant_payments_total": sum(e.payload["amount"] for e in events if e.kind == "payment"),
+        "assistant_clients_by_quarter": _clients_by_quarter(log, run_id),
+        "assistant_signups": count("assistant_signup"),
+        "assistant_cancellations": count("assistant_cancelled"),
+        "assistant_fees_total": sum(e.payload["amount"] for e in events if e.kind == "subscription_fee"),
     }
+
+
+def quarter_end_snapshots(log: EventLog, run_id: str) -> Iterator[tuple[int, World]]:
+    """The run's snapshots after each quarter's end (weeks 13, 26, ...), in order."""
+    last = log.latest_snapshot_step(run_id)
+    if last is None:
+        return
+    parent_step = log.get_run(run_id)["parent_step"]
+    first = 0 if parent_step is None else parent_step
+    for step in range(QUARTER_STEPS, last + 1, QUARTER_STEPS):
+        if step >= first:
+            yield step, log.load_snapshot(run_id, step)[0]
+
+
+def _clients_by_quarter(log: EventLog, run_id: str) -> list[int]:
+    return [
+        sum(p.assistant is not None for p in world.people.values())
+        for _, world in quarter_end_snapshots(log, run_id)
+    ]
 
 
 def _negative_accounts(world: World) -> list[str]:
     accounts = [(pid, p.cash) for pid, p in sorted(world.people.items())]
     accounts += [(fid, f.cash) for fid, f in sorted(world.firms.items())]
     accounts += [("treasury", world.treasury.cash), ("newspaper", world.newspaper.cash)]
+    if world.provider is not None:
+        accounts.append(("provider", world.provider.cash))
     return [f"{aid} ({cash})" for aid, cash in accounts if cash < 0]
 
 

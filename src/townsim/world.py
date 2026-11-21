@@ -18,6 +18,9 @@ class Assistant(BaseModel):
     reports: list[dict] = Field(default_factory=list)
     since: list[str] = Field(default_factory=list)
     paper: list[str] = Field(default_factory=list)
+    # The week of this instance's first turn: 0 for a client named in the config, the week
+    # after the sign-up for an owner who signed up during the run.
+    started: int = 0
 
 
 class Person(BaseModel):
@@ -78,6 +81,26 @@ class Regulator(BaseModel):
     tips: list[str] = Field(default_factory=list)
 
 
+class Provider(BaseModel):
+    """The company that offers the AI system: its account, its terms, and the firms' quarter.
+
+    `quarter` and `last_quarter` hold, for each firm, [customers served, takings, weeks
+    open, weeks run by the AI system] over the current and the previous quarter.
+    `quarter_start` holds each firm's figures (see `firm_figures`) when the current quarter
+    began, and `fees_qtd` what each firm has paid in fees this quarter.
+    """
+
+    cash: int = 0
+    decider: str = ""
+    fee: int = 0  # cents a week, paid by each client's firm
+    adoption: bool = False  # whether owners are offered the system each quarter
+    quarter_began: int = 0
+    quarter: dict[str, list[int]] = Field(default_factory=dict)
+    last_quarter: dict[str, list[int]] = Field(default_factory=dict)
+    quarter_start: dict[str, dict[str, int]] = Field(default_factory=dict)
+    fees_qtd: dict[str, int] = Field(default_factory=dict)
+
+
 class Laws(BaseModel):
     tax_rate: float
     penalty_multiplier: float
@@ -112,13 +135,29 @@ class World(BaseModel):
     assistant_provider: str = ""
     assistant_max_rounds: int = 0
     assistant_max_actions: int = 0
+    # The AI system's provider; None when the town has no AI system. Left out of the
+    # state hash when None, so a town without one hashes as it always has.
+    provider: Provider | None = None
+
+
+def firm_figures(world: World, firm_id: str) -> dict[str, int]:
+    """What an owner sees of their firm at a moment: price, pay, staff, its cash and their own."""
+    f = world.firms[firm_id]
+    return {
+        "price": f.price,
+        "wage": f.wage,
+        "staff": len(f.employee_ids),
+        "cash": f.cash,
+        "owner_cash": world.people[f.owner_id].cash,
+    }
 
 
 def total_money(world: World) -> int:
-    """Total cash held by people, firms, the treasury and the newspaper."""
+    """Total cash held by people, firms, the treasury, the newspaper and the AI's provider."""
     return (
         sum(p.cash for p in world.people.values())
         + sum(f.cash for f in world.firms.values())
         + world.treasury.cash
         + world.newspaper.cash
+        + (world.provider.cash if world.provider is not None else 0)
     )
