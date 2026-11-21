@@ -98,11 +98,34 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
     return ob.id
 
 
-def falls_on(ob: Obligation, day: int) -> bool:
-    """Whether an instalment of an active or breached obligation falls on `day`."""
+def on_schedule(ob: Obligation, day: int) -> bool:
+    """Whether `day` is one of the days of an active or breached obligation's schedule,
+    whatever its instalment that day is for."""
     if ob.status not in SCHEDULED or day < ob.first or (ob.last is not None and day > ob.last):
         return False
     return day == ob.first or (ob.every > 0 and (day - ob.first) % ob.every == 0)
+
+
+def falls_on(ob: Obligation, day: int) -> bool:
+    """Whether an instalment of an active or breached obligation falls on `day`: a day of its
+    schedule whose instalment is for more than nothing (a wage re-priced to nothing falls on
+    no day while it is nothing)."""
+    return on_schedule(ob, day) and instalment_cents(ob, day) > 0
+
+
+def next_on_schedule(ob: Obligation, day: int) -> int:
+    """The first day on or after `day` of a repeating obligation's schedule, ignoring its
+    status, end and amounts."""
+    if day <= ob.first or ob.every == 0:
+        return ob.first
+    return ob.first + -(-(day - ob.first) // ob.every) * ob.every
+
+
+def _zero_from(ob: Obligation) -> int | None:
+    """The day from which every instalment of `ob` is for nothing, or None."""
+    if ob.next_from != -1:
+        return ob.next_from if ob.next_cents == 0 else None
+    return ob.first if ob.cents == 0 else None
 
 
 def last_instalment(ob: Obligation) -> int | None:
@@ -161,23 +184,25 @@ def reprice(store: Store, ob_id: str, cents: int, from_day: int, cause: str) -> 
     """Make the instalments of a weekly or other repeating obligation that fall on or after
     `from_day` for `cents`; those before keep their amount. A second change before `from_day`
     replaces the one pending. A due already opened on or after `from_day` and not yet paid
-    takes the new amount. Raises ValueError, changing nothing: for an unknown obligation, one
-    not active, once-only, with a `last` or a `final_cents`; cents not a positive int; a
-    `from_day` that is not an instalment day after today; or a due on or after `from_day`
-    already paid in full or paid more than `cents`."""
+    takes the new amount. `cents` may be 0: an instalment of nothing opens no due and is
+    taken from no one. Raises ValueError, changing nothing: for an unknown obligation, one
+    not active, once-only, with a `last` or a `final_cents`; cents not an int of 0 or more; a
+    `from_day` that is not a day of its schedule after today; or a due on or after `from_day`
+    already paid in full or paid more than `cents` (any due at all, for 0)."""
     if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
         raise ValueError(f"no obligation {ob_id!r}")
     ob = store.get("obligations", ob_id)
     if ob.status != "active" or ob.every == 0 or ob.last is not None or ob.final_cents:
         raise ValueError(f"{ob_id} cannot be re-priced: it is {ob.status}, every {ob.every}, last {ob.last}")
-    if not _is_int(cents) or cents <= 0:
-        raise ValueError(f"cents must be a positive int, got {cents!r}")
-    if not _is_int(from_day) or from_day <= store.day or not falls_on(ob, from_day):
-        raise ValueError(f"{from_day!r} is not an instalment day of {ob_id} after today")
+    if not _is_int(cents) or cents < 0:
+        raise ValueError(f"cents must be an int of 0 or more, got {cents!r}")
+    if not _is_int(from_day) or from_day <= store.day or not on_schedule(ob, from_day):
+        raise ValueError(f"{from_day!r} is not a day of the schedule of {ob_id} after today")
     later = [d for d in store.where("dues", obligation=ob_id) if d.day >= from_day and d.status != "void"]
-    if any(d.status == "paid" or d.paid > cents for d in later):
+    if any(d.status == "paid" or d.paid > cents or cents == 0 for d in later):
         raise ValueError(f"{ob_id} has a due on or after day {from_day} already paid")
     with store.transaction():
+        _fold(store, ob, cause)
         store.set("obligations", ob_id, cause, next_cents=cents, next_from=from_day)
         for d in later:
             if d.cents != cents:
@@ -186,8 +211,16 @@ def reprice(store: Store, ob_id: str, cents: int, from_day: int, cause: str) -> 
 
 def open_dues(store: Store) -> None:
     for ob in store.all("obligations"):
+        _fold(store, ob, "routine:due")
         if falls_on(ob, store.day):
             ensure_due(store, ob.id, store.day, "routine:due")
+
+
+def _fold(store: Store, ob: Obligation, cause: str) -> None:
+    """A change of amount whose day has come is the amount now (when no due was opened on
+    that day, as for an instalment of nothing)."""
+    if ob.next_from != -1 and ob.next_from <= store.day:
+        store.set("obligations", ob.id, cause, cents=ob.next_cents, next_cents=0, next_from=-1)
 
 
 def people_of(store: Store, account: str) -> list[str]:
@@ -341,8 +374,10 @@ def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
             yield ob.first
         return
     day = ob.first if today <= ob.first else ob.first + -(-(today - ob.first) // ob.every) * ob.every
-    while ob.last is None or day <= ob.last:
-        yield day
+    zero = _zero_from(ob)
+    while (ob.last is None or day <= ob.last) and (zero is None or day < zero):
+        if instalment_cents(ob, day) > 0:
+            yield day
         day += ob.every
 
 

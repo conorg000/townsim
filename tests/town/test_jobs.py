@@ -331,15 +331,22 @@ def test_set_staff_pay_at_a_weekend_applies_from_the_friday_after_next():
 
 def test_an_owners_own_draw_may_be_set_to_nothing():
     s = work_town()
+    set_cash(s, "org3", 1_000_000)
     jid = jobs.start(s, "p01", "org3", 30_000, 38, 4, T, since=-7)
     out = do(s, "p01", "set_staff_pay", who="Ruth Ashby", weekly_pay=0)
     assert out.msg == "Marsh's Stores pays you $0.00 a week from Friday 13 March."
-    wage = s.get("jobs", jid).wage_ob                      # ended, and still the job's until a draw is set again
-    assert s.get("obligations", wage).last == 4 and s.get("jobs", jid).weekly == 0
+    wage = s.get("jobs", jid).wage_ob                      # the one wage, re-priced to nothing
+    ob = s.get("obligations", wage)
+    assert (ob.status, ob.last, ob.next_cents, ob.next_from) == ("active", None, 0, 11) and s.get("jobs", jid).weekly == 0
     to_day(s, 19)
     assert paid(s, "org3", "h1") == [(4, 30_000)]
-    out = do(s, "p01", "set_staff_pay", who="Ruth Ashby", weekly_pay=200)
-    assert out.msg == "Marsh's Stores pays you $200.00 a week from Friday 27 March." and out.ok
+    assert [d.day for d in s.where("dues", obligation=wage)] == [4]          # an instalment of nothing opens no due
+    assert not [u for u in O.upcoming(s, "h1", 21) if u.obligation == wage]
+    out = do(s, "p01", "set_staff_pay", who="Ruth Ashby", weekly_pay=200)    # on a Saturday
+    assert out.msg == "Marsh's Stores pays you $200.00 a week from Friday 3 April." and out.ok
+    assert s.get("jobs", jid).wage_ob == wage
+    to_day(s, 40)
+    assert paid(s, "org3", "h1") == [(4, 30_000), (32, 20_000), (39, 20_000)]
     assert refused(s, "p01", "set_staff_pay", who="Craig Pryce", weekly_pay=0).startswith("Not done: '0'")
 
 
@@ -610,7 +617,10 @@ def test_a_draw_set_to_nothing_and_back_never_pays_a_friday_twice(start):
     days = [t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.t >= start]
     assert len(days) == len(set(days)), days
     first_new = min(t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.cents == 30_000)
-    assert out.msg.endswith(f"from {date_text(first_new)}.")
+    assert out.msg.startswith(f"Hartcliffe Food Hall pays you $300.00 a week from {date_text(first_new)}. "
+                              f"This replaces the change to $0.00 that was to start on {date_text(first_new)}.")
+    assert {o.id for o in s.all("obligations") if o.payer == "org11" and o.payee == "h2" and o.kind == "wage"} == \
+        {s.get("jobs", next(j.id for j in s.where("jobs", person="p3"))).wage_ob}
 
 
 def test_pay_changed_twice_in_a_week_pays_each_friday_once():
@@ -816,15 +826,17 @@ def test_benefit_after_a_pay_change_and_a_dismissal_at_a_weekend_starts_after_th
     assert told(s, "p9")[-1] == "Jobseeker's benefit of $140.00 a week starts on Friday 20 March."
 
 
-def test_a_stopped_wage_replaced_then_the_job_left_takes_no_wage_after_the_last_pay():
+def test_a_stopped_wage_is_not_replaced_and_the_job_left_takes_no_wage_after_the_last_pay():
     s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
     assert do(s, "p16", "stop", id="ob3").msg.endswith("recorded as a breach.")
-    assert do(s, "p16", "set_staff_pay", 1, who="Gail Whiteley", weekly_pay=600).ok
+    assert do(s, "p16", "set_staff_pay", 1, who="Gail Whiteley", weekly_pay=600).msg == \
+        "Not done: Lumb's Grocer has stopped paying Gail Whiteley's wages."
     close(s); live(s, 7); routine(s)                # Friday 20 March
     assert do(s, "p9", "quit").msg == "You have left Lumb's Grocer. Your last pay is on Friday 20 March."
     close(s); live(s, 20)
     assert s.engine_errors == [] and s.get("obligations", "ob3").last <= 20
-    assert [d for d, src, c in _wages_in(s, 21) if src == "org10"] == []
+    assert not [t for t in s.ledger.transfers if t.src == "org10" and t.dst == "h5" and t.t >= 21
+                and t.memo.startswith("wages")]                      # a late fee on what is owed may be taken
     _check_run(s)
 
 
@@ -844,7 +856,7 @@ def test_pay_changed_many_times_in_a_week_is_one_wage_at_the_last_amount():
 def test_reprice_refuses_what_it_cannot_do():
     s = work_town()
     ob = job_of(s, "p03", "org3").wage_ob
-    for bad in ((0, 11), (50_000, 10), (50_000, 0), (50_000, -3)):
+    for bad in ((-1, 11), (50_000, 10), (50_000, 0), (50_000, -3)):
         with pytest.raises(ValueError):
             O.reprice(s, ob, *bad, T)
     O.reprice(s, ob, 50_000, 11, T)
@@ -887,3 +899,82 @@ def test_a_request_with_no_text_is_named_without_an_empty_quotation():
     s.add("requests", Request("rq10", 0, "p03", "p01", "  ", 0, 14), T)
     assert do(s, "p01", "answer", 1, request="rq10", answer="decline").ok
     assert told(s, "p03")[-1] == "Ruth Ashby declined your request rq10."
+
+
+# what the fourth review found: a draw of nothing is a wage of nothing; what is announced is paid
+
+def _draws(s, since):
+    """(day, cents) of the owner's draw from Lumb's Grocer to Martin Lumb's household (h9)."""
+    return [(t.t, t.cents) for t in s.ledger.transfers if t.src == "org10" and t.dst == "h9" and t.t >= since
+            and t.memo.startswith("wages")]
+
+
+@pytest.mark.parametrize("gap", [0, 1, 3])
+def test_a_draw_set_to_nothing_and_back_twice_is_one_wage(gap):
+    s = _hamlet(); live(s, 7); routine(s)          # Monday 9 March; Martin Lumb draws $457.90
+    for i, weekly in enumerate((0, 450, 0, 450)):
+        assert do(s, "p16", "set_staff_pay", i, who="Martin Lumb", weekly_pay=weekly).ok
+        if gap and i == 1:
+            close(s); live(s, gap - 1); routine(s)
+    close(s); live(s, 21)
+    wages = [o.id for o in s.all("obligations") if o.payer == "org10" and o.payee == "h9" and o.kind == "wage"
+             and o.memo == "wages from Lumb's Grocer"]
+    assert wages == ["ob1"] and s.get("jobs", "jb1").wage_ob == "ob1"
+    days = [d for d, _ in _draws(s, 7)]
+    assert len(days) == len(set(days)), _draws(s, 7)
+    assert _draws(s, 7)[:2] == [(11, 45_790), (18, 45_000)]
+    _check_run(s)
+
+
+def test_a_draw_of_nothing_opens_no_due_and_shows_no_line():
+    s = _hamlet(); live(s, 7); routine(s)
+    do(s, "p16", "set_staff_pay", who="Martin Lumb", weekly_pay=0)
+    close(s); live(s, 14); routine(s)               # Monday 23 March
+    assert [d.day for d in s.where("dues", obligation="ob1") if d.day > 11] == []
+    assert not [u for u in O.upcoming(s, "h9", 21) if u.obligation == "ob1"]
+    assert O.instalment_cents(s.get("obligations", "ob1"), 25) == 0
+    assert "$0.00  Lumb's Grocer" not in view(s, "p16")[0][1]["content"]
+    assert _draws(s, 12) == []
+
+
+def test_a_second_pay_change_takes_the_place_of_the_first_on_its_day():
+    s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
+    assert do(s, "p16", "set_staff_pay", who="Gail Whiteley", weekly_pay=500).msg == \
+        "Lumb's Grocer pays Gail Whiteley $500.00 a week from Friday 20 March."
+    close(s); routine(s)                            # Friday 13 March
+    out = do(s, "p16", "set_staff_pay", 1, who="Gail Whiteley", weekly_pay=560)
+    assert out.msg == ("Lumb's Grocer pays Gail Whiteley $560.00 a week from Friday 20 March. "
+                       "This replaces the change to $500.00 that was to start on Friday 20 March.")
+    assert told(s, "p9")[-1] == ("Lumb's Grocer pays you $560.00 a week from Friday 20 March. "
+                                 "This replaces the change to $500.00 that was to start on Friday 20 March.")
+    close(s); live(s, 20)
+    assert [(d.day, d.cents, d.status) for d in s.where("dues", obligation="ob3") if d.day >= 11][:3] == \
+        [(11, 43_400, "paid"), (18, 56_000, "paid"), (25, 56_000, "paid")]
+    _check_run(s)
+
+
+def test_three_pay_changes_across_a_week_pay_what_was_last_announced_for_each_friday():
+    s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
+    do(s, "p16", "set_staff_pay", who="Gail Whiteley", weekly_pay=500)            # from Friday 20 March
+    close(s); live(s, 6); routine(s)                # Thursday 19 March: still pending
+    out = do(s, "p16", "set_staff_pay", 1, who="Gail Whiteley", weekly_pay=520)
+    assert out.msg.endswith("This replaces the change to $500.00 that was to start on Friday 20 March.")
+    close(s); live(s, 1); routine(s)                # Saturday 21 March: the change has come
+    out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=540)
+    assert out.msg == "Lumb's Grocer pays Gail Whiteley $540.00 a week from Friday 3 April."
+    close(s); live(s, 20)
+    got = [(t.t, t.cents) for t in s.ledger.transfers if t.src == "org10" and t.dst == "h5" and t.t >= 11]
+    assert got[:4] == [(11, 43_400), (18, 52_000), (25, 52_000), (32, 54_000)]
+    _check_run(s)
+
+
+def test_a_request_for_a_wage_answered_after_it_ends_counts_toward_nothing():
+    s = _hamlet(); live(s, 10); routine(s)
+    assert do(s, "p9", "request", to="Martin Lumb", text="my wage", amount=50, **{"for": "ob3"}).ok
+    rq = s.all("requests")[-1].id
+    close(s); live(s, 1); routine(s)                # Saturday: Gail Whiteley is dismissed; her last pay was Friday
+    assert do(s, "p16", "dismiss", 1, who="Gail Whiteley").ok
+    out = do(s, "p16", "answer", 2, request=rq, answer="accept")
+    assert out.msg == ("Accepted. Paid $50.00 to Gail Whiteley. Nothing was counted toward wages from "
+                       "Lumb's Grocer: it has ended.")
+    assert s.ledger.transfers[-1].memo == f"request {rq}"

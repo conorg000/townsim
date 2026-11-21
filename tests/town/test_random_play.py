@@ -274,6 +274,15 @@ def random_script(rng: random.Random, from_view: bool = False):
                 body["end"] = rng.choice([True, False, "true", 1, None]) if rng.random() < 0.5 else False
             return json.dumps(body)
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
+        if from_view and seen["business"]:     # an owner's draw to nothing and back, and staff pay changed
+            me = re.search(r"^You are (.+?), \d+\.", messages[0].get("content", ""), re.M)
+            if me and rng.random() < 0.4:
+                pair = [{"op": "set_staff_pay", "who": me.group(1), "weekly_pay": 0},
+                        {"op": "set_staff_pay", "who": me.group(1), "weekly_pay": rng.choice([300, 450, 600])}]
+                acts += pair * rng.choice([1, 1, 2])
+            others = [n for n in seen["staff"] if not me or n != me.group(1)]
+            if others and rng.random() < 0.5:
+                acts.append({"op": "set_staff_pay", "who": rng.choice(others), "weekly_pay": rng.randint(450, 800)})
         body = json.dumps({"thoughts": text() if rng.random() < 0.5 else "", "acts": acts})
         if rng.random() < 0.15:
             body = rng.choice(["Here is my reply: ", "```json\n", "{\"note\": 1} "]) + body + rng.choice(["", "\n```", " {"])
@@ -374,6 +383,28 @@ def _check_wage_chains(s) -> None:
                 if t.cause.startswith("routine:collect:"):
                     due = s.get("dues", t.cause.removeprefix("routine:collect:"))
                     assert not (due.obligation in obs and due.day > ended), (job, ended, due)
+    _check_announced(s, set().union(*_wage_chains(s).values()) if _wage_chains(s) else set())
+
+
+def _check_announced(s, wages: set[str]) -> None:
+    """For every wage of a job, each Friday's due is for the amount last announced for that
+    Friday when it was taken: the amount it was made with from its first day, or a change of
+    amount (`reprice`: `next_cents` from `next_from`) set since, whichever came last."""
+    events: dict[str, list[tuple[int, int]]] = defaultdict(list)     # ob -> [(from day, cents)], in order made
+    pending_cents: dict[str, int] = {}
+    for c in s.changes:
+        if c.table == "obligations" and c.id in wages:
+            if c.field == "+":
+                events[c.id].append((c.new.first, c.new.cents))
+            elif c.field == "next_cents":
+                pending_cents[c.id] = c.new
+            elif c.field == "next_from" and c.new != -1:
+                events[c.id].append((c.new, pending_cents.get(c.id, 0)))
+        elif c.table == "ledger" and c.cause.startswith("routine:collect:"):
+            due = s.get("dues", c.cause.removeprefix("routine:collect:"))
+            if due.obligation in wages:
+                said = [cents for start, cents in events[due.obligation] if start <= due.day]
+                assert said and said[-1] == due.cents, (due, events[due.obligation])
 
 
 def _check_run(s) -> None:

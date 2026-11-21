@@ -153,13 +153,19 @@ def _ended_wage(store: Store, ob_id: str) -> bool:
 
 
 def _nothing_counted(store: Store, ob_id: str) -> str:
-    """What the payer is told when a payment naming `ob_id` counted toward none of it because
-    its next payment is more than a week away; "" otherwise."""
+    """What the payer is told when a payment naming `ob_id` counted toward none of it: because
+    it has ended, nothing more falls due on it, or its next payment is more than a week away;
+    "" otherwise."""
     ob = store.get("obligations", ob_id)
+    what = f" Nothing was counted toward {memo_shown(ob.memo)}"
+    if ob.status not in obligations.SCHEDULED or (ob.last is not None and ob.last < store.day):
+        return f"{what}: it has ended."
     day = obligations.next_instalment(store, ob)
-    if day is None or day <= store.day + obligations.AHEAD_DAYS:
+    if day is None:
+        return f"{what}: nothing more falls due on it."
+    if day <= store.day + obligations.AHEAD_DAYS:
         return ""
-    return f" Nothing was counted toward {memo_shown(ob.memo)}: the next payment on it is more than a week away."
+    return f"{what}: the next payment on it is more than a week away."
 
 
 def _own_wage(store: Store, act: Act, ob_id: str) -> bool:
