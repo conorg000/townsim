@@ -118,15 +118,15 @@ def test_a_payment_that_cannot_be_covered_changes_nothing():
     assert unchanged(s) == before
 
 
-def test_a_defaulted_due_is_never_counted_toward():
+def test_a_defaulted_due_is_counted_toward_with_arrears_oldest_first():
     s = town(h1=0)
     O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
     run_days(s, 29)
     s.transfer("outside:employers", "h1", 10_000, "wages", "routine:test")
-    m = O.pay(s, "h1", "outside:northgrid", 4_800, "energy", "op:p1:pay:d29.0")
+    m = O.pay(s, "h1", "outside:northgrid", 6_000, "energy", "op:p1:pay:d29.0")
     energy, fee = s.all("dues")
-    assert energy.status == "defaulted" and energy.paid == 0
-    assert m == [O.Match(fee.id, 2_500)] and fee.status == "paid"     # only the late fee, still in arrears
+    assert m == [O.Match(energy.id, 4_800), O.Match(fee.id, 1_200)]
+    assert (energy.status, energy.paid, fee.status, fee.paid) == ("paid", 4_800, "arrears", 1_200)
 
 
 def test_paying_a_once_only_obligation_by_hand_finishes_it():
@@ -162,12 +162,14 @@ def test_stop_refuses_anyone_but_the_payer_and_changes_nothing():
     assert unchanged(s) == before
 
 
-def test_a_due_already_open_still_stands_after_stop():
+def test_a_due_already_open_still_stands_after_stop_and_is_not_taken():
     s = town(h1=50_000)
     ob = make_rent(s, cents=17_500, first=0)            # falls today, so its due is open
     assert O.stop(s, ob, "h1", "op:p1:stop:d0.0") == "breach"
     run_days(s, 15)
-    assert [t.t for t in to(s, "outside:lettings")] == [0]
+    assert [(d.day, d.status) for d in s.all("dues") if d.obligation == ob] == [(0, "arrears"), (7, "arrears"), (14, "arrears")]
+    assert [t.memo for t in to(s, "outside:lettings")] == [   # only the late fees, which are their own bills
+        "late fee on rent due Monday 2 March", "late fee on rent due Monday 9 March"]
 
 
 def test_name_of():

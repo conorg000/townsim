@@ -88,3 +88,11 @@ def test_a_daily_obligation_reads_every_day():
     s = town()
     O.create(s, kind="standing", payer="h1", payee="h2", cents=100, first=1, every=1, memo="daily", ends="payer", **SETUP)
     assert agreements_text(s, "h1") == "ob1: daily, $1.00 every day to Brook, first Tuesday 3 March, active"
+
+
+def test_a_defaulted_due_stays_on_the_statement():
+    s = town(h1=0)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
+    run_days(s, 30)
+    assert s.all("dues")[0].status == "defaulted"
+    assert "  overdue since Monday 2 March  $48.00  Northgrid  energy (ob1)" in statement_text(s, statement(s, "h1"))

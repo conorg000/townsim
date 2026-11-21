@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from townsim.town.clock import date_text
-from townsim.town.obligations import Upcoming, money, name_of, upcoming
+from townsim.town.obligations import OWED, Upcoming, money, name_of, upcoming
 from townsim.town.store import Store
 
 
@@ -52,7 +52,7 @@ def statement(store: Store, account: str, back: int = 14, ahead: int = 7, max_li
 
 
 def _overdue(store: Store, u: Upcoming) -> bool:
-    return any(d.obligation == u.obligation and d.day == u.day and d.status == "arrears"
+    return any(d.obligation == u.obligation and d.day == u.day and d.status in OWED
                for d in store.all("dues"))
 
 

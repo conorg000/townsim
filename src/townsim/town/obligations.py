@@ -3,7 +3,13 @@
 Every payment due on a schedule is an `Obligation`; each instalment of it is a `Due`
 row, opened once by `ensure_due`. `collect` is the only code that takes money for a
 due, and it takes it in one transfer or not at all. Unpaid dues age through a ladder:
-a late fee at 7 days, a notice at 14, default at 28.
+a late fee at 7 days, a notice at 14, default at 28. A defaulted due is still owed:
+collect keeps trying it and a payment by hand counts toward it (design 3.2: what cannot
+be paid does not vanish).
+
+A `breached` obligation keeps its schedule: its dues open on their days, but the payer
+has withheld payment, so they are not taken automatically. Each goes to arrears on its
+day, climbs the same ladder, and can be paid by hand.
 """
 
 from __future__ import annotations
@@ -23,6 +29,9 @@ LATE_FEE_CENTS = 2500
 FEE_AFTER_DAYS = 7
 NOTICE_AFTER_DAYS = 14
 DEFAULT_AFTER_DAYS = 28
+
+OWED = ("arrears", "defaulted")      # still owed after their day
+SCHEDULED = ("active", "breached")   # obligations whose instalments still fall due
 
 
 class Match(NamedTuple):
@@ -86,8 +95,8 @@ def create(store: Store, *, kind: str, payer: str, payee: str, cents: int, first
 
 
 def falls_on(ob: Obligation, day: int) -> bool:
-    """Whether an instalment of an active obligation falls on `day`."""
-    if ob.status != "active" or day < ob.first or (ob.last is not None and day > ob.last):
+    """Whether an instalment of an active or breached obligation falls on `day`."""
+    if ob.status not in SCHEDULED or day < ob.first or (ob.last is not None and day > ob.last):
         return False
     return day == ob.first or (ob.every > 0 and (day - ob.first) % ob.every == 0)
 
@@ -173,17 +182,26 @@ def age_arrears(store: Store) -> None:
                 store.set("obligations", ob.id, cause, status="breached")
 
 
+def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:
+    text = f"{ob.memo}, {money(remainder)}, due {date_text(due.day)}, could not be taken."
+    if ob.status != "breached":
+        text += f" The account held {money(store.balance(ob.payer))}."
+    _tell(store, ob.payer, text, cause)
+
+
 def _collect_order(store: Store, due: Due) -> tuple:
     kind = store.get("obligations", due.obligation).kind
     return (kind != "wage", due.day, KIND_ORDER.index(kind), id_key(due.id))
 
 
 def collect(store: Store) -> None:
-    """Take every due or arrears instalment up to today in full, or mark it arrears.
+    """Take every instalment owed up to today in full, or leave it owed. A due that goes to
+    arrears for the first time is told to the payer's people. A breached obligation's dues
+    are not taken: they go to arrears on their day.
 
     Wages go first so they land before anything is taken; then oldest first.
     """
-    waiting = [d for d in store.all("dues") if d.status in ("due", "arrears") and d.day <= store.day]
+    waiting = [d for d in store.all("dues") if d.status in ("due",) + OWED and d.day <= store.day]
     for due in sorted(waiting, key=lambda d: _collect_order(store, d)):
         ob = store.get("obligations", due.obligation)
         cause = f"routine:collect:{due.id}"
@@ -191,9 +209,10 @@ def collect(store: Store) -> None:
         if remainder < 0:
             store.engine_errors.append(f"{due.id} has paid {due.paid} of {due.cents} cents")
         account = store.ledger.accounts[ob.payer]
-        if remainder > 0 and (account.balance < remainder and not account.allow_credit):
-            if due.status != "arrears":
+        if remainder > 0 and (ob.status == "breached" or (account.balance < remainder and not account.allow_credit)):
+            if due.status == "due":
                 store.set("dues", due.id, cause, status="arrears")
+                _tell_not_taken(store, ob, due, remainder, cause)
             continue
         if remainder > 0:
             memo = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)}"
@@ -215,7 +234,7 @@ def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
         if due.obligation not in obs:
             continue
         opened.add((due.obligation, due.day))
-        if due.status == "arrears" or (due.status == "due" and due.day <= end):
+        if due.status in OWED or (due.status == "due" and due.day <= end):
             found[(due.obligation, due.day)] = due.cents - due.paid
     for ob in obs.values():
         for day in range(store.day, end + 1):
@@ -231,8 +250,8 @@ def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
 
 
 def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
-    """The days from `today` on which an instalment of an active obligation falls, in order."""
-    if ob.status != "active":
+    """The days from `today` on which an instalment of an active or breached obligation falls, in order."""
+    if ob.status not in SCHEDULED:
         return
     if ob.every == 0:
         if ob.first >= today:
@@ -286,7 +305,7 @@ def pay(store: Store, payer: str, payee: str, cents: int, memo: str, cause: str,
 
     plan: list[tuple[Obligation, int, int]] = []  # (obligation, day, cents counted)
     left = cents
-    arrears = [d for d in store.all("dues") if d.obligation in by_id and d.status == "arrears"]
+    arrears = [d for d in store.all("dues") if d.obligation in by_id and d.status in OWED]
     arrears.sort(key=lambda d: (d.day, KIND_ORDER.index(by_id[d.obligation].kind), id_key(d.obligation)))
     for due in arrears:
         take = min(left, due.cents - due.paid)
@@ -322,7 +341,8 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
     """End an active obligation for its payer `by`. Dues already opened still stand.
 
     Returns `stopped` (the payer may end it), `left` (leaving a service) or `breach`
-    (an agreement both made: it is breached and a record says so). Raises ValueError,
+    (an agreement both made: it is breached and a record says so; it still falls due,
+    but nothing is taken automatically). Raises ValueError,
     changing nothing, if `by` is not the payer or the obligation is not active.
     """
     if not store.has("obligations", ob_id):

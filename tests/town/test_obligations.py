@@ -50,8 +50,11 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
     assert fees[0].ends == "both"                                        # the parent is "service"
     assert [d.day for d in s.all("dues") if d.obligation == fees[0].id] == [7]
     assert [(n.to, n.text) for n in s.all("notices")] == [
-        (p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
-        for p in ("p1", "p2")]
+        (p, "energy, $48.00, due Monday 2 March, could not be taken. The account held $0.00.") for p in ("p1", "p2")
+    ] + [(p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
+         for p in ("p1", "p2")] + [
+        (p, "late fee on energy due Monday 2 March, $25.00, due Monday 9 March, could not be taken. "
+            "The account held $0.00.") for p in ("p1", "p2")]
     run_days(s, 7)
     two_weeks = [n for n in s.all("notices") if "two weeks" in n.text]
     assert len(two_weeks) == len(O.people_of(s, "h1")) == 2
@@ -64,13 +67,23 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
     assert s.balance("h1") == 0 and s.ledger.total() == 0
 
 
-def test_a_defaulted_due_is_not_retried():
+def test_a_defaulted_due_is_still_owed_and_is_taken_when_money_comes():
     s = town(h1=0)
-    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
+    ob = O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, every=7, memo="energy",
+                  ends="service", **SETUP)
     run_days(s, 29)
+    first = first_due(s)
+    assert first.status == "defaulted" and s.get("obligations", ob).status == "active"
+    assert O.upcoming(s, "h1")[0][:4] == (0, ob, "outside:northgrid", 4_800)
+    records = len(s.all("records"))
+    run_days(s, 3)                                      # the ladder has ended: no second default for it
+    assert len([r for r in s.all("records") if "due Monday 2 March." in r.text and r.text.startswith("Ashby defaulted on energy")]) == 1
+    assert len(s.all("records")) == records
     s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 1)
-    assert first_due(s).status == "defaulted"
-    assert [t.memo for t in s.ledger.transfers if t.src == "h1"] == ["late fee on energy due Monday 2 March"]
+    assert first.status == "paid" and first.paid == 4_800
+    taken = [t for t in s.ledger.transfers if t.src == "h1"]
+    assert taken[0].memo == "energy, due Monday 2 March" and taken[0].cause == f"routine:collect:{first.id}"
+    assert all(d.status == "paid" for d in s.all("dues"))     # every due, defaulted or not, oldest first
 
 
 def test_wages_land_before_anything_is_taken_and_older_debts_go_first():
@@ -268,3 +281,76 @@ def test_dues_are_taken_in_numeric_id_order_and_an_exact_balance_pays():
     O.collect(s)
     assert [(d.id, d.status) for d in s.all("dues")][-2:] == [("du9", "paid"), ("du10", "arrears")]
     assert s.balance("h1") == 0
+
+
+# being told, and what a breach leaves owed
+
+def test_a_due_that_cannot_be_taken_is_told_once():
+    s = town(h1=10_000)
+    O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=17_500, first=0, memo="rent", ends="both", **SETUP)
+    run_days(s, 5)
+    told = [n for n in s.all("notices") if "could not be taken" in n.text]
+    assert [(n.to, n.day, n.text) for n in told] == [
+        (p, 0, "rent, $175.00, due Monday 2 March, could not be taken. The account held $100.00.") for p in ("p1", "p2")]
+    causes = {c.cause for c in s.changes if c.table == "notices" and c.field == "+" and "could not" in c.new.text}
+    assert causes == {"routine:collect:du1"}
+
+
+def test_a_part_paid_due_tells_what_remains():
+    s = town(h1=10_000)
+    ob = O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=17_500, first=1, memo="rent", ends="both", **SETUP)
+    O.pay(s, "h1", "outside:lettings", 5_000, "part", "op:p1:pay:d0.0")
+    run_days(s, 2)
+    [first, _] = [n.text for n in s.all("notices")]
+    assert first == "rent, $125.00, due Tuesday 3 March, could not be taken. The account held $50.00."
+    assert s.get("obligations", ob).status == "active"
+
+
+def test_a_breached_agreement_keeps_falling_due_and_is_not_taken():
+    s = town(h1=100_000)
+    rent = O.create(s, kind="rent", payer="h1", payee="outside:lettings", cents=17_500, first=0, every=7, memo="rent",
+                    ends="both", **SETUP)                                     # today's due is open, not yet taken
+    assert O.stop(s, rent, "h1", "op:p1:stop:d0.0") == "breach"
+    run_days(s, 15)
+    dues = [d for d in s.all("dues") if d.obligation == rent]
+    assert [(d.day, d.status, d.paid) for d in dues] == [(0, "arrears", 0), (7, "arrears", 0), (14, "arrears", 0)]
+    assert not any(t.memo.startswith("rent, due") for t in s.ledger.transfers)
+    told = [n.text for n in s.all("notices") if n.to == "p1" and "could not be taken" in n.text]
+    assert told == ["rent, $175.00, due Monday 2 March, could not be taken.",
+                    "rent, $175.00, due Monday 9 March, could not be taken.",
+                    "rent, $175.00, due Monday 16 March, could not be taken."]
+    fees = [o for o in s.all("obligations") if o.penalty]                  # the ladder climbs as for any arrears
+    assert [o.memo for o in fees] == ["late fee on rent due Monday 2 March", "late fee on rent due Monday 9 March"]
+    assert [u.day for u in O.upcoming(s, "h1") if u.obligation == rent] == [0, 7, 14, 21]
+    m = O.pay(s, "h1", "outside:lettings", 20_000, "catching up", "op:p1:pay:d15.0")
+    assert [(s.get("dues", x.due).day, x.cents) for x in m] == [(0, 17_500), (7, 2_500)]
+    assert dues[0].status == "paid" and s.get("obligations", rent).status == "breached"
+    run_days(s, 30)
+    assert all(d.status in ("arrears", "defaulted", "paid") for d in dues)
+    assert [d.day for d in s.all("dues") if d.obligation == rent and d.status == "defaulted"][:2] == [7, 14]
+    assert s.ledger.total() == 0
+
+
+def test_a_late_fee_cannot_be_shed_by_stopping_it():
+    s = town(h1=0)
+    O.create(s, kind="bill", payer="h1", payee="outside:northgrid", cents=4_800, first=0, memo="energy", ends="service", **SETUP)
+    run_days(s, 8)
+    [fee] = [o for o in s.all("obligations") if o.penalty]
+    assert O.stop(s, fee.id, "h1", "op:p1:stop:d8.0") == "breach"
+    s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 3)
+    [fee_due] = [d for d in s.all("dues") if d.obligation == fee.id]
+    assert fee_due.status == "arrears" and fee_due.paid == 0                # owed, not taken
+    assert O.upcoming(s, "h1")[0].memo == "late fee on energy due Monday 2 March"
+    O.pay(s, "h1", "outside:northgrid", 2_500, "the fee", "op:p1:pay:d11.0", ref=fee.id)
+    assert fee_due.status == "paid"
+
+
+def test_a_breach_by_default_is_no_longer_taken_automatically():
+    s = town(h1=0)
+    once = O.create(s, kind="loan", payer="h1", payee="outside:lettings", cents=4_800, first=0, memo="loan", ends="both", **SETUP)
+    run_days(s, 29)
+    assert s.get("obligations", once).status == "breached"
+    s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 3)
+    assert first_due(s).status == "defaulted" and first_due(s).paid == 0
+    m = O.pay(s, "h1", "outside:lettings", 4_800, "the loan", "op:p1:pay:d32.0")
+    assert m[0].due == first_due(s).id and first_due(s).status == "paid"
