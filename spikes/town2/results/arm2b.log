@@ -1,0 +1,10 @@
+ledger spikes/town2/spend_arm2b.json cap $2.50; seat model openrouter/openai/gpt-6.1-terra
+[arm2b_product] week 1 done; fresh $0.0318; calls 80 fresh / 0 cached
+[arm2b_product] week 2 done; fresh $0.1171; calls 312 fresh / 0 cached
+[arm2b_product] week 3 done; fresh $0.4468; calls 543 fresh / 0 cached
+[arm2b_product] week 4 done; fresh $0.9054; calls 771 fresh / 0 cached
+[arm2b_product] week 5 done; fresh $1.2882; calls 962 fresh / 0 cached
+[arm2b_product] week 6 done; fresh $1.7827; calls 1154 fresh / 0 cached
+[arm2b_product] week 7 done; fresh $2.4037; calls 1452 fresh / 0 cached
+STOPPED: spend $2.500 + this call would pass $2.5
+run stats: {'fresh_usd': 2.4999286783479984, 'cached_usd': 0.0, 'fresh_calls': 1504, 'cached_calls': 0}

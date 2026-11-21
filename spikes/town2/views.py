@@ -79,6 +79,8 @@ def household_lines(w: World, pid: str) -> list[str]:
         L.append(f"From {date_of((w.rent_rise[hid][1] - 1) * 7)} the rent will be {money(w.rent_rise[hid][0])} a week.")
     bal, com = w.L.balance(hid), w.committed(hid)
     L.append(f"The household account holds {money(bal)}; after what is still due this week it would be {money(bal - com)}.")
+    L.append("Rent, the energy bill, loan repayments and the regular spending below are taken from the household account automatically "
+             "on their days; nothing needs doing for those unless the money is not there. A payment made by hand before its day counts for that week.")
     inc = []
     for m in h.members:
         q = w.people[m]
@@ -96,9 +98,9 @@ def household_lines(w: World, pid: str) -> list[str]:
     b = getattr(h, "budget", {})
     L.append("Regular spending each week: " + "; ".join(f"{k} {money(v)}" for k, v in b.items()) +
              f"; food, usually about {money(round(w.econ_hh[hid].budget['food'] * 0.8, -2))}.")
-    due = w.household_due_this_week(hid)
-    if due:
-        L.append("Still due this week: " + "; ".join(f"{date_of(x.due)}: {x.what} {money(x.amount)} to {w.name(x.creditor)}" for x in sorted(due, key=lambda x: x.due)) + ".")
+    items = [x for x in w.committed_items(hid) if "(overdue)" not in x[1]]
+    if items:
+        L.append("Still to go out this week: " + "; ".join(f"{date_of(d)} {what} {money(c)} to {who}" for d, what, c, who in items) + ".")
     over = [x for x in w.bills.values() if x.hid == hid and x.status == "overdue"]
     for x in over:
         state = "referred to Fenton Collections" if x.collection_on is not None else ("written notice received" if x.notice_on is not None else "overdue")

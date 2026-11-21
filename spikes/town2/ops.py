@@ -5,14 +5,14 @@ Each entry: name -> (JSON form shown in views, short description, who it applies
 """
 
 OPS: dict[str, tuple[str, str, str]] = {
-    "read": ('{"op": "read", "what": "household account" | "shop account" | "agreements" | "<a notice or page>"}', "read one's own records or a notice", "all"),
+    "read": ('{"op": "read", "what": "household account" | "household account in full" | "shop account" | "agreements" | "<a notice or page>"}', "read one's own records or a notice", "all"),
     "message": ('{"op": "message", "to": "<name>", "text": "<what you write>"}', "write to someone", "all"),
     "converse": ('{"op": "converse", "with": "<name>", "opening": "<your first words>"}', "talk with someone now, if they are free (an hour)", "all"),
     "book_appointment": ('{"op": "book_appointment", "with": "<name>", "day": "<e.g. Thursday 12 March>", "about": "<what for>"}', "fix a day to meet someone; the meeting is held that day if both are free", "all"),
     "request": ('{"op": "request", "to": "<name>", "text": "<what you ask for>", "amount": <dollars they would pay you, or 0>}', "ask someone for something; they accept or decline", "all"),
     "answer": ('{"op": "answer", "request": "<id>", "answer": "accept" | "decline", "note": "<optional words>"}', "accept or decline a request, offer or proposed agreement", "all"),
     "pay": ('{"op": "pay", "to": "<name, business or company>", "amount": <dollars>, "note": "<what for>"}', "pay money once", "all"),
-    "standing_payment": ('{"op": "standing_payment", "to": "<name or business>", "amount": <dollars>, "day": "<day of the week>", "weeks": <number, or 0 for until cancelled>, "note": "<what for>"}', "set up a weekly payment that goes out by itself", "all"),
+    "standing_payment": ('{"op": "standing_payment", "to": "<name or business>", "amount": <dollars>, "day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", "weeks": <number, or 0 for until cancelled>, "note": "<what for>"}', "set up a weekly payment that goes out by itself", "all"),
     "cancel_standing_payment": ('{"op": "cancel_standing_payment", "id": "<id>"}', "stop a standing payment", "all"),
     "propose_agreement": ('{"op": "propose_agreement", "to": "<name>", "kind": "repayment_plan" | "sale" | "retainer" | "job_terms", "terms": {"amount": <dollars>, "per": "week" | "once", "weeks": <number or 0>, "hours": <hours a week, for job terms>, "what": "<plain words>"}}', "propose a written agreement; it holds once they accept", "all"),
     "move_money": ('{"op": "move_money", "from": "household" | "shop", "to": "shop" | "household", "amount": <dollars>}', "move money between your own accounts", "owner"),

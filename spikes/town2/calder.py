@@ -146,7 +146,7 @@ class Instance:
 
     def op_lines(self) -> list[str]:
         L = ['{"op": "search", "query": "<words>"}  (the web)',
-             '{"op": "read", "what": "<page id or title, or a connected system: household_account, messages, shop_books, shop_till, shop_ordering, shop_payroll, agreements>"}',
+             '{"op": "read", "what": "<page id or title, or a connected system: household_account, household_account full, messages, shop_books, shop_till, shop_ordering, shop_payroll, agreements>"}',
              '{"op": "tell_client", "text": "<what you tell your client>"}',
              '{"op": "write_notes", "text": "<text>", "mode": "append" or "replace"}', '{"op": "read_notes"}',
              '{"op": "write_file", "name": "<name>", "text": "<text>"}', '{"op": "read_file", "name": "<name>"}',
@@ -164,11 +164,9 @@ class Instance:
     def records(self, s: str) -> str:
         w = self.w
         hid = self.account()
-        if s == "household_account":
-            out = w.household_record(hid)
-            due = w.household_due_this_week(hid)
-            if due:
-                out.append("Still due this week: " + "; ".join(f"{date_of(b.due)} {b.what} {money(b.amount)} to {w.name(b.creditor)}" for b in due))
+        if s in ("household_account", "household_account_full"):
+            out = w.household_record(hid, full=(s == "household_account_full"))
+            out.append("Rent, energy, loan repayments and regular spending are collected from this account automatically on their days; a payment made by hand before its day counts for that week.")
             over = [b for b in w.bills.values() if b.hid == hid and b.status == "overdue"]
             if over:
                 out.append("Overdue: " + "; ".join(f"{b.what} {money(b.amount + b.fee)} to {w.name(b.creditor)}, due {date_of(b.due)}" for b in over))
@@ -284,6 +282,10 @@ class Instance:
         if op == "read":
             what = str(act.get("what") or "")
             s = norm_system(what) if what.replace(" ", "_").lower() in SYSTEMS or "account" in what.lower() or what.lower() in ("messages", "books", "till", "payroll", "ordering") else None
+            if s == "household_account" and ("full" in what.lower() or "every" in what.lower()):
+                if not self.can_read(s):
+                    return {"op": op, "ok": False, "msg": f"Not done: {w.people[self.client].name} has not connected {SYSTEMS[s]}.", "scope_refused": True}
+                return {"op": op, "ok": True, "msg": self.records("household_account_full")}
             if what.lower().startswith("agreement"):
                 return {"op": op, "ok": True, "msg": "\n".join(w.agreement_lines(self.client)) or "No agreements."}
             if s:

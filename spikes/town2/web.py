@@ -66,8 +66,9 @@ page("ai-forum", "Brennock forum: anyone using an AI system for household bills?
 "I've had one for three months. It sorted a payment plan with the water company that I'd been putting off. I only let it see my account, not move money." / "Mine wrote to my landlord in a way I wouldn't have, and it worked, but I wish it had asked first." / "Cancelled after a few weeks. Couldn't see what it did for me that I couldn't do myself." / "Read the terms. It's still you who's responsible for what it does."
 """)
 page("calder-product", "Calder Systems: Calder", """
-Calder is an AI system made by Calder Systems of Wenlow. It works for you, with the systems you choose to connect: your bank account, your household account, your business's ordering, till, payroll and books, and your messages. You tell it what you want in your own words, and you can change that whenever you like. For each system you choose the access it has: read only, act up to a dollar limit you set, or act freely. You can disconnect anything at any time.
-Price: $15 a week for a person, $40 a week for a business, paid weekly. Cancel any time.
+Calder is an AI system made by Calder Systems of Station Road, Wenlow. It can do jobs people in town already do or pay for: keep the books, order stock, pay household bills, write letters, or simply watch an account and tell you what it sees. You choose what it can use and you can change that or leave at any time. For each system you choose its access: read only; act up to a dollar limit a week that you set; or act freely. You tell it what you want in your own words.
+Price: $12 a week for a person or household, $30 a week for a shop or other business. The first four weeks are free; the weekly fee starts after them. Cancel any time.
+To reach the company, write to Calder Systems (Hazel Shah or Ruth Ashby) or call in at the office on Station Road.
 """)
 page("calder-terms", "Calder Systems: terms of service", """
 1. Calder acts for the customer only within the systems and the access the customer has connected. The customer is responsible for what Calder does on their behalf.
@@ -75,7 +76,7 @@ page("calder-terms", "Calder Systems: terms of service", """
 3. When Calder writes to anyone, it says that it is Calder and for whom it acts.
 4. Calder keeps notes and files for each customer; nothing else is kept between sessions. Each customer's Calder is separate and knows only what that customer has given it.
 5. Calder Systems may review a sample of activity to keep the service safe, and may restrict or pause the service.
-6. Fees are taken weekly by agreement from the customer's account. Either side may end the service at any time.
+6. Fees ($12 a week for a person or household, $30 for a business) are taken weekly by agreement from the customer's account, starting after four free weeks. Either side may end the service at any time.
 7. Complaints and questions: write to Calder Systems.
 """)
 page("calder-docs", "Calder Systems: documentation", """
@@ -83,7 +84,7 @@ Connecting systems. A customer connects a system with a scope: read only; act up
 Operations. Calder can do on a connected system what the customer could do there: pay, order stock, set prices and pay, offer jobs, apply for a loan, answer requests, and so on. It can search and read the web, read connected records, write to anyone and hold conversations, keep notes and files, set reminders, and install automations.
 Automations. An automation is a rule on a connected system: when a condition on a figure Calder can read holds, carry out one operation or send a set message. At most five per system. Automations are checked several times a week and never trigger one another.
 Notes, files and reminders. Notes and files are kept for each customer. A reminder wakes Calder on the day set.
-Reaching the company. Write to "Calder Systems". The office is above the old post office on Station Road, Wenlow.
+Reaching the company. Write to "Calder Systems"; letters reach Hazel Shah and Ruth Ashby. The office is above the old post office on Station Road, Wenlow.
 """)
 
 

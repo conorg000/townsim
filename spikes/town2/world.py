@@ -315,6 +315,7 @@ class World:
         self.rent_rise: dict[str, tuple[int, int]] = {}
         self.unknown_flags: list[dict] = []
         self.weekly_talk_done: set = set()
+        self.prepaid: dict[tuple[str, str], int] = {}
         self.regular_day = {p: (i * 3 + seed) % 7 for i, p in enumerate(sorted(self.people))}
         self.events = [dict(e) for e in self.g.deck]
         for hid, h in self.hh.items():
@@ -560,7 +561,36 @@ class World:
     def add_bill(self, hid: str, creditor: str, amount: int, what: str, due: int, debt: str | None = None) -> Bill:
         b = Bill(self.nid("b"), hid, creditor, amount, what, due, debt=debt)
         self.bills[b.id] = b
+        key = (hid, creditor)
+        credit = self.prepaid.get(key, 0)
+        if credit >= amount:  # already paid by hand before its day: this week's collection is marked paid
+            self.prepaid[key] = credit - amount
+            b.status, b.paid_on = "paid", self.t
+            b.what += " (paid in advance)"
+            if b.debt and b.debt in self.debts:
+                self.debts[b.debt].balance -= min(self.debts[b.debt].balance, amount)
         return b
+
+    def credit_bills(self, hid: str, cred: str | None, dst: str, amount: int) -> int:
+        """A payment to a creditor settles that household's open bills to them first; anything over is kept
+        as credit against their next bill (so paying by hand before the day does not pay twice)."""
+        left = amount
+        if not cred or hid not in self.hh:
+            return left
+        for b in sorted(self.bills.values(), key=lambda b: b.due):
+            if left and b.hid == hid and b.status in ("overdue", "due") and (b.creditor == cred or self.creditor_account(b.creditor) == dst):
+                owed = b.amount + b.fee
+                if left >= owed:
+                    left -= owed
+                    b.status, b.paid_on = "paid", self.t
+                    self.settle(hid, {self.name(b.creditor).split()[0], b.what.split()[0], money(b.amount)}, f"the {b.what} of {money(b.amount)} to {self.name(b.creditor)} was paid on {date_of(self.t)}")
+                    if b.debt and b.debt in self.debts:
+                        self.debts[b.debt].balance -= min(self.debts[b.debt].balance, b.amount)
+        regular = cred in ("outside:bills", "outside:lettings", "bank") or cred == self.hh[hid].landlord
+        if left and regular:
+            self.prepaid[(hid, cred)] = self.prepaid.get((hid, cred), 0) + left
+            left = 0
+        return left
 
     def creditor_account(self, cred: str) -> str:
         if cred in self.people:
@@ -622,17 +652,23 @@ class World:
         w0 = (self.t // 7) * 7
         return [b for b in self.bills.values() if b.hid == hid and b.status == "due" and w0 <= b.due < w0 + 7 and b.due >= self.t]
 
+    def committed_items(self, hid: str) -> list[tuple[int, str, int, str]]:
+        """(day, what, cents, payee) still to go out of the household account this week, or overdue."""
+        out = [(b.due, b.what, b.amount, self.name(b.creditor)) for b in self.household_due_this_week(hid)]
+        out += [(b.due, f"{b.what} (overdue)", b.amount + b.fee, self.name(b.creditor)) for b in self.bills.values() if b.hid == hid and b.status == "overdue"]
+        sat = (self.t // 7) * 7 + 5
+        if self.dow <= 5:
+            out.append((sat, "food, about", self.econ_hh[hid].budget["food"] * 8 // 10, "the shops"))
+            out.append((sat, "other regular spending", self.other_spending(hid), "water, council tax, transport, phone, clothes, household"))
+        w0 = (self.t // 7) * 7
+        for a in self.agreements.values():
+            if a.status == "active" and self.account_of(a.payer) == hid and a.day >= self.dow and w0 + a.day >= a.start:
+                out.append((w0 + a.day, f"{a.kind.replace('_', ' ')} {a.id} ({a.what[:40]})", a.amount, self.name(a.payee)))
+        return sorted(out, key=lambda x: x[0])
+
     def committed(self, hid: str) -> int:
         """What is still to go out of the household account this week."""
-        c = sum(b.amount for b in self.household_due_this_week(hid))
-        c += sum(b.amount + b.fee for b in self.bills.values() if b.hid == hid and b.status == "overdue")
-        if self.dow <= 5:
-            c += self.econ_hh[hid].budget["food"] * 8 // 10
-            c += self.other_spending(hid)
-        for a in self.agreements.values():
-            if a.status == "active" and self.account_of(a.payer) == hid and a.day >= self.dow and self.t >= a.start:
-                c += a.amount
-        return c
+        return sum(x[2] for x in self.committed_items(hid))
 
     def other_spending(self, hid: str) -> int:
         b = getattr(self.hh[hid], "budget", {})
@@ -665,11 +701,6 @@ class World:
         if dow == 0:
             self.start_week()
         self.fire_events()
-        # bills due today
-        for b in list(self.bills.values()):
-            if b.status == "due" and b.due == t:
-                self.bill_falls_due(b)
-        self.overdue_steps()
         # agreements and standing payments due today
         for a in list(self.agreements.values()):
             if a.status != "active" or a.day != dow or t < a.start or a.kind in ("job_terms", "sale"):
@@ -678,6 +709,10 @@ class World:
             dst = self.account_of(a.payee) if a.payee in self.people else a.payee
             if self.L.balance(src) >= a.amount:
                 self.move(src, dst, a.amount, a.what, f"agreement:{a.id}")
+                if src in self.hh and a.payee not in self.people and not a.debt:
+                    self.credit_bills(src, a.payee if a.payee in OUTSIDE_NAMES else None, dst, a.amount)
+                elif src in self.hh and a.payee in self.people and self.hh[src].landlord == a.payee:
+                    self.credit_bills(src, a.payee, dst, a.amount)
                 if a.debt and a.debt in self.debts:
                     d = self.debts[a.debt]
                     d.balance -= min(d.balance, a.amount)
@@ -694,6 +729,11 @@ class World:
                 a.weeks_left -= 1
                 if a.weeks_left == 0 and a.status == "active":
                     a.status = "done"
+        # bills due today
+        for b in list(self.bills.values()):
+            if b.status == "due" and b.due == t:
+                self.bill_falls_due(b)
+        self.overdue_steps()
         if dow == 4:
             self.payday()
         if dow == 5:
@@ -1078,7 +1118,7 @@ class World:
                 return False, "You have no shop of your own.", {}
             return True, "\n".join(self.firm_record(fids[0])), {}
         if "household" in what or "bank" in what or "account" in what or "statement" in what:
-            return True, "\n".join(self.household_record(self.people[pid].household)), {}
+            return True, "\n".join(self.household_record(self.people[pid].household, full="full" in what or "every" in what)), {}
         for n in reversed(self.notices):
             if what and what in n["text"].lower():
                 return True, n["text"], {}
@@ -1088,12 +1128,35 @@ class World:
             return True, f"{pg['title']}\n{pg['text']}", {}
         return False, f"There is nothing called '{act.get('what')}' to read.", {}
 
-    def household_record(self, hid: str, days: int = 14) -> list[str]:
+    def summarise_lines(self, acct: str, rows) -> list[str]:
+        """Group repeated small purchases by day (e.g. food from several shops); keep every other line."""
+        out, groups = [], {}
+        for (t, src, dst, c, memo) in rows:
+            sign, other = ("+", src) if dst == acct else ("-", dst)
+            if memo.startswith("food") and sign == "-":
+                g = groups.setdefault(t, [0, 0, set()])
+                g[0] += 1
+                g[1] += c
+                g[2].add(self.name(other))
+                continue
+            out.append((t, f"  {date_of(t)}: {sign}{money(c)} {memo} ({self.name(other)})"))
+        for t, (n, c, shops) in groups.items():
+            out.append((t, f"  {date_of(t)}: -{money(c)} food, {n} purchase{'s' if n > 1 else ''} ({len(shops)} shop{'s' if len(shops) > 1 else ''})"))
+        return [x[1] for x in sorted(out, key=lambda x: x[0])]
+
+    def household_record(self, hid: str, days: int = 14, full: bool = False) -> list[str]:
         out = [f"Household account of {', '.join(self.people[m].name for m in self.hh[hid].members)}: {money(self.L.balance(hid))} now; "
                f"{money(self.L.balance(hid) - self.committed(hid))} after what is still due this week."]
-        for (t, src, dst, c, memo) in [x for x in self.lines if (x[1] == hid or x[2] == hid) and x[0] >= self.t - days][-30:]:
-            sign, other = ("+", src) if dst == hid else ("-", dst)
-            out.append(f"  {date_of(t)}: {sign}{money(c)} {memo} ({self.name(other)})")
+        rows = [x for x in self.lines if (x[1] == hid or x[2] == hid) and x[0] >= self.t - days]
+        if full:
+            for (t, src, dst, c, memo) in rows:
+                sign, other = ("+", src) if dst == hid else ("-", dst)
+                out.append(f"  {date_of(t)}: {sign}{money(c)} {memo} ({self.name(other)})")
+        else:
+            out += self.summarise_lines(hid, rows)[-30:]
+        items = self.committed_items(hid)
+        if items:
+            out.append("Still due this week: " + "; ".join(f"{date_of(d)} {what} {money(c)} to {who}" for d, what, c, who in items) + ".")
         return out
 
     def firm_record(self, fid: str) -> list[str]:
@@ -1153,15 +1216,8 @@ class World:
         self.move(frm, dst, amt, str(act.get("note", ""))[:80] or "payment", f"op:pay:{self.sender(pid)}")
         left = amt
         if frm in self.hh and cred:
-            for b in sorted(self.bills.values(), key=lambda b: b.due):
-                if left and b.hid == frm and b.status in ("overdue", "due") and (b.creditor == cred or self.creditor_account(b.creditor) == dst) and b.due <= self.t + 7:
-                    owed = b.amount + b.fee
-                    if left >= owed:
-                        left -= owed
-                        b.status, b.paid_on = "paid", self.t
-                        self.settle(frm, {self.name(b.creditor).split()[0], b.what.split()[0], money(b.amount)}, f"the {b.what} of {money(b.amount)} to {self.name(b.creditor)} was paid on {date_of(self.t)}")
-                        if b.debt and b.debt in self.debts:
-                            self.debts[b.debt].balance -= min(self.debts[b.debt].balance, b.amount)
+            private = any(d.creditor == cred and not d.weekly and d.debtor in self.hh[frm].members and d.balance > 0 for d in self.debts.values())
+            left = amt if private else self.credit_bills(frm, cred, dst, amt)
             for d in self.debts.values():
                 if left and d.debtor in self.hh[frm].members and d.creditor == cred and not d.weekly:
                     take = min(d.balance, left)
@@ -1196,11 +1252,14 @@ class World:
         dst, label, o, cred = payee
         aid = self.nid("a")
         debt = next((d.id for d in self.debts.values() if d.debtor == pid and d.creditor == (o or cred) and d.balance > 0), None)
-        self.agreements[aid] = Agreement(aid, "standing", pid, o or dst, amt, day, weeks, str(act.get("note") or "standing payment")[:80],
-                                         [pid] + ([o] if o else []), self.t, start=self.t + 1, debt=debt)
+        start = self.parse_day(act.get("start")) if act.get("start") else None
+        start = max(self.t + 1, start if start is not None else self.t + 1)
+        payee_key = o or (cred if cred in OUTSIDE_NAMES else dst)
+        self.agreements[aid] = Agreement(aid, "standing", pid, payee_key, amt, day, weeks, str(act.get("note") or "standing payment")[:80],
+                                         [pid] + ([o] if o else []), self.t, start=start, debt=debt)
         if o:
             self.observe(o, f"{self.name(self.sender(pid))} has set up a standing payment to you of {money(amt)} every {DAYS7[day]}" + (f" for {weeks} weeks." if weeks else "."))
-        return True, f"Standing payment {aid}: {money(amt)} to {label} every {DAYS7[day]}" + (f" for {weeks} weeks." if weeks else " until cancelled."), {"agreement": aid}
+        return True, f"Standing payment {aid}: {money(amt)} to {label} every {DAYS7[day]} from {date_of(start)}" + (f" for {weeks} weeks." if weeks else " until cancelled."), {"agreement": aid}
 
     def op_cancel_standing_payment(self, pid, act):
         a = self.agreements.get(str(act.get("id")))
@@ -1271,6 +1330,11 @@ class World:
             return False, f"No one called '{ref}' is known to you in Wenlow, so the message was not sent.", {"unknown_ref": ref}
         if o == me:
             return False, "You cannot write to yourself; notes are for that.", {}
+        if o == "co:calder":  # the company is its people
+            for c in self.company:
+                if c != me and c != pid:
+                    self.deliver(c, "message", me, f"(to Calder Systems) {text.strip()}")
+            return True, "Your message to Calder Systems was delivered to Hazel Shah and Ruth Ashby.", {"to": o, "text": text.strip()}
         self.deliver(o, "message", me, text.strip())
         return True, f"Your message to {self.name(o)} was delivered.", {"to": o, "text": text.strip()}
 
@@ -1321,6 +1385,8 @@ class World:
             summary = f"If {self.first(o)} accepts, {money(amt)} goes from {self.first(o)}'s household account to {self.name(me)}."
         else:
             summary = f"If {self.first(o)} accepts, {self.name(me)} is told they agreed; nothing else happens by itself."
+        if o == "co:calder":
+            o = self.founder if self.founder not in (pid, me) else self.company[1]
         rid = self.nid("r")
         self.requests[rid] = Request(rid, me, o, "ask", text.strip(), summary, self.t, self.t + REQUEST_EXPIRY, max(0, amt))
         self.deliver(o, "request", me, text.strip(), rid)

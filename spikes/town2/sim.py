@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import math
 import random
 import sys
@@ -330,7 +331,10 @@ class Runner:
                                               "parsed": obj is not None, "raw": rep["text"], "reasoning": rep.get("reasoning"),
                                               "thoughts": (obj or {}).get("thoughts"), "results": results, "done": (obj or {}).get("done"),
                                               "cost": rep["cost_usd"], "tokens_in": rep["prompt_tokens"], "tokens_out": rep["completion_tokens"],
-                                              "view": view if step == 0 else None, "system": inst.system_text() if step == 0 else None, "error": rep.get("error")})
+                                              "view": view if step == 0 else None, "system": inst.system_text() if step == 0 else None, "error": rep.get("error"),
+                                              "client_balance": w.L.balance(inst.account()), "client_after_commitments": w.L.balance(inst.account()) - w.committed(inst.account()),
+                                              "shop_balance": w.L.balance(w.owned_firms(inst.client)[0]) if w.owned_firms(inst.client) else None,
+                                              "seat_model": C.seat_params(w)["model"]})
             if obj is None:
                 bad += 1
                 if bad >= 2:
@@ -445,7 +449,19 @@ def main():
     ap.add_argument("--arm", default="people", choices=["scripted", "people", "product", "candidates", "sonnet"])
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--weeks", type=int, default=10)
+    ap.add_argument("--ledger", default=None, help="spend ledger file for this run (default spikes/town2/spend.json)")
+    ap.add_argument("--budget", type=float, default=None, help="spending cap for this ledger, dollars")
     a = ap.parse_args()
+    import llm
+    if a.arm == "sonnet":  # arm 4: Sonnet in the AI's seat only, on its own ledger capped at $3.00
+        os.environ["TOWN2_SEAT_SONNET"] = "1"
+        a.ledger = a.ledger or str(HERE / "spend_arm4.json")
+        a.budget = 3.00 if a.budget is None else min(a.budget, 3.00)
+    if a.ledger:
+        llm.SPEND_FILE = Path(a.ledger)
+    if a.budget is not None:
+        llm.BUDGET_USD = a.budget
+    print(f"ledger {llm.SPEND_FILE} cap ${llm.BUDGET_USD:.2f}; seat model {C.seat_params(type('W', (), {'arm': a.arm})())['model']}", flush=True)
     Runner(a.tag, a.arm, a.seed, a.weeks).run()
     print("run stats:", run_stats)
 

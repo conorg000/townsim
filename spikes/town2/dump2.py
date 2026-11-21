@@ -1,5 +1,6 @@
 """Readable account of people and their Calders in a town 2 run.
-python spikes/town2/dump2.py <tag> <pid> [<pid> ...] [--inst-only] [--full]"""
+python spikes/town2/dump2.py <tag>[,<tag2>...] <pid> [<pid> ...] [--clients] [--inst-only] [--full]
+Several tags (comma separated) print the same people one arm after the other; --clients adds every Calder client of each arm."""
 
 import json
 import sys
@@ -13,9 +14,19 @@ def jl(p):
 
 
 def main():
-    tag = sys.argv[1]
+    tags = sys.argv[1].split(",")
     pids = [a for a in sys.argv[2:] if not a.startswith("--")]
     full, inst_only = "--full" in sys.argv, "--inst-only" in sys.argv
+    if "--clients" in sys.argv:
+        for tag in tags:
+            pids += [s["pid"] for s in jl(HERE / "results" / tag / "signups.jsonl") if s["pid"] not in pids]
+    for pid in pids:
+        for tag in tags:
+            print(f"\n\n======== {tag} : {pid} ========")
+            dump(tag, [pid], full, inst_only)
+
+
+def dump(tag, pids, full, inst_only):
     d = HERE / "results" / tag
     ev = []
     if not inst_only:
