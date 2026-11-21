@@ -26,6 +26,7 @@ from townsim.town.acts import REGISTRY, Act, OpSpec, dollars, fits, name_of_who,
 from townsim.town.clock import date_text, dow
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
+from townsim.town.statement import quoted
 from townsim.town.store import Store
 
 TEXT_WORDS = 80
@@ -383,7 +384,7 @@ def _do_dismiss(store: Store, act: Act, cause: str) -> str:
     text = f"{org} has ended your job. Your last pay {paid}."
     note = core._note(act.args.get("text"))
     if note:
-        text += f" {store.get('people', act.actor).name} wrote: {note}"
+        text += f" {store.get('people', act.actor).name} wrote: {quoted(note)}"
     jobs.tell(store, who, text, cause)
     return f"{store.get('people', who).name} has left {org}. Their last pay {paid}."
 

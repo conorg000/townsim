@@ -153,3 +153,9 @@ def test_forms_go_by_order_whatever_the_order_of_registering():
     register(OpSpec("aardvark", "{aardvark}", "", 0.0, lambda s, a: None, lambda s, a, c: "", 15))
     assert forms(s, "p01")[:4] == [before[0], "{aardvark}", "{borrow}", before[1]]   # ties go by name
     assert [REGISTRY[n].order for n in ("pay", "standing_payment", "write_notes")] == [10, 20, 80]
+
+
+def test_clean_text_and_shown_drop_lone_surrogates():
+    from townsim.town.acts import clean_text, shown
+    assert clean_text("a\ud800b") == "ab" and shown("a\udfffb") == "ab"
+    "x".join([clean_text("a\ud800b"), shown("\ud800")]).encode("utf-8")

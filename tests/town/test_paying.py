@@ -145,7 +145,7 @@ def test_stop_says_what_happened():
     assert O.stop(s, sp, "h1", "op:p1:stop:d0.1") == "stopped" and O.stop(s, fee, "h1", "op:p1:stop:d0.2") == "left"
     assert O.stop(s, plan, "h1", "op:p1:stop:d0.3") == "breach" and s.all("records")[-1].kind == "breach"
     rec = s.all("records")[-1]
-    assert rec.about == "h1" and rec.text == "Ashby stopped paying repaying the $800, an agreement with Brook."
+    assert rec.about == "h1" and rec.text == "Ashby stopped paying an agreement with Brook (repaying the $800)."
     assert [s.get("obligations", o).status for o in (sp, fee, plan)] == ["stopped", "stopped", "breached"]
     assert s.changes[-1].cause == "op:p1:stop:d0.3"
     with pytest.raises(ValueError): O.stop(s, sp, "h1", "op:p1:stop:d0.4")     # already stopped

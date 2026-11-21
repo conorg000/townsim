@@ -93,7 +93,7 @@ def test_an_accepted_offer_makes_a_wage_due_on_fridays():
     live(s, 1)
     out = accept(s, "p04", rq)
     assert out.ok and out.msg == "Accepted. Megan Pryce starts at Marsh's Stores on Monday 9 March."
-    assert told(s, "p01")[-1] == ("Megan Pryce accepted your request rq1 (A job offer.). "
+    assert told(s, "p01")[-1] == ('Megan Pryce accepted your request rq1 ("A job offer."). '
                                   "Megan Pryce starts at Marsh's Stores on Monday 9 March.")
     job = job_of(s, "p04", "org3")
     ob = s.get("obligations", job.wage_ob)
@@ -118,7 +118,7 @@ def test_a_declined_offer_changes_no_job():
     assert rq.text == "We are busy on Saturdays."
     out = do(s, "p04", "answer", request=rq.id, answer="decline")
     assert out.ok and out.msg == "Declined." and s.where("jobs", person="p04") == []
-    assert told(s, "p01") == ["Megan Pryce declined your request rq1 (We are busy on Saturdays.)."]
+    assert told(s, "p01") == ['Megan Pryce declined your request rq1 ("We are busy on Saturdays.").']
 
 
 def test_an_offer_lapses_on_the_sunday_before_the_day_it_names():
@@ -266,7 +266,7 @@ def test_a_dismissal_ends_after_this_fridays_pay_and_the_view_shows_it():
     out = do(s, "p01", "dismiss", who="Craig Pryce", text="Trade is slow.")
     assert out.msg == "Craig Pryce has left Marsh's Stores. Their last pay is on Friday 6 March."
     assert told(s, "p03") == ["Marsh's Stores has ended your job. Your last pay is on Friday 6 March. "
-                              "Ruth Ashby wrote: Trade is slow."]
+                              'Ruth Ashby wrote: "Trade is slow."']
     assert refused(s, "p01", "dismiss", who="Craig Pryce") == \
         "Not done: Craig Pryce's job at Marsh's Stores ends on Friday 6 March."
     to_day(s, 5)
@@ -333,7 +333,7 @@ def test_wages_from_an_empty_till_go_to_arrears_and_the_owner_is_told():
     to_day(s, 5)
     [due] = [d for d in s.all("dues") if d.obligation == job_of(s, "p03", "org3").wage_ob]
     assert due.status == "arrears" and paid(s, "org3", "h2") == []
-    assert told(s, "p01") == ["wages from Marsh's Stores, $440.00, due Friday 6 March, could not be taken. "
+    assert told(s, "p01") == ["A payment of $440.00 due Friday 6 March (wages from Marsh's Stores) could not be taken. "
                               "The Marsh's Stores account held $0.00."]
 
 

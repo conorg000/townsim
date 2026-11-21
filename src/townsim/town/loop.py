@@ -13,6 +13,7 @@ from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_
 from townsim.town.clock import dow
 from townsim.town.entities import Notice, Result
 from townsim.town.replies import Keys, Replier
+from townsim.town.statement import quoted
 from townsim.town.store import Store
 from townsim.town.views import mark_seen, view, with_news
 
@@ -41,7 +42,8 @@ def _lapse(store: Store) -> None:
             continue
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed")
-        text = f"Your request {rq.id} to {name_of_who(store, rq.to)} ({cut(rq.text)}) was not answered and has lapsed."
+        text = (f"Your request {rq.id} to {name_of_who(store, rq.to)} ({quoted(cut(rq.text))}) was not answered "
+                "and has lapsed.")
         store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
 
 

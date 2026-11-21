@@ -32,7 +32,7 @@ def test_pay_moves_money_between_households():
     out = do(s, "p01", "pay", to="Megan Pryce", amount=25, note="for the lift")
     assert out.ok and out.msg == "Paid $25.00 to Megan Pryce."
     assert (s.balance("h1"), s.balance("h2")) == (57500, 32500)
-    assert s.ledger.transfers[-1].memo == "for the lift" and s.ledger.transfers[-1].cause == "op:p01:pay:d0.0"
+    assert s.ledger.transfers[-1].memo == '"for the lift"' and s.ledger.transfers[-1].cause == "op:p01:pay:d0.0"
 
 
 def test_pay_with_for_counts_toward_that_obligation():
@@ -85,7 +85,7 @@ def test_standing_payment_starts_on_the_weekday_on_or_after_start():
     out = do(s, "p01", "standing_payment", to="Craig Pryce", amount=5, day="thu", start="Thursday 12 March",
              weeks=0, note="garden")
     ob = s.all("obligations")[-1]
-    assert (ob.first, ob.last, ob.memo) == (10, None, "garden")
+    assert (ob.first, ob.last, ob.memo) == (10, None, '"garden"')
     assert out.msg == f"Set up ({ob.id}): $5.00 to Craig Pryce every Thursday, first on Thursday 12 March."
     do(s, "p01", "standing_payment", 1, to="Craig Pryce", amount=5, day=" sun. ", start="10 March")
     assert s.all("obligations")[-1].first == 13
@@ -275,7 +275,7 @@ def test_accepting_a_request_for_money_moves_it_once():
     assert s.get("requests", rq).status == "accepted"
     notice = s.all("notices")[-1]
     assert (notice.to, notice.text) == \
-        ("p03", f"Ruth Ashby accepted your request {rq} (Could you lend us $40 for the meter?). They wrote: glad to")
+        ("p03", f'Ruth Ashby accepted your request {rq} ("Could you lend us $40 for the meter?"). They wrote: "glad to"')
     assert refused(s, "p01", "answer", request=rq, answer="accept") == \
         f"Not done: you have no open request with the id '{rq}'."
     assert (s.balance("h1"), s.balance("h2")) == (56000, 34000)
@@ -295,7 +295,7 @@ def test_declining_a_request_tells_the_sender():
     s = thin(); ask(s); rq = s.all("requests")[-1].id
     assert do(s, "p01", "answer", 1, request=rq, answer="decline").msg == "Declined."
     assert s.get("requests", rq).status == "declined" and s.balance("h1") == 60000
-    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} (Could you lend us $40 for the meter?)."
+    assert s.all("notices")[-1].text == f'Ruth Ashby declined your request {rq} ("Could you lend us $40 for the meter?").'
 
 
 def test_the_notice_cuts_a_long_request_and_cleans_the_note():
@@ -304,7 +304,7 @@ def test_the_notice_cuts_a_long_request_and_cleans_the_note():
     assert do(s, "p03", "request", to="Ruth Ashby", text=long).ok
     rq = s.all("requests")[-1].id
     do(s, "p01", "answer", 1, request=rq, answer="decline", note="no\x07 thanks\x00")
-    assert s.all("notices")[-1].text == f"Ruth Ashby declined your request {rq} ({long[:80]}\u2026). They wrote: no thanks"
+    assert s.all("notices")[-1].text == f'Ruth Ashby declined your request {rq} ("{long[:80]}\u2026"). They wrote: "no thanks"'
 
 
 def test_everything_people_write_fits_one_rule():

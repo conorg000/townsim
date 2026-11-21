@@ -388,7 +388,8 @@ def test_arrears_taken_are_told():
     cause = [t.cause for t in s.ledger.transfers if t.dst == "outside:lettings"][0]
     told = [(n.to, n.text) for n in s.all("notices") if any(c.cause == cause and c.id == n.id for c in s.changes)
             and "taken on" in n.text]
-    assert told == [(p, "rent, due Monday 2 March, was taken on Tuesday 3 March.") for p in ("p1", "p2")]
+    assert told == [(p, "A payment of $100.00 due Monday 2 March (rent) was taken on Tuesday 3 March.")
+                    for p in ("p1", "p2")]
 
 
 def test_a_due_taken_on_its_day_is_not_told():
@@ -493,9 +494,10 @@ def test_a_late_fee_is_told_by_its_memo_alone():
     s.transfer("outside:employers", "h1", 20_000, "wages", T)
     run_days(s, 1)
     texts = [n.text for n in s.all("notices") if n.to == "p1"]
-    assert "late fee on energy due Monday 2 March could not be taken. The Ashby account held $0.00." in texts
-    assert texts[-2:] == ["energy, due Monday 2 March, was taken on Tuesday 10 March.",
-                          "late fee on energy due Monday 2 March was taken on Tuesday 10 March."]
+    assert ("A late fee of $25.00 on a payment due Monday 2 March (energy) could not be taken. "
+            "The Ashby account held $0.00.") in texts
+    assert texts[-2:] == ["A payment of $48.00 due Monday 2 March (energy) was taken on Tuesday 10 March.",
+                          "A late fee of $25.00 on a payment due Monday 2 March (energy) was taken on Tuesday 10 March."]
 
 
 def test_a_repair_is_billed_after_regular_spending_has_stopped():

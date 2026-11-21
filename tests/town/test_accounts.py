@@ -61,7 +61,8 @@ def test_a_firm_in_arrears_tells_its_owner():
              **SETUP)
     run_days(s, 1)
     assert [n.text for n in s.where("notices", to="p01")] == [
-        "new freezer, $3,000.00, due Monday 2 March, could not be taken. The Marsh's Stores account held $2,000.00."]
+        "A payment of $3,000.00 due Monday 2 March (new freezer) could not be taken. "
+        "The Marsh's Stores account held $2,000.00."]
     assert s.where("notices", to="p02") == []
 
 

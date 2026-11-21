@@ -50,19 +50,20 @@ def test_the_ladder_fee_at_7_notice_at_14_default_at_28():
     assert fees[0].ends == "both"                                        # the parent is "service"
     assert [d.day for d in s.all("dues") if d.obligation == fees[0].id] == [7]
     assert [(n.to, n.text) for n in s.all("notices")] == [
-        (p, "energy, $48.00, due Monday 2 March, could not be taken. The Ashby account held $0.00.") for p in ("p1", "p2")
-    ] + [(p, "A late fee of $25.00 has been added to energy, due Monday 2 March, which has not been paid.")
-         for p in ("p1", "p2")] + [
-        (p, "late fee on energy due Monday 2 March could not be taken. "
+        (p, "A payment of $48.00 due Monday 2 March (energy) could not be taken. The Ashby account held $0.00.")
+        for p in ("p1", "p2")
+    ] + [(p, "A late fee of $25.00 has been added to a payment of $48.00 due Monday 2 March (energy), "
+             "which has not been paid.") for p in ("p1", "p2")] + [
+        (p, "A late fee of $25.00 on a payment due Monday 2 March (energy) could not be taken. "
             "The Ashby account held $0.00.") for p in ("p1", "p2")]
     run_days(s, 7)
     two_weeks = [n for n in s.all("notices") if "two weeks" in n.text]
     assert len(two_weeks) == len(O.people_of(s, "h1")) == 2
-    assert two_weeks[0].text == "energy, $48.00, due Monday 2 March, is now two weeks overdue."
+    assert two_weeks[0].text == "A payment of $48.00 due Monday 2 March (energy) is now two weeks overdue."
     run_days(s, 14)
     assert first_due(s).status == "defaulted" and [r.kind for r in s.all("records")] == ["default"]
     [rec] = s.all("records")
-    assert rec.about == "h1" and rec.text == "Ashby defaulted on energy, $48.00, due Monday 2 March."
+    assert rec.about == "h1" and rec.text == "Ashby defaulted on a payment of $48.00 due Monday 2 March (energy)."
     assert len([o for o in s.all("obligations") if o.penalty]) == 1      # no fee on a fee, no second fee
     assert s.balance("h1") == 0 and s.ledger.total() == 0
 
@@ -77,7 +78,7 @@ def test_a_defaulted_due_is_still_owed_and_is_taken_when_money_comes():
     assert O.upcoming(s, "h1")[0][:4] == (0, ob, "outside:northgrid", 4_800)
     records = len(s.all("records"))
     run_days(s, 3)                                      # the ladder has ended: no second default for it
-    assert len([r for r in s.all("records") if "due Monday 2 March." in r.text and r.text.startswith("Ashby defaulted on energy")]) == 1
+    assert len([r for r in s.all("records") if r.text == "Ashby defaulted on a payment of $48.00 due Monday 2 March (energy)."]) == 1
     assert len(s.all("records")) == records
     s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test"); run_days(s, 1)
     assert first.status == "paid" and first.paid == 4_800
@@ -291,7 +292,8 @@ def test_a_due_that_cannot_be_taken_is_told_once():
     run_days(s, 5)
     told = [n for n in s.all("notices") if "could not be taken" in n.text]
     assert [(n.to, n.day, n.text) for n in told] == [
-        (p, 0, "rent, $175.00, due Monday 2 March, could not be taken. The Ashby account held $100.00.") for p in ("p1", "p2")]
+        (p, 0, "A payment of $175.00 due Monday 2 March (rent) could not be taken. The Ashby account held $100.00.")
+        for p in ("p1", "p2")]
     causes = {c.cause for c in s.changes if c.table == "notices" and c.field == "+" and "could not" in c.new.text}
     assert causes == {"routine:collect:du1"}
 
@@ -302,7 +304,7 @@ def test_a_part_paid_due_tells_what_remains():
     O.pay(s, "h1", "outside:lettings", 5_000, "part", "op:p1:pay:d0.0")
     run_days(s, 2)
     [first, _] = [n.text for n in s.all("notices")]
-    assert first == "rent, $125.00, due Tuesday 3 March, could not be taken. The Ashby account held $50.00."
+    assert first == "A payment of $125.00 due Tuesday 3 March (rent) could not be taken. The Ashby account held $50.00."
     assert s.get("obligations", ob).status == "active"
 
 
@@ -316,9 +318,9 @@ def test_a_breached_agreement_keeps_falling_due_and_is_not_taken():
     assert [(d.day, d.status, d.paid) for d in dues] == [(0, "arrears", 0), (7, "arrears", 0), (14, "arrears", 0)]
     assert not any(t.memo.startswith("rent, due") for t in s.ledger.transfers)
     told = [n.text for n in s.all("notices") if n.to == "p1" and "could not be taken" in n.text]
-    assert told == ["rent, $175.00, due Monday 2 March, could not be taken.",
-                    "rent, $175.00, due Monday 9 March, could not be taken.",
-                    "rent, $175.00, due Monday 16 March, could not be taken."]
+    assert told == ["A payment of $175.00 due Monday 2 March (rent) could not be taken.",
+                    "A payment of $175.00 due Monday 9 March (rent) could not be taken.",
+                    "A payment of $175.00 due Monday 16 March (rent) could not be taken."]
     fees = [o for o in s.all("obligations") if o.penalty]                  # the ladder climbs as for any arrears
     assert [o.memo for o in fees] == ["late fee on rent due Monday 2 March", "late fee on rent due Monday 9 March"]
     assert [u.day for u in O.upcoming(s, "h1") if u.obligation == rent] == [0, 7, 14, 21]
@@ -352,7 +354,7 @@ def test_a_defaulted_one_off_bill_is_taken_when_money_comes_and_then_finishes():
     run_days(s, 40)
     [due] = [d for d in s.all("dues") if d.obligation == bill]
     assert due.status == "defaulted" and s.get("obligations", bill).status == "active"
-    assert [r.day for r in s.all("records") if "defaulted on energy" in r.text] == [28]
+    assert [r.day for r in s.all("records") if r.text.startswith("Ashby defaulted on a payment of $48.00")] == [28]
     s.transfer("outside:employers", "h1", 100_000, "wages", "routine:test")
     run_days(s, 1)                                                          # day 40
     [taken] = [t for t in s.ledger.transfers if t.cause == f"routine:collect:{due.id}"]

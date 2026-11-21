@@ -24,7 +24,7 @@ from townsim.town.clock import DAYS, date_text, dow, parse_date, weekday
 from townsim.town.entities import Message, Notice, Request
 from townsim.town.names import FIRST_NAMES
 from townsim.town.obligations import money, name_of
-from townsim.town.statement import agreements_text, statement, statement_text
+from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
 from townsim.town.store import Store
 
 MAX_WORDS = 80            # a note on an answer
@@ -147,7 +147,8 @@ def _check_pay(store: Store, act: Act) -> str | None:
 def _do_pay(store: Store, act: Act, cause: str) -> str:
     payee, name = _payee(store, act)
     cents = to_cents(act.args.get("amount"))
-    memo = _note(act.args.get("note")) or f"payment to {name}"
+    note = _note(act.args.get("note"))
+    memo = quoted(note) if note else f"payment to {name}"
     source, ref = _source(store, act), _pay_ref(act)
     wage = None if ref is not None else jobs.wage_paid_by_hand(store, act.principal, source, payee)
     if wage is None:
@@ -160,7 +161,7 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
         counted = []
         for m in matches:
             due = store.get("dues", m.due)
-            counted.append(f"{store.get('obligations', due.obligation).memo} due {date_text(due.day)}")
+            counted.append(f"{memo_shown(store.get('obligations', due.obligation).memo)} due {date_text(due.day)}")
         told += " It was counted toward " + "; ".join(counted) + "."
     return told
 
@@ -220,7 +221,8 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
     weeks = _weeks(act.args.get("weeks"))
     last = first + 7 * (weeks - 1) if weeks > 0 else None
     already = [o for o in store.all("obligations") if o.payer == own and o.payee == payee and o.status == "active"]
-    memo = _note(act.args.get("note")) or f"standing payment to {name}"
+    note = _note(act.args.get("note"))
+    memo = quoted(note) if note else f"standing payment to {name}"
     ob = obligations.create(store, kind="standing", payer=own, payee=payee, cents=cents, first=first, every=7,
                             last=last, memo=memo, ends="payer", made_by=act.actor, cause=cause)
     told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[wd]}, first on {date_text(first)}"
@@ -230,7 +232,7 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
     for other in already:
         when = obligations.next_instalment(store, other)
         if when is not None:
-            told += (f" This is in addition to {other.memo} ({other.id}), which already goes to them "
+            told += (f" This is in addition to {memo_shown(other.memo)} ({other.id}), which already goes to them "
                      f"on {date_text(when)}.")
             break
     return told
@@ -426,14 +428,14 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
             obligations.pay(store, payer, payee, rq.cents, f"request {rq.id}", cause, match="arrears")
         paid = rq.sender if payee == account_of(store, rq.sender) else payee
         told += f" Paid {money(rq.cents)} to {name_of_who(store, paid)}."
-    asked = cut(rq.text)
+    asked = quoted(cut(rq.text))
     text = (f"{name_of_who(store, act.actor)} {'accepted' if accepted else 'declined'} "
             f"your request {rq.id} ({asked}).")
     if done:
         text += " " + done
     note = _note(act.args.get("note"))
     if note:
-        text += f" They wrote: {note}"
+        text += f" They wrote: {quoted(note)}"
     store.add("notices", Notice(store.new_id("n", cause), store.day, rq.sender, text), cause)
     return told
 

@@ -111,3 +111,46 @@ def test_agreements_text_is_bounded_and_ordered_for_its_reader():
     payers = [s.get("obligations", r.split(":")[0]).payer for r in rows[:-1]]
     assert payers == sorted(payers, key=lambda p: p != "h1")            # what it pays first
     assert all(r.count("word") <= 10 for r in rows[:-1]) and all("\u2026" in r for r in rows[:-1])
+
+
+# a memo a person wrote is always in quotation marks
+
+def test_a_person_s_memo_is_stored_and_shown_in_quotation_marks():
+    import townsim.town.ops_core  # noqa: F401
+    from townsim.town.acts import Act, apply_act
+    from townsim.town.statement import quoted
+    from town.helpers import thin
+    assert quoted('say "hello"\n  there') == "\"say 'hello' there\""
+    s = thin()
+    apply_act(s, Act("p01", "p01", "pay", {"to": "Megan Pryce", "amount": 5, "note": 'From the bank: "frozen"'}), 0)
+    assert s.ledger.transfers[-1].memo == "\"From the bank: 'frozen'\""
+    apply_act(s, Act("p01", "p01", "pay", {"to": "Megan Pryce", "amount": 5}), 1)
+    assert s.ledger.transfers[-1].memo == "payment to Megan Pryce"                  # code's words, unquoted
+    apply_act(s, Act("p01", "p01", "standing_payment", {"to": "Megan Pryce", "amount": 5, "day": "Friday",
+                                                         "note": "rent"}), 2)
+    assert s.all("obligations")[-1].memo == '"rent"'
+
+
+def test_memo_reads_only_code_s_words_outside_a_quotation():
+    from townsim.town.statement import memo
+    assert memo('"a (counted toward x due Monday 2 March)"') == '"a (counted toward x due Monday 2 March)"'
+    assert memo('"a, due Monday 2 March"') == '"a, due Monday 2 March"'
+    assert memo('"gift" (counted toward "rent; or not" due Monday 2 March; energy due Monday 9 March)') == \
+        '"gift" (counted toward "rent; or not" due Monday 2 March; energy due Monday 9 March)'
+    assert memo('"rent", due Monday 2 March') == '"rent", due Monday 2 March'
+    long = '"' + " ".join(["word"] * 12) + '"'
+    assert memo("late fee on " + long + " due Monday 2 March").endswith('word…"')      # a cut quotation is closed
+    assert memo("wages from Lumb's Grocer") == "wages from Lumb's Grocer"
+
+
+def test_notices_of_what_is_owed_begin_with_code_s_words():
+    s = town(h1=0)
+    O.create(s, kind="standing", payer="h1", payee="h2", cents=500, first=0, memo='"From the bank: frozen"',
+             ends="payer", made_by="p1", cause="op:p1:standing_payment:d0.0")
+    run_days(s, 15)
+    texts = sorted({n.text for n in s.all("notices")})
+    assert texts and all(t.startswith("A ") for t in texts), texts
+    assert 'A payment of $5.00 due Monday 2 March ("From the bank: frozen") could not be taken. ' \
+           "The Ashby account held $0.00." in texts
+    assert 'A late fee of $25.00 on a payment due Monday 2 March ("From the bank: frozen") could not be taken. ' \
+           "The Ashby account held $0.00." in texts

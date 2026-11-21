@@ -160,6 +160,29 @@ def _tell(store: Store, account: str, text: str, cause: str) -> None:
         store.add("notices", Notice(store.new_id("n", cause), store.day, person, text), cause)
 
 
+def _shown(text: str) -> str:
+    from townsim.town.statement import memo   # the one way a memo is shown (statement reads this module)
+    return memo(text)
+
+
+FEE_ON = "late fee on "
+
+
+def _payment(ob: Obligation, day: int, cents: int) -> str:
+    """A due as a notice or record names it, in code's words first: `a payment of <$x> due
+    <date> (<memo>)`, or for a late fee `a late fee of <$x> on a payment due <date> (<memo>)`."""
+    if ob.penalty and ob.memo.startswith(FEE_ON):
+        on = ob.memo[len(FEE_ON):]
+        what, sep, when = on.rpartition(" due ")
+        if sep:
+            return f"a late fee of {money(cents)} on a payment due {when} ({_shown(what)})"
+    return f"a payment of {money(cents)} due {date_text(day)} ({_shown(ob.memo)})"
+
+
+def _cap(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
 def age_arrears(store: Store) -> None:
     """Charge the late fee, send the two-weeks notice, and default, each once, on dues in arrears."""
     for due in store.where("dues", status="arrears"):
@@ -169,28 +192,25 @@ def age_arrears(store: Store) -> None:
         if age >= FEE_AFTER_DAYS and not due.fee_charged and not ob.penalty:
             cause = f"routine:late-fee:{due.id}"
             fee = create(store, kind="bill", payer=ob.payer, payee=ob.payee, cents=LATE_FEE_CENTS,
-                         first=store.day, memo=f"late fee on {ob.memo} due {when}", ends="both",
+                         first=store.day, memo=f"{FEE_ON}{ob.memo} due {when}", ends="both",
                          made_by="routine", cause=cause, penalty=True)
             store.set("dues", due.id, cause, fee_charged=True)
-            _tell(store, ob.payer, f"A late fee of {money(LATE_FEE_CENTS)} has been added to {ob.memo}, "
-                                   f"due {when}, which has not been paid.", cause)
+            _tell(store, ob.payer, f"A late fee of {money(LATE_FEE_CENTS)} has been added to "
+                                   f"{_payment(ob, due.day, due.cents - due.paid)}, which has not been paid.", cause)
         if age >= NOTICE_AFTER_DAYS and not due.notice_sent:
             cause = f"routine:notice:{due.id}"
             store.set("dues", due.id, cause, notice_sent=True)
-            _tell(store, ob.payer, f"{ob.memo}, {money(due.cents - due.paid)}, due {when}, "
-                                   f"is now two weeks overdue.", cause)
+            _tell(store, ob.payer, f"{_cap(_payment(ob, due.day, due.cents - due.paid))} is now two weeks overdue.",
+                  cause)
         if age >= DEFAULT_AFTER_DAYS:
             cause = f"routine:default:{due.id}"
             store.set("dues", due.id, cause, status="defaulted")
-            text = f"{name_of(store, ob.payer)} defaulted on {ob.memo}, {money(due.cents - due.paid)}, due {when}."
+            text = f"{name_of(store, ob.payer)} defaulted on {_payment(ob, due.day, due.cents - due.paid)}."
             store.add("records", Record(store.new_id("rec", cause), store.day, "default", ob.payer, text), cause)
 
 
 def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, cause: str) -> None:
-    if ob.penalty:                        # a late fee's memo already names what it is on and when
-        text = f"{ob.memo} could not be taken."
-    else:
-        text = f"{ob.memo}, {money(remainder)}, due {date_text(due.day)}, could not be taken."
+    text = f"{_cap(_payment(ob, due.day, remainder))} could not be taken."
     if ob.status != "breached":
         text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
     _tell(store, ob.payer, text, cause)
@@ -226,8 +246,8 @@ def collect(store: Store) -> None:
             store.transfer(ob.payer, ob.payee, remainder, memo, cause)
             store.set("dues", due.id, cause, paid=due.cents)
             if due.status in OWED:
-                what = ob.memo if ob.penalty else f"{ob.memo}, due {date_text(due.day)},"
-                _tell(store, ob.payer, f"{what} was taken on {date_text(store.day)}.", cause)
+                _tell(store, ob.payer, f"{_cap(_payment(ob, due.day, remainder))} was taken on "
+                                       f"{date_text(store.day)}.", cause)
         store.set("dues", due.id, cause, status="paid")
         if ob.status == "active" and due.day == _last_instalment(ob):
             store.set("obligations", ob.id, cause, status="finished")
@@ -395,7 +415,8 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
     with store.transaction():
         if ob.ends == "both":
             store.set("obligations", ob_id, cause, status="breached")
-            text = f"{name_of(store, ob.payer)} stopped paying {ob.memo}, an agreement with {name_of(store, ob.payee)}."
+            text = (f"{name_of(store, ob.payer)} stopped paying an agreement with {name_of(store, ob.payee)} "
+                    f"({_shown(ob.memo)}).")
             store.add("records", Record(store.new_id("rec", cause), store.day, "breach", ob.payer, text), cause)
             return "breach"
         store.set("obligations", ob_id, cause, status="stopped")

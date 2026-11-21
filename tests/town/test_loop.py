@@ -85,7 +85,7 @@ def test_routine_resets_hours_on_monday_and_lapses_old_requests():
     assert s.get("requests", "rq1").status == "lapsed" and s.get("requests", "rq2").status == "open"
     notice = s.all("notices")[-1]
     assert notice.to == "p03" and notice.text == (
-        f"Your request rq1 to Ruth Ashby ({text[:80]}…) was not answered and has lapsed.")
+        f'Your request rq1 to Ruth Ashby ("{text[:80]}…") was not answered and has lapsed.')
     assert any(c.cause == "routine:lapse:rq1" for c in s.changes)
 
 

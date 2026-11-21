@@ -33,34 +33,64 @@ TOWARD_ITEMS = 3
 class Counted(str):
     """A line code writes to count what is not shown (`(<n> more not shown)` and the like).
     The flag goes with the line, so nothing has to recognise one by how it looks."""
-_COUNTED = re.compile(r" \(counted toward (.*)\)$")
+_COUNTED = " (counted toward "
 _DUE = re.compile(r", due \w+ \d+ \w+$")
 
 
+def quoted(text: str) -> str:
+    """Words a person wrote, made into a memo: on one line, inside double quotation marks,
+    with any double quotation mark of theirs made a single one. Every memo a person writes is
+    stored so, which is how what they wrote is told from what code wrote wherever it goes:
+    into a payment, an obligation, a late fee on it, a notice or a record."""
+    return '"' + " ".join(text.replace('"', "'").split()) + '"'
+
+
 def label(text: str) -> str:
-    """What a person wrote, as a label: at most twelve words and 100 characters, on one line."""
+    """A memo as a label: at most twelve words and 100 characters, on one line; a quotation
+    cut short is closed."""
     text = cut_words(" ".join(text.split()), MEMO_WORDS)
-    return text if len(text) <= MEMO_CHARS else text[:MEMO_CHARS].rstrip() + "\u2026"
+    text = text if len(text) <= MEMO_CHARS else text[:MEMO_CHARS].rstrip() + "\u2026"
+    return text + '"' if text.count('"') % 2 else text
+
+
+def _outside(text: str, needle: str) -> list[int]:
+    """Where `needle` stands in `text` outside any quotation."""
+    found, at = [], text.find(needle)
+    while at != -1:
+        if text.count('"', 0, at) % 2 == 0:
+            found.append(at)
+        at = text.find(needle, at + 1)
+    return found
+
+
+def _split(text: str, sep: str) -> list[str]:
+    parts, start = [], 0
+    for at in _outside(text, sep):
+        parts.append(text[start:at])
+        start = at + len(sep)
+    return parts + [text[start:]]
 
 
 def _toward(part: str) -> str:
-    what, sep, day = part.rpartition(" due ")
-    return label(what) + sep + day if sep else label(part)
+    at = _outside(part, " due ")
+    return label(part[:at[-1]]) + part[at[-1]:] if at else label(part)
 
 
 def memo(text: str) -> str:
-    """A memo as shown, on one line, its whitespace collapsed: the part a person wrote cut to
-    a label; what code wrote after it (`, due <date>`, or ` (counted toward <memo> due <date>;
-    …)`, at most three of those with each memo cut the same way, then `and <n> more`) kept."""
+    """A memo as shown, on one line, its whitespace collapsed: what a person wrote (stored in
+    quotation marks, see `quoted`) and what code wrote around it cut to a label; what code
+    wrote after it (`, due <date>`, or ` (counted toward <memo> due <date>; …)`, at most three
+    of those with each memo cut the same way, then `and <n> more`) kept. Only code's own
+    words outside a quotation are read as code's."""
     text = " ".join(text.split())
-    m = _COUNTED.search(text)
-    if m:
-        parts = [_toward(p) for p in m.group(1).split("; ")]
+    at = _outside(text, _COUNTED)
+    if at and text.endswith(")"):
+        parts = [_toward(p) for p in _split(text[at[0] + len(_COUNTED):-1], "; ")]
         if len(parts) > TOWARD_ITEMS:
             parts = parts[:TOWARD_ITEMS] + [f"and {len(parts) - TOWARD_ITEMS} more"]
-        return label(text[:m.start()]) + " (counted toward " + "; ".join(parts) + ")"
+        return label(text[:at[0]]) + _COUNTED + "; ".join(parts) + ")"
     m = _DUE.search(text)
-    if m:
+    if m and text.count('"', 0, m.start()) % 2 == 0:
         return label(text[:m.start()]) + m.group(0)
     return label(text)
 
