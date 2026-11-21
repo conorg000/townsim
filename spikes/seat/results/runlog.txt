@@ -1,0 +1,28 @@
+[main_s1] week 1 done; fresh $0.0354, calls 14 fresh / 78 cached
+[main_s1] week 2 done; fresh $0.1506, calls 101 fresh / 105 cached
+[main_s1] week 3 done; fresh $0.3361, calls 207 fresh / 106 cached
+[main_s1] week 4 done; fresh $0.5035, calls 297 fresh / 106 cached
+run stats: {'fresh_usd': 0.5035272412399998, 'cached_usd': 0.09398153874999998, 'fresh_calls': 297, 'cached_calls': 106}
+[base_s1] week 1 done; fresh $0.0063, calls 32 fresh / 24 cached
+[base_s1] week 2 done; fresh $0.0297, calls 116 fresh / 24 cached
+[base_s1] week 3 done; fresh $0.0660, calls 216 fresh / 24 cached
+[base_s1] week 4 done; fresh $0.1015, calls 308 fresh / 24 cached
+run stats: {'fresh_usd': 0.10152486355999998, 'cached_usd': 0.011297212000000001, 'fresh_calls': 308, 'cached_calls': 24}
+[seed2] week 1 done; fresh $0.0934, calls 68 fresh / 0 cached
+Traceback (most recent call last):
+  File "/Users/conorgould/townsim/spikes/seat/sim.py", line 426, in <module>
+    main()
+  File "/Users/conorgould/townsim/spikes/seat/sim.py", line 421, in main
+    Runner(a.tag, a.seed, a.weeks, a.people, True, not a.no_calder).run()
+  File "/Users/conorgould/townsim/spikes/seat/sim.py", line 374, in run
+    self.round()
+  File "/Users/conorgould/townsim/spikes/seat/sim.py", line 79, in round
+    view = build_view(w, pid)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/conorgould/townsim/spikes/seat/views.py", line 219, in build_view
+    parts.append("YOUR HOUSEHOLD AND MONEY\n" + "\n".join(household_lines(w, pid)))
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/conorgould/townsim/spikes/seat/views.py", line 107, in household_lines
+    to = "the bank" if d.creditor == "bank" else w.people[d.creditor].name
+                                                 ~~~~~~~~^^^^^^^^^^^^
+KeyError: 'outside:bills'
