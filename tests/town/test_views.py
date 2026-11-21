@@ -974,3 +974,32 @@ def test_a_memo_keeps_what_code_wrote():
     assert text.endswith("… due Monday 9 March; rent due Monday 16 March)") and text.count("word") == 12
     assert facts.memo("rent for 3 Mill Lane, due Monday 9 March") == "rent for 3 Mill Lane, due Monday 9 March"
     assert len(facts.memo("P" * 3000)) == 101
+
+
+def test_a_job_that_has_ended_is_no_longer_shown():
+    from townsim.town import jobs
+    s = place(1)
+    [lost] = [e for e in s.all("events") if e.kind == "job_lost"]
+    pid = lost.who
+    [job] = jobs.held(s, person=pid)
+    employer = s.get("orgs", job.org).name
+    run_routine(s, lost.day + 8 - s.day)                        # past the last pay day
+    assert s.get("jobs", job.id).ended != -1 and not jobs.held(s, person=pid)
+    who = facts.who(s, pid)
+    mine = "\n".join(_who_lines_without_the_persons_own_words(s, pid, who))    # worries are as they stand
+    assert employer not in mine and f"{job.hours:g} hours a week" not in mine
+    pensions = [o for o in s.where("obligations", payee=s.get("people", pid).household)
+                if o.kind == "wage" and o.status == "active" and o.id not in {j.wage_ob for j in s.all("jobs")}]
+    assert ("You have no work at present." in who) == (not pensions) or "Your household is paid" in who
+    for m in s.get("households", s.get("people", pid).household).members:
+        if m != pid:
+            line = next(x for x in facts.who(s, m).split("\n") if x.startswith(s.get("people", pid).name + ", "))
+            assert employer not in line and line.endswith("has no work at present.")
+    # a shop's staff list counts only those still working there
+    owner = _owner_of_most(s)
+    org = next(o for o in s.all("orgs") if o.owner == owner)
+    staff = next(j for j in jobs.held(s, org=org.id) if j.person != owner)
+    jobs.finish(s, staff.id, s.day, "routine:test")
+    s.advance_day()
+    name = s.get("people", staff.person).name
+    assert f"  {name}, " not in facts.business(s, owner) and name not in facts.who(s, owner).split("Also working")[-1]

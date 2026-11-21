@@ -16,7 +16,7 @@ import re
 from datetime import timedelta
 
 from townsim.econ.firm import Firm
-from townsim.town import firms
+from townsim.town import firms, jobs
 from townsim.town.acts import TIE_RANKS, knows, name_of_who
 from townsim.town.clock import DAY_ZERO, DAYS, date_text, dow, week
 from townsim.town.obligations import LATE_FEE_CENTS, OWED, SCHEDULED, money, name_of, owed_dues, upcoming
@@ -204,11 +204,28 @@ def _home(store: Store, pid: str) -> list[str]:
 def _does(store: Store, pid: str) -> str:
     """What someone does, said of them: their `job` line, or where they work, or ""."""
     p = store.get("people", pid)
-    if p.job.strip():
+    if _job_line(store, pid):
         first = p.job.split(" ")[0]
         return p.job if _verb(first) else f"is {p.job}"
-    jobs = store.where("jobs", person=pid)
-    return f"works at {store.get('orgs', jobs[0].org).name}" if jobs else ""
+    held = jobs.held(store, person=pid)
+    if held:
+        return f"works at {store.get('orgs', held[0].org).name}"
+    return "has no work at present" if store.where("jobs", person=pid) else ""
+
+
+def _job_line(store: Store, pid: str) -> str:
+    """`Person.job`, unless it names where they worked in a job that has ended and not where
+    they work now: then it is no longer true, and "" is returned."""
+    p = store.get("people", pid)
+    line = p.job.strip()
+    if not line:
+        return ""
+    names = lambda js: [store.get("orgs", j.org).name for j in js if store.has("orgs", j.org)]  # noqa: E731
+    now = names(jobs.held(store, person=pid))
+    gone = [n for n in names(store.where("jobs", person=pid)) if n not in now]
+    if any(n in line for n in gone) and not any(n in line for n in now):
+        return ""
+    return p.job
 
 
 def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> list[str]:
@@ -226,18 +243,19 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
 def _work(store: Store, pid: str) -> list[str]:
     p = store.get("people", pid)
     home = p.household
-    jobs = store.where("jobs", person=pid)
+    job_line = _job_line(store, pid)
+    held = jobs.held(store, person=pid)
     owned = [o for o in store.all("orgs") if o.owner == pid and not o.outside]
     told = False                                     # whether the job line has been said in a fuller line
     lines = []
-    for j in jobs:
+    for j in held:
         org = store.get("orgs", j.org)
         ob = store.get("obligations", j.wage_ob) if store.has("obligations", j.wage_ob) else None
         paid = f", paid on {_payday(ob)}" if ob is not None else ""
         mine = org.owner == pid
-        if not told and p.job.strip() and org.name in p.job:
+        if not told and job_line and org.name in job_line:
             told = True
-            head = _second_person(p.job) + (", which you own" if mine else "")
+            head = _second_person(job_line) + (", which you own" if mine else "")
             pay = f"drawing {money(j.weekly)} a week" if mine else f"for {money(j.weekly)} a week"
             lines.append(f"{head}: {j.hours:g} hours a week, {pay}{paid}.")
         elif mine:
@@ -245,12 +263,12 @@ def _work(store: Store, pid: str) -> list[str]:
                          f"a week{paid}.")
         else:
             lines.append(f"You work {j.hours:g} hours a week at {org.name} for {money(j.weekly)} a week{paid}.")
-    if p.job.strip() and not told:
-        lines.insert(0, _second_person(p.job) + ".")
+    if job_line and not told:
+        lines.insert(0, _second_person(job_line) + ".")
     for org in owned:
-        if not any(j.org == org.id for j in jobs) and org.name not in p.job:
+        if not any(j.org == org.id for j in held) and org.name not in job_line:
             lines.append(f"You own {org.name}.")
-        staff = [store.get("people", j.person).name for j in store.where("jobs", org=org.id) if j.person != pid]
+        staff = [store.get("people", j.person).name for j in jobs.held(store, org=org.id) if j.person != pid]
         if staff:
             lines.append(f"Also working at {org.name}: {_and(staff)}.")
     for other in store.all("households"):
@@ -259,11 +277,13 @@ def _work(store: Store, pid: str) -> list[str]:
             what = f" for {money(got[0].cents)} a week" if got else ""
             who = "You let" if other.landlord == pid else "Your household lets"
             lines.append(f"{who} {other.street or 'a house'} to {_the(other.name)}{what}.")
-    if not jobs:
+    if not held:
         wages = {j.wage_ob for j in store.all("jobs")}
         for o in _active(store, payee=home):
             if o.kind == "wage" and o.id not in wages and not store.has("households", o.payer):
                 lines.append(f"Your household is paid {memo(o.memo)}: {money(o.cents)} a week, on {_payday(o)}.")
+    if not lines and store.where("jobs", person=pid):
+        lines.append("You have no work at present.")
     return lines
 
 
@@ -526,7 +546,7 @@ def business(store: Store, pid: str, weeks: int = 2) -> str:
                              f"{_supplier_name(store, f.last_supplier)}")
             else:
                 lines.append("Nothing ordered")
-        staff = store.where("jobs", org=org.id)
+        staff = jobs.held(store, org=org.id)
         if staff:
             lines.append("Staff:")
             lines += [f"  {store.get('people', j.person).name}, {j.hours:g} hours, {money(j.weekly)} a week"
