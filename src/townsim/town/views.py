@@ -49,6 +49,7 @@ TALK_CUT = 20
 APPOINTMENTS_SHOWN = 5
 PEOPLE_KEPT = 6
 RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
+RESULT_CUT = 30                    # each result, when all else has given way
 RESULT_WORDS = 80                  # room for a proposal's result, which repeats what the other reads
 NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
@@ -178,13 +179,13 @@ def _fit(text: str, words: int, chars: int) -> str:
     return (head[:space] if space > 0 else head).rstrip() + "\u2026"
 
 
-def _result_text(r, latest_read: str | None, read_words: int) -> str:
+def _result_text(r, latest_read: str | None, read_words: int, words_each: int = 0) -> str:
     """`<op>: <text>`, each line after the first indented: cut to 80 words and 640
     characters; the latest read to `read_words` words and eight characters a word; an
     older read in the same batch is not shown."""
     if _is_read(r) and r.id != latest_read:
         return f"{r.op}: not shown, a later read follows"
-    words = read_words if r.id == latest_read else RESULT_WORDS
+    words = read_words if r.id == latest_read else (words_each or RESULT_WORDS)
     op = r.op if r.op.strip().lower() in acts.REGISTRY or r.op in ("(no operation named)", "(more)") else f"'{r.op}'"
     if _is_read(r):                                                # a listing code wrote: its lines stay
         return _fit(f"{op}: {r.text}".replace("\n", "\n  "), words, CHARS_A_WORD * words)
@@ -306,6 +307,8 @@ class _Choice(NamedTuple):
     knowhow: bool = True
     going_out: int = facts.GOING_OUT
     coming_in: int = facts.COMING_IN
+    result_words: int = RESULT_WORDS
+    toward: bool = True
 
 
 class _Sec(NamedTuple):
@@ -393,13 +396,13 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     res = parts.results
     if res.shown:
         rows = [(f"({len(res.passed)} earlier results not shown)", COUNTED)] if res.passed else []
-        rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words) for r in res.shown))
+        rows += _plain("\n".join(_result_text(r, res.latest_read, c.read_words, c.result_words) for r in res.shown))
         out.append(_Sec("WHAT CAME OF YOUR LAST ACTS", rows, fixed=True))
     st = c.statement
     out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _once(parts, ("statement", st.earlier, len(st.lines), c.going_out,
-                                                              c.coming_in),
+                                                              c.coming_in, c.toward),
                                                      lambda: _rows(facts.statement_rows(store, st, c.going_out,
-                                                                                        c.coming_in)))))
+                                                                                        c.coming_in, c.toward)))))
     if parts.book:
         out.append(_Sec("THE BANK'S BOOK", _rows(parts.book)))
     business = parts.business[0](*c.business)
@@ -513,7 +516,8 @@ def layout(store: Store, pid: str) -> Layout:
     second requests, likewise (`requests`); the latest read result cut to 120 words (`read`); the
     people known, down to the six closest (`closest`); and the payments going out and coming in,
     down to five and three, and the business's going out to four (`coming`); the latest read
-    result cut again, to 40 words (`read again`). Letters and
+    result cut again, to 40 words (`read again`); the statement's lines without what each was
+    counted toward (`toward`); and every other result cut to 30 words (`results`). Letters and
     requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
     more, or more than 16,000 characters, the last guard (`guard`) takes whole lines from the
     end of the longest section that may lose them until it is under both, and ends that
@@ -601,6 +605,14 @@ def layout(store: Store, pid: str) -> Layout:
     if left > 0 and parts.results.latest_read is not None:
         c = c._replace(read_words=READ_LAST)
         steps.append("read again")
+        left = over(c)
+    if left > 0 and any(" (counted toward " in x.memo for x in c.statement.lines):
+        c = c._replace(toward=False)
+        steps.append("toward")
+        left = over(c)
+    if left > 0 and any(len(r.text.split()) > RESULT_CUT for r in parts.results.shown):
+        c = c._replace(result_words=RESULT_CUT)
+        steps.append("results")
         left = over(c)
     secs = _sections(store, parts, c)
     secs, taken, fired = _guard(secs, CEILING - base, CHAR_CEILING - len(system) - 0)

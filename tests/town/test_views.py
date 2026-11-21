@@ -515,7 +515,7 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     total = len(v.system.split()) + len(v.user.split())
     assert 1200 < total < 2000
     order = ["knowhow", "people", "statement", "business", "till", "owed", "talks", "inbox", "requests", "read",
-             "closest", "coming", "read again", "guard"]
+             "closest", "coming", "read again", "toward", "results", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut
@@ -1432,3 +1432,9 @@ def test_a_line_dated_its_due_day_does_not_say_the_day_twice():
     run_routine(s, 5)
     rows = section(person_view(s, "p03")[1]["content"], "YOUR HOUSEHOLD'S ACCOUNT")
     assert any(r.startswith("  Monday 2 March") and r.endswith("rent") for r in rows), rows
+
+
+def test_what_a_line_was_counted_toward_can_give_way_and_a_person_s_words_stay():
+    assert facts._untoward('"wages" (counted toward wages due Friday 6 March)') == '"wages"'
+    assert facts._untoward('"x (counted toward y)" (counted toward rent due Monday 9 March)') == '"x (counted toward y)"'
+    assert facts._untoward("rent, due Monday 9 March") == "rent, due Monday 9 March"

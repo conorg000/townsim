@@ -690,10 +690,17 @@ def _coming(store: Store, account: str, most: int = GOING_OUT) -> list[str]:
     return coming(store, [u for u in upcoming(store, account, AHEAD) if u.out], most)
 
 
-def transfer_rows(store: Store, lines: list) -> list[str]:
-    """The rows `statement_lines` shows for a statement's in-and-out `lines`, oldest first."""
-    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  {_same_day(memo(x.memo), x.day)}"
-            for x in lines]
+def transfer_rows(store: Store, lines: list, toward: bool = True) -> list[str]:
+    """The rows `statement_lines` shows for a statement's in-and-out `lines`, oldest first; without
+    what each was counted toward when `toward` is false."""
+    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  "
+            f"{_same_day(memo(x.memo if toward else _untoward(x.memo)), x.day)}" for x in lines]
+
+
+def _untoward(text: str) -> str:
+    """A memo without the ` (counted toward ...)` code wrote after it."""
+    at = [i for i in range(len(text)) if text.startswith(" (counted toward ", i) and text.count('"', 0, i) % 2 == 0]
+    return text[:at[0]] if at and text.endswith(")") else text
 
 
 def _same_day(text: str, day: int) -> str:
@@ -707,7 +714,8 @@ def statement_lines(store: Store, st) -> str:
     return "\n".join(statement_rows(store, st))
 
 
-def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = COMING_IN) -> list[str]:
+def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = COMING_IN,
+                   toward: bool = True) -> list[str]:
     """A statement as `statement.statement_text` lays it out, with every memo cut to a label
     and at most ten payments going out and six coming in."""
     rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
@@ -716,7 +724,7 @@ def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = C
     elif st.earlier:                                  # a count with nothing beneath it would say nothing
         week = max(st.since, st.day - 6)
         rows += [Counted(f"  ({st.earlier} lines before {date_text(week)} not shown)"), "  nothing since"]
-    rows += transfer_rows(store, st.lines)
+    rows += transfer_rows(store, st.lines, toward)
     if not st.lines and not st.earlier:
         rows.append("  nothing")
     rows.append(f"Going out by {date_text(st.until)}:")
