@@ -1,3 +1,6 @@
+import dataclasses
+import sqlite3
+
 import pytest
 
 from townsim.town.replies import (
@@ -12,7 +15,7 @@ from townsim.town.replies import (
     prompt_hash,
 )
 from townsim.town.rundb import RunDB
-from townsim.town.store import Store
+from townsim.town.store import Change, Store
 
 MSGS = [{"role": "user", "content": "view"}]
 
@@ -215,3 +218,122 @@ def test_a_snapshot_for_a_day_is_replaced_and_days_are_listed(db):
     assert db.load_snapshot("r1", 2).balance("p01") == 400
     assert db.snapshot_days("r1") == [0, 2]
     assert db.snapshot_days("r2") == []
+
+
+# review fixes
+
+
+def _key(run="r1", day=0, actor="p01"):
+    return Keys(run).next("scripted", day, actor, "turn")
+
+
+class _Fixed:
+    model = "scripted"
+
+    def __init__(self, reply):
+        self.reply = reply
+
+    def ask(self, key, messages):
+        return self.reply
+
+
+def test_live_resumed_and_replayed_replies_are_equal(tmp_path):
+    path = str(tmp_path / "x.sqlite")
+    reply = Reply(text="ok", tool={"name": "pay", "args": {"to": ("p02", "p03")}}, tokens_in=2, cost=0.1)
+    with RunDB(path) as db:
+        db.create_run("r1", seed=1)
+        live = Recording(_Fixed(reply), db, "r1").ask(_key(), MSGS)
+    with RunDB(path) as db:
+        resumed = Recording(_Fixed(Reply(text="other")), db, "r1").ask(_key(), MSGS)
+        replayed = Replaying(db, "r1", "scripted").ask(_key(), MSGS)
+    assert live == resumed == replayed
+    assert live.tool == {"name": "pay", "args": {"to": ["p02", "p03"]}}
+
+
+def test_a_reply_that_cannot_be_stored_becomes_a_stored_error(db):
+    bad = Reply(text="ok", tool={"thing": object()}, tokens_in=5, tokens_out=6, cost=0.25)
+    live = Recording(_Fixed(bad), db, "r1").ask(_key(), MSGS)
+    assert live.text is None and live.tool is None
+    assert live.error.startswith("the reply could not be stored: ")
+    assert (live.tokens_in, live.tokens_out, live.cost) == (5, 6, 0.25)
+    assert db.get_reply("r1", _key().text()) == (prompt_hash(MSGS), live)
+
+
+def test_a_reply_with_a_nan_cost_still_stores_an_error(db):
+    live = Recording(_Fixed(Reply(text="ok", cost=float("nan"))), db, "r1").ask(_key(), MSGS)
+    assert live.text is None and live.error.startswith("the reply could not be stored: ")
+    assert db.get_reply("r1", _key().text())[1] == live
+
+
+def test_a_refused_write_does_not_lock_the_file_for_another_handle(tmp_path):
+    path = str(tmp_path / "x.sqlite")
+    with RunDB(path) as a, RunDB(path) as b:
+        a.create_run("r1", seed=1)
+        a.put_reply("r1", "k", "h", Reply(text="x"))
+        with pytest.raises(ValueError):
+            a.create_run("r1", seed=1)
+        b.create_run("r2", seed=2)
+        with pytest.raises(ValueError):
+            a.put_reply("r1", "k", "h", Reply(text="y"))
+        b.put_reply("r2", "k", "h", Reply(text="z"))
+        assert a.get_reply("r2", "k")[1].text == "z"
+
+
+@pytest.mark.parametrize("day", [-1, True, 1.0, "1"])
+def test_keys_refuse_a_day_that_is_not_a_whole_count(day):
+    with pytest.raises(ValueError):
+        Keys("r1").next("scripted", day, "p01", "turn")
+
+
+def test_repliers_refuse_a_key_from_another_run(db):
+    with pytest.raises(ValueError):
+        Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(_key(run="r2"), MSGS)
+    with pytest.raises(ValueError):
+        Replaying(db, "r1", "scripted").ask(_key(run="r2"), MSGS)
+    assert db.reply_keys("r1") == []
+
+
+def test_replaying_refuses_a_key_asked_twice(db):
+    Recording(ScriptedReplier(lambda k, m: "x"), db, "r1").ask(_key(), MSGS)
+    rep = Replaying(db, "r1", "scripted")
+    rep.ask(_key(), MSGS)
+    with pytest.raises(ReplayMismatch) as e:
+        rep.ask(_key(), MSGS)
+    assert e.value.why == "asked twice" and e.value.key == _key().text()
+
+
+def test_a_snapshot_holds_state_not_history(db):
+    s = _town()
+    s.engine_errors.append("boom")
+    n = len(s.changes)
+    db.save_snapshot("r1", 1, s)
+    assert len(s.changes) == n and s.engine_errors == ["boom"]
+    loaded = db.load_snapshot("r1", 1)
+    assert loaded.changes == [] and loaded.engine_errors == []
+    assert loaded.hash() == s.hash() == db.snapshot_hash("r1", 1)
+
+
+@dataclasses.dataclass
+class _Row:
+    id: str
+    name: str
+
+
+def test_changes_are_kept_per_day(db):
+    day1 = [Change(1, "people", "p1", "+", None, _Row("p1", "Ann"), "routine:setup"),
+            Change(1, "people", "p1", "name", "Ann", "Anne", "op:p1:rename:d1.0")]
+    db.put_changes("r1", 1, day1)
+    db.put_changes("r1", 0, [])
+    assert db.changes("r1", 1) == day1 and isinstance(db.changes("r1", 1)[0], Change)
+    db.put_changes("r1", 1, day1[:1])
+    assert db.changes("r1", 1) == day1[:1]
+    assert db.change_days("r1") == [0, 1]
+    with pytest.raises(KeyError):
+        db.changes("r1", 2)
+
+
+def test_rundb_closes_when_used_as_a_context_manager(tmp_path):
+    with RunDB(str(tmp_path / "x.sqlite")) as db:
+        db.create_run("r1", seed=1)
+    with pytest.raises(sqlite3.ProgrammingError):
+        db.get_run("r1")

@@ -9,6 +9,7 @@ notice when a replayed prompt has changed.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from dataclasses import dataclass
@@ -47,7 +48,7 @@ class Reply:
 class ReplayMismatch(Exception):
     """A stored run and the run asking for its replies disagree.
 
-    `why` is `"missing"`, `"prompt changed"`, `"unused"` or `"state differs"`.
+    `why` is `"missing"`, `"prompt changed"`, `"asked twice"`, `"unused"` or `"state differs"`.
     """
 
     def __init__(self, key: str, why: str) -> None:
@@ -61,6 +62,32 @@ class ReplayMismatch(Exception):
 
 class StopRun(Exception):
     """Raised by a replier when the run must stop (a spending cap, a refused prompt)."""
+
+
+def encode_reply(reply: Reply) -> str:
+    """The reply as stored. Raises if JSON cannot hold it (an odd object, a NaN)."""
+    return json.dumps(dataclasses.asdict(reply), sort_keys=True, allow_nan=False, ensure_ascii=False)
+
+
+def decode_reply(text: str) -> Reply:
+    return Reply(**json.loads(text))
+
+
+def _storable(reply: Reply) -> str:
+    """Encode `reply`, or, if it cannot be stored, an error reply that keeps its spend."""
+    try:
+        return encode_reply(reply)
+    except Exception as e:
+        why = f"the reply could not be stored: {type(e).__name__}: {e}"
+    try:
+        return encode_reply(Reply(text=None, error=why, tokens_in=reply.tokens_in, tokens_out=reply.tokens_out, cost=reply.cost))
+    except Exception:
+        return encode_reply(Reply(text=None, error=why))
+
+
+def _own_run(run: str, key: ReplyKey) -> None:
+    if key.run != run:
+        raise ValueError(f"key {key.text()!r} is not for run {run!r}")
 
 
 def prompt_hash(messages: list[dict]) -> str:
@@ -87,6 +114,8 @@ class Keys:
                 raise ValueError(f"{name} {value!r} must not contain '|'")
         if ":" in purpose:
             raise ValueError(f"purpose {purpose!r} must not contain ':'")
+        if isinstance(day, bool) or not isinstance(day, int) or day < 0:
+            raise ValueError(f"day {day!r} must be a whole number of days from 0")
         slot = (day, actor, purpose, ref)
         n = self._counts.get(slot, 0)
         self._counts[slot] = n + 1
@@ -106,7 +135,11 @@ class ScriptedReplier:
 
 
 class Recording:
-    """Asks `inner` once per key and stores the reply; a stored reply is served as stored."""
+    """Asks `inner` once per key and stores the reply; a stored reply is served as stored.
+
+    A fresh reply is returned as it reads back from the store, so a live run, a resume
+    and a replay all see equal replies for the same key.
+    """
 
     def __init__(self, inner: Replier, db: RunDB, run: str) -> None:
         self.inner = inner
@@ -115,13 +148,14 @@ class Recording:
         self.model = inner.model
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
+        _own_run(self.run, key)
         k, h = key.text(), prompt_hash(messages)
         stored = self.db.get_reply(self.run, k)
         if stored is not None:
             if stored[0] != h:
                 raise ReplayMismatch(key=k, why="prompt changed")
             return stored[1]
-        reply = self.inner.ask(key, messages)
+        reply = decode_reply(_storable(self.inner.ask(key, messages)))
         self.db.put_reply(self.run, k, h, reply)
         return reply
 
@@ -136,7 +170,10 @@ class Replaying:
         self._asked: set[str] = set()
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
+        _own_run(self.run, key)
         k = key.text()
+        if k in self._asked:
+            raise ReplayMismatch(key=k, why="asked twice")
         stored = self.db.get_reply(self.run, k)
         if stored is None:
             raise ReplayMismatch(key=k, why="missing")

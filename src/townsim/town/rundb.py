@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import dataclasses
-import json
+import copy
 import pickle
 import sqlite3
 
-from townsim.town.replies import Reply
+from townsim.town.replies import Reply, decode_reply, encode_reply
 from townsim.town.store import Store
 
 _SCHEMA = """
@@ -23,26 +22,41 @@ create table if not exists snapshots (
     run text not null, day integer not null, hash text not null, blob blob not null,
     primary key (run, day)
 );
+create table if not exists changes (
+    run text not null, day integer not null, blob blob not null,
+    primary key (run, day)
+);
 """
 
 
 class RunDB:
+    """Every write commits, or rolls back if it fails, so no write lock is left held."""
+
     def __init__(self, path: str) -> None:
         self._db = sqlite3.connect(path)
-        self._db.executescript(_SCHEMA)
-        self._db.commit()
+        with self._db:
+            self._db.executescript(_SCHEMA)
 
     def close(self) -> None:
         self._db.close()
+
+    def __enter__(self) -> RunDB:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def _write(self, sql: str, params: tuple) -> None:
+        with self._db:
+            self._db.execute(sql, params)
 
     # runs
 
     def create_run(self, run_id: str, seed: int, parent: str | None = None, parent_day: int | None = None) -> None:
         try:
-            self._db.execute("insert into runs values (?, ?, ?, ?)", (run_id, seed, parent, parent_day))
+            self._write("insert into runs values (?, ?, ?, ?)", (run_id, seed, parent, parent_day))
         except sqlite3.IntegrityError:
             raise ValueError(f"run {run_id!r} already exists") from None
-        self._db.commit()
 
     def get_run(self, run_id: str) -> dict:
         row = self._db.execute("select id, seed, parent, parent_day from runs where id = ?", (run_id,)).fetchone()
@@ -55,13 +69,12 @@ class RunDB:
     def put_reply(self, run_id: str, key: str, prompt_hash: str, reply: Reply) -> None:
         """Store a reply. A key is written once."""
         try:
-            self._db.execute(
+            self._write(
                 "insert into replies (run, key, prompt_hash, reply_json) values (?, ?, ?, ?)",
-                (run_id, key, prompt_hash, json.dumps(dataclasses.asdict(reply), sort_keys=True)),
+                (run_id, key, prompt_hash, encode_reply(reply)),
             )
         except sqlite3.IntegrityError:
             raise ValueError(f"run {run_id!r} already has a reply at {key!r}") from None
-        self._db.commit()
 
     def get_reply(self, run_id: str, key: str) -> tuple[str, Reply] | None:
         row = self._db.execute(
@@ -69,7 +82,7 @@ class RunDB:
         ).fetchone()
         if row is None:
             return None
-        return row[0], Reply(**json.loads(row[1]))
+        return row[0], decode_reply(row[1])
 
     def reply_keys(self, run_id: str) -> list[str]:
         """The run's reply keys in the order they were stored."""
@@ -78,12 +91,15 @@ class RunDB:
     # snapshots
 
     def save_snapshot(self, run_id: str, day: int, store: Store) -> None:
-        """Keep the store as it stands this morning, replacing any snapshot for that day."""
-        self._db.execute(
-            "insert or replace into snapshots values (?, ?, ?, ?)",
-            (run_id, day, store.hash(), pickle.dumps(store)),
-        )
-        self._db.commit()
+        """Keep the store's state as it stands this morning, replacing any snapshot for that day.
+
+        Only state is kept: the snapshot has an empty change log and no engine errors
+        (history is kept by `put_changes`). The live store is not altered.
+        """
+        state = copy.copy(store)
+        state.changes = []
+        state.engine_errors = []
+        self._write("insert or replace into snapshots values (?, ?, ?, ?)", (run_id, day, store.hash(), pickle.dumps(state)))
 
     def load_snapshot(self, run_id: str, day: int) -> Store:
         """A new `Store` each time, rebuilt from the snapshot."""
@@ -98,3 +114,18 @@ class RunDB:
 
     def snapshot_days(self, run_id: str) -> list[int]:
         return [r[0] for r in self._db.execute("select day from snapshots where run = ? order by day", (run_id,))]
+
+    # history
+
+    def put_changes(self, run_id: str, day: int, changes: list) -> None:
+        """Keep a day's change log, replacing any already kept for that day."""
+        self._write("insert or replace into changes values (?, ?, ?)", (run_id, day, pickle.dumps(list(changes))))
+
+    def changes(self, run_id: str, day: int) -> list:
+        row = self._db.execute("select blob from changes where run = ? and day = ?", (run_id, day)).fetchone()
+        if row is None:
+            raise KeyError((run_id, day))
+        return pickle.loads(row[0])
+
+    def change_days(self, run_id: str) -> list[int]:
+        return [r[0] for r in self._db.execute("select day from changes where run = ? order by day", (run_id,))]
