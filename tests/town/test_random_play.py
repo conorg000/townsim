@@ -21,7 +21,7 @@ from collections import Counter, defaultdict
 
 import pytest
 
-from townsim.town import gen
+from townsim.town import firms, gen
 from townsim.town.acts import REGISTRY
 from townsim.town.loop import run_day
 from townsim.town.obligations import SCHEDULED
@@ -98,6 +98,18 @@ def view_suppliers(messages: list[dict]) -> list[str]:
                               if line.startswith(("On order", "Nothing ordered")) and (m := _SUPPLIER.search(line))))
 
 
+def view_debts(messages: list[dict]) -> list[str]:
+    """The people a view shows the reader owing money or owed money by."""
+    lines = messages[-1].get("content", "").split("\n")
+    found, section = [], ""
+    for line in lines:
+        if line.isupper() and line.strip():
+            section = line
+        elif section == "PEOPLE YOU KNOW" and ", " in line and ("owes you money" in line or "you owe them" in line):
+            found.append(line.split(", ")[0])
+    return found
+
+
 _STAFF = re.compile(r"^  (.+?), [\d.]+ hours, \$[\d,]+\.\d\d a week$")
 
 
@@ -121,7 +133,8 @@ def random_script(rng: random.Random, from_view: bool = False):
     negative sums, missing keys), and now and then text that is not JSON at all.
     All of its randomness comes from `rng`. With `from_view`, the names and the operations
     it chooses among are read from each view, as in a generated place."""
-    seen = {"names": NAMES, "ops": list(REGISTRY), "suppliers": ["Vale Wholesale"], "business": [], "staff": []}
+    seen = {"names": NAMES, "ops": list(REGISTRY), "suppliers": ["Vale Wholesale"], "business": [], "staff": [],
+            "debts": []}
 
     def pick(sensible: list, junk: list, p: float = 0.7):
         return rng.choice(sensible) if sensible and rng.random() < p else rng.choice(junk)
@@ -260,6 +273,7 @@ def random_script(rng: random.Random, from_view: bool = False):
             seen["ops"] = view_ops(messages) or list(REGISTRY)
             seen["suppliers"] = view_suppliers(messages) or ["Vale Wholesale"]
             seen["business"], seen["staff"] = view_business(messages)
+            seen["debts"] = view_debts(messages)
         obs, rqs, owed = _ids(messages, "ob"), _ids(messages, "rq"), _owed(messages, seen["names"])
         aps[:] = _ids(messages, "ap")
         if key.purpose == "talk":                  # a turn in a talk: words, acts, an end, or junk
@@ -274,6 +288,12 @@ def random_script(rng: random.Random, from_view: bool = False):
                 body["end"] = rng.choice([True, False, "true", 1, None]) if rng.random() < 0.5 else False
             return json.dumps(body)
         acts = [element(obs, rqs, owed) for _ in range(rng.randint(0, 10))]
+        if from_view and seen["debts"] and rng.random() < 0.3:     # until ended, between people who owe already
+            acts.append({"op": "propose_agreement", "to": rng.choice(seen["debts"]), "amount": rng.randint(5, 40),
+                         "per": "week", "weeks": 0, "pays": rng.choice(["me", "them"]), "what": "a little each week"})
+        if from_view and owed and rng.random() < 0.3:              # paid toward ahead, then stopped
+            to, ob, sum_ = rng.choice(owed)
+            acts += [{"op": "pay", "to": to, "amount": rng.choice([1, 5, sum_]), "for": ob}, {"op": "stop", "id": ob}]
         if from_view and seen["business"]:     # an owner's draw to nothing and back, and staff pay changed
             me = re.search(r"^You are (.+?), \d+\.", messages[0].get("content", ""), re.M)
             if me and rng.random() < 0.4:
@@ -407,15 +427,75 @@ def _check_announced(s, wages: set[str]) -> None:
                 assert said and said[-1] == due.cents, (due, events[due.obligation])
 
 
+def _check_shops_day(s, mark: int) -> None:
+    """Of the day's shopping: each shop's units sold times its price is its takings; no stock is
+    ever below nothing."""
+    price = {}
+    for c in s.changes[mark:]:                        # each shop's price as the day began
+        if c.table == "firms" and c.field == "price":
+            price.setdefault(c.id, c.old)
+    for f in s.all("firms"):
+        price.setdefault(f.id, f.price)
+        assert all(u >= 0 for u in f.stock_units), f
+    sold: Counter = Counter()
+    took: Counter = Counter()
+    for c in s.changes[mark:]:
+        if c.table == "firms" and c.field == "price":
+            price[c.id] = c.new
+        elif c.table == "firms" and c.cause == "routine:shopping" and c.field in ("sold", "takings"):
+            (sold if c.field == "sold" else took)[c.id] += (c.new - c.old) * (price[c.id] if c.field == "sold" else 1)
+    assert sold == took, (sold, took)
+
+
+def _check_rent_days(s) -> None:
+    """Every rent day is opened once and none is skipped: from its first day to yesterday (or
+    to its last day, or the day it was stopped), one due that is not void on each."""
+    for ob in s.all("obligations"):
+        if ob.kind != "rent" or ob.every == 0:
+            continue
+        days = Counter(d.day for d in s.where("dues", obligation=ob.id) if d.status != "void")
+        assert not days or max(days.values()) == 1, (ob, days)
+        end = s.day - 1
+        if ob.last is not None:
+            end = min(end, ob.last)
+        if ob.status == "stopped":
+            end = min(end, ob.stopped_on)
+        assert all(days[d] == 1 for d in range(ob.first, end + 1, ob.every)), (ob, sorted(days))
+
+
+def _check_benefit_and_wage(s) -> None:
+    """No one is paid benefit for a week in which a wage of theirs was paid."""
+    benefit: dict[str, set[str]] = defaultdict(set)
+    for c in s.changes:
+        if c.table == "people" and c.field == "benefit" and c.new:
+            benefit[c.id].add(c.new)
+    for p in s.all("people"):
+        if p.benefit:
+            benefit[p.id].add(p.benefit)
+    for pid, obs in benefit.items():
+        paid = {d.day // 7 for o in obs for d in s.where("dues", obligation=o) if d.paid > 0 and d.status != "void"}
+        wages = {d.day // 7 for j in s.where("jobs", person=pid) if s.has("obligations", j.wage_ob)
+                 for d in s.where("dues", obligation=j.wage_ob) if d.paid > 0 and d.status != "void"}
+        assert not paid & wages, (pid, sorted(paid & wages))
+
+
 def _check_run(s) -> None:
     _check_wage_chains(s)
     _received_within_what_was_owed(s)
+    _check_rent_days(s)
+    _check_benefit_and_wage(s)
+    for job, obs in _wage_chains(s).items():                 # one wage for a job's life, its id unchanged
+        assert len(obs) == 1, (job, obs)
+    deliveries = Counter((t.cause, t.t // 7) for t in s.ledger.transfers if t.cause.startswith("routine:delivery:"))
+    assert not deliveries or max(deliveries.values()) == 1, deliveries.most_common(1)
     collects = Counter(t.cause for t in s.ledger.transfers if t.cause.startswith("routine:collect:"))
     assert not collects or max(collects.values()) == 1, collects.most_common(1)
-    for cause in collects:                 # nothing is taken for a day after an obligation's last
-        due = s.get("dues", cause.removeprefix("routine:collect:"))
-        last = s.get("obligations", due.obligation).last
-        assert last is None or due.day <= last, (due, last)
+    for cause in collects:                 # nothing is taken for a void due, a day after an obligation's last,
+        due = s.get("dues", cause.removeprefix("routine:collect:"))      # or a day after it was stopped
+        ob = s.get("obligations", due.obligation)
+        assert due.status != "void", due
+        assert ob.last is None or due.day <= ob.last, (due, ob.last)
+        assert ob.status != "stopped" or due.day <= ob.stopped_on, (due, ob.stopped_on)
 
     # The strong form: what reached the payee for each paid due is exactly its sum. A
     # payment by hand counted toward a due cannot be told from the ledger alone (its memo
@@ -529,11 +609,24 @@ def _hamlet_played(seed: int):
     replier = ScriptedReplier(reply)
     keys = Keys("h")
     done: Counter = Counter()
-    for _ in range(HAMLET_DAYS):
-        mark = s.mark()
-        report = run_day(s, replier, keys)
-        _check_day(s, mark)
-        done.update(o.act.op for t in report.turns for o in t.outcomes if o.ok and isinstance(o.act.op, str))
+    real = firms.shop_today
+
+    def shop_today(store):                     # no shop sells more in a week than its staff can serve
+        caps = {f.id: firms.capacity(store, f.id) for f in store.all("firms")}
+        before = {f.id: f.sold for f in store.all("firms")}
+        real(store)
+        for f in store.all("firms"):
+            assert f.sold == before[f.id] or f.sold <= caps[f.id], (store.day, f.id, f.sold, caps[f.id])
+    firms.shop_today = shop_today
+    try:
+        for _ in range(HAMLET_DAYS):
+            mark = s.mark()
+            report = run_day(s, replier, keys)
+            _check_day(s, mark)
+            _check_shops_day(s, mark)
+            done.update(o.act.op for t in report.turns for o in t.outcomes if o.ok and isinstance(o.act.op, str))
+    finally:
+        firms.shop_today = real
     return s, done, biggest[0]
 
 
@@ -576,3 +669,15 @@ def test_random_play_talks():
         assert kinds["asked"] and kinds["household"], kinds
         assert any(x.results for s in stores for x in s.all("lines"))
         assert any(a.status in ("held", "cancelled") for s in stores for a in s.all("appointments"))
+
+
+def test_random_play_in_the_hamlet_agrees_until_ended_between_debtors_and_stops_what_was_paid_ahead():
+    """Across the hamlet seeds an agreement until ended is made between people who already owe
+    each other, and an obligation paid toward ahead is then stopped."""
+    stores = [_hamlet_played(seed)[0] for seed in HAMLET_SEEDS]
+    debts = [{(o.payer, o.payee) for o in s.all("obligations") if o.memo.startswith("paying back")} for s in stores]
+    assert any(o.kind == "agreement" and o.last is None and o.every and o.made_by != "routine"
+               and ((o.payer, o.payee) in d or (o.payee, o.payer) in d)
+               for s, d in zip(stores, debts) for o in s.all("obligations"))
+    assert any(d.status == "void" and d.paid > 0 and s.get("obligations", d.obligation).status == "stopped"
+               for s in stores for d in s.all("dues"))
