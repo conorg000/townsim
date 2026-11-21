@@ -192,3 +192,107 @@ def run_week(s: Store) -> None:
         firms.shop_today(s)
         firms.close_week(s)
         s.advance_day()
+
+
+# --- eight scripted weeks of a generated place, run once a seed and shared by the tests ------
+
+import functools  # noqa: E402
+import pickle  # noqa: E402
+
+FAMILIES = ["a", "b", "c", "d"]
+WEEKS_8 = 56
+
+
+@functools.cache
+def _generated(seed: int) -> bytes:
+    from townsim.town import gen
+    return pickle.dumps(gen.generate(seed, FAMILIES))
+
+
+def generated(seed: int) -> Store:
+    """A fresh copy of the generated place for `seed`."""
+    return pickle.loads(_generated(seed))
+
+
+@functools.cache
+def scripted_weeks(seed: int, days: int = WEEKS_8):
+    """`seed`'s place played for `days` days on `hamlet_script.script`: the end state; the size in
+    words of everyone's view each morning, by (day, person); and every ask made, as (day, person,
+    purpose, system message, user message, what `check(store, person, text)` found then)."""
+    from townsim.town import hamlet_script
+    from townsim.town.loop import run_day
+    from townsim.town.replies import Keys, ScriptedReplier
+    from townsim.town.views import view
+    s = generated(seed)
+    sizes: dict = {}
+    asked: list = []
+    sized: set = set()
+
+    def script(key, messages):
+        if s.day not in sized:
+            sized.add(s.day)
+            for p in s.all("people"):
+                sizes[(s.day, p.id)] = sum(len(m["content"].split()) for m in view(s, p.id)[0])
+        system, user = messages[0]["content"], messages[-1]["content"]
+        asked.append((s.day, key.actor, key.purpose, system, user, ties_contradicted(s, key.actor, system, user)))
+        return hamlet_script.script(key, messages)
+    keys = Keys("w")
+    for _ in range(days):
+        run_day(s, ScriptedReplier(script), keys)
+    return s, sizes, asked
+
+
+_SAID = {"works for you": "employee", "your employer": "employer", "works with you": "coworker",
+         "your landlord": "landlord", "your tenant": "tenant", "you owe them money": "creditor",
+         "owes you money": "debtor", "the banker": "banker", "has a loan from the bank": "borrower"}
+
+
+def ties_contradicted(s: Store, pid: str, system: str, user: str) -> list[str]:
+    """Each line of a view that says `<name>, ... <tie> ...` where the records of the day give
+    `pid` no such tie to that person, read from what the jobs, lets and obligations say."""
+    from townsim.town import jobs as J
+    from townsim.town.obligations import SCHEDULED, owed_dues
+    names = {p.name: p.id for p in s.all("people")}
+    home = s.get("people", pid).household
+    owned = {o.id for o in s.all("orgs") if o.owner == pid}
+    mine_jobs = {j.org for j in J.held(s, person=pid)}
+
+    def agreement(payer_side: set, payee_side: set) -> bool:
+        return any(o.kind == "agreement" and o.payer in payer_side and o.payee in payee_side
+                   and (o.status in SCHEDULED or owed_dues(s, o.id)) for o in s.all("obligations"))
+
+    def holds(other: str, kind: str) -> bool:
+        q = s.get("people", other)
+        theirs = {j.org for j in J.held(s, person=other)}
+        their_owned = {o.id for o in s.all("orgs") if o.owner == other}
+        if kind == "employee":
+            return bool(theirs & owned)
+        if kind == "employer":
+            return bool(mine_jobs & their_owned)
+        if kind == "coworker":
+            return bool(mine_jobs & theirs)
+        if kind == "landlord":
+            return s.get("households", home).landlord in (other, q.household)
+        if kind == "tenant":
+            return s.get("households", q.household).landlord in (pid, home)
+        if kind == "creditor":
+            return agreement({home} | owned, {q.household} | their_owned)
+        if kind == "debtor":
+            return agreement({q.household} | their_owned, {home} | owned)
+        banks = [o for o in s.all("orgs") if o.kind == "bank"]
+        if kind == "banker":
+            return any(b.contact == other and any(o.kind == "loan" and o.payer in {home} | owned and o.payee == b.id
+                                                  and (o.status in SCHEDULED or owed_dues(s, o.id))
+                                                  for o in s.all("obligations")) for b in banks)
+        return any(b.contact == pid and any(o.kind == "loan" and o.payer in {q.household} | their_owned
+                                            and o.payee == b.id and (o.status in SCHEDULED or owed_dues(s, o.id))
+                                            for o in s.all("obligations")) for b in banks)
+    found = []
+    for line in (system + "\n" + user).split("\n"):
+        name, _, rest = line.partition(", ")
+        if name not in names or not rest or names[name] == pid:
+            continue
+        for words, kind in _SAID.items():
+            if words in rest and not holds(names[name], kind):
+                found.append(line)
+    return found

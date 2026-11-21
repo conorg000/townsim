@@ -129,7 +129,7 @@ def test_acts_in_a_talk_apply_in_order_and_are_seen_next_turn():
     assert s.balance("h1") == before + 600 and h.n == 13
     first = talk.lines_of(s, tk)[1]
     assert len(first.results) == 5 and s.get("results", first.results[-1]).op == "(more)"
-    assert "four carried out in a turn" in s.get("results", first.results[-1]).text
+    assert "four carried out each time you speak" in s.get("results", first.results[-1]).text
     later = shown[(CRAIG, 1)][1]["content"]
     assert "WHAT CAME OF IT\npay: Paid $5.00 to Ruth Ashby." in later
     assert "WHAT CAME OF IT" not in shown[(CRAIG, 0)][1]["content"]

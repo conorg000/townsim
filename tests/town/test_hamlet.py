@@ -22,7 +22,7 @@ from townsim.town.rundb import RunDB
 from townsim.town.runs import replay, resume, run
 from townsim.town.views import view
 
-from .helpers import make_rent, run_days, town
+from .helpers import make_rent, run_days, scripted_weeks, town
 from .test_random_play import _check_run
 
 FAMILIES = ["a", "b", "c", "d"]
@@ -126,17 +126,7 @@ def test_nothing_is_collected_twice_and_no_view_is_over_length():
 
 def _largest_views(seed):
     """The largest of everyone's views on each morning of eight scripted weeks of `seed`."""
-    s = place(seed)
-    sizes = {}
-
-    def script(key, messages):
-        if s.day not in {d for d, _ in sizes}:
-            for p in s.all("people"):
-                sizes[(s.day, p.id)] = words(view(s, p.id)[0])
-        return hamlet_script.script(key, messages)
-    keys = Keys("v")
-    for _ in range(DAYS):
-        run_day(s, ScriptedReplier(script), keys)
+    _, sizes, _ = scripted_weeks(seed)                # DAYS, the eight weeks
     return max(sizes.items(), key=lambda kv: kv[1])
 
 

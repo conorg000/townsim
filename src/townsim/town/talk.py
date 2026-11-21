@@ -321,7 +321,7 @@ def _converse(store: Store, replier: Replier, keys: Keys, tk: str, n: int) -> He
             held.n += 1
         if len(elements) > MAX_ACTS:
             c = f"op:{speaker}:more:d{day}.{held.n}"
-            more = f"Not done: {len(elements) - MAX_ACTS} more operations were written than the four carried out in a turn."
+            more = f"Not done: {len(elements) - MAX_ACTS} more operations were written than the four carried out each time you speak."
             rid = store.new_id("res", c)
             store.add("results", Result(rid, day, speaker, loop.MORE, more, False), c)
             results.append(rid)
