@@ -45,8 +45,12 @@ def test_subscribe_makes_instance_and_four_free_weeks():
         "Not done: there is no product called 'Kestrel Assistant'. Sold in Hartcliffe: Ridgeway Assistant (Ridgeway Software)."
     assert _do(s, "p11", "subscribe", to="Ridgeway Assistant", **{"for": "savings"}).msg == \
         "Not done: a subscription is for a household or a business."
-    assert _do(s, "p11", "subscribe", to="Ridgeway Assistant", **{"for": "Ridgeway Software"}).msg == \
-        "Not done: Ridgeway Software makes Ridgeway Assistant."
+    own = _do(s, "p11", "subscribe", to="Ridgeway Assistant", **{"for": "Ridgeway Software"})
+    assert own.ok and "Ridgeway Software makes it, and pays no fee." in own.msg     # the firm is its own client
+    sub = next(x for x in s.all("subscriptions") if x.client == "org13")
+    assert sub.fee_ob == "" and s.get("instances", sub.instance).status == "active"
+    assert _do(s, "p11", "stop", id=sub.id).msg == f"Stopped: {sub.id}, Ridgeway Assistant for Ridgeway Software."
+    assert s.get("instances", sub.instance).status == "ended"
     assert _do(s, "p9", "subscribe", to="Ridgeway Assistant", asks="word " * 151).msg == \
         "Not done: that is longer than 150 words."
 

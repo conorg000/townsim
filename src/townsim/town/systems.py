@@ -171,8 +171,11 @@ def _stop(store: Store, act: Act) -> str | None:
     rid = act.args.get("id")
     for table in STOPPABLE:
         if isinstance(rid, str) and store.has(table, rid):
-            fee = getattr(store.get(table, rid), "fee_ob", "")
-            return account_system(store.get("obligations", fee).payer) if fee and store.has("obligations", fee) else None
+            row = store.get(table, rid)
+            fee = getattr(row, "fee_ob", "")
+            if fee and store.has("obligations", fee):
+                return account_system(store.get("obligations", fee).payer)
+            return account_system(row.client) if hasattr(row, "fee_ob") and hasattr(row, "client") else None
     return _drawn(store, act)
 
 

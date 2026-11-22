@@ -142,15 +142,18 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: b
     sid, iid = store.new_id("sub", cause), store.new_id("as", cause)
     name = f"{pr.name} for {client_name(store, client)}"
     cents = price_of(store, pr, client)
-    ob = obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
-                            first=store.day + 7 * pr.free_weeks, every=7, memo=f"{pr.name} subscription",
-                            ends="service", made_by=by, cause=cause)
+    own = client == pr.org                       # the firm uses its own product and pays itself no fee
+    ob = "" if own else obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
+                                           first=store.day + 7 * pr.free_weeks, every=7,
+                                           memo=f"{pr.name} subscription", ends="service", made_by=by, cause=cause)
     seen = [_highest(store, "messages", "msg"), _highest(store, "notices", "n"), _highest(store, "requests", "rq")]
     store.add("instances", Instance(iid, pr.id, client, sid, name, seen=seen, made_on=store.day), cause)
     store.add("subscriptions", Subscription(sid, pr.id, client, by, store.day, asks, ob, iid), cause)
     told = (f"Subscribed: {name} ({sid}). Free until {date_text(store.day + 7 * pr.free_weeks - 1)}; then "
             f"{money(cents)} a week from {account_name(store, client)}, until the subscription is stopped. Nothing is "
             f"connected to it yet.")
+    if own:
+        told = f"Subscribed: {name} ({sid}). {client_name(store, client)} makes it, and pays no fee. Nothing is connected to it yet."
     for pid in obligations.people_of(store, client) if tell else []:
         if pid != by:
             obligations.notify(store, pid, told, cause)
@@ -181,8 +184,6 @@ def _check_subscribe(store: Store, act: Act) -> str | None:
     client, why = _client(store, act)
     if client is None:
         return why
-    if client == pr.org:
-        return f"{F} makes {pr.name}."
     if store.get("people", act.principal).age < ADULT:
         return "a subscription is taken out by an adult."
     held = subscription_of(store, client)
@@ -219,6 +220,9 @@ def _check_stop_subscription(store: Store, act: Act) -> str | None:
 
 def _do_stop_subscription(store: Store, act: Act, cause: str) -> str:
     sub = _sub(store, act)
+    if not sub.fee_ob:
+        _leave(store, sub, cause)
+        return f"Stopped: {sub.id}, {store.get('instances', sub.instance).name}."
     ob = store.get("obligations", sub.fee_ob)
     if ob.status == "active":
         obligations.stop(store, ob.id, ob.payer, cause)
@@ -321,6 +325,8 @@ def _cap(text: str) -> str:
 
 def _terms_line(store: Store, pr: Product, sub: Subscription) -> str:
     free_until = sub.day + 7 * pr.free_weeks - 1
+    if not sub.fee_ob:
+        return "no fee"
     cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
     if store.day <= free_until:
         return f"free until {date_text(free_until)}, then {money(cents)} a week"
