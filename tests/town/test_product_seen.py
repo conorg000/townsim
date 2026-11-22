@@ -68,8 +68,8 @@ def test_company_and_client_sections():
     make(s, "p17", s.get("instances", "as1"), "account:h9", "limit", 4000, CAUSE)
     user = views.layout(s, "p18").user
     assert ("TESSALY ASSISTANT\nThe Marsh household subscribes (sub1) since Monday 9 March: free until Sunday 5 April, "
-            "then $24.00 every 4 weeks.\nIts name: Tessaly Assistant for the Marsh household.\nConnected: household account, "
-            "weekly limit $40.00 (by Alyssa Ortiz, Monday 9 March).\nNot connected: household letters.") in user
+            "then $24.00 every 4 weeks.\nIts name: Tessaly Assistant for the Marsh household.\nConnected: household account — "
+            "Tessaly Assistant may pay out up to $40.00 a week from it (connected by Alyssa Ortiz, Monday 9 March).\nNot connected: household letters.") in user
     assert "Harlow Springs Food Mart subscribes (sub2)" not in user
     assert "Harlow Springs Food Mart subscribes (sub2) since Monday 9 March: free until Sunday 5 April, then $100.00 every 4 weeks" \
         in views.layout(s, "p3").user

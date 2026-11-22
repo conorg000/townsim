@@ -11,7 +11,7 @@ from townsim.town import obligations
 from townsim.town.acts import (LONGEST_NAME, YOUR_ACCOUNTS, Act, OpSpec, account_named, clean_text, controls, fits,
                                is_savings, register, shown)
 from townsim.town.clock import date_text
-from townsim.town.connections import client_name, connection_on, instance_of_client
+from townsim.town.connections import assistant_may, client_name, connection_on, instance_of_client
 from townsim.town.entities import Instance, Product, Record, Subscription, Told
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
@@ -363,9 +363,6 @@ def _terms_line(store: Store, pr: Product, sub: Subscription) -> str:
     return f"paying {money(cents)} {period(pr)}"
 
 
-def _scope_shown(cn) -> str:
-    return {"read": "read only", "limit": f"weekly limit {money(cn.weekly_cents)}", "free": "free"}[cn.scope]
-
 
 def client_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     """`<PRODUCT>`: for an adult of a subscribed household or the owner of a subscribed
@@ -389,7 +386,8 @@ def client_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
             if cn is None:
                 missing.append(system.short)
             else:
-                lines.append(f"Connected: {system.short}, {_scope_shown(cn)} (by {store.get('people', cn.grantor).name}, "
+                may = assistant_may(pr.name, system.kind, cn.scope, cn.weekly_cents)
+                lines.append(f"Connected: {system.short} — {may} (connected by {store.get('people', cn.grantor).name}, "
                              f"{date_text(cn.since)}).")
         if missing:
             lines.append(f"Not connected: {', '.join(missing)}.")

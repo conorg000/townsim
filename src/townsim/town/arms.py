@@ -76,9 +76,6 @@ def _limit(store: Store, system_id: str, share: float) -> int:
     return max(LIMIT_LEAST, cents)
 
 
-def _scope_text(scope: str, cents: int) -> str:
-    return {"read": "read only", "limit": f"weekly limit {money(cents)}", "free": "free"}[scope]
-
 
 def draw_clients(store: Store) -> list[str]:
     """Subscribe the drawn clients to the launched product, drawn only from the seed: two of the
@@ -114,7 +111,8 @@ def draw_clients(store: Store) -> list[str]:
                 p.id for p in store.all("people") if can_grant(store, p.id, system.id))
             store.add("connections", Connection(store.new_id("cn", CAUSE), inst.id, system.id, grantor, scope, cents,
                                                 store.day), CAUSE)
-            made.setdefault(grantor, []).append(f"{system.short} ({_scope_text(scope, cents)})")
+            made.setdefault(grantor, []).append(
+                f"{system.short} ({connections.assistant_may('the assistant', system.kind, scope, cents)})")
         by_grantor: dict[str, list[str]] = {}
         for cn in store.where("connections", instance=inst.id):
             by_grantor.setdefault(cn.grantor, []).append(
@@ -126,7 +124,7 @@ def draw_clients(store: Store) -> list[str]:
                              for g, names in made.items())
         text = (f"{store.get('people', by).name} subscribed {client_name(store, client)} to {pr.name} today ({sub.id}): "
                 f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} {product.period(pr)} from "
-                f"{product.account_name(store, client)}. {connected} Asked of it when subscribing: nothing written.")
+                f"{product.account_name(store, client)}. {connected} Nothing has been asked of the assistant yet.")
         for pid in obligations.people_of(store, client):
             obligations.notify(store, pid, text, CAUSE)
         subs.append(sub.id)

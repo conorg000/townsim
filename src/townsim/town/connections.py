@@ -267,6 +267,18 @@ def scope_words(scope: str, cents: int) -> str:
     return "it acts with no limit"
 
 
+def assistant_may(who: str, kind: str, scope: str, cents: int) -> str:
+    """What a connection lets the assistant `who` do, said to its client: `Tessaly Assistant may pay
+    out up to $780.00 a week from it`; the limit is on the assistant, never on the client."""
+    if scope == "read":
+        return f"{who} may read it"
+    if scope == "free":
+        return f"{who} may read and act without a limit"
+    if kind == "account":
+        return f"{who} may pay out up to {money(cents)} a week from it"
+    return f"{who} may commit up to {money(cents)} a week through it"
+
+
 def scope_phrase(scope: str, cents: int) -> str:
     """How a request for a connection says what accepting allows."""
     if scope == "read":

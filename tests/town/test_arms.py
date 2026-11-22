@@ -60,7 +60,7 @@ def test_drawn_arm_tells_each_adult_once(tmp_path):
                else [s.get("orgs", sub.client).owner])]
     assert sorted(n.to for n in told) == sorted(adults)
     assert all(" to Tessaly Assistant today (sub" in n.text and "As arranged" not in n.text for n in told)
-    assert all(n.text.endswith(" Asked of it when subscribing: nothing written.") for n in told)
+    assert all(n.text.endswith(" Nothing has been asked of the assistant yet.") for n in told)
     text = next(n.text for n in told if n.to == "p10")
     assert text.startswith("Brittany Wagner subscribed the Wagner household to Tessaly Assistant today (sub")
     assert "free until Sunday 5 April, then $24.00 every 4 weeks from the Wagner household's account. Connected by Brittany " \

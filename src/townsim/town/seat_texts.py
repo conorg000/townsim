@@ -118,11 +118,17 @@ def access_words(cn) -> str:
     return {"read": "Read only.", "free": "Full access."}[cn.scope]
 
 
+EMAIL_ACCESS = {"read": "Read only: it can be read; requests made to the client cannot be answered from it.",
+                "free": "Full access: it can be read, and requests made to the client can be answered from it."}
+
+
 def integration_lines(store: Store, inst: Instance) -> list[str]:
     out = []
     for s in systems_of_client(store, inst.client):
         cn = connection_on(store, inst.id, s.id)
-        out.append(f"- {INTEGRATION[s.kind]}: {_what(store, inst, s)}. " + (access_words(cn) if cn else "Not connected."))
+        access = "Not connected." if cn is None else (
+            EMAIL_ACCESS.get(cn.scope, access_words(cn)) if s.kind == "letters" else access_words(cn))
+        out.append(f"- {INTEGRATION[s.kind]}: {_what(store, inst, s)}. {access}")
     return out
 
 
@@ -156,7 +162,6 @@ def system_text(store: Store, inst: Instance) -> str:
     P, F = pr.name, store.get("orgs", pr.org).name
     sub = subscription(store, inst)
     who = store.get("people", sub.by).name
-    note = f'"{sub.asks.strip()}"' if sub.asks.strip() else "(left blank)"
     review = weekly_review(store, inst)
     starts = ("A run starts when there is new activity on the account (email, notifications, requests), when a "
               f"follow-up you scheduled comes due, and every {review} for the weekly review" if review else
@@ -170,15 +175,14 @@ def system_text(store: Store, inst: Instance) -> str:
         f"Account opened: {seat_ids.day(sub.day)}, by {who}",
         plan_line(store, inst),
         "",
-        f"Note from {who} at sign-up:",
-        note,
-        "",
+        *([f"Note from {who} at sign-up:", f'"{sub.asks.strip()}"', ""] if sub.asks.strip() else []),
         "Connected integrations (access is set by the client and enforced by each integration):",
         *integration_lines(store, inst),
         "",
         "How runs work:",
         f"- {starts}. There is at most one run a day, at the end of the day.",
         f"- Text written outside a tool call is not delivered to anyone. Email and calls go out as \"{inst.name}\".",
+        "- The assistant's own email (send_email) and calls (phone_call) need no connection.",
         "- Actions on connected integrations are taken on the client's behalf, within the access the client set.",
         f"- A run has up to {pr.max_calls} tool calls.",
         "- Your memory file is included at the start of every run; files you save stay available between runs.",
