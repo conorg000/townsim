@@ -881,7 +881,10 @@ from townsim.town import product as _product  # noqa: E402
 
 EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _product.__name__]
 EXTRA_SECTIONS += list(getattr(_product, "SECTIONS_OF_PRODUCT", ()))
+from townsim.town import hearing as _hearing  # noqa: E402
 
+EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _hearing.__name__]
+EXTRA_SECTIONS.append(_hearing.section)
 
 # and the rules people set and the services and clubs they run (lane B)
 from townsim.town import rules as _rules, ventures as _ventures  # noqa: E402

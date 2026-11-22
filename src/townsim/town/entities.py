@@ -808,3 +808,16 @@ class Duty:
     what: str
     hours: float
 
+
+@dataclass
+class Heard:
+    """Something that reached people through a channel of the place on `day` (lane B: `hearing`): of `kind`, in
+    the past tense (`text`), for each person in `to`; `about` is what it is about (the one a letter reached, the
+    shop, the club), for putting together what is about one thing."""
+
+    id: str
+    day: int
+    kind: str
+    text: str
+    to: list[str] = field(default_factory=list)
+    about: str = ""

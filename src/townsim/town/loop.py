@@ -103,12 +103,16 @@ def routine(store: Store) -> None:
     firms.shop_today(store)
 
 
-def close(store: Store) -> None:
+def close(store: Store, since: int | None = None) -> None:
     """The evening: on a Sunday the shops' week closes (and every fourth Sunday the suppliers review their
-    trade discounts); then the day ends."""
+    trade discounts); with lane B what reached whom in the day's
+    changes since the morning (`since`, a mark) is kept (`hearing`); then the day ends."""
     from townsim.town import desks
     desks.review_discounts(store)
     firms.close_week(store)
+    if since is not None:
+        from townsim.town import hearing
+        hearing.note_day(store, store.changes[since:])
     store.advance_day()
 
 
@@ -237,6 +241,7 @@ def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     from everyone's); then each due instance's turn (`seat.run_seat`), which alone calls `ask_tools`; then the rules (`rules.run_rules`); then the close. A reply's `aims`, when it has them, are taken before
     its acts. Acts past the eighth are not carried out, and the person is told how many. A
 person whose view cannot be built is not asked that day (`guarded_view`)."""
+    morning = store.mark()
     routine(store)
     from townsim.town import desks
     desks.answer_day(store, replier, keys)
@@ -286,5 +291,5 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
     from townsim.town import rules, tasks
     tasks.narrate_day(store, replier, keys)
     n = rules.run_rules(store, n)
-    close(store)
+    close(store, morning)
     return DayReport(day, turns, held, seated)
