@@ -223,3 +223,44 @@ def test_the_books_the_holder_read_first_are_theirs():
                           {"name": "send_email", "arguments": {"to": "Tara Russo", "body": "The week's money."}}])
     [r] = recurring.returned_this_week(s, w.id)
     assert r.by == "p3" and r.hours == 3.0
+
+
+# --- 4. word of mouth carries use ---------------------------------------------------------------------------
+
+def test_three_scripted_weeks_with_lane_b_hear_friends_news_and_what_came_of_an_order_and_replay(tmp_path):
+    from collections import Counter
+    from town.test_b_runs import _b_parent, _choice_replier
+    from townsim.town import arms, hearing
+    from townsim.town.product import NEUTRAL_BANNED
+    from townsim.town.rundb import RunDB
+    from townsim.town.runs import replay, run
+    with RunDB(_b_parent(str(tmp_path / "b.sqlite"))) as db:
+        s = arms.fork_arm(db, "pre", 7, "c3", "choice")
+        end = run(db, "c3", s, _choice_replier(s), 21)
+        assert replay(db, "c3") == [] and db.errors("c3") == []
+        heard = end.all("heard")
+        friend = [h for h in heard if h.kind == "friend"]
+        assert any("took up Tessaly Assistant for" in h.text for h in friend)
+        assert any(h.text.endswith("changed its supplier to Netherby Falls Wholesale.") for h in friend)
+        for h in friend:                                  # only those who count the subject a friend
+            subject = h.about
+            assert all(any(t.person == p and t.other == subject and t.kind == "friend" for t in end.all("ties"))
+                       for p in h.to)
+        assert any("; the shop " in h.text for h in heard if h.kind == "order")
+        texts = [h.text for h in heard]
+        hits = [(w, t[:60]) for t in texts for w in NEUTRAL_BANNED if w in t.lower()]
+        assert not hits, hits
+        assert not any(w in t for t in (h.text for h in friend) for w in ("balance", "fee", "pay", "loan", "wrote"))
+        for monday in (14, 21, 28):
+            st = db.load_snapshot("c3", monday)
+            for pid in [p.id for p in st.all("people")]:
+                got = hearing.lines(st, pid)
+                assert len(got) <= hearing.MAX_LINES
+                kinds = Counter(h.kind for h in hearing._week_rows(st, pid) if h.text in got)
+                assert all(n <= hearing.MOST_OF_A_KIND for n in kinds.values())
+
+
+def test_friends_are_told_at_a_fixed_share():
+    from townsim.town import hearing
+    told = sum(hearing._told(9, "p1", f"news {i}", f"p{j}") for i in range(50) for j in range(20))
+    assert abs(told / 1000 - hearing.FRIEND_SHARE) < 0.05

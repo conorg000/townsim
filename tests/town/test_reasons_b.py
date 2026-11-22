@@ -91,7 +91,7 @@ def test_what_is_heard_reaches_only_the_channels_that_saw_it_and_nothing_private
                for h in s.all("heard"))
     _next_monday(s)
     staff = "p17"                                                                      # Alyssa Ortiz, at the Food Mart
-    order = ("At Harlow Springs Food Mart, the stock order was changed to 210 baskets a week, by Tessaly Assistant "
+    order = ("At Harlow Springs Food Mart the order was cut to 210 baskets a week from Netherby Falls Wholesale, by Tessaly Assistant "
              "for Harlow Springs Food Mart.")
     assert order in _heard_by(s, staff)
     angela = "Angela Russo had a letter from Tessaly Assistant for Harlow Springs Food Mart."
@@ -126,9 +126,9 @@ def test_the_digest_is_at_most_eight_lines_a_kind_at_a_time_and_shown_the_week_a
     assert hearing.section(s, "p17") is None                                           # not until the week after
     _next_monday(s)
     got = hearing.lines(s, "p17")
-    assert len(got) == hearing.MAX_LINES
+    assert len(got) == 2 + hearing.MOST_OF_A_KIND                                     # no kind more than three
     assert "Lisa Marsh had letters from Ashcombe Savings Bank and Brittany Wagner." in got
-    assert "Brittany Wagner raised the rent." in got and sum("stock order" in x for x in got) == 6
+    assert "Brittany Wagner raised the rent." in got and sum("stock order" in x for x in got) == 3
     assert hearing.section(s, "p17") == (hearing.HEADING, got)
     assert hearing.HEADING in "\n".join(m["content"] for m in views.view(s, "p17")[0])
     _next_monday(s)

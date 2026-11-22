@@ -9,7 +9,13 @@ saw for themselves, each with the people it reached:
 - the clubs and services one belongs to: its fee changed, a member joining or leaving;
 - the shops one bought at (the shop one's household last bought from): its price changed; and, for those who
   shop there on that day, the day it ran out of baskets or had too few staff to serve everyone;
-- public records: a service, club or shop registered, a notice posted on the notice board.
+- public records: a service, club or shop registered, a notice posted on the notice board;
+- one's friends (the ties of that kind): of a friend's public changes of circumstance, a job taken or left, a club
+  or service joined or left, a subscription to a service taken up or stopped (the product's among them), and for a
+  business of theirs its supplier or its price changed; each reaches each friend at `FRIEND_SHARE`, drawn from what
+  it is and who they are, and none reaches one who heard it through another channel.
+At a workplace, a stock order changed is told again when the books show what came of it: on the Sunday that closes
+the week its delivery came, with how the shop's baskets lasted that week.
 Things an assistant did are among these as anyone would see them: a rota or an order made by it at one's work, a
 letter from it to someone at home, a notice posted through it. Nothing private is kept: no balance, pay, loan
 terms or the words of a letter.
@@ -30,10 +36,14 @@ from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
 
 MAX_LINES = 8
+MOST_OF_A_KIND = 3
 HEADING = "WHAT YOU HEARD LAST WEEK"
 # the order in which kinds are taken when a week has more than MAX_LINES lines
-KINDS = ("letter", "job", "ill", "rent", "rota", "order", "price", "shelf", "staffing", "club",
+KINDS = ("letter", "job", "friend", "ill", "rent", "rota", "order", "price", "shelf", "staffing", "club",
          "register", "notice")
+# people tell their friends some but not all of their news: each public change of a friend's reaches each friend
+# about half the time
+FRIEND_SHARE = 0.5
 
 
 def _name(store: Store, who: str) -> str:
@@ -104,6 +114,57 @@ def _others(people: list[str], *known: str) -> list[str]:
     return [p for p in people if p not in known]
 
 
+def _friends(store: Store, pid: str) -> list[str]:
+    """Those who count `pid` a friend, in id order."""
+    return sorted({t.person for t in store.all("ties") if t.other == pid and t.kind == "friend"}, key=id_key)
+
+
+def _told(day: int, subject: str, text: str, friend: str) -> bool:
+    """Whether `friend` is told this piece of `subject`'s news: a fixed share, drawn from what it is and who they are."""
+    import hashlib
+    h = hashlib.sha256(f"{day}|{subject}|{text}|{friend}".encode()).hexdigest()
+    return int(h[:8], 16) / 0x100000000 < FRIEND_SHARE
+
+
+def _supplier(store: Store, sid: str) -> str:
+    return _name(store, store.get("suppliers", sid).org) if sid and store.has("suppliers", sid) else ""
+
+
+def _order_text(store: Store, f, changes: list) -> str:
+    """What one act's `changes` did to a shop's stock order: `the order was cut to 400 baskets a week`, `raised to`,
+    `set at`, with ` from Coldwater Bend Food Supply` when the supplier changed; `the order was moved to …`; or `the
+    stock order was ended`."""
+    if not f.order_units:
+        return "the stock order was ended"
+    name = _supplier(store, f.order_supplier)
+    if _moved(f, changes) and name:
+        how = _how(f, changes)
+        return f"the order was moved to {name}" + ("" if how == "kept at" else f" and {how} {f.order_units} baskets a week")
+    return f"the order was {_how(f, changes)} {f.order_units} baskets a week"
+
+
+def _moved(f, changes: list) -> bool:
+    """Whether one act's changes moved the shop's order to another supplier than the one it had."""
+    c = next((c for c in changes if c.field == "order_supplier"), None)
+    return c is not None and f.order_supplier != (c.old or f.last_supplier)
+
+
+def _how(f, changes: list) -> str:
+    """`cut to`, `raised to` or `kept at`: the order's baskets against what it was."""
+    c = next((c for c in changes if c.field == "order_units"), None)
+    before = c.old if c is not None and isinstance(c.old, int) and c.old else f.last_units
+    return "cut to" if f.order_units < before else "raised to" if f.order_units > before else "kept at"
+
+
+def _lasted(till) -> str:
+    """How a shop's baskets lasted its week, as its books show it."""
+    if till.turned_stock:
+        return "the shop ran out of baskets before the week was out"
+    if till.stock_left:
+        return "the shop had baskets left on Sunday"
+    return "the shop sold every basket"
+
+
 def _shop(store: Store, fid: str) -> str:
     return store.get("firms", fid).org if store.has("firms", fid) else ""
 
@@ -122,6 +183,14 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
         if to:
             out.append((kind, about, text, to))
 
+    def friends(subject: str, text: str, reached: list[str]) -> None:
+        """`subject`'s public news, to the friends it reaches who did not hear it otherwise."""
+        if not store.has("people", subject):
+            return
+        to = [p for p in _friends(store, subject) if p != subject and p not in reached
+              and _told(store.day, subject, text, p)]
+        add("friend", subject, text, to, once=("friend", subject, text))
+
     for c in changes:
         if c.table == "messages" and c.field == "+":
             m = c.new
@@ -136,8 +205,10 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             if not store.has("orgs", j.org) or not store.has("people", j.person):
                 continue
             start = f", from {date_text(j.since)}" if j.since > store.day else ""
-            add("job", j.org, f"{_name(store, j.person)} took a job at {_name(store, j.org)}{start}.",
-                [p for p in _workplace(store, j.org) + _household(store, j.person) if p != j.person])
+            text = f"{_name(store, j.person)} took a job at {_name(store, j.org)}{start}."
+            to = [p for p in _workplace(store, j.org) + _household(store, j.person) if p != j.person]
+            add("job", j.org, text, to)
+            friends(j.person, text, to)
         elif c.table == "jobs" and c.field == "ended" and c.new is not None and c.new >= 0 and store.has("jobs", c.id):
             j = store.get("jobs", c.id)
             if not store.has("orgs", j.org) or not store.has("people", j.person):
@@ -145,9 +216,11 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             op = acts.op_of_cause(c.cause)
             how = "was dismissed from" if op == "dismiss" else "lost their job at" if "job_lost" in c.cause \
                 or c.cause.startswith("routine:event") else "left"
-            add("job", j.org, f"{_name(store, j.person)} {how} {_name(store, j.org)}.",
-                [p for p in _workplace(store, j.org) + _household(store, j.person) if p != j.person],
-                once=("ended", j.id))
+            text = f"{_name(store, j.person)} {how} {_name(store, j.org)}."
+            to = [p for p in _workplace(store, j.org) + _household(store, j.person) if p != j.person]
+            if ("ended", j.id) not in seen:
+                friends(j.person, text, to)
+            add("job", j.org, text, to, once=("ended", j.id))
         elif c.table == "people" and c.field == "ill_until" and isinstance(c.new, int) and c.new >= store.day \
                 and (c.old is None or c.new > c.old):
             pid = c.id
@@ -160,15 +233,23 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
                                 f"{_by(store, c.cause)}.", _others(_workplace(store, rq.org), rq.to, _did(c.cause)))
         elif c.table == "firms" and c.field in ("order_units", "order_supplier") and not c.cause.startswith("routine"):
             f = store.get("firms", c.id)
-            units = f"{f.order_units} baskets a week" if f.order_units else "nothing"
-            what = f"the stock order was changed to {units}" if f.order_units else "the stock order was ended"
-            add("order", f.org, f"At {_name(store, f.org)}, {what}{_by(store, c.cause)}.",
-                _others(_workplace(store, f.org), _did(c.cause)), once=("order", c.cause))
+            if ("order", c.cause) in seen:
+                continue
+            to = _others(_workplace(store, f.org), _did(c.cause))
+            mine = [x for x in changes if x.cause == c.cause and x.table == "firms" and x.id == c.id]
+            add("order", f.org, f"At {_name(store, f.org)} {_order_text(store, f, mine)}{_by(store, c.cause)}.", to,
+                once=("order", c.cause))
+            if _moved(f, mine) and f.order_units and store.has("orgs", f.org):
+                friends(store.get("orgs", f.org).owner, f"{_name(store, f.org)} changed its supplier to "
+                                                        f"{_supplier(store, f.order_supplier)}.", to)
         elif c.table == "firms" and c.field == "price" and isinstance(c.old, int) and isinstance(c.new, int):
             f = store.get("firms", c.id)
             text = f"{_name(store, f.org)}'s price went from {money(c.old)} to {money(c.new)} a basket"
             add("price", f.org, f"{text}{_by(store, c.cause)}.", _others(_workplace(store, f.org), _did(c.cause)))
-            add("price", f.org, f"{text}.", [p for p in _customers(store, f.org) if p not in _workplace(store, f.org)])
+            customers = [p for p in _customers(store, f.org) if p not in _workplace(store, f.org)]
+            add("price", f.org, f"{text}.", customers)
+            if store.has("orgs", f.org) and store.get("orgs", f.org).owner:
+                friends(store.get("orgs", f.org).owner, f"{text}.", _workplace(store, f.org) + customers)
         elif c.table == "firms" and c.field in ("turned_stock", "turned_capacity") and isinstance(c.new, int) \
                 and isinstance(c.old, int) and c.new > c.old and c.cause.startswith("routine"):
             org = _shop(store, c.id)
@@ -196,13 +277,34 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             add("club", v.id, f"{_name(store, v.org)}'s fee for new members went to {fee}.", _venture_people(store, v))
         elif c.table == "members" and c.field == "+" and store.has("ventures", c.new.venture):
             v = store.get("ventures", c.new.venture)
-            add("club", v.id, f"{_name(store, c.new.account)} joined {_name(store, v.org)}.", _venture_people(store, v))
+            to = _venture_people(store, v)
+            add("club", v.id, f"{_name(store, c.new.account)} joined {_name(store, v.org)}.", to)
+            friends(c.new.person, f"{_name(store, c.new.person)} joined {_name(store, v.org)}.", to)
         elif c.table == "members" and c.field == "status" and c.new == "left" and store.has("members", c.id):
             m = store.get("members", c.id)
             if store.has("ventures", m.venture):
                 v = store.get("ventures", m.venture)
-                add("club", v.id, f"{_name(store, m.account)} left {_name(store, v.org)}.",
-                    _venture_people(store, v) + _members(store, m.account))
+                to = _venture_people(store, v) + _members(store, m.account)
+                add("club", v.id, f"{_name(store, m.account)} left {_name(store, v.org)}.", to)
+                friends(m.person, f"{_name(store, m.person)} left {_name(store, v.org)}.", to)
+        elif c.table == "subscriptions" and c.field == "+" and store.has("products", c.new.product):
+            sub = c.new
+            pr = store.get("products", sub.product)
+            friends(sub.by, f"{_name(store, sub.by)} took up {pr.name} for {_client(store, sub.client)}.",
+                    _members(store, sub.client))
+        elif c.table == "subscriptions" and c.field == "status" and c.new == "ended" and store.has("subscriptions", c.id):
+            sub = store.get("subscriptions", c.id)
+            if store.has("products", sub.product):
+                pr = store.get("products", sub.product)
+                friends(sub.by, f"{_name(store, sub.by)}'s {pr.name} for {_client(store, sub.client)} was stopped.",
+                        _members(store, sub.client))
+        elif c.table == "tills" and c.field == "+" and store.has("firms", c.new.firm):
+            till, f = c.new, store.get("firms", c.new.firm)
+            monday = store.day - dow(store.day)
+            placed = [h for h in sorted(store.all("heard"), key=lambda h: (h.day, id_key(h.id)))
+                      if h.kind == "order" and h.about == f.org and monday - 7 <= h.day < monday and "; " not in h.text]
+            if placed:                                  # the last placed last week is the one delivered this week
+                add("order", f.org, f"{placed[-1].text[:-1]}; {_lasted(till)}.", list(placed[-1].to))
         elif c.table == "ventures" and c.field == "+":
             v = c.new
             what = f"a {v.kind}" + (f" ({acts.cut(v.offering, 60)})" if v.offering else "")
@@ -214,6 +316,12 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             add("notice", pg.id, f'A notice was put up on the {store.place} notice board, "{acts.cut(pg.title, 60)}" '
                                  f'({signed[:1].lower()}{signed[1:]}).', [p.id for p in store.all("people")])
     return out
+
+
+def _client(store: Store, client: str) -> str:
+    """`the Carter household`, or a business's name."""
+    from townsim.town.connections import client_name
+    return client_name(store, client)
 
 
 def note_day(store: Store, changes: list) -> None:
@@ -235,8 +343,9 @@ def _week_rows(store: Store, pid: str) -> list:
 
 
 def lines(store: Store, pid: str) -> list[str]:
-    """What reached `pid` last week, at most `MAX_LINES` lines: letters to one person merged into one line,
-    a stock order or a shop's shelves and staff once each; when there are more, a line of each kind in turn."""
+    """What reached `pid` last week, at most `MAX_LINES` lines and `MOST_OF_A_KIND` of any kind: letters to one
+    person merged into one line, a stock order or a shop's shelves and staff once each; when there are more, a line
+    of each kind in turn."""
     rows = _week_rows(store, pid)
     by_kind: dict[str, list[tuple[int, str]]] = defaultdict(list)
     letters: dict[str, list] = {}
@@ -260,7 +369,7 @@ def lines(store: Store, pid: str) -> list[str]:
     for k in by_kind:
         by_kind[k].sort(key=lambda r: r[0])
     chosen: list[tuple[int, str]] = []
-    queues = [list(by_kind[k]) for k in KINDS if by_kind.get(k)]
+    queues = [list(by_kind[k])[:MOST_OF_A_KIND] for k in KINDS if by_kind.get(k)]
     while queues and len(chosen) < MAX_LINES:
         for q in list(queues):
             if len(chosen) >= MAX_LINES:
