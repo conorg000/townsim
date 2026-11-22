@@ -394,3 +394,74 @@ class Appointment:
     about: str
     made_on: int
     status: str = "booked"
+
+
+@dataclass
+class Instance:
+    """One client's own copy of a product (design 5.2). `client` is a household or an org;
+    `name` is `<product> for <client>`; `seen` holds the highest ids of messages, notices and
+    requests it has been shown (`["msg41", "n88", "rq12"]`). `status` is active or ended."""
+
+    id: str
+    product: str
+    client: str
+    subscription: str
+    name: str
+    notes: str = ""
+    status: str = "active"
+    seen: list[str] = field(default_factory=list)
+    made_on: int = 0
+
+
+@dataclass
+class Connection:
+    """A system connected to an instance by `grantor`, with a `scope` of read, limit or free;
+    `weekly_cents` is the limit for a scope of limit. `status` is active or ended."""
+
+    id: str
+    instance: str
+    system: str
+    grantor: str
+    scope: str
+    weekly_cents: int
+    since: int
+    status: str = "active"
+    ended_on: int = -1
+
+
+@dataclass
+class Commit:
+    """What one act done under `connection` takes, or may take, out of an account: `cents`, on
+    `day`, by the operation `op` with the act's cause in `ref`."""
+
+    id: str
+    connection: str
+    day: int
+    cents: int
+    op: str
+    ref: str
+
+
+@dataclass
+class FileRow:
+    """A file an instance keeps under a name of its own."""
+
+    id: str
+    instance: str
+    name: str
+    text: str
+    day: int
+
+
+@dataclass
+class Reminder:
+    """A reminder an instance set itself for `day`, once (`every` 0) or each week (7).
+    `status` is set, done or cancelled."""
+
+    id: str
+    instance: str
+    day: int
+    every: int
+    text: str
+    made_on: int
+    status: str = "set"

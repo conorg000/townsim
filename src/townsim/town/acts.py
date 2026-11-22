@@ -33,12 +33,15 @@ class Act:
 
 @dataclass(frozen=True)
 class Outcome:
-    """`cause` is the act's own cause tag, which every change it made carries."""
+    """`cause` is the act's own cause tag, which every change it made carries. `beyond` is
+    true when an authoriser refused the act: it went past what the actor may do for its
+    principal."""
 
     ok: bool
     msg: str
     act: Act
     cause: str = ""
+    beyond: bool = False
 
 
 @dataclass(frozen=True)
@@ -330,11 +333,16 @@ def tie_rank(store: Store, pid: str, other: str) -> int:
 
 
 def name_of_who(store: Store, who: str) -> str:
-    """The name of a person, household or org."""
-    for table in ("people", "households", "orgs"):
+    """The name of a person, household, org or instance."""
+    for table in ("people", "households", "orgs", "instances"):
         if store.has(table, who):
             return store.get(table, who).name
     return who
+
+
+def is_instance(store: Store, who: object) -> bool:
+    """Whether `who` is the id of an instance (of a product, working for a client)."""
+    return isinstance(who, str) and store.has("instances", who)
 
 
 def account_of(store: Store, who: str) -> str:
