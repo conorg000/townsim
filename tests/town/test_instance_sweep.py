@@ -90,6 +90,8 @@ def _args(s, client: str, principal: str) -> dict[str, list[dict]]:
                              "amount": {"figure": "balance", "times": 0.01, "plus": 0}}}],
         "delete_rule": [{"rule": "rl1"}, {"rule": "rl2"}],
         "undertake": [{"what": "Put up posters around the place", "budget": 400, **src}],
+        "publish": [{"title": "Opening hours", "text": "Open late on Fridays."},
+                    {"title": "Notice", "text": "Closed Monday.", "for": "Tara Russo"}],
     }
 
 

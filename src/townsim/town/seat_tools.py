@@ -40,7 +40,7 @@ KIND_OF: dict[str, tuple[str, ...]] = {
     "set_rent": ("lets",), "serve_notice": ("lets",),
     "register_business": ("account",), "invite_member": ("members",),
     "set_rule": ("account", "ordering", "prices"), "delete_rule": ("account", "ordering", "prices"),
-    "undertake": ("account",),
+    "undertake": ("account",), "publish": ("letters",),
 }
 NOTES_WORDS, FILES, FILE_WORDS, REMIND_WORDS, NAME_CHARS = 600, 20, 1000, 40, 60
 READ_ITEMS = 40
@@ -348,7 +348,8 @@ INTEGRATION_TOOLS: tuple[OpTool, ...] = (
 OP_TOOLS = {t.name: t for t in INTEGRATION_TOOLS}
 TOOL_OF_OP = {t.op: t.name for t in INTEGRATION_TOOLS}
 TOOL_OF_OP.update({"register_business": "business_register", "invite_member": "members_invite",   # own tools
-                   "set_rule": "rules_create", "delete_rule": "rules_delete", "undertake": "tasks_create"})
+                   "set_rule": "rules_create", "delete_rule": "rules_delete", "undertake": "tasks_create",
+                   "publish": "web_publish"})
 
 
 FROM_A_VENTURE = ("bank_make_payment", "bank_create_recurring_payment")
@@ -1497,3 +1498,78 @@ def run_tool(store: Store, inst: Instance, name: str, args: dict, ctx: Ctx, n: i
     else:
         return None
     return _shown_result(store, inst, done)
+
+
+# --- the web (lane B) ----------------------------------------------------------------------------------
+
+def _publish_targets(store: Store, inst: Instance) -> list[str]:
+    """The client and its ventures whose mailbox is connected with full access, by name."""
+    from townsim.town.systems import ventures_of
+    accounts = [inst.client] + [v.org for v in ventures_of(store, inst.client) if v.status == "active"]
+    out = []
+    for acct in accounts:
+        cn = connection_on(store, inst.id, f"letters:{acct}")
+        if cn is not None and cn.scope == "free":
+            out.append(store.get("households", acct).name if store.has("households", acct) else store.get("orgs", acct).name)
+    return out
+
+
+def _run_web_search(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import web
+    cause = _cause(inst, "web_search", store, n)
+    query = clean_text(args.get("query"))
+    if query is None or not query.strip() or len(query) > web.QUERY_CHARS:
+        return _declined_as(store, inst, _not(f"a query is 1 to {web.QUERY_CHARS} characters.", cause, "read"),
+                            "invalid_argument")
+    query = " ".join(query.split())
+    found = web.search(store, query, ctx.replier, ctx.keys, cause)
+    return _json_done({"query": query, "results": web.results(store, query, found)}, "read", cause)
+
+
+def _run_web_read(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import web
+    cause = _cause(inst, "web_read", store, n)
+    p = web.read(store, args.get("url"))
+    if p is None:
+        return Done(json.dumps({"status": "error", "error": "not_found", "message": web.NOT_FOUND}), False, "read",
+                    cause)
+    words = p.text.split()
+    text = p.text if len(words) <= web.READ_WORDS else " ".join(words[:web.READ_WORDS]) + "…"
+    return _json_done({"url": p.url, "title": p.title, "date": seat_ids.clock.iso(p.day), "text": text}, "read", cause)
+
+
+def _run_web_publish(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import web
+    cause = _cause(inst, "web_publish", store, n)
+    text = clean_text(args.get("text"))
+    if isinstance(text, str) and not fits(text, web.PUBLISH_WORDS):
+        return _declined_as(store, inst, _not(f"a page is at most {web.PUBLISH_WORDS} words; this one is "
+                                              f"{len(text.split())}.", cause), "too_long")
+    targets = _publish_targets(store, inst)
+    chosen = args.get("for") if isinstance(args.get("for"), str) and args.get("for").strip() else None
+    if chosen is None:
+        chosen = targets[0] if targets else (store.get("households", inst.client).name
+                                             if store.has("households", inst.client) else store.get("orgs", inst.client).name)
+    done = run_op(store, inst, "publish", {"title": args.get("title"), "text": args.get("text"), "for": chosen}, n)
+    if not done.ok:
+        return _declined_as(store, inst, done, None if done.kind == "beyond" else _code(done))
+    p = [x for x in store.all("pages") if x.kind == "published"][-1]
+    return _json_done({"status": "published", "url": p.url, "title": p.title}, "act", done.cause)
+
+
+WEB_TOOLS = (
+    SeatTool("web_search", lambda s, i: "Search the web.",
+             lambda s, i: {"type": "object", "properties": {"query": _str(most=200)}, "required": ["query"]},
+             _run_web_search, lambda s, i: _lane_b(s)),
+    SeatTool("web_read", lambda s, i: "Read a web page by its address.",
+             lambda s, i: {"type": "object", "properties": {"url": _str()}, "required": ["url"]},
+             _run_web_read, lambda s, i: _lane_b(s)),
+    SeatTool("web_publish",
+             lambda s, i: (f"Publish a page on the {s.place} notice board site in the client's name. It is found by web "
+                           f"searches from the next day."),
+             lambda s, i: {"type": "object", "properties": {
+                 "title": _str(most=100), "text": _str("at most 500 words", most=4000),
+                 "for": _str(enum=_publish_targets(s, i))}, "required": ["title", "text"]},
+             _run_web_publish, lambda s, i: _lane_b(s) and bool(_publish_targets(s, i))),
+)
+SEAT_TOOLS.update({t.name: t for t in WEB_TOOLS})

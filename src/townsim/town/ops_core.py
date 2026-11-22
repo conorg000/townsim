@@ -831,3 +831,6 @@ from townsim.town import tasks as _tasks  # noqa: E402
 
 ANSWERERS.update(getattr(_tasks, "ANSWERERS_OF_TASKS", {}))
 SENDER_TOLD.update(getattr(_tasks, "SENDER_TOLD_OF_TASKS", {}))
+
+# and the web: looking things up and publishing pages, from `web`
+from townsim.town import web as _web  # noqa: E402, F401

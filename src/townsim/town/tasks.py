@@ -64,6 +64,11 @@ def configure(store: Store, settings: dict, cause: str = "routine:outside") -> N
         raise ValueError(f"{ON_DISAGREE} is 'ask' or 'first', not {value!r}")
     if value != on_disagree(store):
         store.add("settings", Setting(store.new_id("set", cause), ON_DISAGREE, value), cause)
+    general = settings.get("web_general", True)
+    if general not in (True, False):
+        raise ValueError(f"web_general is true or false, not {general!r}")
+    if general is False and not any(r.name == "web_general" for r in store.all("settings")):
+        store.add("settings", Setting(store.new_id("set", cause), "web_general", "false"), cause)
 
 
 # --- small helpers --------------------------------------------------------------------------------

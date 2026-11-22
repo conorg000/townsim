@@ -165,7 +165,7 @@ def _item_text(store: Store, row: Any) -> str:
     return "\n".join(_item_lines(store, row))
 
 
-READS = ("read", "read_page")
+READS = ("read", "read_page", "look_up")
 
 
 def _wakes(result) -> bool:

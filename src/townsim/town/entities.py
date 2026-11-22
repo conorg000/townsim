@@ -639,3 +639,19 @@ class Setting:
     id: str
     name: str
     value: str
+
+
+@dataclass
+class Page:
+    """A web page: `kind` is prepared (written when the outside world is installed), published (by
+    someone in the place, `by`), reference (a general page written once when a search found nothing),
+    or none (a subject the reference writer was asked once and gave nothing for, kept so it is asked
+    no more; never shown). `day` is the day it is dated."""
+
+    id: str
+    url: str
+    title: str
+    text: str
+    day: int
+    by: str
+    kind: str
