@@ -109,8 +109,8 @@ def test_with_nothing_connected_the_client_returns_to_the_free_plan_after_the_pe
     assert [t.cents for t in _to_firm(s)] == [10000]
     # connecting again: its free weeks were had, so the fee is from today
     out = _act(s, OWNER, "connect", system="Harlow Springs Food Mart prices", scope="read only")
-    assert out.ok and out.msg.endswith("The paid plan starts today: $100.00 every 4 weeks from the day it starts from "
-                                       "Harlow Springs Food Mart's account, until the subscription is stopped.")
+    assert out.ok and out.msg.endswith("The paid plan starts today: $100.00 every 4 weeks from Harlow Springs Food "
+                                       "Mart's account, the first today, until the subscription is stopped.")
     ob = s.get("obligations", _sub(s).fee_ob)
     assert ob.first == s.day and ob.cents == 10000
     _days(s, 1)

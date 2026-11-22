@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from townsim.town import acts, connections, obligations, plans
+from townsim.town import acts, connections, obligations, plans, seat_ids
 from townsim.town.acts import Act, apply_act, to_cents
 from townsim.town.clock import date_text
 from townsim.town.entities import ActAsk, Request
@@ -112,7 +112,8 @@ def ask(store: Store, inst, pid: str, tool: str, op: str, args: dict, system_id:
     sub = store.get("subscriptions", inst.subscription)
     free_until = plans.free_until_now(store, sub)
     integration = _integration(store, system_id).lower()
-    summary = (f"{inst.name} asks to {what(store, inst, op, args, pid)}, through {_short(store, system_id)}. Answer "
+    shown = what(store, inst, op, args, pid)
+    summary = (f"{inst.name} asks to {shown}, through {_short(store, system_id)}. Answer "
                f'"once" to have this done, "always" to connect {integration} {access_words(scope, cents)}, or "no".')
     plan = plans.starts_sentence(store, sub, free_until)
     if plan:
@@ -124,11 +125,20 @@ def ask(store: Store, inst, pid: str, tool: str, op: str, args: dict, system_id:
                  summary=summary, org=system_id, payer=scope, pay=cents if scope == "limit" else 0)
     store.add("requests", rq, cause)
     store.add("asks", ActAsk(store.new_id("ak", cause), rq.id, inst.id, tool, op, json.dumps(args, sort_keys=True),
-                             system_id, free_until if plans.is_free(store, sub) else -1), cause)
+                             system_id, free_until if plans.is_free(store, sub) else -1, shown=shown), cause)
     return rq.id, summary
 
 
 # answering
+
+def _now(store: Store, inst, row: ActAsk, pid: str) -> str:
+    """What the act asked for would do if it were carried out now, as its request says it; the request's own words
+    when it cannot be worked out (the act's own check then refuses it)."""
+    try:
+        return what(store, inst, row.op, json.loads(row.args), pid)
+    except Exception:       # noqa: BLE001  (arguments that no longer read: the act refuses them)
+        return row.shown
+
 
 def answer_of(act: Act) -> str | None:
     value = act.args.get("answer")
@@ -169,6 +179,15 @@ def do(store: Store, act: Act, rq, cause: str, note: str) -> str:
     name = acts.name_of_who(store, act.principal)
     told_inst = f'{name} answered your request {rq.id} "{answer}".'
     told = f"Answered {rq.id}: {answer}."
+    now = _now(store, inst, row, act.principal) if answer == "once" else row.shown
+    if now != row.shown:                        # worked out today it is not what the client was shown: not done
+        why = f"{rq.id} can no longer be done as asked: it would now {now}."
+        store.set("requests", rq.id, cause, status="lapsed")
+        store.set("asks", row.id, cause, answer="changed", result=why, day=store.day)
+        shown = json.dumps({"status": "declined", "error": "changed", "message": seat_ids.view(store, why)},
+                           ensure_ascii=False)
+        obligations.notify(store, inst.id, f"{told_inst} Result: {shown}", cause)
+        return why
     if answer == "once":
         once = Act(inst.id, act.principal, row.op, json.loads(row.args))
         connections.ONCE.append(once)

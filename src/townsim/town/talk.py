@@ -508,6 +508,14 @@ def _between_requests(store: Store, pid: str, other: str) -> list:
     return sorted(rows, key=lambda rq: (rq.day, id_key(rq.id)))
 
 
+def _asked_once(store: Store, pid: str, inst: str) -> list:
+    """With lane B, the open requests the assistant `inst` that `pid` is talking with has made them to do one thing: shown in the
+    talk, so they can be answered there."""
+    rows = [rq for rq in store.where("requests", status="open") if rq.sender == inst and rq.to == pid and rq.kind == "act"
+            and store.day <= rq.expires]
+    return sorted(rows, key=lambda rq: (rq.day, id_key(rq.id)))
+
+
 def _between_letters(store: Store, pid: str, other: str) -> list:
     pair = {pid, other}
     rows = [m for m in store.all("messages") if {m.sender, m.to} == pair and m.sender != m.to]
@@ -600,7 +608,7 @@ def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
               "\n".join([f"YOU ARE TALKING WITH {name}"] + ([] if instance else [_relation(store, pid, other)])
                         + [_how(store, pid, t)])]
     between = [] if instance else list(_between_obligations(store, pid, other, c.owed))
-    requests = [] if instance else _between_requests(store, pid, other)
+    requests = _asked_once(store, pid, other) if instance else _between_requests(store, pid, other)
     for rq in requests[:c.requests]:
         between += _request_lines(store, pid, rq)
     between += [] if instance else _money_lines(store, _money_between(store, pid, other), c.money)
@@ -675,7 +683,8 @@ def layout(store: Store, pid: str, tk: str) -> TalkLayout:
     if over(c) and len(_between_obligations(store, pid, other, OWED_LINES)) > OWED_KEPT + 1:
         c = c._replace(owed=OWED_KEPT)
         steps.append("owed")
-    if over(c) and _between_requests(store, pid, other):
+    asked = acts.is_instance(store, other) and _asked_once(store, pid, other)     # answered in the talk: kept whole
+    if over(c) and _between_requests(store, pid, other) and not asked:
         steps.append("requests")
         while over(c) and c.requests > 0:
             c = c._replace(requests=c.requests - 1)

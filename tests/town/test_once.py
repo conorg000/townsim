@@ -334,3 +334,80 @@ def test_the_client_sees_what_was_done_once_and_the_shops_weeks_since():
     assert (till.sold, till.turned_stock, till.spoiled) == (260, 128, 0)      # the till's own record, as it closed
     assert not [(w, x) for x in lines for w in NEUTRAL_BANNED if w in x.lower()]
     assert not [x for x in lines if "would" in x or "could have" in x]
+
+
+# --- after the review ---------------------------------------------------------------------------------------
+
+def test_once_is_refused_and_nothing_done_when_the_act_is_no_longer_what_the_client_was_shown():
+    s = world()
+    _subscribe(s)
+    _days(s, 4)                                                    # Friday 13 March
+    assert _ask(s).ok
+    rq = s.all("requests")[-1]
+    assert "at $6.57, from Monday 16 March" in rq.summary
+    _days(s, 4)                                                    # past Monday: the price and the Monday move
+    firm = next(x for x in s.all("firms") if x.org == SHOP)
+    mark = s.mark()
+    out = _act(s, OWNER, "answer", request=rq.id, answer="once")
+    assert out.msg == (f"{rq.id} can no longer be done as asked: it would now place a stock order: 260 baskets a week "
+                       "from Coldwater Bend Food Supply at $6.50, from Monday 23 March.")
+    assert next(x for x in s.all("firms") if x.org == SHOP) == firm and not s.all("commits")
+    assert {c.table for c in s.changes[mark:]} <= {"requests", "asks", "notices", "people", "counter", "told", "results"}
+    told = [n.text for n in s.all("notices") if n.to == "as1"][-1]
+    assert told.startswith(f'Tara Russo answered your request {rq.id} "once". Result: {{"status": "declined", '
+                           '"error": "changed", "message": "')
+    assert "at $6.50, from Monday 23 March 2026." in told
+    assert not _act(s, OWNER, "answer", request=rq.id, answer="once").ok          # closed: asked again, if at all
+
+
+def test_a_payment_done_once_is_carried_out_as_shown_when_only_the_balance_changed():
+    s = world()
+    _subscribe(s)
+    pay = {"integration": "Bank", "access": "limit", "weekly_limit": 50, "action": "bank_make_payment",
+           "arguments": {"to": "Eric Reyes", "amount": 5, "memo": "twine"}}
+    assert _ask(s, pay).ok
+    rq = s.all("requests")[-1]
+    s.transfer(SHOP, "org13", 1000, "something else", "routine:t")
+    out = _act(s, OWNER, "answer", request=rq.id, answer="once")
+    assert out.ok and "Done once for you" in out.msg
+    assert [t.cents for t in s.ledger.transfers if t.src == SHOP and t.dst == "h4"] == [500]
+
+
+def test_the_free_weeks_are_given_once_for_each_client_across_subscriptions():
+    s = world()
+    _subscribe(s)
+    _act(s, OWNER, "connect", system="Harlow Springs Food Mart ordering", scope="free")
+    _days(s, 3)
+    assert _act(s, OWNER, "stop", id="sub1").ok
+    _days(s, 1)
+    assert _subscribe(s).ok
+    out = _act(s, OWNER, "connect", system="Harlow Springs Food Mart ordering", scope="free")
+    assert out.msg.endswith("The paid plan starts today: $100.00 every 4 weeks from Harlow Springs Food Mart's "
+                            "account, the first today, until the subscription is stopped.")
+    assert s.get("obligations", _sub(s).fee_ob).first == s.day
+
+
+def test_a_request_made_during_a_call_is_answered_in_the_call():
+    s = world()
+    _subscribe(s)
+    _act(s, OWNER, "converse", **{"with": "my assistant", "opening": "Can the shop order more baskets?"})
+
+    def people(key, messages):
+        if key.purpose == "talk":
+            view = messages[-1]["content"]
+            got = [w.split()[0] for w in view.split("\n") if w.startswith("rq") and " from Tessaly" in w]
+            return json.dumps({"say": "Yes, do it.", "acts": [{"op": "answer", "request": r, "answer": "once"}
+                                                             for r in got], "end": False})
+        return outside_script.reply(key, messages)
+
+    def seat(key, messages, tools):
+        k = sum(1 for m in messages if m.get("role") == "tool")
+        if key.ref:
+            return [{"name": "request_access", "arguments": ASK},
+                    {"name": "phone_call", "arguments": {"to": "Tara Russo", "say": "I have sent the request."}},
+                    "Done."][min(k, 2)]
+        return seat_script.tool_fn(key, messages, tools)
+    loop.run_day(s, ScriptedReplier(people, seat), Keys("t"))
+    [row] = s.all("asks")
+    assert row.answer == "once" and row.done and row.day == 7
+    assert any(c.cause.startswith("once:") and c.field == "order_units" for c in s.changes)

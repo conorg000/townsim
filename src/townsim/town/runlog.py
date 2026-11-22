@@ -296,8 +296,8 @@ def once_lines(store: Store, pid: str, inst) -> list[str]:
     return out
 
 
-ORDER = ("once", "always", "no", "open", "lapsed")
-ANSWERED = {"once": 'answered "once"', "always": 'answered "always"', "no": 'answered "no"', "open": "not yet answered",
+ORDER = ("once", "always", "no", "changed", "open", "lapsed")
+ANSWERED = {"changed": "answered \"once\" after it had changed, so not done","once": 'answered "once"', "always": 'answered "always"', "no": 'answered "no"', "open": "not yet answered",
             "lapsed": "lapsed unanswered"}
 
 

@@ -48,7 +48,10 @@ def _period(store: Store, sub) -> str:
 
 
 def trial_used(store: Store, sub) -> bool:
-    return any(p.plan == "paid" for p in rows(store, sub))
+    """Whether the client has had the paid plan's free weeks: any subscription of theirs to the product has been on
+    the paid plan (they are had once for each household or business)."""
+    subs = {s.id for s in store.all("subscriptions") if s.client == sub.client and s.product == sub.product}
+    return any(p.plan == "paid" and p.subscription in subs for p in store.all("plans"))
 
 
 def start_free(store: Store, sub, cause: str) -> None:
@@ -98,8 +101,11 @@ def start_paid(store: Store, sub, by: str, cause: str, free_until: int | None = 
                             every=pr.fee_days, memo=f"{pr.name} subscription", ends="service", made_by=by, cause=cause)
     store.set("subscriptions", sub.id, cause, fee_ob=ob)
     store.add("plans", Plan(store.new_id("pl", cause), sub.id, store.day, "paid", ob, free_until), cause)
-    return (f"The paid plan starts today: {terms(store, sub, free_until)} from {product.account_name(store, sub.client)}, "
-            f"until the subscription is stopped.")
+    account = product.account_name(store, sub.client)
+    if free_until < 0:
+        return (f"The paid plan starts today: {money(_price(store, sub))} {_period(store, sub)} from {account}, the "
+                f"first today, until the subscription is stopped.")
+    return f"The paid plan starts today: {terms(store, sub, free_until)} from {account}, until the subscription is stopped."
 
 
 def nothing_connected(store: Store, sub, cause: str) -> str:

@@ -795,6 +795,7 @@ class ActAsk:
     result: str = ""
     done: bool = False
     day: int = -1
+    shown: str = ""            # what the act does, as the request's summary said it when it was made
 
 
 @dataclass
@@ -845,3 +846,16 @@ class Heard:
     text: str
     to: list[str] = field(default_factory=list)
     about: str = ""
+
+
+@dataclass
+class Spent:
+    """What took a person's own hours on `day` (lane B), kept at the end of that day: `what`, as their view names
+    it, its hours and how many acts."""
+
+    id: str
+    person: str
+    day: int
+    what: str
+    hours: float
+    n: int
