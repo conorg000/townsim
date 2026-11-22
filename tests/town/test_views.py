@@ -992,7 +992,7 @@ def test_the_last_guard_holds_the_character_ceiling_and_keeps_counted_lines():
 # An operation not in either set fails the tripwire below: classify it, and if it names an id,
 # add a sample of it here.
 GIVES_AN_ID = {"standing_payment", "request", "offer_job", "offer_shifts", "propose_agreement", "propose_end",
-               "borrow", "converse", "book_appointment"}
+               "borrow", "converse", "book_appointment", "subscribe"}
 NAMES_NO_ID = {"pay", "stop", "message", "answer", "read", "write_notes",   # a letter's id is shown to no one
                "dismiss", "move_money", "order_stock", "quit", "set_price", "set_staff_pay", "work_extra_hours",
                "repay", "set_rent", "serve_notice", "connect", "disconnect"}
@@ -1033,6 +1033,10 @@ def test_every_confirmation_carries_its_id_within_twelve_words():
         if op in REGISTRY:
             out = apply_act(g, Act(owner, owner, op, args), n)
             made[op] = (out, g.all("requests")[-1].id if g.all("requests") else "")
+    from townsim.town import product
+    product.launch(g)
+    out = apply_act(g, Act(owner, owner, "subscribe", {"to": product.launched(g).name}), 9)
+    made["subscribe"] = (out, g.all("subscriptions")[-1].id)
     assert set(made) == GIVES_AN_ID & set(REGISTRY)
     for op, (out, new) in made.items():
         assert out.ok, (op, out.msg)

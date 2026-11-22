@@ -303,6 +303,10 @@ def _shown(text: str) -> str:
     return memo(text)
 
 
+# Called as `hook(store, obligation, cause)` when its payer leaves a service by `stop` (a
+# subscription's fee: `product` ends the subscription).
+ON_LEAVE: list = []
+
 # Called as `hook(store, obligation, due)` when a due defaults (the outside landlord's notice
 # to quit, registered by `ops_deals`).
 ON_DEFAULT: list = []
@@ -639,7 +643,11 @@ def stop(store: Store, ob_id: str, by: str, cause: str) -> str:
             return "breach"
         _void_after(store, ob, store.day, cause)
         store.set("obligations", ob_id, cause, status="stopped")
-        return "stopped" if ob.ends == "payer" else "left"
+        if ob.ends == "payer":
+            return "stopped"
+        for hook in ON_LEAVE:
+            hook(store, ob, cause)
+        return "left"
 
 
 def instalment_days(ob: Obligation, today: int, n: int) -> list[int]:

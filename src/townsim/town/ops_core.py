@@ -783,3 +783,8 @@ STOPPABLE.update(getattr(_ops_talk, "STOPPABLE_OF_TALK", {}))
 from townsim.town import connections as _connections  # noqa: E402
 
 ANSWERERS.update(getattr(_connections, "ANSWERERS_OF_CONNECTIONS", {}))
+
+# and the product's subscribe, with the subscriptions `stop` ends, from `product`
+from townsim.town import product as _product  # noqa: E402
+
+STOPPABLE.update(getattr(_product, "STOPPABLE_OF_PRODUCT", {}))

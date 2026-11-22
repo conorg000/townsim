@@ -8,10 +8,14 @@ and rules only.
 from __future__ import annotations
 
 from townsim.town import obligations
+from townsim.town.acts import (YOUR_ACCOUNTS, Act, OpSpec, account_named, clean_text, controls, fits, is_savings,
+                               register, shown)
 from townsim.town.clock import date_text
-from townsim.town.entities import Product, Record
+from townsim.town.connections import client_name
+from townsim.town.entities import Instance, Product, Record, Subscription
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
+from townsim.town.systems import ADULT
 
 # Stems no text a model reads may hold: the page, the terms, notices, and what the seat is told
 # (shared with the seat's texts).
@@ -101,3 +105,155 @@ def terms(store: Store) -> str:
 3. The client pays the weekly price from the end of the free weeks until the subscription is stopped.
 4. {F} keeps a record of everything each {P} does, and reads it as it needs.
 5. {F} sets its prices, and a change takes effect a week after it is announced."""
+
+
+# subscribing, the fee and leaving
+
+ASKS_WORDS = 150
+NOT_FOR = "a subscription is for a household or a business."
+
+
+def subscription_of(store: Store, client: str) -> Subscription | None:
+    """The client's active subscription, if it has one."""
+    return next((s for s in store.all("subscriptions") if s.client == client and s.status == "active"), None)
+
+
+def price_of(store: Store, pr: Product, client: str) -> int:
+    """The weekly price for a household or for a business."""
+    return pr.household_cents if store.has("households", client) else pr.business_cents
+
+
+def account_name(store: Store, client: str) -> str:
+    """`the Lumb household's account`, or `Lumb's Grocer's account`."""
+    return f"{client_name(store, client)}'s account"
+
+
+def _highest(store: Store, table: str, prefix: str) -> str:
+    rows = store.all(table)
+    return rows[-1].id if rows else f"{prefix}0"
+
+
+def subscribe(store: Store, by: str, client: str, asks: str, cause: str) -> str:
+    """Subscribe `client` (a household or a business) to the launched product, taken out by
+    `by`: the subscription, the client's instance and the weekly fee from the end of the free
+    weeks; the client's other adults and the instance are told. Returns what `by` is told."""
+    pr = launched(store)
+    sid, iid = store.new_id("sub", cause), store.new_id("as", cause)
+    name = f"{pr.name} for {client_name(store, client)}"
+    cents = price_of(store, pr, client)
+    ob = obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
+                            first=store.day + 7 * pr.free_weeks, every=7, memo=f"{pr.name} subscription",
+                            ends="service", made_by=by, cause=cause)
+    seen = [_highest(store, "messages", "msg"), _highest(store, "notices", "n"), _highest(store, "requests", "rq")]
+    store.add("instances", Instance(iid, pr.id, client, sid, name, seen=seen, made_on=store.day), cause)
+    store.add("subscriptions", Subscription(sid, pr.id, client, by, store.day, asks, ob, iid), cause)
+    told = (f"Subscribed: {name} ({sid}). Free until {date_text(store.day + 7 * pr.free_weeks - 1)}; then "
+            f"{money(cents)} a week from {account_name(store, client)}, until the subscription is stopped. Nothing is "
+            f"connected to it yet.")
+    for pid in obligations.people_of(store, client):
+        if pid != by:
+            obligations.notify(store, pid, told, cause)
+    obligations.notify(store, iid, f"{store.get('people', by).name} subscribed {client_name(store, client)} today.",
+                       cause)
+    return told
+
+
+def _client(store: Store, act: Act) -> tuple[str | None, str]:
+    """The household or business `for` names, or None and why not."""
+    value = act.args.get("for")
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return store.get("people", act.principal).household, ""
+    account, why = account_named(store, act.principal, value)
+    if account is None:
+        return None, why
+    if is_savings(account):
+        return None, NOT_FOR
+    return account, ""
+
+
+def _check_subscribe(store: Store, act: Act) -> str | None:
+    pr = launched(store)
+    F = store.get("orgs", pr.org).name
+    wanted = act.args.get("to")
+    if not isinstance(wanted, str) or wanted.strip().casefold() not in (pr.name.casefold(), F.casefold()):
+        return f"there is no product called '{shown(wanted)}'. Sold in {store.place}: {pr.name} ({F})."
+    client, why = _client(store, act)
+    if client is None:
+        return why
+    if client == pr.org:
+        return f"{F} makes {pr.name}."
+    if store.get("people", act.principal).age < ADULT:
+        return "a subscription is taken out by an adult."
+    held = subscription_of(store, client)
+    if held is not None:
+        return f"{client_name(store, client)} already subscribes ({held.id})."
+    asks = act.args.get("asks")
+    text = clean_text(asks) if asks is not None else ""
+    if text is None:
+        return "what you want it to do was not written as words."
+    if not fits(text, ASKS_WORDS):
+        return f"that is longer than {ASKS_WORDS} words."
+    return None
+
+
+def _do_subscribe(store: Store, act: Act, cause: str) -> str:
+    client, _ = _client(store, act)
+    asks = act.args.get("asks")
+    text = (clean_text(asks) or "").strip() if asks is not None else ""
+    return subscribe(store, act.principal, client, text, cause)
+
+
+def _sub(store: Store, act: Act) -> Subscription:
+    return store.get("subscriptions", act.args["id"])
+
+
+def _check_stop_subscription(store: Store, act: Act) -> str | None:
+    sub = _sub(store, act)
+    if not controls(store, act.principal, sub.client):
+        return f"you have nothing with the id '{shown(act.args.get('id'))}'."
+    if sub.status != "active":
+        return f"{sub.id} has ended."
+    return None
+
+
+def _do_stop_subscription(store: Store, act: Act, cause: str) -> str:
+    sub = _sub(store, act)
+    ob = store.get("obligations", sub.fee_ob)
+    if ob.status == "active":
+        obligations.stop(store, ob.id, ob.payer, cause)
+    else:
+        _leave(store, sub, cause)
+    from townsim.town.statement import memo
+    return f"You have left {obligations.name_of(store, ob.payee)} ({memo(ob.memo)}); the fee ends."
+
+
+def _leave(store: Store, sub: Subscription, cause: str) -> None:
+    """End the subscription, every connection of its instance, and the instance."""
+    store.set("subscriptions", sub.id, cause, status="ended", ended_on=store.day)
+    for cn in store.where("connections", instance=sub.instance):
+        if cn.status == "active":
+            store.set("connections", cn.id, cause, status="ended", ended_on=store.day)
+    store.set("instances", sub.instance, cause, status="ended")
+
+
+def _on_leave(store: Store, ob, cause: str) -> None:
+    sub = next((s for s in store.all("subscriptions") if s.fee_ob == ob.id and s.status == "active"), None)
+    if sub is not None:
+        _leave(store, sub, cause)
+
+
+STOPPABLE_OF_PRODUCT = {"subscriptions": (_check_stop_subscription, _do_stop_subscription)}
+
+
+def _register() -> None:
+    from townsim.town import ops_core
+    ops_core.STOPPABLE.update(STOPPABLE_OF_PRODUCT)
+    obligations.ON_LEAVE[:] = [h for h in obligations.ON_LEAVE
+                               if getattr(h, "__qualname__", "") != "_on_leave"] + [_on_leave]
+    register(OpSpec("subscribe", '{"op": "subscribe", "to": "<name of the product>", "for": ' + YOUR_ACCOUNTS
+                    + ', "asks": "<what you want it to do, in your own words>"}',
+                    "Subscribe to a product for your household or a business you own.", 0.25,
+                    _check_subscribe, _do_subscribe, 235, who="market"))
+
+
+_register()
