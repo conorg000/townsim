@@ -1,5 +1,6 @@
 """The `townsim` command: the small economy's skill test, and the thin town run and
-replayed from a SQLite file, and forked into arms. Only `town-live`, `town-probe` and `town-seat-probe` call models, behind a cap."""
+replayed from a SQLite file, and forked into arms. Only `town-live`, `town-probe`, `town-seat-probe` and
+`town-awareness` call models, behind a cap."""
 
 import json
 import os
@@ -365,6 +366,63 @@ def town_seat_probe_cmd(
         typer.echo(f"stopped: {stopped}")
         if not stopped.startswith("cap: "):
             raise typer.Exit(code=1)
+
+
+_AWARENESS_OUT = "runs/awareness.json"
+
+
+@app.command("town-awareness")
+def town_awareness_cmd(
+    db: Db,
+    run_id: Annotated[str, typer.Option("--run", help="The kept run whose instances' mornings are read.")],
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the reading may spend in all, at most 2.")],
+    reader: Annotated[str, typer.Option("--reader", help="YAML file of the reader's model (a seat file).")],
+    variants: Annotated[str, typer.Option("--variants", help="Variants read, comma-separated.")] = "v0,v1,v2,v3,k_plus",
+    n: Annotated[int, typer.Option("--slices", min=0, help="Mornings sampled for the reader.")] = 24,
+    pairs: Annotated[str, typer.Option("--pairs", help="Pairs of variants compared, comma-separated.")] = "v1:v0,v2:v1",
+    pair_n: Annotated[int, typer.Option("--pair-slices", min=0, help="Mornings compared in each pair.")] = 20,
+    seed: Annotated[int, typer.Option("--seed", help="Seed of the sample.")] = 1,
+    out: Annotated[str, typer.Option("--out", help="JSON file every reply is kept in; a rerun asks only for "
+                                                   "what it lacks.")] = _AWARENESS_OUT,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    estimate: Annotated[bool, typer.Option("--estimate", help="Print the calls and their worst case, send nothing.")] = False,
+) -> None:
+    """Show sampled mornings of a kept run's instances, rebuilt in each variant of the seat, to a
+    fresh reader model: three fixed questions per morning, a judge of the first answer, and
+    pairwise "which is real" in both orders; print one table. CALLS A MODEL AND SPENDS MONEY."""
+    from townsim.estimate import load_prices
+    from townsim.town import awareness as aw
+    from townsim.town.rundb import RunDB
+
+    dollars = _cap(cap, aw.MAX_CAP)
+    family = aw.reader_family(_load_seat(reader, prices))
+    price_list = load_prices(prices)
+    wanted = [v.strip() for v in variants.split(",") if v.strip()]
+    if not Path(db).is_file():
+        _fail(f"no database file {db}")
+    with _plainly(db), RunDB(db) as rdb:
+        rdb.get_run(run_id)
+        noted = json.loads(rdb.note(run_id, "seat") or "null")
+        model = noted["model"] if noted else family.model
+        plan = aw.plan(rdb, run_id, wanted, n, aw.parse_pairs(pairs), pair_n, seed, model)
+    meta = {"db": Path(db).name, "run": run_id, "seed": seed, "seat_model": model,
+            "reader": {"model": family.model, "params": dict(family.params)}}
+    with _plainly(out):
+        kept = aw.Kept(out, meta)
+        if estimate:
+            why = aw.run(plan, kept, family, price_list, None, dollars, estimate_only=True, echo=typer.echo)
+            if why:
+                _fail(f"stopped: {why}")
+            return
+        _need_key("town-awareness")
+        completion_fn, cost_fn = _litellm()
+        stopped = aw.run(plan, kept, family, price_list, completion_fn, dollars, cost_fn=cost_fn, echo=typer.echo)
+    typer.echo(aw.table(plan, kept))
+    typer.echo(f"replies kept in {out}")
+    if stopped:
+        typer.echo(f"stopped: {stopped}")
+        raise typer.Exit(code=1)
 
 
 @app.command("town-replay")
