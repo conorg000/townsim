@@ -543,7 +543,9 @@ def who(store: Store, pid: str) -> str:
     their beliefs, worries and voice; and if that is still too long, the words past the 299th."""
     p = store.get("people", pid)
     known = people_known(store, pid)
-    head = [f"You are {p.name}, {p.age}."] + _home(store, pid) + _housemates(store, pid, known) + _work(store, pid)
+    from townsim.town import duties
+    head = [f"You are {p.name}, {p.age}."] + _home(store, pid) + _housemates(store, pid, known) + _work(store, pid) \
+        + duties.line(store, pid)
     debts = [line for _, line in _debts(store, pid)]
     household = p.household
     kin = [f"{store.get('people', o).name}, {w}" for o, r, w in known

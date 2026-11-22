@@ -749,8 +749,9 @@ class RunLog:
 
 @dataclass
 class Returned:
-    """Recurring work (`work`, a `Work` row) whose acts someone else (`by`) carried out in the week
-    beginning `monday`, so its hours were not taken from its holder that week."""
+    """Recurring work (`work`, a `Work` row) whose acts were carried out in the week beginning `monday`: by
+    someone else (`by`), so its hours were not taken from its holder that week; or, with lane B, by its holder,
+    when `hours` were taken from them (`recurring`)."""
 
     id: str
     work: str
@@ -794,3 +795,16 @@ class ActAsk:
     result: str = ""
     done: bool = False
     day: int = -1
+
+
+@dataclass
+class Duty:
+    """Hours a week of a person's (lane B) besides their job and recurring work: caring for someone, or a second
+    job beyond the place (`kind` care or job); `what` in the second person (`caring for your mother`)."""
+
+    id: str
+    person: str
+    kind: str
+    what: str
+    hours: float
+

@@ -295,7 +295,7 @@ def _check_job(store: Store, act: Act, rq: Request) -> str | None:
         return f"you already work at {org.name}."
     ending = {j.id for j in _elsewhere(store, pid, rq.org)}
     kept = sum(j.hours for j in _coming(store, pid) if j.id not in ending)
-    free = hours.WEEK_HOURS - hours.work_hours(store, pid) - kept
+    free = hours.WEEK_HOURS - hours.committed_hours(store, pid) - kept
     if free < rq.hours:
         return (f"your week has {_h(round(max(free, 0.0), 2))} hours once your other work is done, "
                 f"and this job is {_h(rq.hours)}.")

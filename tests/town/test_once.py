@@ -66,9 +66,9 @@ def test_once_carries_out_exactly_the_named_act_connects_nothing_and_is_not_done
         f"Answered {rq.id}: once. Done once for you, by Tessaly Assistant for Harlow Springs Food Mart: Ordered 260 "
         "baskets from Coldwater Bend Food Supply at $6.57 a basket, for Monday 16 March. Ordering is not connected to it.")
     once_cause = [c for c in s.changes[mark:] if c.cause.startswith(f"once:{rq.id}:as1/{OWNER}:order_stock")]
-    assert {(c.table, c.field) for c in once_cause} == {          # the order, what it commits, and the owner's
-        ("firms", "order_supplier"), ("firms", "order_units"), ("firms", "order_cents"), ("commits", "+"),  # hours of
-        ("counter", "n"), ("returned", "+"), ("people", "hours_left"), ("people", "hours_week")}            # ordering
+    assert {(c.table, c.field) for c in once_cause} == {          # the order, what it commits, and the week's
+        ("firms", "order_supplier"), ("firms", "order_units"), ("firms", "order_cents"), ("commits", "+"),  # ordering
+        ("counter", "n"), ("returned", "+")}                                                                # done
     f = next(x for x in s.all("firms") if x.org == SHOP)
     assert f.order_units == 260 and s.get("suppliers", f.order_supplier).org == "org8"
     assert connections.active(s, "as1") == [] and plans.is_free(s, _sub(s))

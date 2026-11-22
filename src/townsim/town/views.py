@@ -324,9 +324,12 @@ def own_time(store: Store, pid: str) -> list[str]:
     held = acts.positions(store, pid)
     costs = [(what, hours.length(acts.REGISTRY[op].hours)) for op, what in COSTS
              if op in acts.REGISTRY and acts.REGISTRY[op].who in held][:6]
-    lines = [f"Time of your own left this week, outside your work: {left} hour{'' if left == '1' else 's'}."]
-    from townsim.town import recurring
-    lines += recurring.lines(store, pid)
+    from townsim.town import lane_b, recurring
+    if lane_b.installed(store):
+        lines = [hours.week_line(store, pid)]
+    else:
+        lines = [f"Time of your own left this week, outside your work: {left} hour{'' if left == '1' else 's'}."]
+        lines += recurring.lines(store, pid)
     if costs:
         (what, took), rest = costs[0], costs[1:]
         lines.append(f"{what[:1].upper()}{what[1:]} takes {took}" + "".join(f", {w} {t}" for w, t in rest) + ".")
@@ -878,6 +881,7 @@ from townsim.town import product as _product  # noqa: E402
 
 EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _product.__name__]
 EXTRA_SECTIONS += list(getattr(_product, "SECTIONS_OF_PRODUCT", ()))
+
 
 # and the rules people set and the services and clubs they run (lane B)
 from townsim.town import rules as _rules, ventures as _ventures  # noqa: E402

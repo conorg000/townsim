@@ -14,6 +14,14 @@ from townsim.town.store import Store
 WEEK_HOURS = 70.0
 WORK_HOURS = {"household paperwork": 1.5, "ordering": 4.0, "the books": 3.0, "rota and pay": 2.0}
 
+# With lane B an owner's work for a business is itemised: an item takes its hours in the week its holder does it
+# (the first act of its kind that week, `recurring`), and none in a week they do not, or someone else did it.
+# The sizes are the findings' (why-people-adopt.md, 3B), there an inference [I], not a sourced figure: ordering
+# about 3 hours, with reading the week's stock and sales; the books about 3, with going through the accounts;
+# rota and pay about 2. (Small shop owners' 50-60 hours a week, which these sit inside, is a recollection the
+# findings did not check.)
+BUSINESS_WORK = {"ordering": 3.0, "the books": 3.0, "rota and pay": 2.0}
+
 
 def job_hours(store: Store, pid: str) -> float:
     """The hours a week of the jobs `pid` holds today."""
@@ -25,11 +33,34 @@ def work_hours(store: Store, pid: str) -> float:
     return sum(w.hours for w in store.where("work", holder=pid))
 
 
+def itemised(store: Store, w: Work) -> bool:
+    """Whether a piece of recurring work takes its hours only when it is done (lane B's business work)."""
+    from townsim.town import lane_b
+    return w.what in BUSINESS_WORK and lane_b.installed(store)
+
+
+def duty_hours(store: Store, pid: str) -> float:
+    """The hours a week of `pid`'s caring and second job (lane B's `duties`)."""
+    return sum(d.hours for d in store.all("duties") if d.person == pid)
+
+
+def weekly_hours(store: Store, pid: str) -> float:
+    """The hours taken from `pid`'s week before it begins: their jobs, the recurring work that is not itemised,
+    and their duties."""
+    flat = sum(w.hours for w in store.where("work", holder=pid) if not itemised(store, w))
+    return job_hours(store, pid) + flat + duty_hours(store, pid)
+
+
+def committed_hours(store: Store, pid: str) -> float:
+    """The hours of `pid`'s week that their jobs' other work holds: all their recurring work and their duties."""
+    return work_hours(store, pid) + duty_hours(store, pid)
+
+
 def free_hours(store: Store, pid: str) -> float:
     """`pid`'s hours for the week beginning today: never below 0, and 0 if they are ill today."""
     if store.get("people", pid).ill_until >= store.day:
         return 0.0
-    return round(max(0.0, WEEK_HOURS - job_hours(store, pid) - work_hours(store, pid)), 2)
+    return round(max(0.0, WEEK_HOURS - weekly_hours(store, pid)), 2)
 
 
 def give(store: Store, holder: str, account: str, what: str, cause: str) -> str:
@@ -103,6 +134,10 @@ def used(store: Store, pid: str) -> str:
         return f"you are ill until {date_text(p.ill_until)}"
     monday = store.day - dow(store.day)
     spent: dict[str, list] = {}            # what -> [hours, count]; in the order first met
+    items = {r.id: store.get("work", r.work).what for r in store.all("returned")
+             if r.monday == monday and r.by == pid and store.has("work", r.work)}
+    item_of = {c.cause: items[c.id] for c in store.changes if c.table == "returned" and c.field == "+"
+               and c.id in items}
     for c in reversed(store.changes):
         if c.day < monday:
             break
@@ -112,7 +147,9 @@ def used(store: Store, pid: str) -> str:
             continue
         gone = round(c.old - c.new, 2)
         op = _cause_op(c.cause)
-        if op == "work_extra_hours":
+        if c.cause in item_of:
+            key = f"the week's {item_of[c.cause]}"
+        elif op == "work_extra_hours":
             shop = next((o.name for o in store.all("orgs") if o.owner == pid and store.where("firms", org=o.id)), "")
             key = f"extra hours worked at {shop} on {DAYS[dow(c.day)]}" if shop else f"extra hours worked on {DAYS[dow(c.day)]}"
         elif op == "answer" and gone > 0.1:
@@ -143,13 +180,34 @@ def used(store: Store, pid: str) -> str:
     return "; ".join(out)
 
 
-def no_time(store: Store, pid: str, needed: float) -> str:
+def no_time(store: Store, pid: str, needed: float, work: str = "") -> str:
     """Why an act that takes `needed` hours cannot be done for want of time (without
-    `Not done:`): what is left, what used the rest, and the day it comes back."""
+    `Not done:`): what is left, what used the rest, and the day it comes back. `work` names the
+    week's recurring work the act would do, whose hours `needed` holds."""
     from townsim.town.clock import date_text
     left = store.get("people", pid).hours_left
     back = f" It returns on {date_text(returns_on(store, pid))}."
     if left <= 0:
         return f"you have no time of your own left this week ({used(store, pid)}).{back}"
-    return (f"you have {round(left, 2):g} hours of your own left this week, and this takes {length(needed)} "
+    takes = f"this, with the week's {work}, takes" if work else "this takes"
+    return (f"you have {round(left, 2):g} hours of your own left this week, and {takes} {length(needed)} "
             f"({used(store, pid)}).{back}")
+
+
+def week_line(store: Store, pid: str) -> str:
+    """With lane B, the reader's week so far as a record: `Your week: Harlow Springs Food Mart 39 hours; caring
+    for your mother, who lives in Iverby, 10 hours; household paperwork 1.5 hours; ordering 3 hours; rota and pay
+    done by Tessaly Assistant for Harlow Springs Food Mart; of your own, 13.5 hours left.` Work not yet done is
+    not named."""
+    from townsim.town import recurring
+    parts = []
+    for j in jobs.held(store, person=pid):
+        org = store.get("orgs", j.org).name if store.has("orgs", j.org) else j.org
+        parts.append(f"{org} {length(j.hours)}")
+    parts += [f"{d.what}, {length(d.hours)}" for d in store.all("duties") if d.person == pid]
+    parts += [f"{w.what} {length(w.hours)}" for w in store.where("work", holder=pid) if not itemised(store, w)]
+    for what, who, h in recurring.done_this_week(store, pid):
+        parts.append(f"{what} done by {who}" if who else f"{what} {length(h)}")
+    left = round(store.get("people", pid).hours_left, 2)
+    parts.append(f"of your own, {length(left)} left" if left > 0 else "none of your own left")
+    return "Your week: " + "; ".join(parts) + "."

@@ -21,10 +21,14 @@ def installed(store: Store) -> bool:
 def install(store: Store, cause: str = "routine:lane-b") -> str:
     """Install lane B: the trade services organisation beyond the place, with an account, named for
     the regional office's area; the web's prepared pages (`web.install`); and the outside desks with
-    each household's usual spending (`desks.install`). Returns its id; installing again changes nothing."""
+    each household's usual spending (`desks.install`); the investment's term; and people's time: an owner's work
+for a business itemised, and caring and second jobs drawn (`_time`). Returns its id; installing again changes
+nothing."""
     found = next((o for o in store.all("orgs") if o.kind == KIND and o.outside), None)
     if found is not None:
         return found.id
+    from townsim.town import hours
+    before = {p.id: hours.free_hours(store, p.id) for p in store.all("people")}
     region = next((o for o in store.all("orgs") if o.kind == "region"), None)
     area = region.name.removesuffix(" Regional Office").strip() if region is not None else ""
     oid = store.new_id("org", cause)
@@ -37,4 +41,21 @@ def install(store: Store, cause: str = "routine:lane-b") -> str:
     desks.install(store, cause)
     from townsim.town import investment
     investment.term(store, cause)
+    _time(store, before, cause)
     return oid
+
+
+def _time(store: Store, before: dict[str, float], cause: str) -> None:
+    """An owner's work for a business is itemised at its sizes (`hours.BUSINESS_WORK`, `recurring`), some people
+    have caring or a second job (`duties`), and everyone's week so far moves by what that changes."""
+    from townsim.town import duties, hours
+    for w in store.all("work"):
+        size = hours.BUSINESS_WORK.get(w.what)
+        if size is not None and w.hours != size:
+            store.set("work", w.id, cause, hours=size)
+    duties.draw(store, cause)
+    for p in store.all("people"):
+        moved = round(hours.free_hours(store, p.id) - before[p.id], 2)
+        if moved:
+            store.set("people", p.id, cause, hours_week=round(max(0.0, p.hours_week + moved), 2),
+                      hours_left=round(max(0.0, p.hours_left + moved), 2))

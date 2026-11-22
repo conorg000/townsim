@@ -109,6 +109,11 @@ AUTHORISERS: list[Callable[[Store, Act], str | None]] = [_acting_for_themselves]
 # what to call with the act's cause once it has been done (`connections.on_behalf`).
 ON_BEHALF: list[Callable[[Store, Act], Callable[[str], None]]] = []
 
+# For an act a person does for themselves (not by a rule), each of these is called before it is done and returns
+# the hours of recurring work the act does besides its own, what that work is called ("" for none), and what to
+# call with the act's cause once it has been done (`recurring.own_work`).
+OWN_WORK: list[Callable[[Store, Act], tuple[float, str, Callable[[str], None]]]] = []
+
 
 def shown(value: Any) -> str:
     """A value from a reply as it is quoted back: a string as written, anything else as
@@ -155,15 +160,21 @@ def apply_act(store: Store, act: Act, n: int, via: str = "") -> Outcome:
         if outside:                    # done for a client, outside the positions of the one it is done for
             return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
         hours = 0.0
+        own: list[Callable[[str], None]] = []
         if person and not via.startswith("auto:"):     # an instance's acts, and a rule's, take no one's hours
             hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
+            work = ""
+            if act.actor == act.principal:
+                for f in OWN_WORK:
+                    more, called, then = f(store, act)
+                    hours, work, own = hours + more, called or work, own + [then]
             if store.get("people", act.actor).hours_left < hours:
                 from townsim.town.hours import no_time          # hours reads the jobs this module reads
-                return _not_done(act, no_time(store, act.actor, hours), cause)
+                return _not_done(act, no_time(store, act.actor, hours, work), cause)
         reason = spec.check(store, act)
         if reason is not None:
             return _not_done(act, reason, cause)
-        after = [f(store, act) for f in ON_BEHALF] if act.actor != act.principal else []
+        after = [f(store, act) for f in ON_BEHALF] if act.actor != act.principal else own
         with store.transaction():
             told = spec.do(store, act, cause)
             if person:
