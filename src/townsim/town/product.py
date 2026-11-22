@@ -301,7 +301,8 @@ def business_page(store: Store, org) -> str | None:
         return (f"{org.name}, a food shop run by {store.get('people', org.owner).name}. A basket of food: "
                 f"{money(rows[0].price)}.")
     if org.kind == "bank" and org.contact and store.has("people", org.contact):
-        return (f"{org.name}. Accounts, savings and loans for households and businesses in {store.place}. Letters to "
+        return (f"{org.name}, {store.place} branch. Accounts, savings and loans for households and businesses in "
+                f"{store.place}. Letters to "
                 f"the bank reach {store.get('people', org.contact).name}.")
     return None
 

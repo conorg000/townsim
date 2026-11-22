@@ -48,7 +48,7 @@ def test_agreements_an_instance_accepts_keep_counting():
     inst = _household_instance(s)
     for wk in range(3):
         d = s.day
-        apply_act(s, Act("p10", "p10", "propose_agreement", {"to": "Gail Whiteley", "amount": 40, "per": "week", "weeks": 0,
+        apply_act(s, Act("p10", "p10", "propose_agreement", {"to": "Jessica Whitaker", "amount": 40, "per": "week", "weeks": 0,
                                                              "start": date_text(d + 7 - d % 7 + 2), "payer": "them",
                                                              "what": f"help {wk}"}), 800 + wk)
         rq = s.all("requests")[-1]

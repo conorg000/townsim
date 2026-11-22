@@ -32,7 +32,7 @@ from townsim.town.ties import kept
 
 GIVEN = frozenset((Path(__file__).with_name("given_names.txt")).read_text().split())
 TITLES = frozenset({"Mr", "Mrs", "Ms", "Miss", "Dr"})
-ORG_WORDS = frozenset({"Council", "Bank", "Lettings", "Ltd", "Limited", "Agency", "Office", "Services", "Company",
+ORG_WORDS = frozenset({"Council", "Bank", "Lettings", "Management", "Ltd", "Limited", "Agency", "Office", "Services", "Company",
                        "Co"})
 # Given names that are also ordinary words: never flagged alone, and not at the start of a sentence.
 AMBIGUOUS = frozenset({

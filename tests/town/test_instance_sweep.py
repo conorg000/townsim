@@ -37,7 +37,7 @@ def _instances(s, scope_of=lambda system: ("free", 0)) -> dict[str, str]:
     made = {}
     for n, (client, grantor) in enumerate(CLIENTS, 1):
         iid = f"as{n}"
-        s.add("instances", Instance(iid, "pr1", client, f"sub{n}", f"Kestrel Assistant for {client}"), CAUSE)
+        s.add("instances", Instance(iid, "pr1", client, f"sub{n}", f"Wrenfold Assistant for {client}"), CAUSE)
         for system in systems_of_client(s, client):
             scope, cents = scope_of(system.id)
             s.add("connections", Connection(s.new_id("cn", CAUSE), iid, system.id, grantor, scope, cents, s.day), CAUSE)
@@ -53,17 +53,17 @@ def _args(s, client: str, principal: str) -> dict[str, list[dict]]:
     agreement = next((o.id for o in s.all("obligations") if o.kind == "agreement" and o.status == "active"), "ob1")
     rqs = [r.id for r in s.all("requests") if r.to == principal and r.status == "open"]
     staff = next((s.get("people", j.person).name for j in s.all("jobs")
-                  if s.get("orgs", j.org).owner == principal and j.person != principal and j.ended == -1), "Rosa Sowerby")
+                  if s.get("orgs", j.org).owner == principal and j.person != principal and j.ended == -1), "Tara Russo")
     tenant = next((s.get("people", h.members[0]).name for h in s.all("households") if h.landlord == principal),
-                  "Rosa Sowerby")
+                  "Tara Russo")
     return {
-        "pay": [{"to": "Rosa Sowerby", "amount": 3, **src}, {"to": "Hartcliffe and District Bank", "amount": 2,
+        "pay": [{"to": "Tara Russo", "amount": 3, **src}, {"to": "Ashcombe Savings Bank", "amount": 2,
                                                               "for": ob, **src}],
-        "standing_payment": [{"to": "Gail Whiteley", "amount": 4, "day": "Friday", "weeks": 2, **src}],
+        "standing_payment": [{"to": "Jessica Whitaker", "amount": 4, "day": "Friday", "weeks": 2, **src}],
         "stop": [{"id": ob}, {"id": "ap1"}],
-        "request": [{"to": "Gail Whiteley", "text": "Could you pay for the eggs?", "amount": 5},
-                    {"to": "Gail Whiteley", "text": "Will you come by?"}],
-        "propose_agreement": [{"to": "Gail Whiteley", "amount": 6, "per": "week", "weeks": 3, "start": "Monday 30 March",
+        "request": [{"to": "Jessica Whitaker", "text": "Could you pay for the eggs?", "amount": 5},
+                    {"to": "Jessica Whitaker", "text": "Will you come by?"}],
+        "propose_agreement": [{"to": "Jessica Whitaker", "amount": 6, "per": "week", "weeks": 3, "start": "Monday 30 March",
                                "payer": "me", "what": "the garden", **src}],
         "propose_end": [{"id": agreement}],
         "borrow": [{"amount": 500, "weeks": 10, "purpose": "a van", **src}],
@@ -71,9 +71,9 @@ def _args(s, client: str, principal: str) -> dict[str, list[dict]]:
         "move_money": [{"from": biz or "household", "to": "savings" if not biz else "household", "amount": 1}],
         "read": [{"what": w, **src} for w in ("account", "account in full", "agreements")],
         "answer": [{"request": r, "answer": a} for r in rqs for a in ("decline", "accept")],
-        "order_stock": [{"supplier": "Netherholt Wholesale", "baskets": 3}],
+        "order_stock": [{"supplier": "Netherby Falls Wholesale", "baskets": 3}],
         "set_price": [{"price": 9.5}],
-        "offer_job": [{"to": "Wendy Lumb", "weekly_pay": 300, "hours": 20}],
+        "offer_job": [{"to": "Lisa Marsh", "weekly_pay": 300, "hours": 20}],
         "offer_shifts": [{"to": staff, "hours": 2}],
         "dismiss": [{"who": staff}],
         "set_staff_pay": [{"who": staff, "weekly_pay": 400}],
@@ -104,7 +104,7 @@ def test_every_connectable_operation_by_an_instance_raises_no_engine_error():
                 assert not s.engine_errors, (client, op, args, s.engine_errors)
                 done += out.ok
     assert done > 40
-    assert actor_name(s, "as1") == "Kestrel Assistant for h6" and actor_name(s, "p10") == "Beth Varley"
+    assert actor_name(s, "as1") == "Wrenfold Assistant for h6" and actor_name(s, "p10") == "Brittany Wagner"
 
 
 def test_no_act_is_carried_out_beyond_what_was_connected():

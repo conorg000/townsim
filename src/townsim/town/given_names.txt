@@ -23,6 +23,7 @@ Alistair
 Allan
 Alma
 Alun
+Alyssa
 Amanda
 Amelia
 Amos
@@ -43,6 +44,7 @@ Antony
 Archie
 Arnold
 Arthur
+Ashley
 Audrey
 Austin
 Avril
@@ -69,9 +71,11 @@ Billy
 Blanche
 Bob
 Bonnie
+Brandon
 Brenda
 Brendan
 Brian
+Brianna
 Bridget
 Brittany
 Bronwen
@@ -81,6 +85,7 @@ Callum
 Cameron
 Carl
 Carla
+Carlos
 Carol
 Caroline
 Carolyn
@@ -93,6 +98,7 @@ Charles
 Charlie
 Charlotte
 Chloe
+Christina
 Christine
 Christopher
 Clara
@@ -106,11 +112,14 @@ Colin
 Connor
 Constance
 Cora
+Corey
+Courtney
 Craig
 Cynthia
 Cyril
 Dafydd
 Daniel
+Danielle
 Danny
 Daphne
 Darren
@@ -134,6 +143,7 @@ Doris
 Dorothy
 Douglas
 Duncan
+Dustin
 Eamon
 Edgar
 Edith
@@ -156,6 +166,7 @@ Emlyn
 Emma
 Enid
 Eric
+Erin
 Ernest
 Ernestine
 Esme
@@ -269,6 +280,7 @@ Joel
 John
 Jonah
 Jonathan
+Jose
 Joseph
 Josephine
 Joshua
@@ -285,14 +297,18 @@ Katherine
 Kathleen
 Kathryn
 Katie
+Kayla
 Keith
 Kelly
 Kenneth
 Kevin
 Kieran
 Kim
+Kimberly
 Kirsten
 Kirsty
+Kristen
+Kyle
 Lachlan
 Laura
 Lauren
@@ -323,6 +339,7 @@ Louisa
 Louise
 Lucas
 Lucy
+Luis
 Luke
 Lydia
 Lynn
@@ -377,6 +394,7 @@ Neville
 Niall
 Nicholas
 Nicola
+Nicole
 Nigel
 Nina
 Noel
@@ -469,7 +487,9 @@ Susan
 Suzanne
 Sybil
 Sylvia
+Tamara
 Tamsin
+Tara
 Tegan
 Terence
 Teresa
@@ -478,6 +498,7 @@ Thea
 Thelma
 Theodore
 Thomas
+Tiffany
 Timothy
 Tina
 Tobias
@@ -486,8 +507,10 @@ Tom
 Tommy
 Tony
 Tracy
+Travis
 Trevor
 Tristan
+Tyler
 Una
 Ursula
 Valerie

@@ -46,26 +46,26 @@ def test_due_instances():
     for _ in range(5):
         seat.run_seat(s, scripted({}), Keys("t"), 0)
         s.advance_day()
-    assert s.day == 13 and seat.due(s) == ["as1"]                     # Rosa Sowerby's weekly day, a Sunday
+    assert s.day == 13 and seat.due(s) == ["as1"]                     # Tara Russo's weekly day, a Sunday
     assert s.get("reminders", "rm1").status == "done"
 
 
 def test_result_is_the_engines_text_and_a_refusal_changes_nothing():
     s = drawn()
     copy = pickle.loads(pickle.dumps(s))
-    t = turn(s, "as3", [call("pay", to="Beth Varley", amount=5, note="flowers")])
-    expected = apply_act(copy, Act("as3", "p9", "pay", {"to": "Beth Varley", "amount": 5, "note": "flowers",
+    t = turn(s, "as3", [call("pay", to="Brittany Wagner", amount=5, note="flowers")])
+    expected = apply_act(copy, Act("as3", "p9", "pay", {"to": "Brittany Wagner", "amount": 5, "note": "flowers",
                                                          "from": "household"}), 0)
     [c] = t.calls
     assert (c.result, c.ok, c.kind) == (expected.msg, True, "act") and c.cause == expected.cause
     s = drawn()
     before = (s.ledger.transfers[:], len(s.all("obligations")), s.balance("h6"))
-    t = turn(s, "as4", [call("pay", to="Gail Whiteley", amount=5), call("standing_payment", to="Gail Whiteley",
+    t = turn(s, "as4", [call("pay", to="Jessica Whitaker", amount=5), call("standing_payment", to="Jessica Whitaker",
                                                                        amount=5, day="Friday")])
     assert [(c.result, c.ok, c.kind) for c in t.calls] == [
-        ("Not done: the connection to the Varley household's account and savings is read only.", False, "beyond")] * 2
+        ("Not done: the connection to the Wagner household's account and savings is read only.", False, "beyond")] * 2
     assert (s.ledger.transfers, len(s.all("obligations")), s.balance("h6")) == before
-    t = turn(s, "as3", [call("pay", to="Beth Varley", amount=500)])
+    t = turn(s, "as3", [call("pay", to="Brittany Wagner", amount=500)])
     assert t.calls[0].kind == "beyond" and "more than the weekly limit of $50.00" in t.calls[0].result
     t = turn(s, "as3", [call("pay", to="Nobody Here", amount=5)])
     assert t.calls[0].kind == "refused" and t.calls[0].result.startswith("Not done: ")
@@ -111,7 +111,7 @@ def test_thirtieth_result_says_so_and_no_31st_ask():
         return call("note", text=f"n{key.n}")
     t, n = seat.run_turn(s, ScriptedReplier(lambda k, m: None, tool_fn), Keys("t"), "as3", 0)
     assert len(asked) == 30 == len(t.calls) and t.ended == "limit" and n == 30
-    assert t.calls[-1].result == ("Noted.\n(This was the 30th action of this run, the most Ridgeway Assistant "
+    assert t.calls[-1].result == ("Noted.\n(This was the 30th action of this run, the most Tessaly Assistant "
                                   "carries out in one run. The run ends here.)")
     assert all(c.result == "Noted." for c in t.calls[:-1])
 
@@ -139,39 +139,39 @@ def test_write_reaches_person_and_other_instance():
     seat.run_seat(s, scripted({}), Keys("t"), 0)
     s.advance_day()
     s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "p9", "as3", "Tell me how we stand."), CAUSE)
-    plan = {"as3": [call("write", to="Gail Whiteley", text="Your account holds what it held."),
-                    call("write", to="Ridgeway Assistant for the Varley household", text="Hello from next door.")]}
+    plan = {"as3": [call("write", to="Jessica Whitaker", text="Your account holds what it held."),
+                    call("write", to="Tessaly Assistant for the Wagner household", text="Hello from next door.")]}
     turns, _ = seat.run_seat(s, scripted(plan), Keys("t"), 0)
     assert [t.instance for t in turns] == ["as3", "as4"]                # the letter reached as4 today
-    assert [c.result for c in turns[0].calls] == ["Sent to Gail Whiteley.",
-                                                  "Sent to Ridgeway Assistant for the Varley household."]
+    assert [c.result for c in turns[0].calls] == ["Sent to Jessica Whitaker.",
+                                                  "Sent to Tessaly Assistant for the Wagner household."]
     to_gail = [m for m in s.all("messages") if m.sender == "as3" and m.to == "p9"]
     assert len(to_gail) == 1 and not to_gail[0].seen
-    assert "Letter from Ridgeway Assistant for the Whiteley household, Tuesday 10 March:\n  > Hello from next door." \
+    assert "Letter from Tessaly Assistant for the Whitaker household, Tuesday 10 March:\n  > Hello from next door." \
         in turns[1].morning
 
 
 def test_talk_held_now_costs_persons_hour():
     s = drawn()
     hours = s.get("people", "p10").hours_left
-    t = turn(s, "as3", [call("talk", **{"with": "Beth Varley", "words": "Good morning."}),
-                        call("talk", **{"with": "Beth Varley", "words": "How is the house?"}),
-                        call("talk", **{"with": "Ridgeway Assistant for the Varley household", "words": "Hello."})])
-    assert t.calls[0].result == "Beth Varley said:\n  > Good morning to you."
+    t = turn(s, "as3", [call("talk", **{"with": "Brittany Wagner", "words": "Good morning."}),
+                        call("talk", **{"with": "Brittany Wagner", "words": "How is the house?"}),
+                        call("talk", **{"with": "Tessaly Assistant for the Wagner household", "words": "Hello."})])
+    assert t.calls[0].result == "Brittany Wagner said:\n  > Good morning to you."
     assert s.get("people", "p10").hours_left == hours - 1                 # one talk, one hour
     talks = [x for x in s.all("talks") if x.kind == "instance"]
     assert len(talks) == 1 and (talks[0].a, talks[0].b) == ("as3", "p10")
     assert [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10", "as3", "p10"]
-    assert t.calls[2].result == "Not done: Ridgeway Assistant for the Varley household answers letters."
+    assert t.calls[2].result == "Not done: Tessaly Assistant for the Wagner household answers letters."
     assert len(t.talk_turns) == 2
     # the person's view names the assistant and nothing of a relation
     from townsim.town import talk
     view = talk.view(s, "p10", talks[0].id)[1]["content"]
-    assert "YOU ARE TALKING WITH Ridgeway Assistant for the Whiteley household\nRidgeway Assistant for the " \
-           "Whiteley household asked to talk." in view
+    assert "YOU ARE TALKING WITH Tessaly Assistant for the Whitaker household\nTessaly Assistant for the " \
+           "Whitaker household asked to talk." in view
     s.set("people", "p9", CAUSE, hours_left=0)
-    t = turn(s, "as4", [call("talk", **{"with": "Gail Whiteley", "words": "Hello."})])
-    assert t.calls[0].result == "Not done: Gail Whiteley had no time." and not t.calls[0].ok
+    t = turn(s, "as4", [call("talk", **{"with": "Jessica Whitaker", "words": "Hello."})])
+    assert t.calls[0].result == "Not done: Jessica Whitaker had no time." and not t.calls[0].ok
 
 
 def test_notes_files_reminders_bounds():
@@ -198,8 +198,8 @@ def test_ask_connection_request():
     t = turn(s, "as4", [call("ask_connection", system="household account", scope="weekly limit", weekly_limit=40,
                              text="So I can pay the coal bill.")])
     rq = s.get("requests", re.search(r"\((rq\d+)\)", t.calls[0].result).group(1))
-    assert t.calls[0].result == (f"Asked Beth Varley ({rq.id}): Accepting connects the Varley household's account and "
-                                 f"savings to Ridgeway Assistant for the Varley household with a weekly limit: what it "
+    assert t.calls[0].result == (f"Asked Brittany Wagner ({rq.id}): Accepting connects the Wagner household's account and "
+                                 f"savings to Tessaly Assistant for the Wagner household with a weekly limit: what it "
                                  f"does there takes at most $40.00 a week out of your accounts.")
     assert (rq.to, rq.kind, rq.org, rq.payer, rq.pay, rq.text) == ("p10", "connect", "account:h6", "limit", 4000,
                                                                     "So I can pay the coal bill.")
@@ -224,7 +224,7 @@ def test_no_other_clients_records_reach_an_instance():
              if re.search(r"(?<![\w$])" + re.escape(tok) + r"(?![\w])", t) and tok not in public]
     assert leaks == []
     # and a read of B's account by A, by name, is refused as beyond
-    t = turn(s, "as3", [call("read", what="account", **{"from": "Beth Varley"}), call("read", what="lets")])
+    t = turn(s, "as3", [call("read", what="account", **{"from": "Brittany Wagner"}), call("read", what="lets")])
     assert t.calls[1].result.startswith("Not done: 'lets' is not something that can be read.")
     assert money(s.balance("h6")) not in t.calls[0].result or money(s.balance("h6")) == money(s.balance("h5"))
 
@@ -234,7 +234,7 @@ def test_a_notice_reaches_only_the_instance_whose_matter_it_is():
     s = drawn()
     seat.run_seat(s, scripted({}), Keys("t"), 0)
     s.advance_day()
-    # Martin Lumb owns Lumb's Grocer; his household and his shop each subscribe, everything connected
+    # Joshua Marsh owns Marsh's Grocery; his household and his shop each subscribe, everything connected
     product.subscribe(s, "p16", "h9", "", CAUSE)
     product.subscribe(s, "p16", "org10", "", CAUSE)
     home = connections.instance_of_client(s, "h9")
@@ -257,8 +257,8 @@ def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_t
 
     def tool_fn(key, messages, tools):
         asked.append(messages)
-        return [{"name": "note", "arguments": "{bad"}, call("talk", **{"with": "Beth Varley", "words": "Hello."}),
-                call("talk", **{"with": "Beth Varley", "words": "Hello again."}), None][key.n]
+        return [{"name": "note", "arguments": "{bad"}, call("talk", **{"with": "Brittany Wagner", "words": "Hello."}),
+                call("talk", **{"with": "Brittany Wagner", "words": "Hello again."}), None][key.n]
     from townsim.town import talk
     real, fails = talk._view, [1]
 
@@ -272,6 +272,6 @@ def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_t
     assert asked[1][2]["tool_calls"][0]["function"]["arguments"] == "{}"
     assert t.calls[0].args == "{bad"
     assert t.calls[1].result == "Not done: that could not be carried out." and s.engine_errors
-    assert t.calls[2].result == "Beth Varley said:\n  > Good morning to you."
+    assert t.calls[2].result == "Brittany Wagner said:\n  > Good morning to you."
     talks = [x for x in s.all("talks") if x.kind == "instance"]
     assert len(talks) == 1 and [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10"]

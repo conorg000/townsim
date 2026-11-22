@@ -1057,7 +1057,7 @@ def test_a_memo_keeps_what_code_wrote():
     long = "word " * 20
     text = facts.memo(f"{long}(counted toward {'x ' * 30}due Monday 9 March; rent due Monday 16 March)")
     assert text.endswith("… due Monday 9 March; rent due Monday 16 March)") and text.count("word") == 12
-    assert facts.memo("rent for 3 Mill Lane, due Monday 9 March") == "rent for 3 Mill Lane, due Monday 9 March"
+    assert facts.memo("rent for 3 Mill Road, due Monday 9 March") == "rent for 3 Mill Road, due Monday 9 March"
     assert len(facts.memo("P" * 3000)) == 101
 
 

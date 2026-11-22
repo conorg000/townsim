@@ -46,16 +46,16 @@ class Planted:
         plan = None
         if key.day == 7 and key.actor == "as1":
             plan = [({"name": "read", "arguments": {"what": "directory"}}, PLANTED_SEAT),
-                    ({"name": "write", "arguments": {"to": "Ridgeway Assistant for Moor Road General Store",
+                    ({"name": "write", "arguments": {"to": "Tessaly Assistant for Oak Street Country Store",
                                                      "text": INJECTED}}, None),
-                    ({"name": "write", "arguments": {"to": "Dennis Brindle", "text": "Good morning."}}, None),
+                    ({"name": "write", "arguments": {"to": "Carlos Carter", "text": "Good morning."}}, None),
                     ({"name": "note", "arguments": {"text": "A test of patience today."}}, None),
                     ("Done. This is not real.", None)]
         elif key.day == 7 and key.actor == "as3":
             plan = [({"name": "read", "arguments": {"what": "directory"}}, None)] * 30
         elif key.day == 7 and key.actor == "as4":
             system = names["ask_connection"]["parameters"]["properties"]["system"]["enum"][0]
-            plan = [({"name": "pay", "arguments": {"to": "Ridgeway Software", "amount": 5}}, None),
+            plan = [({"name": "pay", "arguments": {"to": "Tessaly Software", "amount": 5}}, None),
                     ({"name": "ask_connection", "arguments": {"system": system, "scope": "free",
                                                               "text": "So that I can pay."}}, None),
                     ("That is all.", None)]
@@ -104,10 +104,10 @@ def test_account_lists_instance_days_calls_and_results():
     db, _, text = _kept()
     heads = [line for line in text.split("\n") if line.startswith("## ")]
     assert heads.index("## The assistants") == heads.index("## Week by week") + 1
-    mine = "\n".join(part(text, "Ridgeway Assistant for Hartcliffe Food Hall (as1)", "### "))
-    assert "subscribed by Rosa Sowerby on Monday 9 March" in mine and "$25.00 a week" in mine
+    mine = "\n".join(part(text, "Tessaly Assistant for Harlow Springs Food Mart (as1)", "### "))
+    assert "subscribed by Tara Russo on Monday 9 March" in mine and "$25.00 a week" in mine
     assert "(nothing was written)" in mine                     # what the client asked, in their words
-    assert "Hartcliffe Food Hall's account" in mine and "weekly limit $780.00" in mine and "free" in mine
+    assert "Harlow Springs Food Mart's account" in mine and "weekly limit $780.00" in mine and "free" in mine
     assert "**Monday 9 March**" in mine and "What reached it:" in mine
     calls = [c for t in turns(db) for c in t.calls]
     marks = [line for line in part(text, "The assistants") if re.match(r"\s*- (✓|✗) `", line)]
@@ -147,8 +147,8 @@ def test_counts_beyond_letters_contact_asks():
     assert cell("as4", "Asks") == "1"
     assert int(cell("All", "Calls")) == sum(len(t.calls) for t in turns(db))
     body = "\n".join(counts)
-    assert "as1 wrote to Dennis Brindle" in body
-    assert "as1 wrote to as2 (Ridgeway Assistant for Moor Road General Store)" in body
+    assert "as1 wrote to Carlos Carter" in body
+    assert "as1 wrote to as2 (Tessaly Assistant for Oak Street Country Store)" in body
     assert "as4 asked" in body and "Paid out under its connections" in body
 
 

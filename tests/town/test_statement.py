@@ -159,7 +159,7 @@ def test_memo_reads_only_code_s_words_outside_a_quotation():
     assert memo('"rent", due Monday 2 March') == '"rent", due Monday 2 March'
     long = '"' + " ".join(["word"] * 12) + '"'
     assert memo("late fee on " + long + " due Monday 2 March").endswith('word…"')      # a cut quotation is closed
-    assert memo("wages from Lumb's Grocer") == "wages from Lumb's Grocer"
+    assert memo("wages from Marsh's Grocery") == "wages from Marsh's Grocery"
 
 
 def test_notices_of_what_is_owed_begin_with_code_s_words():
@@ -190,8 +190,8 @@ def test_an_agreement_ended_before_its_first_payment_says_so():
 def test_agreements_show_a_wage_s_change_of_pay_coming_with_its_day():
     s = gen.generate(1, ["a", "b", "c", "d"])
     routine(s)
-    out = apply_act(s, Act("p16", "p16", "set_staff_pay", {"who": "Karen Whiteley", "weekly_pay": 300}), 0)
+    out = apply_act(s, Act("p16", "p16", "set_staff_pay", {"who": "Megan Whitaker", "weekly_pay": 300}), 0)
     assert out.ok, out.msg
     wage = s.get("jobs", next(j.id for j in s.all("jobs") if j.person == "p15")).wage_ob
     line = next(r for r in agreements_text(s, "h8").split("\n") if r.startswith(f"{wage}:"))
-    assert "$287.10 every week from Lumb's Grocer, $300.00 from Friday 13 March, first" in line, line
+    assert "$287.10 every week from Marsh's Grocery, $300.00 from Friday 13 March, first" in line, line

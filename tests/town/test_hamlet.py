@@ -430,7 +430,7 @@ def test_a_job_lost_ends_after_this_fridays_pay():
     mark = s.mark()
     days(s, 1)
     told = [n for n in s.all("notices") if n.to == "p4" and n.day == 16]
-    assert [n.text for n in told] == ["Brackenfield Foods has ended your job. Your last pay is on Friday 20 March."]
+    assert [n.text for n in told] == ["Bramwell Falls Foods has ended your job. Your last pay is on Friday 20 March."]
     assert {c.id for c in s.changes[mark:] if c.cause == f"routine:event:{ev.id}" and c.table == "notices"} == \
         {n.id for n in told}
     assert s.get("jobs", job.id).ended == 18 and s.get("obligations", job.wage_ob).last == 18
@@ -469,7 +469,7 @@ def test_a_supplier_short_halves_that_weeks_delivery_only():
     assert shops
     owners = [with_short.get("orgs", f.org).owner for f in shops]
     assert [(n.to, n.text) for n in told] == [
-        (o, "Coldbeck Cash and Carry has said the delivery on Monday 30 March will be short.") for o in owners]
+        (o, "Coldwater Bend Food Supply has said the delivery on Monday 30 March will be short.") for o in owners]
 
     def by_week(s, firm):
         return {t.t // 7 + 1: int(t.memo.split()[0]) for t in s.ledger.transfers
@@ -548,7 +548,7 @@ def test_aims_are_taken_before_acts_and_too_many_acts_are_told():
 
     def script(key, messages):
         return reply if key.actor == "p16" else '{"acts": []}'
-    days(s, 3, script)                      # Martin Lumb's stock day is Wednesday
+    days(s, 3, script)                      # Joshua Marsh's stock day is Wednesday
     [aim] = [a for a in s.all("aims") if a.person == "p16"]
     assert (aim.text, aim.since) == ("Keep the shop going", 2)
     causes = [c.cause for c in s.changes if c.cause.startswith("op:p16:") and c.day == 2]
@@ -607,7 +607,7 @@ def test_a_job_started_and_finished():
     ob = s.get("obligations", job.wage_ob)
     assert (job.person, job.org, job.weekly, job.hours, job.since, job.ended) == ("p18", "org13", 30_000, 20.0, 0, -1)
     assert (ob.kind, ob.payer, ob.payee, ob.first, ob.every, ob.memo, ob.ends) == (
-        "wage", "org13", hh, 4, 7, "wages from Ridgeway Software", "both")
+        "wage", "org13", hh, 4, 7, "wages from Tessaly Software", "both")
     assert "employed" in acts.positions(s, "p18") and hours.job_hours(s, "p18") == 20
     assert firms.staff_hours(s, "org13") == sum(j.hours for j in s.where("jobs", org="org13"))
     jobs.finish(s, jid, 4, T)
@@ -714,10 +714,10 @@ def test_stopping_rent_is_withholding_it_and_says_so():
     agency = O.name_of(s, rent.payee)
     assert out.msg == (f"That was your rent to {agency}. Stopping it is recorded as a breach. The rent stays owed "
                        f"each week and is no longer taken from your account.")
-    assert s.all("records")[-1].text == f"Brindle household stopped paying the rent to {agency} (rent for 8 Back Lane)."
+    assert s.all("records")[-1].text == f"Carter household stopped paying the rent to {agency} (rent for 8 Maple Avenue)."
     days(s, 7)
     told = [n.text for n in s.where("notices", to="p1") if "was not taken" in n.text]
-    assert told == [f"Rent for 8 Back Lane, $258.00, due Monday 9 March, was not taken: you stopped it on "
+    assert told == [f"Rent for 8 Maple Avenue, $258.00, due Monday 9 March, was not taken: you stopped it on "
                     f"Tuesday 3 March. It is owed."]
     assert not any("agreement" in n.text for n in s.where("notices", to="p1"))
 
@@ -731,9 +731,9 @@ def test_an_outside_landlord_serves_notice_when_the_rent_defaults():
     days(s, 35)                                                  # the day-7 rent defaults on day 35
     recs = [r for r in s.all("records") if r.kind == "notice to quit"]
     assert [(r.day, r.about, r.text) for r in recs] == \
-        [(35, "h1", f"{agency} has served notice on the Brindle household to leave 8 Back Lane by Monday 4 May.")]
+        [(35, "h1", f"{agency} has served notice on the Carter household to leave 8 Maple Avenue by Monday 4 May.")]
     for pid in ("p1", "p2"):
-        assert f"{agency} has served notice: you are to leave 8 Back Lane by Monday 4 May." in \
+        assert f"{agency} has served notice: you are to leave 8 Maple Avenue by Monday 4 May." in \
             [n.text for n in s.where("notices", to=pid)]
     assert any(c.cause == f"routine:notice:{rent.id}" for c in s.changes)
     days(s, 14)                                                  # more defaults, but notice stands: once

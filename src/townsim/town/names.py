@@ -1,50 +1,67 @@
 """Words a generated place is named from: plain lists, drawn from by `gen` with the place's
-own seeded random stream. None of them is anyone's real name or address."""
+own seeded random stream. None of them is anyone's real name or address.
+
+The setting is one country's ordinary present day, to go with its dollars: given names and
+surnames common among American adults now, plain street names, and invented place, firm and
+utility names. Each list keeps the length it had before these words, and each given name the
+sex of the one it replaced, so that every place draws as it did and only its words differ.
+"""
 
 from __future__ import annotations
 
 FIRST_NAMES = [
-    "Ada", "Alan", "Alice", "Amos", "Anna", "Arthur", "Beth", "Bill", "Brenda", "Carl", "Carol", "Clara",
-    "Colin", "Dawn", "Dennis", "Dora", "Edgar", "Edna", "Elsie", "Ernest", "Faye", "Frank", "Gail", "Gordon",
-    "Grace", "Harold", "Hazel", "Henry", "Ida", "Ivan", "Jean", "Joan", "Jonah", "Karen", "Keith", "Lena",
-    "Leonard", "Lily", "Lionel", "Mabel", "Martin", "Maud", "Neil", "Nora", "Olive", "Oscar", "Pauline",
-    "Percy", "Queenie", "Ralph", "Rita", "Ronald", "Rosa", "Sally", "Stanley", "Sylvia", "Terence", "Thea",
-    "Victor", "Vera", "Walter", "Wendy", "Wilfred", "Yvonne",
+    "Amanda", "Aaron", "Andrea", "Adam", "Ashley", "Andrew", "Brittany", "Anthony", "Christina", "Brandon",
+    "Courtney", "Danielle", "Brian", "Denise", "Carlos", "Emily", "Christopher", "Erin", "Heather", "Corey",
+    "Jennifer", "Daniel", "Jessica", "Derek", "Kayla", "Dustin", "Kimberly", "Eric", "Kristen", "Gregory", "Laura",
+    "Lauren", "Jason", "Megan", "Jeremy", "Melissa", "Jonathan", "Michelle", "Jose", "Monica", "Joshua", "Nicole",
+    "Justin", "Rachel", "Rebecca", "Kevin", "Samantha", "Kyle", "Stephanie", "Luis", "Tamara", "Marcus", "Tara",
+    "Tiffany", "Matthew", "Vanessa", "Nathan", "Alyssa", "Ryan", "Brianna", "Travis", "Lisa", "Tyler", "Angela",
 ]
 
 # Which of `FIRST_NAMES` are borne by women and which by men, so that a brother is told from a sister.
 WOMEN = frozenset({
-    "Ada", "Alice", "Anna", "Beth", "Brenda", "Carol", "Clara", "Dawn", "Dora", "Edna", "Elsie", "Faye", "Gail",
-    "Grace", "Hazel", "Ida", "Jean", "Joan", "Karen", "Lena", "Lily", "Mabel", "Maud", "Nora", "Olive", "Pauline",
-    "Queenie", "Rita", "Rosa", "Sally", "Sylvia", "Thea", "Vera", "Wendy", "Yvonne"})
+    "Alyssa", "Amanda", "Andrea", "Angela", "Ashley", "Brianna", "Brittany", "Christina", "Courtney", "Danielle",
+    "Denise", "Emily", "Erin", "Heather", "Jennifer", "Jessica", "Kayla", "Kimberly", "Kristen", "Laura", "Lauren",
+    "Lisa", "Megan", "Melissa", "Michelle", "Monica", "Nicole", "Rachel", "Rebecca", "Samantha", "Stephanie",
+    "Tamara", "Tara", "Tiffany", "Vanessa"})
 MEN = frozenset({
-    "Alan", "Amos", "Arthur", "Bill", "Carl", "Colin", "Dennis", "Edgar", "Ernest", "Frank", "Gordon", "Harold",
-    "Henry", "Ivan", "Jonah", "Keith", "Leonard", "Lionel", "Martin", "Neil", "Oscar", "Percy", "Ralph", "Ronald",
-    "Stanley", "Terence", "Victor", "Walter", "Wilfred"})
+    "Aaron", "Adam", "Andrew", "Anthony", "Brandon", "Brian", "Carlos", "Christopher", "Corey", "Daniel", "Derek",
+    "Dustin", "Eric", "Gregory", "Jason", "Jeremy", "Jonathan", "Jose", "Joshua", "Justin", "Kevin", "Kyle", "Luis",
+    "Marcus", "Matthew", "Nathan", "Ryan", "Travis", "Tyler"})
 
 SURNAMES = [
-    "Ashworth", "Bairstow", "Birch", "Brindle", "Calder", "Catterall", "Coldwell", "Dunmore", "Eccles",
-    "Fairclough", "Farrow", "Garside", "Gledhill", "Haworth", "Heald", "Hindle", "Holroyd", "Inskip",
-    "Kershaw", "Lumb", "Marsden", "Mellor", "Moorhouse", "Nuttall", "Ormerod", "Pickles", "Platt", "Ramsden",
-    "Rushworth", "Sowerby", "Spencely", "Stott", "Sutcliffe", "Thwaite", "Tordoff", "Uttley", "Varley",
-    "Wadsworth", "Whiteley", "Wolstenholme", "Yeadon",
+    "Anderson", "Bennett", "Brooks", "Carter", "Coleman", "Collins", "Dawson", "Ellis", "Fischer", "Foster",
+    "Garcia", "Gibson", "Hayes", "Hughes", "Jensen", "Keller", "Kowalski", "Lawson", "Lopez", "Marsh", "Meyer",
+    "Morales", "Nolan", "Novak", "Ortiz", "Parker", "Porter", "Ramirez", "Reyes", "Russo", "Schultz", "Shaw",
+    "Sullivan", "Thornton", "Tucker", "Walsh", "Wagner", "Webb", "Whitaker", "Wolfe", "Yates",
 ]
 
 STREETS = [
-    "Mill Lane", "Church Street", "Back Lane", "Chapel Row", "Moor Road", "Beck Side", "Station Road",
-    "Hollin Lane", "Green Lane", "Quarry Hill", "Well Street", "School Lane", "Orchard Close", "Fold Lane",
-    "Bridge End", "Low Street", "Top Road", "Ings Lane", "Croft Street", "Wharf Street", "Field Head",
+    "Mill Road", "Church Street", "Maple Avenue", "Elm Street", "Oak Street", "Cedar Lane", "Pine Street",
+    "Ridge Road", "Walnut Street", "Lake Road", "Hickory Lane", "School Street", "Orchard Lane", "Spring Street",
+    "Bridge Street", "River Road", "Birch Street", "Park Avenue", "Water Street", "Depot Street", "Grove Street",
 ]
 
 PLACES = [
-    "Ashby Moor", "Brackenfield", "Coldbeck", "Dunwell", "Elmsthorpe", "Fallowfield", "Grimsdale",
-    "Hartcliffe", "Ickerby", "Kettlewick", "Langholt", "Marrowby", "Netherholt", "Oakhurst", "Pellow",
-    "Ravensby",
+    "Alder Crossing", "Bramwell Falls", "Coldwater Bend", "Dunsmore", "Elk Bend", "Fenner Ridge", "Galloway Fork",
+    "Harlow Springs", "Iverby", "Kettle Bend", "Larkin Mills", "Marrow Station", "Netherby Falls", "Oak Hollow",
+    "Pruett Crossing", "Ravel Springs",
 ]
 
-SHOP_WORDS = ["Stores", "Grocer", "Provisions", "Food Hall", "Larder", "Pantry", "General Store", "Village Shop",
-              "Corner Shop", "Fresh Foods"]
+SHOP_WORDS = [
+    "Market", "Grocery", "Provisions", "Food Mart", "Pantry", "General Store", "Country Store", "Corner Market",
+    "Grocers", "Fresh Foods",
+]
 
-FIRM_WORDS = ["Kestrel", "Larchfield", "Brightwater", "Moorside", "Fellgate", "Hawthorn", "Ridgeway", "Copperbeck"]
+FIRM_WORDS = [
+    "Wrenfold", "Quillfield", "Brightmere", "Corvane", "Lanthorn", "Halloway", "Tessaly", "Amberlin",
+]
 
-ENERGY_WORDS = ["Northgrid", "Shire", "Pennine", "Valley"]
+ENERGY_WORDS = [
+    "Brannock", "Ostley", "Carrowmere", "Halvren",
+]
+
+# The bank in the place is a branch of a savings bank from outside it (drawn on a stream of its own).
+BANK_WORDS = [
+    "Ashcombe", "Brierley", "Corwin", "Delancey", "Eastvale", "Farrington",
+]

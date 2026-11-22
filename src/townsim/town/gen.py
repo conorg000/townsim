@@ -136,7 +136,7 @@ BELIEFS: dict[str, tuple[list[str], list[str]]] = {
 }
 
 EMPLOYERS = (
-    ("{p} Haulage", ["drives for {e}", "loads lorries at {e}", "works in the office at {e}", "fixes lorries at {e}"]),
+    ("{p} Freight", ["drives for {e}", "loads trucks at {e}", "works in the office at {e}", "fixes trucks at {e}"]),
     ("{p} Foods", ["works on the packing line at {e}", "drives a forklift at {e}", "works in the office at {e}",
                    "cleans the equipment at {e}"]),
     ("{p} General Hospital", ["works as a porter at {e}", "works in the kitchens at {e}", "nurses at {e}",
@@ -519,10 +519,10 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
     region = _org(s, f"{near[1]} Regional Office", "region", outside=True, credit=True)
     investor = _org(s, f"{near[2]} Ventures", "investor", outside=True, credit=True)
     utility = _org(s, f"{rng.choice(names.ENERGY_WORDS)} Energy", "utility", outside=True)
-    agency = _org(s, f"{near[3]} Lettings", "agency", outside=True)
+    agency = _org(s, f"{near[3]} Property Management", "agency", outside=True)
     market = _org(s, f"Shops and services in {near[4]}", "market", outside=True)
     sup_orgs = [_org(s, f"{near[5]} Wholesale", "supplier", outside=True),
-                _org(s, f"{near[6]} Cash and Carry", "supplier", outside=True)]
+                _org(s, f"{near[6]} Food Supply", "supplier", outside=True)]
 
     # households and people
     people: list[_P] = []
@@ -546,7 +546,8 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
 
     # the bank, the shops and the software firm
     banker = by_kind["banker"][0]
-    bank = _org(s, f"{s.place} and District Bank", "bank", contact=banker.id)
+    bank_word = random.Random(f"gen:{seed}:{attempt}:bank").choice(names.BANK_WORDS)   # its own stream
+    bank = _org(s, f"{bank_word} Savings Bank", "bank", contact=banker.id)
     owners = list(by_kind["owner"])
     rng.shuffle(owners)
     shop_words = rng.sample(names.SHOP_WORDS, 3)

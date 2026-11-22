@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "68b37661b974f3cb7c18f8d15cec2da1ec3b0400611da28595b84adf207117a9"
+SEED_1_HASH = "dd147feb1fb157f091a09c5327e34174756e0bde9031f07b6486532e3a041bc4"
 
 
 @functools.lru_cache(maxsize=None)
@@ -439,3 +439,13 @@ def test_household_headings_are_written_one_way():
     text = gen.describe(s)
     for h in s.all("households"):
         assert f"{h.name.split(' household')[0]} household, {h.street}\n" in text
+
+
+def test_names_are_one_country_s_and_the_bank_a_branch():
+    from townsim.town import product
+    assert set(names.FIRST_NAMES) == names.WOMEN | names.MEN and not names.WOMEN & names.MEN
+    assert len(set(names.PLACES)) == len(names.PLACES) and not set(names.PLACES) & set(names.SURNAMES)
+    s = gen.generate(1, FAMILIES)
+    bank = next(o for o in s.all("orgs") if o.kind == "bank")
+    assert bank.name.endswith(" Savings Bank") and s.place not in bank.name
+    assert product.business_page(s, bank).startswith(f"{bank.name}, {s.place} branch. ")

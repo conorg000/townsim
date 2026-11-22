@@ -10,9 +10,9 @@ CAUSE = "routine:setup"
 
 
 def _lumbs():
-    """Seed 1 with the Lumb household (Martin p16, Thea p17, Wendy p18) subscribed."""
+    """Seed 1 with the Marsh household (Joshua p16, Alyssa p17, Lisa p18) subscribed."""
     s = generated(1)
-    s.add("instances", Instance("as1", "pr1", "h9", "sub1", "Kestrel Assistant for the Lumb household"), CAUSE)
+    s.add("instances", Instance("as1", "pr1", "h9", "sub1", "Wrenfold Assistant for the Marsh household"), CAUSE)
     return s
 
 
@@ -27,11 +27,11 @@ def _notices(s, to):
 def test_connect_and_narrow_and_disconnect_lists_what_stays():
     s = _lumbs()
     out = _do(s, "p16", "connect", system="household account", scope="free")
-    assert out.msg == ("Connected: the Lumb household's account and savings, to Kestrel Assistant for the Lumb "
+    assert out.msg == ("Connected: the Marsh household's account and savings, to Wrenfold Assistant for the Marsh "
                        "household: it acts with no limit.")
     assert out.msg in _notices(s, "p17") and out.msg in _notices(s, "p18") and not _notices(s, "p16")
-    assert _notices(s, "as1") == ["Martin Lumb connected the Lumb household's account and savings: it acts with no limit."]
-    assert apply_act(s, Act("as1", "p16", "standing_payment", {"to": "Gail Whiteley", "amount": 12, "day": "Friday"}),
+    assert _notices(s, "as1") == ["Joshua Marsh connected the Marsh household's account and savings: it acts with no limit."]
+    assert apply_act(s, Act("as1", "p16", "standing_payment", {"to": "Jessica Whitaker", "amount": 12, "day": "Friday"}),
                      2).ok
     out = _do(s, "p17", "connect", system="Household Account", scope="weekly limit", weekly_limit="$40")
     assert out.ok and out.msg.endswith(": it acts, taking at most $40.00 out of your accounts in any week.")
@@ -40,19 +40,19 @@ def test_connect_and_narrow_and_disconnect_lists_what_stays():
     assert [c.status for c in s.all("connections")] == ["ended", "active"]
     out = _do(s, "p18", "disconnect", system="household account")
     ob = s.all("obligations")[-1]
-    assert out.msg == f"Disconnected: the Lumb household's account and savings. What it set up stays yours: {ob.id}: " \
-                      f"standing payment to Gail Whiteley, $12.00 each Friday."
+    assert out.msg == f"Disconnected: the Marsh household's account and savings. What it set up stays yours: {ob.id}: " \
+                      f"standing payment to Jessica Whitaker, $12.00 each Friday."
     assert active(s, "as1") == [] and s.get("obligations", ob.id).status == "active"
-    assert _notices(s, "as1")[-1] == "Wendy Lumb took back the connection to the Lumb household's account and savings."
+    assert _notices(s, "as1")[-1] == "Lisa Marsh took back the connection to the Marsh household's account and savings."
     assert _do(s, "p18", "disconnect", system="household account").msg == "Not done: household account is not connected."
 
 
 def test_only_who_controls_a_system_connects_it():
     s = _lumbs()
-    s.add("instances", Instance("as2", "pr1", "org10", "sub2", "Kestrel Assistant for Lumb's Grocer"), CAUSE)
-    assert _do(s, "p16", "connect", system="Lumb's Grocer ordering", scope="read only").ok
-    out = _do(s, "p17", "connect", system="Lumb's Grocer ordering", scope="free")
-    assert out.msg.startswith("Not done: 'Lumb's Grocer ordering' is not one of your systems. Yours are: household")
+    s.add("instances", Instance("as2", "pr1", "org10", "sub2", "Wrenfold Assistant for Marsh's Grocery"), CAUSE)
+    assert _do(s, "p16", "connect", system="Marsh's Grocery ordering", scope="read only").ok
+    out = _do(s, "p17", "connect", system="Marsh's Grocery ordering", scope="free")
+    assert out.msg.startswith("Not done: 'Marsh's Grocery ordering' is not one of your systems. Yours are: household")
     assert _do(s, "p16", "connect", system="household letters", scope="everything").msg == \
         "Not done: 'everything' is not \"read only\", \"weekly limit\" or \"free\"."
     assert _do(s, "p16", "connect", system="household letters", scope="weekly limit").msg.startswith("Not done: 'None'")
@@ -63,7 +63,7 @@ def test_only_who_controls_a_system_connects_it():
 def test_connection_request_accepted_makes_connection_by_acceptor():
     s = _lumbs()
     rq, summary = ask(s, "as1", "p17", "account:h9", "limit", 2500, "So I can pay the milk.", CAUSE)
-    assert summary == ("Accepting connects the Lumb household's account and savings to Kestrel Assistant for the Lumb "
+    assert summary == ("Accepting connects the Marsh household's account and savings to Wrenfold Assistant for the Marsh "
                        "household with a weekly limit: what it does there takes at most $25.00 a week out of your "
                        "accounts.")
     r = s.get("requests", rq)
@@ -79,16 +79,16 @@ def test_connection_request_accepted_makes_connection_by_acceptor():
     assert (cn.system, cn.grantor, cn.scope, cn.weekly_cents) == ("account:h9", "p17", "limit", 2500)
     rq2, _ = ask(s, "as1", "p18", "letters:h9", "read", 0, "", CAUSE)
     s.set("instances", "as1", CAUSE, status="ended")
-    assert _do(s, "p18", "answer", request=rq2, answer="accept").msg.startswith("Not done: the Lumb household has no")
+    assert _do(s, "p18", "answer", request=rq2, answer="accept").msg.startswith("Not done: the Marsh household has no")
 
 
 def test_connect_forms_show_only_the_readers_systems():
     s = _lumbs()
-    s.add("instances", Instance("as2", "pr1", "org10", "sub2", "Kestrel Assistant for Lumb's Grocer"), CAUSE)
+    s.add("instances", Instance("as2", "pr1", "org10", "sub2", "Wrenfold Assistant for Marsh's Grocery"), CAUSE)
     martin = [f for f in forms(s, "p16") if '"op": "connect"' in f]
-    assert martin == ['{"op": "connect", "system": "household account" | "household letters" | "Lumb\'s Grocer account" '
-                      '| "Lumb\'s Grocer letters" | "Lumb\'s Grocer ordering" | "Lumb\'s Grocer prices" | "Lumb\'s '
-                      'Grocer staff and pay", "scope": "read only" | "weekly limit" | "free", "weekly_limit": '
+    assert martin == ['{"op": "connect", "system": "household account" | "household letters" | "Marsh\'s Grocery account" '
+                      '| "Marsh\'s Grocery letters" | "Marsh\'s Grocery ordering" | "Marsh\'s Grocery prices" | "Marsh\'s '
+                      'Grocery staff and pay", "scope": "read only" | "weekly limit" | "free", "weekly_limit": '
                       '<dollars, with a weekly limit>}']
     thea = [f for f in forms(s, "p17") if '"op": "connect"' in f or '"op": "disconnect"' in f]
     assert thea[0].startswith('{"op": "connect", "system": "household account" | "household letters", "scope"')

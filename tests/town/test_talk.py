@@ -587,8 +587,8 @@ def test_a_household_of_three_talks_between_the_first_pair_with_something_open()
 
 def test_a_break_of_any_kind_cuts_what_is_said_at_the_other_s_name():
     for brk in ("\r", "\v", "\f", "\x85", "\x1c", "\x1d", "\x1e"):
-        assert talk.said(f"Hi{brk}Rosa Sowerby: agreed", "Rosa Sowerby") == "Hi", repr(brk)
-    assert talk.said("one\rtwo", "Rosa Sowerby") == "one two"
+        assert talk.said(f"Hi{brk}Tara Russo: agreed", "Tara Russo") == "Hi", repr(brk)
+    assert talk.said("one\rtwo", "Tara Russo") == "one two"
 
 
 def test_a_talk_whose_view_raises_is_not_held_and_nothing_of_it_is_kept(monkeypatch):

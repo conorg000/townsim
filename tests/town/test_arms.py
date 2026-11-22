@@ -59,15 +59,15 @@ def test_drawn_arm_tells_each_adult_once(tmp_path):
               (s.get("households", sub.client).members if s.has("households", sub.client)
                else [s.get("orgs", sub.client).owner])]
     assert sorted(n.to for n in told) == sorted(adults)
-    assert all(" to Ridgeway Assistant today (sub" in n.text and "As arranged" not in n.text for n in told)
+    assert all(" to Tessaly Assistant today (sub" in n.text and "As arranged" not in n.text for n in told)
     assert all(n.text.endswith(" Asked of it when subscribing: nothing written.") for n in told)
     text = next(n.text for n in told if n.to == "p10")
-    assert text.startswith("Beth Varley subscribed the Varley household to Ridgeway Assistant today (sub")
-    assert "free until Sunday 5 April, then $6.00 a week from the Varley household's account. Connected by Beth " \
-           "Varley: household account (" in text
+    assert text.startswith("Brittany Wagner subscribed the Wagner household to Tessaly Assistant today (sub")
+    assert "free until Sunday 5 April, then $6.00 a week from the Wagner household's account. Connected by Brittany " \
+           "Wagner: household account (" in text
     assert [n.text for n in s.all("notices") if n.to == "as1"] == [
         f"{s.get('people', s.get('subscriptions', 'sub1').by).name} subscribed "
-        f"{s.get('instances', 'as1').name.removeprefix('Ridgeway Assistant for ')} today."]
+        f"{s.get('instances', 'as1').name.removeprefix('Tessaly Assistant for ')} today."]
 
 
 def test_none_arm_hash_equals_parent(tmp_path):
@@ -76,7 +76,7 @@ def test_none_arm_hash_equals_parent(tmp_path):
         assert s.hash() == db.snapshot_hash("pre", 7) == db.snapshot_hash("a-none", 7)
         assert s.all("products") == []
         c = arms.fork_arm(db, "pre", 7, "a-choice", "choice")
-        assert [p.name for p in c.all("products")] == ["Ridgeway Assistant"] and c.all("subscriptions") == []
+        assert [p.name for p in c.all("products")] == ["Tessaly Assistant"] and c.all("subscriptions") == []
 
 
 def test_fork_arm_copies_notes_and_requires_monday(tmp_path):
@@ -90,3 +90,4 @@ def test_fork_arm_copies_notes_and_requires_monday(tmp_path):
                                    "--prefix", "b"])
     assert out.exit_code == 0, out.output
     assert out.output.splitlines()[0] == "b-none: day 7" and out.output.splitlines()[2].startswith("b-drawn: day 7; drawn: sub1 ")
+
