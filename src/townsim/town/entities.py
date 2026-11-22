@@ -735,3 +735,14 @@ class Control:
     effective: int
     status: str = "pending"
 
+
+@dataclass
+class RunLog:
+    """The company's log of one run of an instance (terms, item 4): the day, and each tool call as
+    [tool, kind, "1" when done else "0", the first words of its result]."""
+
+    id: str
+    instance: str
+    day: int
+    calls: list = field(default_factory=list)
+

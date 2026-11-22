@@ -447,14 +447,23 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     subs = store.all("subscriptions")
     now = [s for s in subs if s.status == "active"]
     gone = [s for s in subs if s.status != "active"]
+    from townsim.town import lane_b
+    b = lane_b.installed(store)
     lines = [f"Launched {date_text(pr.launched)}. Price: {money(pr.household_cents)} {period(pr)} for a household, "
              f"{money(pr.business_cents)} for a business; the first {pr.free_weeks} weeks free.", f"Clients ({len(now)}):"]
-    lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}"
-              for s in now]
+    if b:
+        from townsim.town import runlog
+        lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}: "
+                  f"{runlog.client_record(store, s)}." for s in now]
+    else:
+        lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}"
+                  for s in now]
     left = "; ".join(f"{_cap(client_name(store, s.client))}, {date_text(s.ended_on)}" for s in gone) or "none"
     lines.append(f"Left: {left}.")
     lines.append(f"Fees received: {money(fees_received(store, pr, store.day - store.day % 7))} this week, "
                  f"{money(fees_received(store, pr))} in all.")
+    if b:
+        lines += runlog.fit(runlog.company_lines(store, pr), [])
     return store.get("orgs", pr.org).name.upper(), lines
 
 

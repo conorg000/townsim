@@ -163,6 +163,10 @@ def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int) 
                                {"role": "tool", "tool_call_id": cid, "content": cut_words(result, RESULT_WORDS)}]
     cause = f"routine:seat:{inst.id}"
     store.set("instances", inst.id, cause, seen=seen)
+    from townsim.town import lane_b
+    if lane_b.installed(store):
+        from townsim.town import runlog
+        runlog.record(store, inst.id, calls, cause)
     for r in reminders:
         if r.every == 0 and store.get("reminders", r.id).status == "set":
             store.set("reminders", r.id, cause, status="done")
