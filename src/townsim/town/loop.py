@@ -197,7 +197,7 @@ def guarded_view(store: Store, pid: str, build: Any) -> Any:
 def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     """The routine, then everyone's view, every reply (asked as one batch, `ask_all`), and
     each person's aims and acts in id order; then the day's talks (`talk.todays`, each held in turn, its acts numbered on
-    from everyone's); then each due instance's turn (`seat.run_seat`), which alone calls `ask_tools`; then the close. A reply's `aims`, when it has them, are taken before
+    from everyone's); then each due instance's turn (`seat.run_seat`), which alone calls `ask_tools`; then the rules (`rules.run_rules`); then the close. A reply's `aims`, when it has them, are taken before
     its acts. Acts past the eighth are not carried out, and the person is told how many. A
 person whose view cannot be built is not asked that day (`guarded_view`)."""
     routine(store)
@@ -242,5 +242,7 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
     seated, n = seat.run_seat(store, replier, keys, n)
     for st in seated:
         turns += st.talk_turns
+    from townsim.town import rules
+    n = rules.run_rules(store, n)
     close(store)
     return DayReport(day, turns, held, seated)

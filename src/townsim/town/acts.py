@@ -124,12 +124,14 @@ def _not_done(act: Act, reason: str, cause: str) -> Outcome:
     return Outcome(False, f"Not done: {reason}", act, cause)
 
 
-def apply_act(store: Store, act: Act, n: int) -> Outcome:
+def apply_act(store: Store, act: Act, n: int, via: str = "") -> Outcome:
     """Apply one act in full or not at all. `n` numbers the act within the day's acts.
 
     The outcome carries the act's cause tag, `op:<actor>:<op>:d<day>.<n>`, or
     `op:<actor>/<principal>:...` for an act done for someone else; for an act naming no
-    operation, the tag has `?` in place of the operation's name. Hours are the actor's."""
+    operation, the tag has `?` in place of the operation's name. Hours are the actor's. An act
+    done by something its actor set up (`via`: `auto:<rule>` for a rule, `narr:<task>` for a
+    task) carries `<via>:<actor>...:<op>:d<day>.<n>`; one done by a rule takes no hours."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
     if spec is not None and not available(store, spec.name):
         spec = None
@@ -139,7 +141,7 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     if outside and person:
         spec = None   # an operation outside the actor's positions is one they do not have
     who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
-    cause = f"op:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
+    cause = f"{via or 'op'}:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
         return _not_done(act, "that operation was not written in a form that can be read.", cause)
     if spec is None:
@@ -153,7 +155,7 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         if outside:                    # done for a client, outside the positions of the one it is done for
             return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
         hours = 0.0
-        if person:                     # an instance's acts take no one's hours
+        if person and not via.startswith("auto:"):     # an instance's acts, and a rule's, take no one's hours
             hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
             if store.get("people", act.actor).hours_left < hours:
                 from townsim.town.hours import no_time          # hours reads the jobs this module reads
@@ -175,6 +177,30 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         store.engine_errors.append(f"{cause}: {type(e).__name__}: {str(e)[:200]}")
         return _not_done(act, "that could not be carried out.", cause)
     return Outcome(True, told, act, cause)
+
+
+_VIA = ("auto", "narr")
+
+
+def _cause_parts(cause: str) -> tuple[str, str]:
+    """(who, op) an act's cause names: `op:<who>:<op>:...`, or `auto:<rule>:<who>:<op>:...` and
+    `narr:<task>:<who>:<op>:...`; ("", "") for any other cause."""
+    parts = cause.split(":")
+    if parts[0] == "op" and len(parts) > 3:
+        return parts[1], parts[2]
+    if parts[0] in _VIA and len(parts) > 4:
+        return parts[2], parts[3]
+    return "", ""
+
+
+def op_of_cause(cause: str) -> str:
+    """The operation an act's cause names, or ""."""
+    return _cause_parts(cause)[1]
+
+
+def actor_of_cause(cause: str) -> str:
+    """The actor an act's cause names (not its principal), or ""."""
+    return _cause_parts(cause)[0].split("/")[0]
 
 
 def _positions_or_none(store: Store, pid: Any) -> list[str]:

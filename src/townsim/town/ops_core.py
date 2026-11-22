@@ -817,3 +817,6 @@ STOPPABLE.update(getattr(_product, "STOPPABLE_OF_PRODUCT", {}))
 from townsim.town import ventures as _ventures  # noqa: E402
 
 ANSWERERS.update(getattr(_ventures, "ANSWERERS_OF_VENTURES", {}))
+
+# and the rules that act at the end of each day, from `rules`
+from townsim.town import rules as _rules  # noqa: E402, F401

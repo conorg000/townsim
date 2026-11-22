@@ -137,9 +137,9 @@ def _key_parts(key: str) -> tuple[str, int, str, str]:
 
 
 def _op(cause: str) -> str:
-    """The operation an act's cause names (`op:<actor>:<op>:d<day>.<n>`), or ""."""
-    parts = cause.split(":")
-    return parts[2] if len(parts) > 3 and parts[0] == "op" else ""
+    """The operation an act's cause names (`op:`, `auto:` or `narr:`), or ""."""
+    from townsim.town.acts import op_of_cause
+    return op_of_cause(cause)
 
 
 def _pct(n: int, of: int) -> str:

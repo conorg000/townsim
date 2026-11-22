@@ -554,3 +554,25 @@ class Member:
     since: int
     fee_ob: str
     status: str = "active"
+
+
+@dataclass
+class Rule:
+    """A rule `installer` (a person, or an instance acting for `principal`) set on day `made_on`:
+    at the end of each day on which `when` holds, it does the operation `action` with `args`.
+    `account` is the account its figures are read from. `when` and `args` are JSON text. `runs`
+    keeps its last five firings, `<day>:done` or `<day>:declined:<why>`; `fails` counts refusals
+    in a row. `status` is active, suspended or deleted."""
+
+    id: str
+    installer: str
+    principal: str
+    account: str
+    name: str
+    when: str
+    action: str
+    args: str
+    status: str = "active"
+    made_on: int = 0
+    fails: int = 0
+    runs: list[str] = field(default_factory=list)

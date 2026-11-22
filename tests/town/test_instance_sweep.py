@@ -81,6 +81,14 @@ def _args(s, client: str, principal: str) -> dict[str, list[dict]]:
         "serve_notice": [{"tenant": tenant}],
         "register_business": [{"name": f"Club {client}", "kind": "club", "offering": "walks", "weekly_fee": 2, **src}],
         "invite_member": [{"of": f"Club {client}", "to": "Jessica Whitaker"}, {"of": f"Club {client}", "to": "Lisa Marsh"}],
+        "set_rule": [{"name": "rent", "when": {"weekday": "Sunday"}, "do": {"op": "pay", "to": "Tara Russo", "amount": 2, **src}},
+                     {"name": "stock", "when": {"figure": "stock", "is": "below", "value": 900},
+                      "do": {"op": "order_stock", "supplier": "Netherby Falls Wholesale",
+                             "baskets": {"figure": "sold_last_week", "times": 1.1, "plus": 0}}},
+                     {"name": "save", "when": {"figure": "balance", "is": "above", "value": 1},
+                      "do": {"op": "move_money", "from": biz or "household", "to": "savings" if not biz else "household",
+                             "amount": {"figure": "balance", "times": 0.01, "plus": 0}}}],
+        "delete_rule": [{"rule": "rl1"}, {"rule": "rl2"}],
     }
 
 

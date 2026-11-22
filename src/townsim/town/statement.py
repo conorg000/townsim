@@ -144,10 +144,9 @@ def by_instance(store: Store, cause: str) -> str:
     instance set up; else ""."""
     if not store.all("instances"):
         return ""
-    who = ""
-    if cause.startswith("op:"):
-        who = cause.split(":")[1].split("/")[0]
-    elif cause.startswith("routine:collect:"):
+    from townsim.town.acts import actor_of_cause
+    who = actor_of_cause(cause)
+    if cause.startswith("routine:collect:"):
         due = cause.removeprefix("routine:collect:")
         if store.has("dues", due):
             who = store.get("obligations", store.get("dues", due).obligation).made_by
