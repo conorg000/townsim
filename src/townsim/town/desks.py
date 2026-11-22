@@ -282,8 +282,10 @@ def household_of(store: Store, writer: str) -> tuple[str | None, str]:
         inst = store.get("instances", writer)
         if not store.has("households", inst.client):
             return None, "writes for a business, not a household"
+        from townsim.town import controls
         cn = connection_on(store, writer, f"account:{inst.client}")
-        if inst.status != "active" or cn is None or cn.scope == "read":
+        scope = controls.narrowed(store, cn.scope, cn.weekly_cents)[0] if cn is not None else "read"
+        if inst.status != "active" or scope == "read":           # as the company's controls narrow it
             return None, "writes for the household without access to act on its account"
         return inst.client, "assistant"
     if store.has("people", writer):
@@ -501,11 +503,22 @@ def _set_weekly_amount(store: Store, d, writer: str, action: dict, cause: str) -
         return f"dropped: {money(cents) if 0 <= cents < 10**9 else amount} outside {money(lo)} to {money(hi)}"
     if lv.changed_on >= 0 and store.day < _next_change(lv):
         return f"dropped: changed on {iso(lv.changed_on)}"
+    more = cents - obligations.cents_now(store, ob)
+    cn = None
+    if how == "assistant" and more > 0:               # what an assistant asks for counts toward its weekly limit
+        from townsim.town.connections import check_commitment, connection_on
+        cn = connection_on(store, writer, f"account:{h}")
+        why = check_commitment(store, writer, f"account:{h}", cn.grantor, more) if cn is not None else "no connection"
+        if why is not None:
+            return f"dropped: beyond the assistant's access: {why}"
     try:
         obligations.reprice(store, ob.id, cents, next_saturday(store.day), cause)
     except ValueError as e:
         return f"dropped: {e}"
     store.set("spending", lv.id, cause, changed_on=store.day)
+    if cn is not None:
+        from townsim.town.entities import Commit
+        store.add("commits", Commit(store.new_id("cm", cause), cn.id, store.day, more, "spending", cause), cause)
     return f"applied: {money(cents)} a week from {iso(next_saturday(store.day))}"
 
 
@@ -597,7 +610,8 @@ def _answer_one(store: Store, replier: Replier, keys: Keys, d, item) -> None:
     else:
         email = _cut(email, EMAIL_CUT)
         result = apply(store, d, item.sender, action, cause)
-    email += "\n\n" + account_note(store, result, store.mark() != mark)
+    if action is not None or store.mark() != mark:      # a plain question's reply has no account note
+        email += "\n\n" + account_note(store, result, store.mark() != mark)
     _send(store, d, item.sender, email, cause)
     store.add("answers", DeskAnswer(store.new_id("da", cause), d.id, item.id, store.day,
                                     raw[:REPLY_CHARS] if isinstance(raw, str) else "", asked, result), cause)

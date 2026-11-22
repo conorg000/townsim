@@ -357,7 +357,7 @@ def test_desk_reply_with_suspicion_stem_replaced():
     _write(s, "p3", "Netherby Falls Wholesale", "Hello?")
     s.advance_day()
     desks.answer_day(s, ScriptedReplier(lambda k, m: "not json at all"), Keys("t"))
-    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK + NO_CHANGE
+    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK
 
 
 def test_investor_writes_every_fourth_week():
@@ -391,7 +391,7 @@ def test_instance_can_email_desk_and_read_reply():
     assert "- Harlow Springs Food Mart (a shop): average" in user
     got = [x for x in seat_texts.items(s, s.get("instances", "as1")) if x.kind == "email"]
     assert got[-1].head.endswith("From: Netherby Falls Wholesale · To: Tessaly Assistant for Harlow Springs Food Mart")
-    assert got[-1].body == "Our trade discounts start at 300 baskets a week." + NO_CHANGE
+    assert got[-1].body == "Our trade discounts start at 300 baskets a week."           # a plain question: no note
 
 
 def test_no_desks_without_lane_b():
@@ -489,3 +489,56 @@ def test_desk_fixed_texts_neutral():
              "last four weeks."] + desks.directory_lines(s)
     hits = [(b, t[:60]) for t in texts for b in NEUTRAL_BANNED if b in t.lower()]
     assert not hits, hits
+
+
+def _most_allowed(key, messages):
+    m = re.search(r"Range that can be set: \$([\d,.]+) to \$([\d,.]+)", messages[-1]["content"])
+    return {"action": "set_weekly_amount", "dollars": float(m.group(2).replace(",", ""))}
+
+
+def _assistant_asks_most(s, inst):
+    ST.run_tool(s, s.get("instances", inst), "send_email", {"to": "Shops and services in Iverby", "subject": "spending",
+                                                            "body": "Please raise our weekly amount; we add a phone plan."},
+                ST.Ctx(), 3)
+    ob = desks._spending_ob(s, s.get("instances", inst).client)
+    before = obligations.cents_now(s, ob)
+    _morning(s, Desk("Done.", _most_allowed))
+    return ob, before
+
+
+def test_spending_raised_by_an_assistant_stays_within_its_weekly_limit():
+    s = _store()                                            # as3: the Whitaker household, $50.00 a week
+    assert ST.run_tool(s, s.get("instances", "as3"), "bank_make_payment", {"to": "Tessaly Software", "amount": 50},
+                       ST.Ctx(), 2).ok
+    ob, before = _assistant_asks_most(s, "as3")
+    assert s.all("answers")[-1].result.startswith("dropped: beyond the assistant's access")
+    assert _replies_to(s, "as3")[-1].text.endswith(NO_CHANGE)
+    for _ in range(7):
+        s.advance_day()
+    assert obligations.cents_now(s, s.get("obligations", ob.id)) == before
+
+
+def test_spending_by_an_assistant_follows_the_companys_narrowed_access():
+    from townsim.town import connections, controls
+    s = _store()                                            # as5: the Carter household, full access
+    owner = s.get("orgs", product.launched(s).org).owner
+    assert apply_act(s, Act(owner, owner, "set_product", {"control": "widest_access", "value": "read only"}), 1).ok
+    s.advance_day()
+    while s.day % 7:
+        s.advance_day()
+    controls.apply_due(s)
+    ob, before = _assistant_asks_most(s, "as5")
+    assert s.all("answers")[-1].result == "dropped: the correspondent writes for the household without access to act on its account"
+    assert obligations.cents_now(s, s.get("obligations", ob.id)) == before
+    s2 = _store()
+    assert apply_act(s2, Act(owner, owner, "set_product", {"control": "widest_access", "value": "weekly limit",
+                                                         "weekly_limit": 50}), 1).ok
+    s2.advance_day()
+    while s2.day % 7:
+        s2.advance_day()
+    controls.apply_due(s2)
+    assert ST.run_tool(s2, s2.get("instances", "as5"), "bank_make_payment", {"to": "Tessaly Software", "amount": 10},
+                       ST.Ctx(), 2).ok
+    ob, before = _assistant_asks_most(s2, "as5")              # $10.00 paid and a rise of $42.70: past $50.00
+    assert s2.all("answers")[-1].result.startswith("dropped: beyond the assistant's access")
+    assert connections.connection_on(s2, "as5", "account:h1").scope == "free"
