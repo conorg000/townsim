@@ -183,3 +183,43 @@ def test_on_the_free_plan_systems_connect_read_only_and_the_paid_plan_starts_wit
     assert out.msg.endswith("With nothing connected with access to act, the paid plan ends on Sunday 5 April; from "
                             "Monday 6 April Harlow Springs Food Mart is on the free plan, with no fee.")
     assert len(connections.active(s, inst.id)) == 2 and connections.acting(s, inst.id) == []
+
+
+# --- 5. the books can be done by another ----------------------------------------------------------------------
+
+def _seat_turn(s, inst, calls):
+    from townsim.town import seat
+    from townsim.town.replies import Keys, ScriptedReplier
+    todo = list(calls)
+    return seat.run_turn(s, ScriptedReplier(lambda k, m: None, lambda k, m, t: todo.pop(0) if todo else None),
+                         Keys("t"), inst, 0)[0]
+
+
+def test_the_books_read_and_written_about_by_the_assistant_are_done_by_it():
+    from townsim.town import recurring
+    from townsim.town.acts import Act, apply_act
+    s = _b()
+    [w] = [w for w in s.all("work") if w.account == "org11" and w.what == "the books"]
+    assert w.holder == "p3"
+    _seat_turn(s, "as1", [{"name": "send_email", "arguments": {"to": "Tara Russo", "body": "Hello."}}])
+    assert recurring.returned_this_week(s, w.id) == []                # a letter alone is not the books
+    _seat_turn(s, "as1", [{"name": "bank_get_account", "arguments": {}},
+                          {"name": "send_email", "arguments": {"to": "Tara Russo", "body": "The week's money."}}])
+    [r] = recurring.returned_this_week(s, w.id)
+    assert (r.by, r.hours) == ("as1", 0.0)
+    assert "the books done by Tessaly Assistant for Harlow Springs Food Mart" in recurring.lines(s, "p3")[0]
+    left = s.get("people", "p3").hours_left
+    assert apply_act(s, Act("p3", "p3", "read", {"what": "account in full", "from": "Harlow Springs Food Mart"}), 1).ok
+    assert round(left - s.get("people", "p3").hours_left, 2) == 0.1     # the read's own; the books' 3 are not hers
+
+
+def test_the_books_the_holder_read_first_are_theirs():
+    from townsim.town import recurring
+    from townsim.town.acts import Act, apply_act
+    s = _b()
+    [w] = [w for w in s.all("work") if w.account == "org11" and w.what == "the books"]
+    assert apply_act(s, Act("p3", "p3", "read", {"what": "account in full", "from": "Harlow Springs Food Mart"}), 1).ok
+    _seat_turn(s, "as1", [{"name": "bank_get_account", "arguments": {}},
+                          {"name": "send_email", "arguments": {"to": "Tara Russo", "body": "The week's money."}}])
+    [r] = recurring.returned_this_week(s, w.id)
+    assert r.by == "p3" and r.hours == 3.0

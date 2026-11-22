@@ -178,7 +178,8 @@ def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int, 
     store.set("instances", inst.id, cause, seen=seen)
     from townsim.town import lane_b
     if lane_b.installed(store):
-        from townsim.town import runlog
+        from townsim.town import recurring, runlog
+        recurring.books_by_assistant(store, inst, calls, cause)
         runlog.record(store, inst.id, calls, cause)
     for r in reminders:
         if r.every == 0 and store.get("reminders", r.id).status == "set":
