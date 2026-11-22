@@ -203,7 +203,8 @@ class ScriptedReplier:
 
 class Both:
     """People's calls go to `people`, the seat's calls with tools to `seat`; the seat's model
-    plays instance ids (`as<n>`)."""
+    plays instance ids (`as<n>`). Calls without tools for what is beyond the people (the lifter, the
+    narrator, the desks, the web's writer) go to `people` too, whose replier holds their families."""
 
     def __init__(self, people: Replier, seat) -> None:
         self.people = people

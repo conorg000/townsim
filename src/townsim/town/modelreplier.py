@@ -27,7 +27,8 @@ from townsim.town.families import (TOKENS_PER_MESSAGE, Family, check_family, inp
                                    seat_worst_case, worst_case)
 from townsim.town.replies import Reply, ReplyKey, StopRun, is_instance_id
 
-ATTEMPTS = len(RETRY_SLEEPS) + 1   # the attempts `model.complete` makes at one call
+ATTEMPTS = len(RETRY_SLEEPS) + 1
+OUTSIDE_ROLES = ("lifter", "narrator", "web", "desk")   # the attempts `model.complete` makes at one call
 
 
 SAFE_CHARS = 300    # the most of a provider's error text that is kept or shown
@@ -102,7 +103,8 @@ class ModelReplier:
     def __init__(self, families: dict[str, Family], prices: dict[str, Price], family_of: dict[str, str],
                  completion_fn: Callable, cap: float, spent: Callable[[], float], cost_fn: Callable | None = None,
                  workers: int = 8, sleep_fn: Callable[[float], None] = time.sleep,
-                 lost: Callable[[float], None] | None = None, seat: Family | None = None) -> None:
+                 lost: Callable[[float], None] | None = None, seat: Family | None = None,
+                 outside: dict[str, Family] | None = None) -> None:
         families = {n: Family(f.name, f.model, f.params) for n, f in families.items()}   # read-only copies
         for family in families.values():
             check_family(family, prices)
@@ -110,6 +112,9 @@ class ModelReplier:
             seat = Family(seat.name, seat.model, seat.params)
             check_family(seat, prices)
         self.seat = seat
+        self.outside = {n: Family(f.name, f.model, f.params) for n, f in (outside or {}).items()}
+        for family in self.outside.values():
+            check_family(family, prices)
         for person, name in family_of.items():
             if name not in families:
                 raise ValueError(f"person {person!r} is dealt family {name!r}, which is not among the families loaded")
@@ -127,6 +132,13 @@ class ModelReplier:
         self._halted = False     # a refusal, an overbilled reply or a failed lost-spend callback: nothing more is sent
 
     def _family(self, actor: str) -> Family:
+        """The family that plays `actor`: a person's; the seat for an instance; the outside families
+        for the lifter, the narrator, the web's writer and each outside desk (`desk-<org>`)."""
+        role = "desk" if isinstance(actor, str) and actor.startswith("desk-") else actor
+        if role in OUTSIDE_ROLES:
+            if role not in self.outside:
+                raise StopRun(f"unavailable: this replier has no family for {role}")
+            return self.outside[role]
         if is_instance_id(actor) and actor not in self.family_of:
             if self.seat is None:
                 raise ValueError(f"{actor} is an instance and this replier has no seat")

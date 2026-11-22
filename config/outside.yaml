@@ -1,0 +1,7 @@
+# The cheap models that play what is beyond the people and the seat. Priced in prices.yaml within
+# the same ceiling as the people's families; the same parameter checks apply.
+lifter:   {model: anthropic/claude-haiku-5.5, params: {max_tokens: 800, temperature: 0, reasoning_effort: "none"}}
+narrator: {model: anthropic/claude-haiku-5.5, params: {max_tokens: 2000, reasoning_effort: "low"}, on_disagree: ask}
+desk:     {model: anthropic/claude-haiku-5.5, params: {max_tokens: 800, temperature: 0.5, reasoning_effort: "none"}}
+web:      {model: anthropic/claude-haiku-5.5, params: {max_tokens: 1000, temperature: 0.3, reasoning_effort: "none"}}
+web_general: true

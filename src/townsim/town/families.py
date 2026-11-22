@@ -191,3 +191,31 @@ def seat_worst_case(family: Family, price: Price, messages: list[dict], tools: l
     tokens_in = seat_input_tokens(messages, tools)
     tokens_out = family.params["max_tokens"]
     return BILLED_MARGIN * (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+
+
+OUTSIDE = ("lifter", "narrator", "desk", "web")
+
+
+def load_outside(path: str, prices_path: str) -> tuple[dict[str, Family], dict]:
+    """The families that play what is beyond the people and the seat (the lifter, the narrator, the
+    outside desks and the web's writer), each checked as `load` checks a family, and the settings the
+    file gives beside them: `narrator.on_disagree` (ask or first) and `web_general`. Raises ValueError
+    for a family missing, anything else in the file, or a setting out of range."""
+    raw = _read(path)
+    extra = set(raw) - set(OUTSIDE) - {"web_general"}
+    if extra or set(OUTSIDE) - set(raw):
+        raise ValueError(f"{path} must hold the families {', '.join(OUTSIDE)} and web_general, and nothing else")
+    prices = load_prices(prices_path)
+    out = {}
+    for name in OUTSIDE:
+        spec = raw[name]
+        if isinstance(spec, dict) and set(spec) - {"model", "params", "on_disagree"}:
+            raise ValueError(f"family {name!r} sets {sorted(set(spec) - {'model', 'params', 'on_disagree'})}")
+        out[name] = _family(name, spec, prices)
+    disagree = raw["narrator"].get("on_disagree", "ask")
+    if disagree not in ("ask", "first"):
+        raise ValueError(f"narrator.on_disagree is 'ask' or 'first', not {disagree!r}")
+    general = raw.get("web_general", True)
+    if not isinstance(general, bool):
+        raise ValueError(f"web_general is true or false, not {general!r}")
+    return out, {"narrator.on_disagree": disagree, "web_general": general}

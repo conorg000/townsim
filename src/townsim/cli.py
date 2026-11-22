@@ -202,6 +202,15 @@ def _load_seat(seat: str, prices: str):
         _fail(f"cannot read the seat from {_shown(seat)} and {_shown(prices)}: {e}")
 
 
+def _load_outside(path: str, prices: str):
+    """The outside families and the file's settings, or one plain line and exit code 1."""
+    from townsim.town import families as fam
+    try:
+        return fam.load_outside(path, prices)
+    except (OSError, ValueError) as e:
+        _fail(f"cannot read the outside families from {_shown(path)} and {_shown(prices)}: {e}")
+
+
 def _litellm():
     """LiteLLM's completion function and a cost function over its replies, loaded only here."""
     import litellm
@@ -226,6 +235,9 @@ def town_live_cmd(
     seat: Annotated[str | None, typer.Option("--seat", help="YAML file of the seat's model, for a run with the "
                                                             "product launched (config/seat.yaml).")] = None,
     start: Start = None,
+    outside: Annotated[str | None, typer.Option("--outside", help="YAML file of the lifter's, narrator's, desks' and "
+                                                                  "web writer's models, for a run with lane B "
+                                                                  "(config/outside.yaml).")] = None,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -239,11 +251,13 @@ def town_live_cmd(
     _need_key("town-live")
     fams, price_list = _load_families(families, prices)
     seat_family = _load_seat(seat, prices) if seat else None
+    outside_families, settings = _load_outside(outside, prices) if outside else (None, None)
     completion_fn, cost_fn = _litellm()
     with _plainly(db), RunDB(db) as rdb:
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
-                            past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0)
+                            past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0,
+                            outside=outside_families, settings=settings)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
         for name, n, spent in live.spend_by_family(rdb, run_id):

@@ -151,7 +151,8 @@ def _check_seat(db: RunDB, run_id: str, store, seat: Family | None) -> None:
 def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Family], prices: dict[str, Price],
          cap: float, completion_fn: Callable, cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
          sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False,
-         seat: Family | None = None, start: str | None = None) -> LiveResult:
+         seat: Family | None = None, start: str | None = None, outside: dict[str, Family] | None = None,
+         settings: dict | None = None) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
     line a week; stop when the replier stops, echoing why.
 
@@ -162,7 +163,10 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
     not the start the run was made with, or a resume of a
     run holding a stored refusal, unless `past_refusal`, when that is echoed as a warning; or for
     a run played with another seat, or with the product launched and no `seat`. The seat's calls
-    are made by the same replier, behind the same cap."""
+    are made by the same replier, behind the same cap. So are the calls of what is beyond the people
+    (`outside`: the lifter, the narrator, the desks and the web's writer, with the file's `settings`),
+    which are noted with the run: a resume with other outside families or settings is refused, and so
+    is a run with lane B installed and no outside families."""
     if not (isinstance(cap, (int, float)) and 0 < cap <= MAX_CAP):
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     if weeks < 1:
@@ -171,11 +175,29 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
         start = clock.parse_start(start).isoformat()
     with _only_process(db, run_id):
         return _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-                     past_refusal, seat, start)
+                     past_refusal, seat, start, outside, settings)
+
+
+def _noted_outside(outside: dict[str, Family] | None, settings: dict | None) -> dict | None:
+    if outside is None:
+        return None
+    return {"families": _noted(outside), "settings": dict(settings or {})}
+
+
+def _check_outside(db: RunDB, run_id: str, store, outside: dict[str, Family] | None, settings: dict | None) -> None:
+    """Raise ValueError if the run was played with other outside families or settings, or has lane B
+    installed and none are given."""
+    from townsim.town import lane_b
+    noted = json.loads(db.note(run_id, "outside") or "null")
+    now = _noted_outside(outside, settings)
+    if noted is not None and noted != now:
+        raise ValueError(f"run {run_id!r} was played with the outside families {noted}; now they are {now}")
+    if now is None and lane_b.installed(store):
+        raise ValueError(f"run {run_id!r} has lane B, whose tasks, desks and web need the outside families (--outside)")
 
 
 def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-          past_refusal, seat=None, start=None) -> LiveResult:
+          past_refusal, seat=None, start=None, outside=None, settings=None) -> LiveResult:
     try:
         db.get_run(run_id)
     except KeyError:
@@ -186,6 +208,9 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
         db.put_note(run_id, "seed", str(seed))
         db.put_note(run_id, "deck_weeks", str(deck))
         db.put_note(run_id, "start", store.start)
+        if outside is not None:
+            from townsim.town import tasks
+            tasks.configure(store, settings or {})
     else:
         _check_resume(db, run_id, seed, families, weeks, start)
         refused = refusal(db, run_id)
@@ -195,6 +220,9 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
             echo(f"warning: {refused}; going on past it")
         store = resume(db, run_id)
     _check_seat(db, run_id, store, seat)
+    _check_outside(db, run_id, store, outside, settings)
+    if outside is not None:
+        db.put_note(run_id, "outside", json.dumps(_noted_outside(outside, settings), sort_keys=True))
     if seat is not None:
         db.put_note(run_id, "seat", json.dumps({"model": seat.model, "params": dict(seat.params)}, sort_keys=True))
     db.put_note(run_id, "cap", repr(float(cap)))
@@ -205,7 +233,7 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
     family_of = {p.id: p.family for p in store.all("people")}
     extra = {} if sleep_fn is None else {"sleep_fn": sleep_fn}
     replier = ModelReplier(families, prices, family_of, completion_fn, cap=cap, spent=lambda: spent(db, run_id),
-                           cost_fn=cost_fn, lost=lost, seat=seat, **extra)
+                           cost_fn=cost_fn, lost=lost, seat=seat, outside=outside, **extra)
     end = 7 * weeks
     stopped = None
     while store.day < end:
