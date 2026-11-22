@@ -978,7 +978,9 @@ def _run_access(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> D
     found = next((s for s in systems if isinstance(written, str)
                   and written.strip().casefold() in (INTEGRATION[s.kind].casefold(), s.short.casefold())), None)
     if found is None:
-        names = ", ".join(INTEGRATION[s.kind] for s in systems)
+        from townsim.town.connections import client_name
+        names = ", ".join(INTEGRATION[s.kind] if s.owner == inst.client or s.kind == "loans"
+                          else f"{INTEGRATION[s.kind]} ({client_name(store, s.owner)})" for s in systems)
         return _not(f"'{shown(written)}' is not one of the client's integrations. They are: {names}.", cause)
     access = args.get("access")
     scope = ACCESS.get(access.strip().lower()) if isinstance(access, str) else None

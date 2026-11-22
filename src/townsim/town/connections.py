@@ -254,6 +254,11 @@ def authorise(store: Store, act: Act) -> str | None:
         return NOT_FOR_A_CLIENT
     system_id = SYSTEM_OF[op](store, act)
     if system_id is None or system(store, system_id) is None:
+        from townsim.town import lane_b
+        if lane_b.installed(store) and isinstance(system_id, str) and ":" in system_id:
+            from townsim.town.systems import INTEGRATION
+            kind = system_id.split(":", 1)[0]
+            return f"the client has no {INTEGRATION.get(kind, kind)} integration to do that through."
         return NOT_FOR_A_CLIENT
     if _doing_once(act):
         return _once_check(store, inst, system_id, act.principal, lambda: commitment(store, act))
@@ -288,6 +293,12 @@ def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, c
     """Why an act on `system_id` done by `inst` for `principal`, taking out `cents()`, is refused, or None."""
     name = long_name(store, system_id)
     cn = connection_on(store, inst.id, system_id)
+    if (cn is not None and cn.grantor == principal and client_of(store, system_id) == inst.client
+            and not can_grant(store, principal, system_id)):
+        from townsim.town.systems import rule_against
+        rule = rule_against(store, principal, system_id)           # with lane B: an employer's rule now stands
+        if rule:
+            return f"{name} cannot be acted on for {acts.name_of_who(store, principal)}: {rule}"
     if (cn is None or cn.grantor != principal or client_of(store, system_id) != inst.client
             or not can_grant(store, principal, system_id)):
         return f"there is no connection to {name}."
@@ -301,9 +312,11 @@ def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, c
         taken = cents()
         so_far = used(store, cn, store.day)
         if taken > 0 and so_far + taken > limit:
+            firms = cn.scope != "limit" or limit < cn.weekly_cents           # the firm's setting, not the client's
+            whose = f" {controls._firm_name(store)} sets for {inst.name}" if firms else ""
             return (f"that would take {money(taken)} out of {_account_name(store, system_id)} this week; with "
                     f"{money(so_far)} already taken or committed this week under this connection, that is more "
-                    f"than the weekly limit of {money(limit)}.")
+                    f"than the weekly limit of {money(limit)}{whose}.")
     return None
 
 
