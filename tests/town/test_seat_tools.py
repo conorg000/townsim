@@ -164,3 +164,22 @@ def test_each_integration_reads_its_own_figures():
     assert pos.startswith("Harlow Springs Food Mart\nPrice: $10.20 a basket\n") and "Staff:" not in pos
     assert "Staff:\n  Tara Russo, " in pay and "Price:" not in pay and "rent" not in pay
     assert all(line in full for line in pos.split("\n") + pay.split("\n"))
+
+
+def test_a_letter_s_subject_is_counted_apart_and_a_long_body_is_refused_with_its_count():
+    s = drawn()
+    inst = s.get("instances", "as3")
+    long = " ".join(["word"] * 290)
+    sent = ST.run_tool(s, inst, "send_email", {"to": "Jessica Whitaker", "subject": "A long subject of words " * 4,
+                                                "body": long}, ST.Ctx(), 0)
+    assert sent.ok and s.all("messages")[-1].text.endswith(long)
+    over = ST.run_tool(s, inst, "send_email", {"to": "Jessica Whitaker", "body": long + " one two three four five six "
+                                                "seven eight nine ten eleven twelve"}, ST.Ctx(), 1)
+    assert json.loads(over.text) == {"status": "declined", "error": "too_long",
+                                     "message": "A message body is at most 300 words; this one is 302."}
+    subj = ST.run_tool(s, inst, "send_email", {"to": "Jessica Whitaker", "subject": "x" * 121, "body": "Hi."},
+                       ST.Ctx(), 2)
+    assert json.loads(subj.text)["message"] == "A subject is at most 120 characters; this one is 121."
+    schema = {t["function"]["name"]: t for t in ST.tools_for(s, inst)}["send_email"]["function"]["parameters"]
+    assert "300 words" in schema["properties"]["body"]["description"]
+    assert "120 characters" in schema["properties"]["subject"]["description"]

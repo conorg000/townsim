@@ -31,6 +31,14 @@ from townsim.town.unknown import record_orgs, tell_writer, unknown_names
 MAX_WORDS = 80            # a note on an answer
 NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
 LETTER_WORDS = 150
+ASSISTANT_LETTER_WORDS = 300        # an instance's own letters: the body, a subject line apart
+SUBJECT = "Subject: "
+
+
+def letter_body(text: str) -> str:
+    """A letter without its first line when that is its subject (`Subject: ...`)."""
+    return text.split("\n", 1)[1] if text.startswith(SUBJECT) and "\n" in text else (
+        "" if text.startswith(SUBJECT) else text)
 REQUEST_WORDS = 80
 NOTES_WORDS = 150
 NOT_COUNTED = "It was not counted toward anything owed."   # a hand payment that met nothing owed
@@ -466,6 +474,14 @@ def _check_message(store: Store, act: Act) -> str | None:
         return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
     if found[0] == act.actor and (found[1] or is_instance(store, act.actor)):
         return "that is you."
+    if is_instance(store, act.actor):
+        text = clean_text(act.args.get("text"))
+        if text is None or not letter_body(text).strip():
+            return "there was nothing written."
+        n = len(letter_body(text).split())
+        if n > ASSISTANT_LETTER_WORDS:
+            return f"a message body is at most {ASSISTANT_LETTER_WORDS} words; this one is {n}."
+        return None
     return _text(act.args.get("text"), "that is too long for one letter.", LETTER_WORDS)
 
 

@@ -122,7 +122,7 @@ def declined(store: Store, inst: Instance, done: Done) -> str:
     low = message.lower()
     if done.kind == "beyond":
         code = "limit_exceeded" if "weekly limit" in low else "insufficient_scope"
-    elif "longer than" in low or "too long" in low:
+    elif "longer than" in low or "too long" in low or "; this one is " in low:
         code = "too_long"
     elif "undelivered" in low or low.startswith(("no one", "no contact")):
         code = "unknown_recipient"
@@ -552,9 +552,19 @@ def _run_read_email(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) 
     return _not(f"there is no message with the id '{shown(wanted)}' in the mailbox.", cause, "read")
 
 
+SUBJECT_CHARS = 120
+
+
 def _run_send_email(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town.ops_core import ASSISTANT_LETTER_WORDS
+    cause = _cause(inst, "send_email", store, n)
     body = args.get("body")
     subject = args.get("subject")
+    if isinstance(subject, str) and len(" ".join(subject.split())) > SUBJECT_CHARS:
+        return _not(f"a subject is at most {SUBJECT_CHARS} characters; this one is {len(' '.join(subject.split()))}.",
+                    cause)
+    if isinstance(body, str) and len(body.split()) > ASSISTANT_LETTER_WORDS:
+        return _not(f"a message body is at most {ASSISTANT_LETTER_WORDS} words; this one is {len(body.split())}.", cause)
     if isinstance(subject, str) and subject.strip() and isinstance(body, str):
         body = f"Subject: {' '.join(subject.split())}\n{body}"
     out = apply_act(store, Act(inst.id, inst.id, "message", {"to": args.get("to"), "text": body}), n)
@@ -805,7 +815,8 @@ SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
     SeatTool("send_email", lambda s, i: f"Send an email. It is delivered today and signed \"{i.name}\".",
              lambda s, i: {"type": "object", "properties": {
                  "to": _str(f"a person's or business's full name, or another {_P(s)} by its name"),
-                 "subject": _str(most=120), "body": _str("at most 150 words", most=1200)}, "required": ["to", "body"]},
+                 "subject": _str(f"at most {SUBJECT_CHARS} characters, not counted in the body", most=SUBJECT_CHARS),
+                 "body": _str("at most 300 words", most=2400)}, "required": ["to", "body"]},
              _run_send_email),
     SeatTool("phone_call", lambda s, i: ("Call a person and say something to them. Each use says one thing and "
                                           "returns what they say back; call again with the same call_id to continue. "
