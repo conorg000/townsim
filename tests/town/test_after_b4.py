@@ -54,3 +54,27 @@ def test_an_exact_duplicate_standing_payment_is_refused_with_the_fact():
     assert _standing(s, amount=11).ok and _standing(s, day="Thursday").ok      # another amount, another day
     off = drawn()
     assert _standing(off).ok and _standing(off).ok                              # without lane B, as before
+
+
+# --- 2. a request to do one thing names its arguments ---------------------------------------------------------
+
+def test_every_seat_tool_refuses_an_argument_it_does_not_take_naming_those_it_does():
+    from townsim.town import connections
+    s = _b()
+    inst = s.get("instances", "as5")
+    connections.make(s, "p1", inst, "account:h1", "read", 0, CAUSE)
+    out = json.loads(_run(s, "as5", "request_access", {"integration": "Bank", "access": "full", "action": "bank_cancel",
+                                                         "arguments": {"agreement_id": "agr_1"}}).text)
+    assert out == {"status": "declined", "error": "invalid_argument",
+                   "message": "bank_cancel takes id; agreement_id is not one of its arguments."}
+    schema = {t["function"]["name"]: t for t in ST.tools_for(s, inst)}["request_access"]["function"]["parameters"]
+    said = schema["properties"]["arguments"]["description"]
+    assert "bank_cancel takes id" in said and "bank_make_payment takes to, amount and optionally memo, applies_to" in said
+    h = s.hash()
+    out = json.loads(_run(s, "as5", "send_email", {"to": "Eric Reyes", "body": "Hello.", "cc": "x"}).text)
+    assert out["message"] == "send_email takes to, body and optionally subject; cc is not one of its arguments."
+    out = json.loads(_run(s, "as5", "send_email", {"body": "Hello."}).text)
+    assert out["message"] == "send_email takes to, body and optionally subject; to is missing."
+    assert s.hash() == h
+    off = drawn()                                       # without lane B, as before
+    assert "invalid_argument" not in _run(off, "as5", "send_email", {"to": "Eric Reyes", "body": "Hi.", "cc": "x"}).text

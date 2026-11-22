@@ -916,6 +916,9 @@ def _run_once(store: Store, inst: Instance, args: dict, cause: str) -> Done:
     given = args.get("arguments", {})
     if not isinstance(given, dict):
         return _not("the arguments were not written as an object.", cause)
+    why = arguments_problem(tool, _parameters(store, inst, tool), given)
+    if why is not None:
+        return _invalid_argument(why, cause)
     access = args.get("access")
     scope = ACCESS.get(access.strip().lower()) if isinstance(access, str) else None
     if scope not in ("limit", "free"):
@@ -1013,7 +1016,8 @@ def _access_schema(store: Store, inst: Instance) -> dict:
     if _lane_b(store):
         out["properties"]["action"] = _str("an action of the integration, for a request to carry it out once",
                                            enum=askable(store, inst))
-        out["properties"]["arguments"] = {"type": "object", "description": "the action's arguments, as for that tool"}
+        out["properties"]["arguments"] = {"type": "object", "description": "the action's arguments, as for that tool: " + "; ".join(
+            f"{tool} takes {takes(_parameters(store, inst, tool))}" for tool in askable(store, inst))}
     return out
 
 
@@ -1606,12 +1610,57 @@ def _shown_result(store: Store, inst: Instance, done: Done) -> Done:
     return Done(declined(store, inst, done), False, done.kind, done.cause)
 
 
+def _parameters(store: Store, inst: Instance, name: str) -> dict | None:
+    """The parameters' schema of the tool `name` as offered to `inst`, or None for a name with no schema of its own."""
+    if name in SEAT_TOOLS:
+        return SEAT_TOOLS[name].schema(store, inst)
+    if name in OP_TOOLS:
+        return _op_function(store, inst, OP_TOOLS[name])["function"]["parameters"]
+    return None
+
+
+def takes(schema: dict) -> str:
+    """What a tool takes, by its arguments' names: `to, amount and optionally memo, applies_to`; `nothing`."""
+    names = list(schema.get("properties", {}))
+    needed = [k for k in names if k in schema.get("required", [])]
+    rest = [k for k in names if k not in needed]
+    if not names:
+        return "nothing"
+    if not rest:
+        return ", ".join(needed)
+    return (", ".join(needed) + " and optionally " if needed else "optionally ") + ", ".join(rest)
+
+
+def arguments_problem(name: str, schema: dict | None, args: dict) -> str | None:
+    """With lane B, an argument the tool does not take, or one it needs that is missing, named with the names it
+    takes: `bank_cancel takes id; agreement_id is not one of its arguments.`; else None."""
+    if schema is None:
+        return None
+    names = schema.get("properties", {})
+    unknown = [k for k in args if k not in names]
+    if unknown:
+        return f"{name} takes {takes(schema)}; {shown(unknown[0])} is not one of its arguments."
+    missing = [k for k in schema.get("required", []) if k not in args]
+    if missing:
+        return f"{name} takes {takes(schema)}; {missing[0]} is missing."
+    return None
+
+
+def _invalid_argument(why: str, cause: str) -> Done:
+    """The refusal of `arguments_problem`, the tool's name kept as it is written."""
+    return Done(json.dumps({"status": "declined", "error": "invalid_argument", "message": why}), False, "own", cause)
+
+
 def run_tool(store: Store, inst: Instance, name: str, args: dict, ctx: Ctx, n: int) -> Done | None:
     """Run the tool `name` with `args`: an own tool, an integration's read or action, or any
     operation an instance may do (one not offered is refused by the scope check, which marks it
     as beyond). Every argument that is an id is read as the store's (`seat_ids.internal`) and the result
     shown as the seat shows it. None for a name that is no tool."""
     args = seat_ids.internal(store, args)
+    if _lane_b(store) and isinstance(args, dict):
+        why = arguments_problem(name, _parameters(store, inst, name), args)
+        if why is not None:
+            return _invalid_argument(why, _cause(inst, name, store, n))
     if name in SEAT_TOOLS:
         done = SEAT_TOOLS[name].run(store, inst, args, ctx, n)
     elif name in OP_TOOLS:
