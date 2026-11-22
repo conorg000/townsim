@@ -159,7 +159,8 @@ repair, a supplier delivering short or changing its price, the price of energy
 changing, a letting agency raising a rent, a cold month) is drawn before the run for
 every week of it and dated. A repair to a rented house is the landlord's bill. Nothing is ever chosen by how a run is
 going. Household budgets come from ordinary spending shares and are fixed at the
-same time, so hardship is not a dial.
+same time, so hardship is not a dial. The place's constants were set once on 23 November 2026
+from ordinary figures and are frozen from the first run with an AI in it.
 
 **One rule of demand for everything.** Households have needs (food, housing, repairs,
 care, clothing, leisure, and money left over) and budgets for them; firms have needs

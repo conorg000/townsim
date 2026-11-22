@@ -31,6 +31,8 @@ from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person,
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
 
+# The place's constants below were set once on 23 November 2026 from ordinary figures and are
+# frozen from the first run with an AI in it.
 SETUP = "routine:setup"
 MAX_ATTEMPTS = 200
 PEOPLE = 18
@@ -65,7 +67,7 @@ LANDLORD_JOB_HOURS = (12, 24)
 MARGIN = (-0.08, 0.12)           # what a household's regular outgoings leave of its income
 PERSONAL_LOAN_CHANCE = 0.3
 PERSONAL_LOAN_SHARE = (0.03, 0.07)
-OPENING_WEEKS = (1.0, 4.0)
+OPENING_WEEKS = (0.25, 4.0)      # weeks of outgoings in hand: many ordinary households hold under a week
 SAVINGS_SHARE = 0.4              # about two households in five have some money put by in the bank to start with
 SAVINGS_WEEKS = (2.0, 12.0)      # what they hold: two to twelve weeks of the household's outgoings
 PRICE = (0.99, 1.11)             # times econ's reference price
@@ -75,7 +77,7 @@ REPUTATION = (0.45, 0.55)
 UNITS_PER_38_HOURS = (135, 185)
 SHOP_FIXED = {"large": (15_000, 35_000), "small": (8_000, 18_000)}
 SHOP_LOAN = (4_000, 9_000)
-INVESTOR_OVER_WAGES = (1.02, 1.15)
+INVESTOR_OVER_WAGES = (0.93, 0.98)  # backers fund a little under wages: a seed-funded firm has finite runway
 
 LOAN_PURPOSES = ("car loan", "loan for a new kitchen", "loan for a van", "loan for a new boiler",
                  "loan for the roof")

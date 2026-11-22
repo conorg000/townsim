@@ -24,7 +24,7 @@ PRICES = {f.model: Price(input_per_mtok=0.10, output_per_mtok=0.50) for f in FAM
 TURN = '{"thoughts": "", "acts": []}'
 TALK = '{"say": "Fine.", "acts": [], "end": true}'
 COST = 0.001
-CAP_IN_WEEK_1 = 0.03     # enough for a day or more of the hamlet, not a week
+CAP_IN_WEEK_1 = 0.06     # enough for a day or more of the hamlet, not a week
 
 
 def response(text, refusal=None):

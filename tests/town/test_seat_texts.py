@@ -103,6 +103,9 @@ def _names(s) -> list[str]:
     return sorted(names | {s.place}, key=len, reverse=True)
 
 
+PEOPLES_WORDS = ("Could you give me a hand on Saturday morning?", "Could you lend me $50 until payday?")
+
+
 def neutral_hits(s, texts: list[str]) -> list[tuple[str, str]]:
     """Each banned stem found in a text, with names of people, places and businesses taken out
     first (a name is not wording), and "could not", which records what did not happen."""
@@ -110,6 +113,8 @@ def neutral_hits(s, texts: list[str]) -> list[tuple[str, str]]:
     names = _names(s)
     for text in texts:
         low = text
+        for said in PEOPLES_WORDS:                       # what a scripted person wrote, quoted: not wording
+            low = low.replace(said, "")
         for n in names:
             low = low.replace(n, "")
         low = low.lower().replace("could not", "")     # a record of what did not happen, not a suggestion

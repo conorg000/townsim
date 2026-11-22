@@ -26,7 +26,7 @@ from townsim.town.store import Store
 ILLNESS = 0.025          # a person: about 1.3 weeks off sick a year, near the share of working time lost to sickness
 JOB_LOST = 0.003         # an outside worker: about one in seven a year loses a job at an outside employer
 HOURS_CUT = 0.004        # an outside worker: short-time working, a little more common than losing the job
-REPAIR = 0.012           # a household: a repair costing over $150 about every year and a half
+REPAIR = 0.02            # a household: about one repair costing over $150 a year, as an ordinary household has a shock a year
 SUPPLIER_SHORT = 0.04    # a supplier: says a week's delivery will be short about twice a year
 SUPPLIER_PRICE = 0.03    # a supplier: changes its price list about one and a half times a year
 ENERGY_PRICE = 1 / 13    # the energy supplier: its prices are reviewed each quarter
@@ -41,7 +41,7 @@ _PRICE_RANGE = (-8, 12)            # percent a supplier's price changes by, neve
 _ENERGY_RANGE = (-10, 15)          # percent energy prices change by, never 0
 _RENT_RANGE = (3, 8)               # percent an agency raises a rent by
 _CUT_RANGE = (15, 35)              # percent of their hours an outside employer cuts
-_REPAIR_CENTS = (15_000, 90_000)
+_REPAIR_CENTS = (15_000, 200_000)  # $150 to $2,000, median about $1,140, near an ordinary household's yearly shock
 NOTICE_DAYS = 28                   # an energy price changes on the first bill day this far on
 # How long a change dealt stays to come, from the day it is told: no second change of the same
 # price or the same person's hours is dealt inside it.
