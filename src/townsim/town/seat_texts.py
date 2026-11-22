@@ -156,8 +156,9 @@ def plan_line(store: Store, inst: Instance) -> str:
     billed = "the household's" if house else ("the shop's" if org.kind == "shop" else "the business's")
     if p is not None and p.plan == "free":
         price = f"{money(plans._price(store, sub))} {period(pr)}, billed to {billed} bank account"
-        until = plans.free_until_now(store, sub)
-        paid = f"free trial until {seat_ids.day(until)}, then {price}" if until >= 0 else _cap(price)
+        # a plan the client is not on is stated as its rule, with no date: the date would move every day
+        paid = (f"the first {pr.free_weeks} weeks free, then {price}" if not plans.trial_used(store, sub)
+                else f"{price}, from the day it starts")
         return f"Plan: {kind}, free plan. On the free plan integrations are connected read only; connecting one with " \
                f"access to act starts the paid plan: {paid}."
     if not sub.fee_ob:

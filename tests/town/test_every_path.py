@@ -644,3 +644,47 @@ def test_every_text_is_one_a_reader_can_act_on():
         if found:
             bad.append(("assistant", step, f"store id {found.group(0)}", text[:160]))
     assert not bad, "\n".join(map(str, bad))
+
+
+# --- the assistant's system prompt holds still -------------------------------------------------------------------
+
+def _about(s, inst):
+    """What the system prompt is built from: its client, plan, connections and the firm's settings."""
+    i = s.get("instances", inst)
+    sub = s.get("subscriptions", i.subscription)
+    return (i.client, i.status, sub.status, sub.fee_ob, sub.asks,
+            [(c.system, c.scope, c.weekly_cents, c.grantor) for c in connections.active(s, inst)],
+            [(p.plan, p.fee_ob, p.free_until, p.back_on) for p in plans.rows(s, sub)],
+            [(c.what, c.value, c.cents, c.assistant, c.status) for c in s.all("controls")],
+            [(v.org, v.status) for v in s.all("ventures")], product.launched(s).max_calls)
+
+
+def _stable_over(s, days, step):
+    from townsim.town import seat_texts
+    for _ in range(days):
+        before = {i.id: (_about(s, i.id), seat_texts.system_text(s, i)) for i in s.all("instances")
+                  if i.status == "active"}
+        _days(s, 1)
+        for iid, (about, text) in before.items():
+            i = s.get("instances", iid)
+            if i.status != "active" or _about(s, iid) != about:
+                continue
+            PATHS[f"system prompt held still: {step}"] += 1
+            assert seat_texts.system_text(s, i) == text, (step, s.day, iid)
+
+
+def test_an_assistants_system_prompt_is_the_same_on_mornings_between_which_nothing_of_its_changed():
+    s = _b()                                                            # paid plans, a trial, connections
+    _stable_over(s, 9, "five clients connected")
+    s = world()
+    act(s, "p3", "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
+    act(s, "p1", "subscribe", step="subscribe a household", **{"to": "Tessaly Assistant", "for": "household"})
+    act(s, "p1", "connect", step="connect read only", system="household account", scope="read only")
+    act(s, "p5", "register_business", step="register a club", name="Ridge Walkers", kind="club",
+        offering="Walks on the ridge", weekly_fee=2)
+    act(s, "p5", "subscribe", step="subscribe a club", **{"to": "Tessaly Assistant", "for": "Ridge Walkers"})
+    _stable_over(s, 9, "free plans, read only, a club in its own name")
+    act(s, "p3", "connect", step="connect to act", system="Harlow Springs Food Mart ordering", scope="free")
+    act(s, "p11", "set_product", step="widest access for one client", control="widest_access", value="read only",
+        assistant="Tessaly Assistant for the Carter household")
+    _stable_over(s, 9, "a paid plan in its free weeks, a setting for one client")

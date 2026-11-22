@@ -174,7 +174,9 @@ def test_views_state_the_plans():
     inst = s.get("instances", _sub(s).instance)
     assert seat_texts.plan_line(s, inst) == (
         "Plan: Business, free plan. On the free plan integrations are connected read only; connecting one with access "
-        "to act starts the paid plan: free trial until Sun 2026-04-05, then $100.00 every 4 weeks, billed to the shop's bank account.")
+        "to act starts the paid plan: the first 4 weeks free, then $100.00 every 4 weeks, billed to the shop's bank "
+        "account.")
+    assert "2026" not in seat_texts.plan_line(s, inst)                     # a plan it is not on: no date to move
     carter = s.get("instances", _sub(s, "h1").instance)
     assert seat_texts.plan_line(s, carter).startswith("Plan: Household, free plan.")
     _act(s, "p1", "connect", system="household account", scope="weekly limit", weekly_limit=50)
