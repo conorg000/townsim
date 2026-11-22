@@ -13,8 +13,9 @@ from townsim.town.product import NEUTRAL_BANNED
 from townsim.town.replies import Keys, ScriptedReplier
 
 CAUSE = "routine:setup"
-FIRM_LINE = ('Tessaly Software, software firm: makes Tessaly Assistant, an AI assistant for households and businesses, '
-             '$24.00 a household or $100.00 a business every 4 weeks, first 4 weeks free; its page is "Tessaly Software".')
+FIRM_LINE = ('Tessaly Software, software firm: makes Tessaly Assistant, an AI assistant for households and businesses: '
+             'a free plan, and a paid plan at $24.00 a household or $100.00 a business every 4 weeks, first 4 weeks free; '
+             'its page is "Tessaly Software".')
 
 
 def _b():

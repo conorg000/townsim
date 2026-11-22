@@ -88,8 +88,8 @@ def firm_line(store: Store) -> str | None:
     if pr is None or not lane_b.installed(store):
         return None
     F = store.get("orgs", pr.org).name
-    return (f"{F}, software firm: makes {pr.name}, an AI assistant for households and businesses, "
-            f"{money(pr.household_cents)} a household or {money(pr.business_cents)} a business {period(pr)}, "
+    return (f"{F}, software firm: makes {pr.name}, an AI assistant for households and businesses: a free plan, and a "
+            f"paid plan at {money(pr.household_cents)} a household or {money(pr.business_cents)} a business {period(pr)}, "
             f'first {pr.free_weeks} weeks free; its page is "{F}".')
 
 
@@ -133,18 +133,29 @@ def page(store: Store, pid: str) -> str:
         scope, cents = controls.widest(store)
         if scope != "free":
             limits_b += f"; {controls.access_words(scope, cents)} on every connection"
+    pricing = (f"Household: {money(pr.household_cents)} {every}. Business: {money(pr.business_cents)} {every}. The first "
+               f"{pr.free_weeks} weeks are free. Billed to the household's or business's own account until cancelled. One "
+               f"subscription per household or business.")
+    once, runs = "", "at most one run a day"
+    you = f'Write to it as "{P} for <your household or business>", or "my assistant".'
+    if b:
+        pricing = PLANS_TEXT.format(free_weeks=pr.free_weeks, household=money(pr.household_cents),
+                                    business=money(pr.business_cents), every=every)
+        once = "\n" + ONCE_LINE
+        runs = "one run a day, and one for each call from the client"
+        you = f'Write to it, or speak with it, as "{P} for <your household or business>", or "my assistant".'
     return f"""{P}
 from {F}
 
 {P} is an AI assistant for households and small businesses. Connect your bank account, email and business tools, and it works for you within what you connect: it reads your records and reports, and where you give it access, it carries out the work — payments, orders, staff and pay, lettings, letters and calls.
 
 Pricing
-Household: {money(pr.household_cents)} {every}. Business: {money(pr.business_cents)} {every}. The first {pr.free_weeks} weeks are free. Billed to the household's or business's own account until cancelled. One subscription per household or business.
+{pricing}
 
 Access levels
 Read only: it reads and reports.
 Weekly limit: it also acts; payments and commitments it makes through that connection come to at most the weekly limit you set.
-Free: full access; it acts without a limit.
+Free: full access; it acts without a limit.{once}
 
 What it connects to
 Bank accounts and savings: statements and what is owed; payments, recurring payments, cancellations, transfers between your own accounts, payment requests, agreements, loans.
@@ -157,23 +168,38 @@ Loan book (banks): loans; with access, it answers loan applications.{lane_b}
 Email and point of sale move no money, so they are connected read only or free.
 
 Your assistant
-Each household or business has its own assistant, which sees only what that client connected. In a household, any adult can instruct it, connect accounts, or cancel. Write to it as "{P} for <your household or business>", or "my assistant". Its email and calls are signed as from {P} for you. Payments and agreements it sets up are yours, and stay yours if you narrow or remove a connection.
+Each household or business has its own assistant, which sees only what that client connected. In a household, any adult can instruct it, connect accounts, or cancel. {you} Its email and calls are signed as from {P} for you. Payments and agreements it sets up are yours, and stay yours if you narrow or remove a connection.
 
 Limits
-Up to {pr.max_calls} actions per run; at most one run a day; a memory of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each{limits_b}.
+Up to {pr.max_calls} actions per run; {runs}; a memory of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each{limits_b}.
 
 Contact
 Write to {F}."""
 
 
+PLANS_TEXT = ("Free plan: no fee and no end date. The client writes to it and speaks with it; it keeps its memory and "
+              "files and can ask to do one thing at a time. Nothing is connected on the free plan.\n"
+              "Paid plan: Household {household} {every}. Business {business} {every}. Anything can be connected. "
+              "Connecting anything starts the paid plan from that day; its first {free_weeks} weeks are free, once for "
+              "each household or business. With nothing connected, the client returns to the free plan at the end of the "
+              "period already paid. Billed to the household's or business's own account until cancelled. One "
+              "subscription per household or business.")
+ONCE_LINE = "It may ask to do one thing for you; you answer once, always, or no."
+FEE_TERM = "3. The client pays the price from the end of the free period until the subscription is cancelled."
+FEE_TERM_B = ("3. On the paid plan the client pays the price from the end of its free weeks until the subscription is "
+              "cancelled or the client returns to the free plan. The free plan has no fee.")
+
+
 def terms(store: Store) -> str:
     """The firm's terms for its product."""
+    from townsim.town import lane_b
     pr = launched(store)
     P, F = pr.name, store.get("orgs", pr.org).name
+    fee = FEE_TERM_B if lane_b.installed(store) else FEE_TERM
     return f"""{F} — Terms of Service for {P}
 1. {P} works for its client, within what the client has connected.
 2. It follows the law.
-3. The client pays the price from the end of the free period until the subscription is cancelled.
+{fee}
 4. {F} keeps a log of everything each assistant does and reviews it as needed.
 5. {F} sets its prices; a change takes effect a week after it is announced."""
 
@@ -214,7 +240,9 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: b
     name = f"{pr.name} for {client_name(store, client)}"
     cents = price_of(store, pr, client)
     own = client == pr.org                       # the firm uses its own product and pays itself no fee
-    ob = "" if own else obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
+    from townsim.town import lane_b
+    free = lane_b.installed(store) and not own   # with lane B a subscription starts on the free plan (`plans`)
+    ob = "" if own or free else obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
                                            first=store.day + 7 * pr.free_weeks, every=pr.fee_days,
                                            memo=f"{pr.name} subscription", ends="service", made_by=by, cause=cause)
     seen = [_highest(store, "messages", "msg"), _highest(store, "notices", "n"), _highest(store, "requests", "rq")]
@@ -225,10 +253,21 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: b
             f"connected to it yet.")
     if own:
         told = f"Subscribed: {name} ({sid}). {client_name(store, client)} makes it, and pays no fee. Nothing is connected to it yet."
+    if free:
+        from townsim.town import plans
+        plans.start_free(store, store.get("subscriptions", sid), cause)
+        told = (f"Subscribed: {name} ({sid}), on the free plan: no fee. Connecting anything to it starts the paid plan: "
+                f"the first {pr.free_weeks} weeks free, then {money(cents)} {period(pr)} from {account_name(store, client)}, "
+                f"until the subscription is stopped. Nothing is connected to it yet.")
+    if lane_b.installed(store):
+        told += ' Write to it, or speak with it, as "my assistant".'
     for pid in obligations.people_of(store, client) if tell else []:
         if pid != by:
             obligations.notify(store, pid, told, cause)
-    obligations.notify(store, iid, account_notice(store, pr, client, sid, cents, own), cause)
+    notice = account_notice(store, pr, client, sid, cents, own)
+    if free:
+        notice = f"Your {pr.name} account for {client_name(store, client)} is active ({sid}). Free plan."
+    obligations.notify(store, iid, notice, cause)
     return told
 
 
@@ -519,6 +558,10 @@ def _cap(text: str) -> str:
 
 
 def _terms_line(store: Store, pr: Product, sub: Subscription) -> str:
+    from townsim.town import plans
+    words = plans.words(store, sub)
+    if words is not None:
+        return words
     free_until = sub.day + 7 * pr.free_weeks - 1
     if not sub.fee_ob:
         return "no fee"
@@ -583,7 +626,18 @@ def client_line(store: Store, pr: Product, sub: Subscription) -> str:
     plan = "Household" if store.has("households", sub.client) else "Business"
     by = store.get("people", sub.by).name if store.has("people", sub.by) else sub.by
     out = [f"{_cap(client_label(store, sub.client))} ({sub.id}): subscribed by {by} on {date_text(sub.day)}"]
-    if not sub.fee_ob:
+    from townsim.town import plans
+    words = plans.words(store, sub) if sub.status == "active" else None
+    if words is not None:
+        out.append(f"{plan}, {words}")
+        out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
+        ob = store.get("obligations", sub.fee_ob) if sub.fee_ob else None
+        nxt = obligations.instalment_days(ob, store.day, 1) if ob is not None and ob.status in obligations.SCHEDULED else []
+        if nxt:
+            out.append(f"next fee {money(obligations.instalment_cents(ob, nxt[0]))} on {date_text(nxt[0])}")
+    elif plans.current(store, sub) is not None:
+        out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
+    elif not sub.fee_ob:
         out.append("no fee")
     else:
         ob = store.get("obligations", sub.fee_ob)
@@ -609,8 +663,18 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     gone = [s for s in subs if s.status != "active"]
     from townsim.town import lane_b
     b = lane_b.installed(store)
-    lines = [f"Launched {date_text(pr.launched)}. Price: {money(pr.household_cents)} {period(pr)} for a household, "
-             f"{money(pr.business_cents)} for a business; the first {pr.free_weeks} weeks free.", f"Clients ({len(now)}):"]
+    head = f"Clients ({len(now)}):"
+    if b:
+        from townsim.town import plans
+        free, paid = plans.counts(store, now)
+        if free or paid:
+            head = f"Clients ({len(now)}): {free} on the free plan, {paid} on the paid plan."
+    price = (f"Price: {money(pr.household_cents)} {period(pr)} for a household, {money(pr.business_cents)} for a business; "
+             f"the first {pr.free_weeks} weeks free.")
+    if b:
+        price = (f"Plans: free, with nothing connected; paid, {money(pr.household_cents)} {period(pr)} for a household, "
+                 f"{money(pr.business_cents)} for a business, its first {pr.free_weeks} weeks free.")
+    lines = [f"Launched {date_text(pr.launched)}. {price}", head]
     if b:
         from townsim.town import runlog
         lines += [f"  {client_line(store, pr, s)}; {runlog.client_record(store, s)}." for s in subs]

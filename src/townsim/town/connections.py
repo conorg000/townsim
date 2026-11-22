@@ -381,9 +381,14 @@ acts.FILLED[YOUR_CONNECTED] = _fill_connected
 
 
 def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str, cents: int, cause: str,
-         tell_instance: bool = True) -> str:
+         tell_instance: bool = True, free_until: int | None = None) -> str:
     """Connect `system_id` to `inst`, granted by `grantor`, in place of any connection it has
-    there now; tell the client's other adults and the instance. What the grantor is told."""
+    there now; tell the client's other adults and the instance. What the grantor is told. With lane B
+    a client on the free plan moves to the paid plan first (`plans.start_paid`, with the last free day a
+    request stated)."""
+    from townsim.town import plans
+    plan = (plans.start_paid(store, store.get("subscriptions", inst.subscription), grantor, cause, free_until)
+            if store.has("subscriptions", inst.subscription) else "")
     old = connection_on(store, inst.id, system_id)
     if old is not None:
         store.set("connections", old.id, cause, status="ended", ended_on=store.day)
@@ -391,7 +396,7 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
     store.add("connections", Connection(store.new_id("cn", cause), inst.id, system_id, grantor, scope, cents,
                                         store.day), cause)
     name, words = long_name(store, system_id), scope_words(scope, cents)
-    told = f"Connected: {name}, to {inst.name}: {words}."
+    told = f"Connected: {name}, to {inst.name}: {words}." + (f" {plan}" if plan else "")
     for pid in _adults_of(store, inst.client):
         if pid != grantor:
             obligations.notify(store, pid, told, cause)
@@ -496,6 +501,14 @@ def _do_disconnect(store: Store, act: Act, cause: str) -> str:
     from townsim.town.systems import INTEGRATION
     obligations.notify(store, inst.id, f"{store.get('people', act.principal).name} disconnected "
                                        f"{INTEGRATION.get(found.kind, found.kind)}.", cause)
+    if not active(store, inst.id) and store.has("subscriptions", inst.subscription):
+        from townsim.town import plans
+        back = plans.nothing_connected(store, store.get("subscriptions", inst.subscription), cause)
+        if back:
+            told += " " + back
+            for pid in _adults_of(store, inst.client):
+                if pid != act.principal:
+                    obligations.notify(store, pid, f"{told}", cause)
     return told
 
 
@@ -519,6 +532,10 @@ def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int
         return None, f"that is longer than {ASK_WORDS} words."
     cents = cents if scope == "limit" else 0
     summary = (f"Accepting connects {long_name(store, system_id)} to {i.name} {scope_phrase(scope, cents)}.")
+    from townsim.town import plans
+    sub = store.get("subscriptions", i.subscription) if store.has("subscriptions", i.subscription) else None
+    plan = plans.starts_sentence(store, sub, plans.free_until_now(store, sub)) if sub is not None else ""
+    summary += f" {plan}" if plan else ""
     rq = Request(store.new_id("rq", cause), store.day, inst, to, text.strip(), 0, store.day + REQUEST_DAYS,
                  kind="connect", summary=summary, org=system_id, payer=scope, pay=cents)
     store.add("requests", rq, cause)
@@ -535,8 +552,10 @@ def _check_connect_request(store: Store, act: Act, rq) -> str | None:
 
 
 def _do_connect_request(store: Store, act: Act, rq, cause: str) -> str:
-    return make(store, act.principal, store.get("instances", rq.sender), rq.org, rq.payer, rq.pay, cause,
-                tell_instance=False)
+    inst = store.get("instances", rq.sender)
+    weeks = store.get("products", inst.product).free_weeks if store.has("products", inst.product) else 0
+    return make(store, act.principal, inst, rq.org, rq.payer, rq.pay, cause, tell_instance=False,
+                free_until=rq.day + 7 * weeks - 1)
 
 
 ANSWERERS_OF_CONNECTIONS = {"connect": (_check_connect_request, _do_connect_request)}

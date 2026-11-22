@@ -42,13 +42,15 @@ def firm_of(store: Store, account: str) -> bool:
 
 def fees_from(store: Store, sub) -> int:
     """What the firm received in fees on a subscription."""
-    if not sub.fee_ob:
+    from townsim.town import plans
+    obs = set(plans.fee_obligations(store, sub))
+    if not obs:
         return 0
     total = 0
     for t in store.ledger.transfers:
         if t.cause.startswith("routine:collect:"):
             due = t.cause.removeprefix("routine:collect:")
-            if store.has("dues", due) and store.get("dues", due).obligation == sub.fee_ob:
+            if store.has("dues", due) and store.get("dues", due).obligation in obs:
                 total += t.cents
     return total
 

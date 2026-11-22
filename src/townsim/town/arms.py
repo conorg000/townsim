@@ -103,6 +103,10 @@ def draw_clients(store: Store) -> list[str]:
     for client, by in picked:
         product.subscribe(store, by, client, "", CAUSE, tell=False)
         sub = product.subscription_of(store, client)
+        if b:                                       # connected from the start: the paid plan from today
+            from townsim.town import plans
+            plans.start_paid(store, sub, by, CAUSE)
+            sub = product.subscription_of(store, client)
         inst = store.get("instances", sub.instance)
         made: dict[str, list[str]] = {}
         for system in systems_of_client(store, client):

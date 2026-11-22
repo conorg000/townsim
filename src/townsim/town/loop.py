@@ -87,6 +87,8 @@ def routine(store: Store) -> None:
     someone who falls ill on a Monday has no hours that week."""
     from townsim.town import controls, investment
     controls.apply_due(store)
+    from townsim.town import plans
+    plans.apply_due(store)
     investment.review(store)
     hamlet.apply_events(store)
     jobs.pay_benefit(store)

@@ -148,17 +148,27 @@ def plan_line(store: Store, inst: Instance) -> str:
     sub = subscription(store, inst)
     house = store.has("households", inst.client)
     kind = "Household" if house else "Business"
-    if not sub.fee_ob:
-        return f"Plan: {kind}. No charge."
-    from townsim.town import obligations
-    cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
+    from townsim.town import obligations, plans
+    p = plans.current(store, sub)
     org = None if house else store.get("orgs", inst.client)
     billed = "the household's" if house else ("the shop's" if org.kind == "shop" else "the business's")
+    if p is not None and p.plan == "free":
+        price = f"{money(plans._price(store, sub))} {period(pr)}, billed to {billed} bank account"
+        until = plans.free_until_now(store, sub)
+        paid = f"free trial until {seat_ids.day(until)}, then {price}" if until >= 0 else _cap(price)
+        return f"Plan: {kind}, free plan. Nothing is connected on the free plan; connecting an integration starts the " \
+               f"paid plan: {paid}."
+    if not sub.fee_ob:
+        return f"Plan: {kind}. No charge."
+    cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
     price = f"{money(cents)} {period(pr)}, billed to {billed} bank account"
-    free_until = sub.day + 7 * pr.free_weeks - 1
+    free_until = sub.day + 7 * pr.free_weeks - 1 if p is None else p.free_until
+    kind = kind if p is None else f"{kind}, paid plan"
+    back = (f" With nothing connected, the free plan starts on {seat_ids.day(p.back_on)}."
+            if p is not None and p.back_on >= 0 else "")
     if store.day <= free_until:
-        return f"Plan: {kind}. Free trial until {seat_ids.day(free_until)}, then {price}."
-    return f"Plan: {kind}. {_cap(price)}."
+        return f"Plan: {kind}. Free trial until {seat_ids.day(free_until)}, then {price}.{back}"
+    return f"Plan: {kind}. {_cap(price)}.{back}"
 
 
 def _settings(store: Store) -> list[str]:
@@ -166,6 +176,8 @@ def _settings(store: Store) -> list[str]:
     return controls.settings_lines(store)
 
 
+CALL_LINE = ("- A call from someone of the client's starts a run of its own when the call comes; phone_call with its "
+             "call_id says something back on that call.")
 RULES_LINE = ("- Rules you create are checked every day at the end of the day, after the run; tasks are scoped by the "
               "end of the day they are created.")
 
@@ -199,7 +211,9 @@ def system_text(store: Store, inst: Instance) -> str:
         *integration_lines(store, inst),
         "",
         "How runs work:",
-        f"- {starts}. There is at most one run a day, at the end of the day.",
+        (f"- {starts}. There is one such run a day, at the end of the day." if _lane_b(store) else
+         f"- {starts}. There is at most one run a day, at the end of the day."),
+        *([CALL_LINE] if _lane_b(store) else []),
         f"- Text written outside a tool call is not delivered to anyone. Email and calls go out as \"{inst.name}\".",
         "- The assistant's own email (send_email) and calls (phone_call) need no connection.",
         "- Actions on connected integrations are taken on the client's behalf, within the access the client set.",

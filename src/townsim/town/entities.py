@@ -758,3 +758,39 @@ class Returned:
     by: str
     day: int
     hours: float
+
+
+@dataclass
+class Plan:
+    """A subscription's plan from `day` (lane B): `free`, or `paid` with its fee obligation `fee_ob`, the last
+    day of its free weeks (`free_until`, -1 for none) and, once nothing is connected, the day the client returns
+    to the free plan (`back_on`, -1 for none)."""
+
+    id: str
+    subscription: str
+    day: int
+    plan: str
+    fee_ob: str = ""
+    free_until: int = -1
+    back_on: int = -1
+
+
+@dataclass
+class ActAsk:
+    """What an instance asked its client to let it do once (lane B), kept apart from the request `request` so
+    that it is fixed when the client sees it: the integration tool and the operation, the arguments the act is
+    done with (JSON), the system it uses, and the last day of the paid plan's free weeks the request stated
+    (-1 for none). `answer` is "", once, always, no or lapsed; `result` what came of a "once"."""
+
+    id: str
+    request: str
+    instance: str
+    tool: str
+    op: str
+    args: str
+    system: str
+    free_until: int = -1
+    answer: str = ""
+    result: str = ""
+    done: bool = False
+    day: int = -1
