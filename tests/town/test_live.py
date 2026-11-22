@@ -332,3 +332,18 @@ def test_seat_probe_rows_with_fake_completion(tmp_path):
     with pytest.raises(seatprobe.ProbeStopped) as e:
         seatprobe.run(store, SEAT, SEAT_PRICES, SeatFake(), cap=0.0005, n=1, sleep_fn=lambda s: None)
     assert str(e.value).startswith("cap: ")
+
+
+def test_a_run_keeps_its_start_and_a_resume_with_another_is_refused(tmp_path):
+    with RunDB(str(tmp_path / "r.sqlite")) as db:
+        fake = Fake()
+        got, lines = play(db, fake, weeks=1, start="2026-11-30")
+        assert got.days_done == 7 and db.note("live", "start") == "2026-11-30"
+        assert lines[0].startswith("week 1  Monday 30 November  ")
+        assert replay(db, "live") == []
+        with pytest.raises(ValueError, match="was made to start on 2026-11-30, not 2026-03-02"):
+            play(db, fake, weeks=2, start="2026-03-02")
+        got, _ = play(db, fake, weeks=2)                       # no start given: the run's own
+        assert got.days_done == 14
+        with pytest.raises(ValueError, match="must be a Monday"):
+            play(db, fake, weeks=2, start="2026-12-01")

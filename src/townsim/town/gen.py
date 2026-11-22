@@ -19,14 +19,14 @@ import math
 import random
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import timedelta
 
 from townsim.econ.demand import NEEDS, DemandRule, Offering, true_choice_probabilities
 from townsim.econ.demand import Household as EconHousehold
 from townsim.econ.suppliers import default_suppliers
 from townsim.town import acts, facts, firms, hamlet, hours, jobs, names, ties
 from townsim.town import obligations as O
-from townsim.town.clock import DAY_ZERO, date_text
+from townsim.town import clock
+from townsim.town.clock import date_text
 from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie, TillWeek
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
@@ -150,9 +150,9 @@ HOME_LINES = ("keeps house", "looks after the home")
 
 
 def when(day: int) -> str:
-    """A day as written, with its year when it is not 2026: `Monday 26 April 2027`."""
-    year = (DAY_ZERO + timedelta(days=day)).year
-    return date_text(day) + ("" if year == DAY_ZERO.year else f" {year}")
+    """A day as written, with its year when it is not the year the place starts in: `Monday 26
+    April 2027`."""
+    return clock.date_in(day, 0)
 
 
 def weekly_in(store: Store, account: str) -> int:
@@ -498,8 +498,9 @@ def _shop_costs(store: Store, f: FirmRow, units: float) -> tuple[int, int, int]:
 
 
 def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
-           weeks: int = hamlet.RUN_WEEKS) -> Store:
+           weeks: int = hamlet.RUN_WEEKS, start: str | None = None) -> Store:
     s = Store()
+    s.set_start(start or clock.DEFAULT_START.isoformat())
     s.seed = seed
     s.place = rng.choice(names.PLACES)
     near = rng.sample([p for p in names.PLACES if p != s.place], 7)
@@ -869,14 +870,18 @@ def _deck(s: Store, rng: random.Random, weeks: int) -> None:
 # --- generate and check -------------------------------------------------------------------
 
 
-def generate_counted(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS) -> tuple[Store, int]:
-    """The place for `seed`, its deck dealt for `weeks` weeks, and the number of attempts it took."""
+def generate_counted(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS,
+                     start: str | None = None) -> tuple[Store, int]:
+    """The place for `seed`, its deck dealt for `weeks` weeks, and the number of attempts it took.
+    `start` (ISO, a Monday) is its day 0, the default Monday when None."""
+    if start is not None:
+        start = clock.parse_start(start).isoformat()
     if len(families) < 2 or len(set(families)) != len(families):
         raise ValueError(f"families must be two or more distinct names, got {families!r}")
     for attempt in range(MAX_ATTEMPTS):
         rng = random.Random(f"gen:{seed}:{attempt}")
         try:
-            s = _build(seed, list(families), rng, attempt, weeks)
+            s = _build(seed, list(families), rng, attempt, weeks, start)
         except _Redraw:
             continue
         if not check(s, weeks):
@@ -884,9 +889,10 @@ def generate_counted(seed: int, families: list[str], weeks: int = hamlet.RUN_WEE
     raise RuntimeError(f"no sound place for seed {seed} in {MAX_ATTEMPTS} attempts")
 
 
-def generate(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS) -> Store:
-    """The place for `seed`, at day 0, played by `families`, its deck dealt for `weeks` weeks."""
-    return generate_counted(seed, families, weeks)[0]
+def generate(seed: int, families: list[str], weeks: int = hamlet.RUN_WEEKS, start: str | None = None) -> Store:
+    """The place for `seed`, at day 0, played by `families`, its deck dealt for `weeks` weeks;
+    day 0 is `start` (ISO, a Monday), the default Monday when None."""
+    return generate_counted(seed, families, weeks, start)[0]
 
 
 def check(s: Store, weeks: int = hamlet.RUN_WEEKS) -> list[str]:

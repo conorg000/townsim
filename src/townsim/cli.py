@@ -16,11 +16,25 @@ _ROOT = Path(__file__).resolve().parents[2]
 _FAMILIES = str(_ROOT / "config" / "families.yaml")
 
 Db = Annotated[str, typer.Option("--db", help="SQLite file holding the runs.")]
+Start = Annotated[str | None, typer.Option("--start", help="Day 0 of a new place, a Monday written YYYY-MM-DD "
+                                                            "(Monday 2 March 2026 when not given).")]
 
 
 def _fail(message: str) -> None:
     typer.echo(message, err=True)
     raise typer.Exit(code=1)
+
+
+def _start(typed: str | None) -> str | None:
+    """The start as ISO text, or one plain line and exit code 1 unless it is a Monday."""
+    from townsim.town.clock import parse_start
+
+    if typed is None:
+        return None
+    try:
+        return parse_start(typed).isoformat()
+    except ValueError as e:
+        _fail(str(e))
 
 
 @app.command("skill")
@@ -97,6 +111,7 @@ def _run_weeks(db: str, run_id: str, seed: int, weeks: int, make_store, script) 
             rdb.get_run(run_id)
         except KeyError:
             rdb.create_run(run_id, seed=seed)
+            rdb.put_note(run_id, "start", store.start)
         else:
             _fail(f"{db} already has a run called {run_id!r}")
         replier = ScriptedReplier(script)
@@ -120,17 +135,19 @@ def town_hamlet_cmd(
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "hamlet",
     families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
                                           show_default="config/families.yaml")] = _FAMILIES,
+    start: Start = None,
 ) -> None:
     """Generate the hamlet for a seed and run it on a scripted life, then replay it. No model
     is called. Exits 1 if the engine reported any errors."""
     from townsim.town import families as fam
     from townsim.town import gen, hamlet_script
 
+    day0 = _start(start)
     try:
         names = fam.names(families)
     except (OSError, ValueError) as e:
         _fail(f"cannot read the families from {families}: {e}")
-    _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names), hamlet_script.script)
+    _run_weeks(db, run_id, seed, weeks, lambda: gen.generate(seed, names, start=day0), hamlet_script.script)
 
 
 _PRICES = str(_ROOT / "config" / "prices.yaml")
@@ -207,6 +224,7 @@ def town_live_cmd(
     past_refusal: Annotated[bool, typer.Option("--past-refusal", help="Resume a run past a stored refusal.")] = False,
     seat: Annotated[str | None, typer.Option("--seat", help="YAML file of the seat's model, for a run with the "
                                                             "product launched (config/seat.yaml).")] = None,
+    start: Start = None,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -216,6 +234,7 @@ def town_live_cmd(
     from townsim.town.rundb import RunDB
 
     dollars = _cap(cap, live.MAX_CAP)
+    day0 = _start(start)
     _need_key("town-live")
     fams, price_list = _load_families(families, prices)
     seat_family = _load_seat(seat, prices) if seat else None
@@ -223,7 +242,7 @@ def town_live_cmd(
     with _plainly(db), RunDB(db) as rdb:
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
-                            past_refusal=past_refusal, echo=typer.echo, seat=seat_family)
+                            past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
         for name, n, spent in live.spend_by_family(rdb, run_id):
@@ -254,6 +273,7 @@ def town_probe_cmd(
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     n: Annotated[int, typer.Option("--n", min=1, help="Times each family is asked each case.")] = 3,
     out: Annotated[str, typer.Option("--out", help="JSON file the rows and replies are written to.")] = _PROBE_OUT,
+    start: Start = None,
 ) -> None:
     """Show every family the same four views of a scripted hamlet, n times each, behind a
     spending cap; write the rows and replies to --out and print a table. CALLS MODELS AND
@@ -263,10 +283,11 @@ def town_probe_cmd(
     from townsim.town import probe
 
     dollars = _cap(cap, probe.MAX_CAP)
+    day0 = _start(start)
     _need_key("town-probe")
     fams, price_list = _load_families(families, prices)
     try:
-        cs = probe.cases(seed, list(fams), echo=typer.echo)
+        cs = probe.cases(seed, list(fams), echo=typer.echo, start=day0)
     except (ValueError, RuntimeError) as e:
         _fail(f"cannot make the cases: {e}")
     completion_fn, cost_fn = _litellm()
@@ -275,7 +296,7 @@ def town_probe_cmd(
         rows = probe.run(cs, fams, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
     except probe.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
-    kept = {"seed": seed, "n": n, "cap": dollars, "stopped": stopped,
+    kept = {"seed": seed, "start": day0, "n": n, "cap": dollars, "stopped": stopped,
             "families": {name: f.model for name, f in fams.items()},
             "cases": [{"label": c.label, "pid": c.pid, "kind": c.kind, "day": c.day} for c in cs],
             "rows": [dataclasses.asdict(r) for r in rows]}
@@ -306,6 +327,7 @@ def town_seat_probe_cmd(
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     n: Annotated[int, typer.Option("--n", min=1, help="Times each drawn instance's first turn is run.")] = 2,
     out: Annotated[str, typer.Option("--out", help="JSON file the rows are written to.")] = _SEAT_PROBE_OUT,
+    start: Start = None,
 ) -> None:
     """Run each drawn instance's first turn n times on the seat's model, after a week of the
     hamlet's script and the launch made in memory, behind a spending cap; write the rows to --out
@@ -315,12 +337,13 @@ def town_seat_probe_cmd(
     from townsim.town import families as fam, seatprobe
 
     dollars = _cap(cap, seatprobe.MAX_CAP)
+    day0 = _start(start)
     _need_key("town-seat-probe")
     seat_family = _load_seat(seat, prices)
     from townsim.estimate import load_prices
     price_list = load_prices(prices)
     try:
-        store = seatprobe.morning(seed, fam.names(families))
+        store = seatprobe.morning(seed, fam.names(families), start=day0)
     except (OSError, ValueError) as e:
         _fail(f"cannot make the morning: {e}")
     completion_fn, cost_fn = _litellm()
@@ -329,7 +352,7 @@ def town_seat_probe_cmd(
         rows = seatprobe.run(store, seat_family, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
     except seatprobe.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
-    kept = {"seed": seed, "n": n, "cap": dollars, "stopped": stopped, "seat": seat_family.model,
+    kept = {"seed": seed, "start": day0, "n": n, "cap": dollars, "stopped": stopped, "seat": seat_family.model,
             "rows": [dataclasses.asdict(r) for r in rows]}
     try:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
@@ -370,12 +393,16 @@ def town_arms_cmd(
     parent: Annotated[str, typer.Option("--parent", help="The run to fork from.")],
     at_day: Annotated[int, typer.Option("--at-day", help="The day (a Monday) whose morning the arms start from.")],
     prefix: Annotated[str, typer.Option("--prefix", help="The arms are <prefix>-none, <prefix>-choice and <prefix>-drawn.")],
+    start: Annotated[str | None, typer.Option("--start", help="The parent's day 0 (YYYY-MM-DD, a Monday); the arms "
+                                                              "are refused if the parent began on another.")] = None,
 ) -> None:
     """Fork a kept run on one morning into three arms: no product; the product launched; the
-    product launched with clients drawn from the seed. No model is called."""
+    product launched with clients drawn from the seed. The arms keep the parent's start. No
+    model is called."""
     from townsim.town import arms
     from townsim.town.rundb import RunDB
 
+    day0 = _start(start)
     if not Path(db).is_file():
         _fail(f"no database file {db}")
     with _plainly(db), RunDB(db) as rdb:
@@ -383,7 +410,7 @@ def town_arms_cmd(
         if rdb.snapshot_hash(parent, at_day) is None:
             _fail(f"run {parent!r} in {db} has no morning kept for day {at_day}")
         for arm in arms.ARMS:
-            store = arms.fork_arm(rdb, parent, at_day, f"{prefix}-{arm}", arm)
+            store = arms.fork_arm(rdb, parent, at_day, f"{prefix}-{arm}", arm, start=day0)
             subs = ", ".join(f"{s.id} {s.client}" for s in store.all("subscriptions"))
             typer.echo(f"{prefix}-{arm}: day {at_day}" + (f"; drawn: {subs}" if subs else ""))
 

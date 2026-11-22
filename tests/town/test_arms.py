@@ -91,3 +91,17 @@ def test_fork_arm_copies_notes_and_requires_monday(tmp_path):
     assert out.exit_code == 0, out.output
     assert out.output.splitlines()[0] == "b-none: day 7" and out.output.splitlines()[2].startswith("b-drawn: day 7; drawn: sub1 ")
 
+
+def test_arms_keep_the_parent_s_start_and_refuse_another(tmp_path):
+    from townsim.town import gen, hamlet_script
+    from townsim.town.replies import ScriptedReplier
+    from townsim.town.runs import run as run_days
+    with RunDB(str(tmp_path / "a.sqlite")) as db:
+        db.create_run("p", seed=1)
+        db.put_note("p", "start", "2026-11-30")
+        s = gen.generate(1, ["a", "b", "c", "d"], start="2026-11-30")
+        run_days(db, "p", s, ScriptedReplier(hamlet_script.script), 7)
+        with pytest.raises(ValueError, match="was made to start on 2026-11-30"):
+            arms.fork_arm(db, "p", 7, "x-none", "none", start="2026-03-02")
+        store = arms.fork_arm(db, "p", 7, "x-drawn", "drawn", start="2026-11-30")
+        assert store.start == "2026-11-30" and db.note("x-drawn", "start") == "2026-11-30"

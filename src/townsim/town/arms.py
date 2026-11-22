@@ -21,7 +21,7 @@ from townsim.town.store import Store
 from townsim.town.systems import ADULT, can_grant, systems_of_client
 
 ARMS = ("none", "choice", "drawn")
-NOTES = ("families", "seed", "deck_weeks")
+NOTES = ("families", "seed", "deck_weeks", "start")
 CAUSE = "routine:arms:drawn"
 LIMIT_SHARES = (0.10, 0.25, 0.50)       # a weekly limit, as a share of what the system pays out in an ordinary week
 LIMIT_ROUND = 1000                      # rounded up to $10
@@ -134,12 +134,15 @@ def _setup(arm: str):
     return lambda store: (product.launch(store), draw_clients(store), None)[2]
 
 
-def fork_arm(db: RunDB, parent: str, at_day: int, new_id: str, arm: str) -> Store:
-    """Fork `parent` on the morning of `at_day` (a Monday) into an arm, with the parent's notes."""
+def fork_arm(db: RunDB, parent: str, at_day: int, new_id: str, arm: str, start: str | None = None) -> Store:
+    """Fork `parent` on the morning of `at_day` (a Monday) into an arm, with the parent's notes
+    (its start among them). A `start` given must be the parent's."""
+    from townsim.town.live import check_start
     if arm not in ARMS:
         raise ValueError(f"arm {arm!r} is not one of {ARMS}")
     if at_day % 7 != 0:
         raise ValueError(f"day {at_day} is not a Monday")
+    check_start(db, parent, start)
     store = fork(db, parent, at_day, new_id, setup=_setup(arm))
     for name in NOTES:
         value = db.note(parent, name)

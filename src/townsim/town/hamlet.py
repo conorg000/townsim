@@ -17,7 +17,7 @@ from __future__ import annotations
 import random
 
 from townsim.town import hours, jobs, obligations
-from townsim.town.clock import DAY_ZERO, date_text, dow, week
+from townsim.town.clock import date_text, dow, on, week
 from townsim.town.entities import Event
 from townsim.town.obligations import money
 from townsim.town.store import Store
@@ -302,8 +302,7 @@ def _signed(rng: random.Random, low: int, high: int) -> int:
 
 
 def _cold(day: int) -> bool:
-    from datetime import timedelta
-    return (DAY_ZERO + timedelta(days=day)).month in COLD_MONTHS
+    return on(day).month in COLD_MONTHS
 
 
 def chances(store: Store) -> list[tuple[str, str, str, float]]:

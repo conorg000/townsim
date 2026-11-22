@@ -49,10 +49,11 @@ class ProbeStopped(Exception):
         self.rows = rows
 
 
-def morning(seed: int = 1, families: list[str] | None = None):
-    """The drawn arm's launch morning, made in memory with no model."""
+def morning(seed: int = 1, families: list[str] | None = None, start: str | None = None):
+    """The drawn arm's launch morning, made in memory with no model; day 0 is `start` (ISO, a
+    Monday), the default Monday when None."""
     from townsim.town.loop import run_day
-    s = gen.generate(seed, families or ["a", "b", "c", "d"])
+    s = gen.generate(seed, families or ["a", "b", "c", "d"], start=start)
     keys = Keys("probe")
     for _ in range(DAYS):
         run_day(s, ScriptedReplier(hamlet_script.script), keys)

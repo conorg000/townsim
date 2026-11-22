@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from townsim.estimate import Price
-from townsim.town import gen
+from townsim.town import clock, gen
 from townsim.town.clock import date_text
 from townsim.town.families import Family
 from townsim.town.hamlet import RUN_WEEKS
@@ -56,13 +56,27 @@ def _noted(families: dict[str, Family]) -> dict[str, dict]:
     return {name: {"model": f.model, "params": dict(f.params)} for name, f in families.items()}
 
 
-def _check_resume(db: RunDB, run_id: str, seed: int, families: dict[str, Family], weeks: int) -> None:
-    """Raise ValueError if the run was made with another seed, other families (a family
-    added, removed or renamed, another model, or another parameter) or a deck too short for
-    `weeks`."""
+def noted_start(db: RunDB, run_id: str) -> str:
+    """The run's day 0 as noted with it (runs noted before starts were kept began on the default Monday)."""
+    return db.note(run_id, "start") or clock.DEFAULT_START.isoformat()
+
+
+def check_start(db: RunDB, run_id: str, start: str | None) -> None:
+    """Raise ValueError if `start` is given and is not the day 0 the run was made with."""
+    if start is not None and clock.parse_start(start).isoformat() != noted_start(db, run_id):
+        raise ValueError(f"run {run_id!r} was made to start on {noted_start(db, run_id)}, not "
+                         f"{clock.parse_start(start).isoformat()}")
+
+
+def _check_resume(db: RunDB, run_id: str, seed: int, families: dict[str, Family], weeks: int,
+                  start: str | None = None) -> None:
+    """Raise ValueError if the run was made with another seed, another start (when one is given),
+    other families (a family added, removed or renamed, another model, or another parameter) or a
+    deck too short for `weeks`."""
     noted_seed = db.note(run_id, "seed")
     if noted_seed is None or noted_seed != str(seed):
         raise ValueError(f"run {run_id!r} was made with seed {noted_seed}, not {seed}")
+    check_start(db, run_id, start)
     noted = json.loads(db.note(run_id, "families") or "{}")
     now = _noted(families)
     for name in [*noted, *[n for n in now if n not in noted]]:
@@ -137,13 +151,15 @@ def _check_seat(db: RunDB, run_id: str, store, seat: Family | None) -> None:
 def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Family], prices: dict[str, Price],
          cap: float, completion_fn: Callable, cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
          sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False,
-         seat: Family | None = None) -> LiveResult:
+         seat: Family | None = None, start: str | None = None) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
     line a week; stop when the replier stops, echoing why.
 
     Raises ValueError, before anything is asked, for a cap that is not above 0 and at most
     `MAX_CAP`, weeks below 1, a resume whose noted seed or families differ, a run held by
-    another process (a lock on `<db path>.lock` is held for the whole call), or a resume of a
+    another process (a lock on `<db path>.lock` is held for the whole call), a `start` (ISO, a
+    Monday: day 0 of a new run, the default Monday when None) that is not a Monday or, on a resume,
+    not the start the run was made with, or a resume of a
     run holding a stored refusal, unless `past_refusal`, when that is echoed as a warning; or for
     a run played with another seat, or with the product launched and no `seat`. The seat's calls
     are made by the same replier, behind the same cap."""
@@ -151,24 +167,27 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     if weeks < 1:
         raise ValueError(f"weeks must be 1 or more, got {weeks}")
+    if start is not None:
+        start = clock.parse_start(start).isoformat()
     with _only_process(db, run_id):
         return _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-                     past_refusal, seat)
+                     past_refusal, seat, start)
 
 
 def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-          past_refusal, seat=None) -> LiveResult:
+          past_refusal, seat=None, start=None) -> LiveResult:
     try:
         db.get_run(run_id)
     except KeyError:
         deck = max(weeks, RUN_WEEKS)
-        store = gen.generate(seed, list(families), weeks=deck)
+        store = gen.generate(seed, list(families), weeks=deck, start=start)
         db.create_run(run_id, seed=seed)
         db.put_note(run_id, "families", json.dumps(_noted(families), sort_keys=True))
         db.put_note(run_id, "seed", str(seed))
         db.put_note(run_id, "deck_weeks", str(deck))
+        db.put_note(run_id, "start", store.start)
     else:
-        _check_resume(db, run_id, seed, families, weeks)
+        _check_resume(db, run_id, seed, families, weeks, start)
         refused = refusal(db, run_id)
         if refused is not None:
             if not past_refusal:
@@ -190,15 +209,15 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
     end = 7 * weeks
     stopped = None
     while store.day < end:
-        start = store.day
-        monday = start - start % 7
-        days = min(monday + 7, end) - start
+        today = store.day
+        monday = today - today % 7
+        days = min(monday + 7, end) - today
         store = run(db, run_id, store, replier, days)
-        if store.day > start:
+        if store.day > today:
             asks, unread = _week_counts(db, run_id, monday, store.day - 1)
             echo(f"week {monday // 7 + 1}  {date_text(monday)}  {store.hash()[:12]}  asks {asks}  "
                  f"unreadable {unread}  spent ${spent(db, run_id):.4f}")
-        if store.day < start + days:
+        if store.day < today + days:
             stopped = safe(replier.stopped or "stopped")
             echo(f"stopped on day {store.day}: {stopped}")
             break

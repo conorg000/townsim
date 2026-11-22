@@ -108,10 +108,10 @@ def _shortfall(store: Store, pid: str) -> int:
     return out - store.balance(h) if out else -1
 
 
-def _scripted(seed: int, family_names: list[str]) -> tuple[list[_Seen], int]:
+def _scripted(seed: int, family_names: list[str], start: str | None = None) -> tuple[list[_Seen], int]:
     """Every ask of the seed's hamlet on its script for `DAYS` days, and on until a talk is
     held after day `TALK_AFTER` (at most `TALK_DAYS` days); with the days run."""
-    s = gen.generate(seed, list(family_names))
+    s = gen.generate(seed, list(family_names), start=start)
     seen: list[_Seen] = []
     talk_turns: dict[str, int] = {}
 
@@ -149,15 +149,17 @@ def _balance(x: _Seen) -> int:
     return st.balance(st.get("people", x.pid).household)
 
 
-def cases(seed: int, family_names: list[str], echo: Callable[[str], None] = print) -> list[Case]:
+def cases(seed: int, family_names: list[str], echo: Callable[[str], None] = print,
+          start: str | None = None) -> list[Case]:
     """Up to four views from the seed's hamlet run on its script: a shop owner on their stock
     day; a person whose household owes, now or within three days, more than its balance (else
     the person with the lowest balance); a person with an open request to answer; and the
     first talk held after day 3, at its second turn. The first three are from the first ten
     days, the latest that fits, and go to different people where they can; the talk is looked
     for up to day 28. A case that fits no one is left out, with a line to `echo` saying so.
-    Raises ValueError if fewer than `MIN_CASES` are found."""
-    seen, _ = _scripted(seed, family_names)
+    Raises ValueError if fewer than `MIN_CASES` are found. `start` is the hamlet's day 0 (ISO, a
+    Monday), the default Monday when None."""
+    seen, _ = _scripted(seed, family_names, start)
     turns = [x for x in seen if x.purpose == "turn" and x.day < DAYS]
     chosen: list[tuple[str, _Seen]] = []
 

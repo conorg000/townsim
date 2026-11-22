@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from typing import Any, Iterator, NamedTuple
 
 from townsim.econ.ledger import Ledger
+from townsim.town import clock
 
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results", "ties",
           "firms", "suppliers", "buyers", "tills", "work", "jobs", "events",
@@ -99,6 +100,8 @@ class Store:
         self.day: int = 0
         self.place: str = ""
         self.seed: int = 0   # what the place was generated from, and what its draws are seeded with
+        self.start: str = clock.DEFAULT_START.isoformat()   # day 0, a Monday; the calendar in use follows it
+        clock.use(self.start)
         self.ledger = Ledger()
         self.changes: list[Change] = []
         self.engine_errors: list[str] = []  # not state, never undone
@@ -156,6 +159,8 @@ class Store:
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
         self.__dict__.setdefault("version", len(self.changes))
+        self.__dict__.setdefault("start", clock.DEFAULT_START.isoformat())   # kept before starts were
+        clock.use(self.start)
         for table in TABLES:   # a store saved before a table existed has none of its rows
             self._tables.setdefault(table, {})
         self._indexes()
@@ -250,6 +255,12 @@ class Store:
 
     # time
 
+    def set_start(self, start: str) -> None:
+        """Make `start` (ISO, a Monday) this place's day 0 and the calendar in use. It is set when
+        the place is made, before anything is dated."""
+        clock.use(start)
+        self.start = clock.start().isoformat()
+
     def advance_day(self, cause: str = "routine:close") -> None:
         _need_cause(cause)
         self._log(Change(self.day, "day", "", "day", self.day, self.day + 1, cause))
@@ -307,8 +318,10 @@ class Store:
     def canonical(self) -> dict:
         """The whole state as plain JSON-ready values. The change log is not state. Empty
         tables are left out, so a new kind of row does not change the hash of a store
-        that has none."""
+        that has none; so is the default start."""
+        start = {} if self.start == clock.DEFAULT_START.isoformat() else {"start": self.start}
         return _plain({
+            **start,
             "day": self.day,
             "place": self.place,
             "seed": self.seed,

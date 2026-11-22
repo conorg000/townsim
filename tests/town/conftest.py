@@ -18,3 +18,10 @@ def authorisers_restored():
     saved = list(AUTHORISERS)
     yield
     AUTHORISERS[:] = saved
+
+
+@pytest.fixture(autouse=True)
+def calendar_restored():
+    from townsim.town import clock
+    yield
+    clock.use(clock.DEFAULT_START)

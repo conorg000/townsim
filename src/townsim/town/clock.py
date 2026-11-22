@@ -1,11 +1,14 @@
-"""The town's calendar. Day 0 is Monday 2 March 2026; every date is in 2026."""
+"""The town's calendar. Day 0 is a Monday kept with each place (`Store.start`), Monday 2 March
+2026 unless the place was made with another; the calendar in use is that of the store made or
+loaded last (`use`)."""
 
 from __future__ import annotations
 
 import re
 from datetime import date, timedelta
 
-DAY_ZERO = date(2026, 3, 2)
+DEFAULT_START = date(2026, 3, 2)
+_START = [DEFAULT_START]
 DAYS: tuple[str, ...] = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 MONTHS: tuple[str, ...] = ("January", "February", "March", "April", "May", "June", "July",
                            "August", "September", "October", "November", "December")
@@ -22,6 +25,49 @@ def _drop_ordinal(word: str) -> str:
     if word[-2:] in _ORDINALS and word[:-2].isdigit():
         return word[:-2]
     return word
+
+
+def use(start: "date | str") -> None:
+    """Make `start` (a Monday, or its ISO text) day 0 of the calendar in use."""
+    d = date.fromisoformat(start) if isinstance(start, str) else start
+    if d.weekday() != 0:
+        raise ValueError(f"day 0 must be a Monday, not {d.isoformat()}")
+    _START[0] = d
+
+
+def start() -> date:
+    """Day 0 of the calendar in use."""
+    return _START[0]
+
+
+def parse_start(text: object) -> date:
+    """A start date as typed (`2026-11-30`): an ISO date that is a Monday, or ValueError."""
+    try:
+        d = date.fromisoformat(text.strip()) if isinstance(text, str) and _ISO.fullmatch(text.strip()) else None
+    except ValueError:
+        d = None
+    if d is None:
+        raise ValueError(f"the start must be a date written YYYY-MM-DD, got {text!r}")
+    if d.weekday() != 0:
+        raise ValueError(f"the start must be a Monday; {d.isoformat()} is a {DAYS[d.weekday()]}")
+    return d
+
+
+def on(day: int) -> date:
+    """The date of `day`."""
+    return _START[0] + timedelta(days=day)
+
+
+def iso(day: int) -> str:
+    """`day` as `2026-03-09`."""
+    return on(day).isoformat()
+
+
+def season_week(day: int) -> int:
+    """The week number food's seasons are read at: `week(day)` for a place starting on the
+    default Monday, moved by the weeks its own start lies after that one, so that the seasons
+    follow the calendar."""
+    return week(day) + (_START[0] - DEFAULT_START).days // 7
 
 
 def dow(day: int) -> int:
@@ -43,19 +89,19 @@ def weekday(word: object) -> int | None:
 
 
 def date_text(day: int) -> str:
-    d = DAY_ZERO + timedelta(days=day)
+    d = on(day)
     return f"{DAYS[d.weekday()]} {d.day} {MONTHS[d.month - 1]}"
 
 
 def date_year(day: int) -> str:
     """A day as written with its year always: `Friday 27 March 2026`."""
-    return f"{date_text(day)} {(DAY_ZERO + timedelta(days=day)).year}"
+    return f"{date_text(day)} {on(day).year}"
 
 
 def date_in(day: int, today: int) -> str:
     """A day as written, with its year when that is not the year of `today`."""
-    year = (DAY_ZERO + timedelta(days=day)).year
-    return date_text(day) + ("" if year == (DAY_ZERO + timedelta(days=today)).year else f" {year}")
+    year = on(day).year
+    return date_text(day) + ("" if year == on(today).year else f" {year}")
 
 
 DATE_FORM = "Write it like Monday 16 March."
@@ -88,7 +134,7 @@ def parse_date(text: str, today: int) -> int | None:
     iso = _ISO.fullmatch(plain)
     if iso:
         try:
-            day = (date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3))) - DAY_ZERO).days
+            day = (date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3))) - _START[0]).days
         except ValueError:
             return None
         return day if day >= today else None
@@ -115,13 +161,13 @@ def parse_date(text: str, today: int) -> int | None:
 
     def day_in(y: int) -> int | None:
         try:
-            return (date(y, months[0], numbers[0]) - DAY_ZERO).days
+            return (date(y, months[0], numbers[0]) - _START[0]).days
         except ValueError:
             return None
     if year is not None:
         day = day_in(year)
         return day if day is not None and day >= today else None
-    this = (DAY_ZERO + timedelta(days=max(today, 0))).year
+    this = on(max(today, 0)).year
     day = day_in(this)
     if day is not None and day >= today:
         return day

@@ -75,3 +75,29 @@ def test_parse_date_reads_short_weekdays_and_months():
     assert clock.parse_date("1 Sept", today=3) == clock.parse_date("1 September", today=3)
     assert clock.parse_date("1 Apr 2026", today=3) == 30
     assert clock.parse_date("Th 12 Ma", today=3) is None
+
+
+def test_day_zero_is_the_store_s_and_follows_it_when_loaded():
+    import pickle
+
+    from townsim.town import gen
+    s = gen.generate(1, ["a", "b", "c", "d"], start="2026-11-30")
+    assert s.start == "2026-11-30" and clock.date_year(0) == "Monday 30 November 2026"
+    assert clock.date_year(35) == "Monday 4 January 2027" and clock.iso(7) == "2026-12-07"
+    assert clock.parse_date("2027-01-04", 0) == 35 and clock.season_week(0) == clock.week(0) + 39
+    assert s.canonical()["start"] == "2026-11-30"
+    frozen = pickle.dumps(s)
+    d = gen.generate(1, ["a", "b", "c", "d"])
+    assert d.start == "2026-03-02" and "start" not in d.canonical() and clock.date_text(0) == "Monday 2 March"
+    assert d.hash() != s.hash()
+    pickle.loads(frozen)
+    assert clock.date_text(0) == "Monday 30 November"
+
+
+def test_a_start_is_a_monday_written_iso():
+    import pytest
+
+    assert clock.parse_start(" 2027-03-01 ").isoformat() == "2027-03-01"
+    for bad in ("2027-03-02", "1 March 2027", "2027/03/01", None, "2027-02-30"):
+        with pytest.raises(ValueError):
+            clock.parse_start(bad)

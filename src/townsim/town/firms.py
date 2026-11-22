@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import random
 
-from townsim.econ.demand import NEEDS, DemandRule, Household, Offering, shop
+from townsim.econ.demand import NEEDS, DemandRule, Household, Offering, season_factor, shop
 from townsim.econ.firm import Cohort, Firm, WeekCounters
 from townsim.econ.suppliers import Supplier
 from townsim.town import clock, jobs
@@ -187,7 +187,9 @@ def shop_today(store: Store) -> None:
         providers = {f.org: _firm(store, f) for f in rows}
         offerings = [Offering(f.org, f.need, f.price, f.quality, f.visibility) for f in rows]
         ledger = _Ledger(store, accounts)
-        shop(ledger, households, offerings, providers, NEEDS[NEED], DemandRule(), week, 1.0,
+        # the season is the calendar's (`clock.season_week`); the week's draws stay keyed by its number
+        season = season_factor(NEEDS[NEED], clock.season_week(store.day)) / season_factor(NEEDS[NEED], week)
+        shop(ledger, households, offerings, providers, NEEDS[NEED], DemandRule(), week, season,
              store.seed, SHOPPING)
         totals: dict[tuple[str, str], list[int]] = {}
         for payer, payee, cents in ledger.sales:
