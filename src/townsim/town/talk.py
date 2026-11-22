@@ -393,8 +393,8 @@ def _relation(store: Store, pid: str, other: str) -> str:
 
 def _how(store: Store, pid: str, t: Talk) -> str:
     """How the talk came about, in one line."""
-    name = "You" if t.a == pid else store.get("people", t.a).name
-    if t.kind == "asked":
+    name = "You" if t.a == pid else name_of_who(store, t.a)
+    if t.kind in ("asked", "instance"):
         return f"{name} asked to talk."
     if t.kind == "appointment" and store.has("appointments", t.ref):
         ap = store.get("appointments", t.ref)
@@ -520,17 +520,19 @@ def _forms(store: Store, pid: str) -> list[str]:
 def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
     t = store.get("talks", tk)
     other = t.b if t.a == pid else t.a
-    name = store.get("people", other).name
+    name = name_of_who(store, other)
+    instance = acts.is_instance(store, other)          # an assistant: its name, and no relation
     blocks = [f"TODAY: {date_text(store.day)}.",
-              "\n".join([f"YOU ARE TALKING WITH {name}", _relation(store, pid, other), _how(store, pid, t)])]
-    between = list(_between_obligations(store, pid, other, c.owed))
-    requests = _between_requests(store, pid, other)
+              "\n".join([f"YOU ARE TALKING WITH {name}"] + ([] if instance else [_relation(store, pid, other)])
+                        + [_how(store, pid, t)])]
+    between = [] if instance else list(_between_obligations(store, pid, other, c.owed))
+    requests = [] if instance else _between_requests(store, pid, other)
     for rq in requests[:c.requests]:
         between += _request_lines(store, pid, rq)
-    between += _money_lines(store, _money_between(store, pid, other), c.money)
+    between += [] if instance else _money_lines(store, _money_between(store, pid, other), c.money)
     if len(requests) > c.requests:
         between.append(Counted(f"({len(requests) - c.requests} more requests between you not shown)"))
-    letters = _between_letters(store, pid, other)
+    letters = [] if instance else _between_letters(store, pid, other)
     for m in letters[len(letters) - c.letters:] if c.letters else []:
         between += _letter_lines(store, pid, m, c.letter_words)
     if letters and c.letters < len(letters):
@@ -631,8 +633,62 @@ def summary_lines(store: Store, pid: str, t: Talk, words: int) -> list[str]:
     """A talk as the ordinary view shows it: `With <full name> on <date>:`, then each turn
     cut to `words` words."""
     other = t.b if t.a == pid else t.a
-    out = [f"With {store.get('people', other).name} on {date_text(t.day)}:"]
+    out = [f"With {name_of_who(store, other)} on {date_text(t.day)}:"]
     for line in lines_of(store, t.id):
         out += turn_lines(store, line, words, pid)
     return out
 
+
+
+# --- a talk an instance holds ----------------------------------------------------------------
+
+
+def instance_says(store: Store, replier: Replier, keys: Keys, inst: str, pid: str, words: str, ctx: Any,
+                  cause: str) -> tuple[str, bool]:
+    """An instance says `words` to `pid` now, in the talk it has open with them this turn
+    (`ctx.talks`), or in a new one if `pid` is free (an hour of theirs is taken); then `pid`
+    answers as in any talk, their acts numbered on from `ctx.n`. What the instance is told, and
+    whether it was said. Each side says at most `TURNS` things."""
+    person = store.get("people", pid)
+    tk = ctx.talks.get(pid)
+    if tk is None:
+        if not _free(store, pid):
+            return f"Not done: {_why_not(store, pid, person.name)}.", False
+        tk = store.new_id("tk", cause)
+        store.add("talks", Talk(tk, store.day, inst, pid, "instance", "", "held"), cause)
+        _take_hour(store, pid, cause)
+        ctx.talks[pid] = tk
+    me = name_of_who(store, inst)
+    _line(store, tk, inst, said(words, person.name), [], cause)
+    try:
+        messages, ids = _view(store, pid, tk)
+    except Exception as e:      # noqa: BLE001  (any fault in building a view)
+        raise _NoView(f"view:{pid}:d{store.day}: {type(e).__name__}: {e}") from e
+    key = keys.next(replier.model_for(pid), store.day, pid, "talk", tk)
+    reply = replier.ask(key, messages)
+    parsed = parse_say(reply.text)
+    store.set("talks", tk, cause, unseen=[pid])
+    if parsed is None:
+        ctx.turns.append(loop.Turn(pid, key.text(), True, [], tk))
+        _line(store, tk, pid, "", [], cause)
+        ctx.talks.pop(pid, None)
+        return f"{person.name} said nothing.\n({person.name} ended the talk.)", True
+    text = said(parsed["say"], me)
+    outcomes, results = [], []
+    for element in parsed["acts"][:MAX_ACTS]:
+        outcome = _apply(store, pid, element, ctx.n)
+        results.append(_tell_result(store, outcome))
+        outcomes.append(outcome)
+        ctx.n += 1
+    views.mark_seen(store, pid, ids, f"routine:seen:{pid}")
+    _line(store, tk, pid, text, results, cause)
+    ctx.turns.append(loop.Turn(pid, key.text(), False, outcomes, tk))
+    spoken = len([x for x in lines_of(store, tk) if x.speaker == pid])
+    shown_text = f"{person.name} said:\n  > {text}" if text else f"{person.name} said nothing."
+    if parsed["end"]:
+        ctx.talks.pop(pid, None)
+        return shown_text + f"\n({person.name} ended the talk.)", True
+    if spoken >= TURNS:
+        ctx.talks.pop(pid, None)
+        return shown_text + "\n(You part after this.)", True
+    return shown_text, True

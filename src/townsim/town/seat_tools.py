@@ -118,6 +118,7 @@ class Ctx:
     keys: Any = None
     talks: dict[str, str] = field(default_factory=dict)
     turns: list = field(default_factory=list)
+    n: int = 0              # the day's count of acts, for a talk's acts by the person
 
 
 @dataclass(frozen=True)
@@ -401,7 +402,8 @@ def _run_talk(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Don
     pid = acts.resolve(store, who)
     if pid is None or not store.has("people", pid):
         return _not(f"no one in {store.place} is called '{shown(who)}'. Names are written in full.", cause)
-    text, ok = talk.instance_says(store, ctx.replier, ctx.keys, inst.id, pid, words, ctx, n, cause)
+    ctx.n = max(ctx.n, n + 1)
+    text, ok = talk.instance_says(store, ctx.replier, ctx.keys, inst.id, pid, words, ctx, cause)
     return Done(text, ok, "own", cause)
 
 
@@ -465,6 +467,8 @@ def _run_remind(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> D
     cause = _cause(inst, "remind", store, n)
     written = args.get("day")
     day = parse_date(written, store.day) if isinstance(written, str) else None
+    if day is None and isinstance(written, str) and parse_date(written, 0) is not None:
+        day = store.day                                   # a date that has passed
     if day is None:
         return _not(unreadable(written), cause)
     if day <= store.day:
