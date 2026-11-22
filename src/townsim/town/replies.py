@@ -102,6 +102,26 @@ def prompt_hash(messages: list[dict]) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def tool_prompt_hash(messages: list[dict], tools: list[dict]) -> str:
+    """The hash of a call with tools: its messages and, after them, the tools."""
+    return prompt_hash(messages + [{"role": "tools", "content": json.dumps(tools, sort_keys=True)}])
+
+
+def is_instance_id(actor: str) -> bool:
+    """Whether `actor` is an instance's id (`as<n>`), which the seat's model plays."""
+    return isinstance(actor, str) and actor.startswith("as") and actor[2:].isdigit()
+
+
+def tool_reply(n: int, name: str, arguments: object, text: str | None = None) -> Reply:
+    """A reply that makes one tool call, `call_<n>`, as a provider's would read back."""
+    args = arguments if isinstance(arguments, str) else json.dumps(arguments, sort_keys=True)
+    cid = f"call_{n}"
+    message = {"role": "assistant", "content": text,
+               "tool_calls": [{"id": cid, "type": "function", "function": {"name": name, "arguments": args}}]}
+    return Reply(text=text, tool={"calls": [{"id": cid, "name": name, "arguments": args}], "message": message},
+                 finish="tool_calls")
+
+
 class Replier(Protocol):
     def model_for(self, actor: str) -> str:
         """The model that plays `actor`."""
@@ -158,16 +178,54 @@ class Keys:
 
 
 class ScriptedReplier:
-    """Stands in for a model: the reply's text is `fn(key, messages)`."""
+    """Stands in for a model: the reply's text is `fn(key, messages)`. A call with tools is
+    answered by `tool_fn(key, messages, tools)`: `{"name", "arguments"}` makes one call (its id
+    `call_<n>`, n the key's count), a string is a closing text with no call, and None ends the
+    turn with nothing said."""
 
-    def __init__(self, fn: Callable[[ReplyKey, list[dict]], str | None]) -> None:
+    def __init__(self, fn: Callable[[ReplyKey, list[dict]], str | None],
+                 tool_fn: Callable[[ReplyKey, list[dict], list[dict]], dict | str | None] | None = None) -> None:
         self.fn = fn
+        self.tool_fn = tool_fn
 
     def model_for(self, actor: str) -> str:
         return "scripted"
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
         return Reply(text=self.fn(key, messages))
+
+    def ask_tools(self, key: ReplyKey, messages: list[dict], tools: list[dict]) -> Reply:
+        got = self.tool_fn(key, messages, tools) if self.tool_fn is not None else None
+        if isinstance(got, dict):
+            return tool_reply(key.n, got["name"], got.get("arguments", "{}"), got.get("text"))
+        return Reply(text=got if isinstance(got, str) else None, finish="stop")
+
+
+class Both:
+    """People's calls go to `people`, the seat's calls with tools to `seat`; the seat's model
+    plays instance ids (`as<n>`)."""
+
+    def __init__(self, people: Replier, seat) -> None:
+        self.people = people
+        self.seat = seat
+
+    @property
+    def stopped(self) -> str | None:
+        return getattr(self.seat, "stopped", None) or getattr(self.people, "stopped", None)
+
+    def model_for(self, actor: str) -> str:
+        return (self.seat if is_instance_id(actor) else self.people).model_for(actor)
+
+    def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
+        return self.people.ask(key, messages)
+
+    def ask_many(self, pairs: list[tuple[ReplyKey, list[dict]]]) -> list:
+        if hasattr(self.people, "ask_many"):
+            return self.people.ask_many(pairs)
+        return ask_all(self.people, pairs)
+
+    def ask_tools(self, key: ReplyKey, messages: list[dict], tools: list[dict]) -> Reply:
+        return self.seat.ask_tools(key, messages, tools)
 
 
 class Recording:
@@ -194,6 +252,18 @@ class Recording:
         if stored is not None:
             return stored
         reply = self._store(key, h, self.inner.ask(key, messages))
+        if refused(reply):
+            raise StopRun(reply.error)
+        return reply
+
+    def ask_tools(self, key: ReplyKey, messages: list[dict], tools: list[dict]) -> Reply:
+        """As `ask`, for a call with tools: stored by slot under the hash of the messages and
+        the tools."""
+        h = tool_prompt_hash(messages, tools)
+        stored = self._stored(key, h)
+        if stored is not None:
+            return stored
+        reply = self._store(key, h, self.inner.ask_tools(key, messages, tools))
         if refused(reply):
             raise StopRun(reply.error)
         return reply
@@ -274,6 +344,12 @@ class Replaying:
         return ""
 
     def ask(self, key: ReplyKey, messages: list[dict]) -> Reply:
+        return self._served(key, prompt_hash(messages))
+
+    def ask_tools(self, key: ReplyKey, messages: list[dict], tools: list[dict]) -> Reply:
+        return self._served(key, tool_prompt_hash(messages, tools))
+
+    def _served(self, key: ReplyKey, h: str) -> Reply:
         _own_run(self.run, key)
         slot = key.slot()
         stored = self.db.get_reply(self.run, slot)
@@ -281,7 +357,7 @@ class Replaying:
             raise ReplayMismatch(key=slot, why="missing")
         if slot in self._asked:
             raise ReplayMismatch(key=stored[0], why="asked twice")
-        if stored[1] != prompt_hash(messages):
+        if stored[1] != h:
             raise ReplayMismatch(key=stored[0], why="prompt changed")
         self._asked.add(slot)
         return stored[2]

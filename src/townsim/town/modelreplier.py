@@ -21,9 +21,11 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from townsim.estimate import Price
-from townsim.model import RETRY_SLEEPS, ModelUnavailable, complete, finish_reason, reasoning_text, reply_text, token_count
-from townsim.town.families import TOKENS_PER_MESSAGE, Family, check_family, input_tokens, worst_case
-from townsim.town.replies import Reply, ReplyKey, StopRun
+from townsim.model import (RETRY_SLEEPS, ModelUnavailable, assistant_message, complete, finish_reason,
+                           reasoning_text, reply_text, token_count, tool_calls)
+from townsim.town.families import (TOKENS_PER_MESSAGE, Family, check_family, input_tokens, seat_input_tokens,
+                                   seat_worst_case, worst_case)
+from townsim.town.replies import Reply, ReplyKey, StopRun, is_instance_id
 
 ATTEMPTS = len(RETRY_SLEEPS) + 1   # the attempts `model.complete` makes at one call
 
@@ -100,10 +102,14 @@ class ModelReplier:
     def __init__(self, families: dict[str, Family], prices: dict[str, Price], family_of: dict[str, str],
                  completion_fn: Callable, cap: float, spent: Callable[[], float], cost_fn: Callable | None = None,
                  workers: int = 8, sleep_fn: Callable[[float], None] = time.sleep,
-                 lost: Callable[[float], None] | None = None) -> None:
+                 lost: Callable[[float], None] | None = None, seat: Family | None = None) -> None:
         families = {n: Family(f.name, f.model, f.params) for n, f in families.items()}   # read-only copies
         for family in families.values():
             check_family(family, prices)
+        if seat is not None:
+            seat = Family(seat.name, seat.model, seat.params)
+            check_family(seat, prices)
+        self.seat = seat
         for person, name in family_of.items():
             if name not in families:
                 raise ValueError(f"person {person!r} is dealt family {name!r}, which is not among the families loaded")
@@ -121,6 +127,10 @@ class ModelReplier:
         self._halted = False     # a refusal, an overbilled reply or a failed lost-spend callback: nothing more is sent
 
     def _family(self, actor: str) -> Family:
+        if is_instance_id(actor) and actor not in self.family_of:
+            if self.seat is None:
+                raise ValueError(f"{actor} is an instance and this replier has no seat")
+            return self.seat
         return self.families[self.family_of[actor]]
 
     def model_for(self, actor: str) -> str:
@@ -148,16 +158,36 @@ class ModelReplier:
         if not pairs:
             return []
         worsts = [worst_case(f, self.prices[f.model], m) for f, (_, m) in zip(fams, pairs)]
+        calls = [lambda counted, f=f, m=m: self._call(counted, f, m) for f, (_, m) in zip(fams, pairs)]
+        return self._run(fams, worsts, calls)
+
+    def ask_tools(self, key: ReplyKey, messages: list[dict], tools: list[dict]) -> Reply:
+        """One call with tools to the seat's model, behind the cap as any call is, its worst case
+        counting the tools and everything on the messages (`families.seat_worst_case`). It sends
+        the tools with `tool_choice="auto"` and `parallel_tool_calls=False`, and the seat's
+        parameters. Raises `StopRun` when the call is not made or gives no answer."""
+        if self.seat is None:
+            raise StopRun("unavailable: this replier has no seat")
+        seat = self.seat
+        if self._halted:
+            raise StopRun(self.stopped)
+        worst = seat_worst_case(seat, self.prices[seat.model], messages, tools)
+        [got] = self._run([seat], [worst], [lambda counted: self._call_tools(counted, seat, messages, tools)])
+        if isinstance(got, StopRun):
+            raise got
+        return got
+
+    def _run(self, fams: list[Family], worsts: list[float], calls: list[Callable]) -> list[Reply | StopRun]:
         already = float(self.spent())
         worst = ATTEMPTS * sum(worsts)
         if not already + worst <= self.cap:
-            self.stopped = (f"cap: ${already:.4f} spent and up to ${worst:.4f} more for {len(pairs)} "
-                            f"call{'s' if len(pairs) != 1 else ''} would pass the cap of ${self.cap:.4f}")
-            return [StopRun(self.stopped) for _ in pairs]
-        failed = [0] * len(pairs)
+            self.stopped = (f"cap: ${already:.4f} spent and up to ${worst:.4f} more for {len(calls)} "
+                            f"call{'s' if len(calls) != 1 else ''} would pass the cap of ${self.cap:.4f}")
+            return [StopRun(self.stopped) for _ in calls]
+        failed = [0] * len(calls)
 
         def one(i: int) -> Reply | StopRun:
-            family, messages = fams[i], pairs[i][1]
+            family = fams[i]
 
             def counted(**kwargs):
                 try:
@@ -166,13 +196,13 @@ class ModelReplier:
                     failed[i] += 1
                     raise
             try:
-                return self._call(counted, family, messages)
+                return calls[i](counted)
             except Exception as e:      # noqa: BLE001  (an answer that could not be read)
                 failed[i] += 1          # it was answered, so perhaps billed: one attempt lost
                 return StopRun(safe(f"unavailable: {family.model}: {type(e).__name__}: {e}"))
 
-        with ThreadPoolExecutor(max_workers=min(self.workers, len(pairs))) as pool:
-            results = list(pool.map(one, range(len(pairs))))
+        with ThreadPoolExecutor(max_workers=min(self.workers, len(calls))) as pool:
+            results = list(pool.map(one, range(len(calls))))
         why = []
         for got in results:
             if isinstance(got, Reply) and got.error and got.error.startswith("refused:"):
@@ -200,6 +230,15 @@ class ModelReplier:
                 self.stopped = broken
         return results
 
+    def _call_tools(self, completion_fn: Callable, family: Family, messages: list[dict],
+                    tools: list[dict]) -> Reply | StopRun:
+        try:
+            resp = complete(completion_fn, model="openrouter/" + family.model, messages=messages, sleep_fn=self.sleep_fn,
+                            tools=tools, tool_choice="auto", parallel_tool_calls=False, **family.params)
+        except ModelUnavailable as e:
+            return StopRun(safe(f"unavailable: {family.model}: {e}"))
+        return self._reply(family, messages, resp, tools)
+
     def _call(self, completion_fn: Callable, family: Family, messages: list[dict]) -> Reply | StopRun:
         try:
             resp = complete(completion_fn, model="openrouter/" + family.model, messages=messages,
@@ -208,13 +247,18 @@ class ModelReplier:
             return StopRun(safe(f"unavailable: {family.model}: {e}"))
         return self._reply(family, messages, resp)
 
-    def _reply(self, family: Family, messages: list[dict], resp) -> Reply:
+    def _reply(self, family: Family, messages: list[dict], resp, tools: list[dict] | None = None) -> Reply:
         text, reasoning, finish = reply_text(resp), reasoning_text(resp), finish_reason(resp)
         tokens_in = _usage_count(resp, "prompt_tokens") or 0      # as the provider reported them
         tokens_out = _usage_count(resp, "completion_tokens") or 0
         # the cost counts at least what can be seen, whatever the provider reported
-        seen_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
-        seen_out = math.ceil((len(text or "") + len(reasoning or "")) / 3)
+        calls = tool_calls(resp) if tools is not None else []
+        if tools is None:
+            seen_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
+        else:
+            seen_in = seat_input_tokens(messages, tools)
+        called = sum(len(c["name"]) + len(c["arguments"]) for c in calls)
+        seen_out = math.ceil((len(text or "") + len(reasoning or "") + called) / 3)
         price = self.prices[family.model]
         cost = (max(tokens_in, seen_in) * price.input_per_mtok
                 + max(tokens_out, seen_out) * price.output_per_mtok) / 1_000_000
@@ -231,5 +275,8 @@ class ModelReplier:
             error = safe(f"refused: {family.model}: {refusal}")
         elif finish == "content_filter" and not (text or "").strip():
             error = f"refused: {family.model}: the provider's content filter gave no reply"
-        return Reply(text=text, reasoning=reasoning, finish=finish, tokens_in=tokens_in, tokens_out=tokens_out,
-                     cost=cost, error=error)
+        tool = None
+        if tools is not None:
+            tool = {"calls": calls, "message": assistant_message(resp)} if calls else None
+        return Reply(text=text, tool=tool, reasoning=reasoning, finish=finish, tokens_in=tokens_in,
+                     tokens_out=tokens_out, cost=cost, error=error)

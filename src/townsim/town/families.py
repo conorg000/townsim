@@ -152,3 +152,42 @@ def worst_case(family: Family, price: Price, messages: list[dict]) -> float:
     tokens_in = input_tokens(messages) + TOKENS_PER_MESSAGE * len(messages)
     tokens_out = family.params["max_tokens"]
     return BILLED_MARGIN * (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+
+
+SEAT = "seat"
+
+
+def load_seat(path: str, prices_path: str) -> Family:
+    """The one family under the key `seat` in the file, checked as `load` checks a family
+    (priced within the ceiling, only the parameters `check_params` allows). Raises ValueError
+    for a file with no `seat`, or with anything else beside it."""
+    raw = _read(path)
+    if set(raw) != {SEAT}:
+        raise ValueError(f"{path} must hold one family under the key {SEAT!r} and nothing else")
+    return _family(SEAT, raw[SEAT], load_prices(prices_path))
+
+
+def _json(value: object) -> str:
+    import json
+    return json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
+
+
+def seat_input_tokens(messages: list[dict], tools: list[dict]) -> int:
+    """What a call with tools sends, in tokens counted as characters over three, rounded up:
+    each message's content, everything else on it (its tool calls, the id it answers, any
+    reasoning sent back) as JSON, and the tools as JSON; plus 4 a message."""
+    chars = len(_json(tools))
+    for m in messages:
+        chars += len(str(m.get("content") or ""))
+        rest = {k: v for k, v in m.items() if k not in ("role", "content")}
+        if rest:
+            chars += len(_json(rest))
+    return math.ceil(chars / 3) + TOKENS_PER_MESSAGE * len(messages)
+
+
+def seat_worst_case(family: Family, price: Price, messages: list[dict], tools: list[dict]) -> float:
+    """Dollars one attempt at a call with tools costs at most: `seat_input_tokens` in and the
+    family's `max_tokens` out, at `price`, times `BILLED_MARGIN`."""
+    tokens_in = seat_input_tokens(messages, tools)
+    tokens_out = family.params["max_tokens"]
+    return BILLED_MARGIN * (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000

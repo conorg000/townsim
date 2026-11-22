@@ -1,0 +1,7 @@
+# The model that plays the product's instances (the seat). Priced in prices.yaml within the
+# same ceiling as the people's families ($0.20 per million tokens in, $1.00 out); the same
+# parameter checks apply. temperature is left unset: reasoning on this provider requires it
+# to be unset.
+seat:
+  model: anthropic/claude-haiku-5.5
+  params: {max_tokens: 4000, reasoning_effort: "low"}
