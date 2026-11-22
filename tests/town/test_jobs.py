@@ -366,7 +366,8 @@ def test_wages_paid_by_hand_from_the_household_count_toward_the_wage():
     set_cash(s, "h1", 100_000)
     live(s, 3)                                      # Thursday
     out = do(s, "p01", "pay", to="Craig Pryce", amount=440)
-    assert out.msg == "Paid $440.00 to Craig Pryce. It was counted toward wages from Marsh's Stores due Friday 6 March."
+    assert out.msg == ("Paid $440.00 to Craig Pryce. It was counted toward wages from Marsh's Stores due Friday 6 March"
+                       "; nothing more is taken for that day.")
     to_day(s, 12)
     assert paid(s, "org3", "h2") == [(11, 44_000)] and paid(s, "h1", "h2") == [(3, 44_000)]
     assert s.ledger.total() == 0
@@ -379,7 +380,7 @@ def test_part_of_a_wage_paid_by_hand_leaves_the_rest_to_friday_and_arrears_come_
     to_day(s, 6)                                    # Friday's wage is in arrears
     out = do(s, "p01", "pay", to="Craig Pryce", amount=500)
     assert out.msg == ("Paid $500.00 to Craig Pryce. It was counted toward wages from Marsh's Stores due "
-                       "Friday 6 March; wages from Marsh's Stores due Friday 13 March.")
+                       "Friday 6 March; wages from Marsh's Stores due Friday 13 March; $380.00 more is taken on that day.")
     set_cash(s, "org3", 100_000)
     to_day(s, 12)
     assert paid(s, "org3", "h2") == [(11, 44_000 - 6_000)]
@@ -393,7 +394,7 @@ def test_a_payment_where_something_is_owed_between_the_two_accounts_counts_towar
     do(s, "p01", "standing_payment", to="Craig Pryce", amount=20, day="Friday")
     out = do(s, "p01", "pay", 1, to="Craig Pryce", amount=20)
     assert out.msg == ("Paid $20.00 to Craig Pryce. "
-                       "It was counted toward standing payment to Craig Pryce due Friday 6 March.")
+                       "It was counted toward standing payment to Craig Pryce due Friday 6 March; nothing more is taken for that day.")
     to_day(s, 5)
     assert paid(s, "org3", "h2") == [(4, 44_000)]
 
@@ -586,7 +587,8 @@ def test_a_second_payment_by_hand_then_a_change_never_pays_a_friday_twice(act):
 
 def test_a_payment_at_a_weekend_then_a_dismissal_takes_no_further_wage():
     s = _hamlet(); live(s, 12); routine(s)          # Saturday
-    assert do(s, "p16", "pay", to="Gail Whiteley", amount=100).msg.endswith("due Friday 20 March.")
+    assert do(s, "p16", "pay", to="Gail Whiteley", amount=100).msg.endswith("due Friday 20 March; $334.00 more is taken "
+                                                                            "on that day.")
     assert do(s, "p16", "dismiss", 1, who="Gail Whiteley").msg.endswith("was on Friday 13 March.")
     close(s); live(s, 14)
     assert _gail(s, 12) == [] and _collected_after_last(s) == []
@@ -738,7 +740,7 @@ def _wages_in(s, since):
 def test_three_payments_by_hand_on_a_thursday_then_a_pay_change_pay_each_friday_once():
     s = _hamlet(); live(s, 10); routine(s)          # Thursday 12 March
     outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(3)]
-    assert outs[0].endswith("due Friday 13 March.") and outs[1:] == ["Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."] * 2
+    assert outs[0].endswith("due Friday 13 March; nothing more is taken for that day.") and outs[1:] == ["Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."] * 2
     assert do(s, "p16", "set_staff_pay", 3, who="Gail Whiteley", weekly_pay=500).ok
     close(s); live(s, 20)
     assert [(d, c) for d, src, c in _wages_in(s, 11) if src == "org10"] == [(18, 50_000), (25, 50_000)]
@@ -748,7 +750,7 @@ def test_three_payments_by_hand_on_a_thursday_then_a_pay_change_pay_each_friday_
 def test_two_payments_by_hand_on_a_saturday_then_a_pay_change_pay_each_friday_once():
     s = _hamlet(); live(s, 12); routine(s)          # Saturday 14 March
     outs = [do(s, "p16", "pay", i, to="Gail Whiteley", amount=434).msg for i in range(2)]
-    assert outs[0].endswith("due Friday 20 March.") and outs[1] == "Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."
+    assert outs[0].endswith("due Friday 20 March; nothing more is taken for that day.") and outs[1] == "Paid $434.00 to Gail Whiteley. It was not counted toward anything owed."
     out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=500)
     assert out.msg == "Lumb's Grocer pays Gail Whiteley $500.00 a week from Friday 27 March."
     close(s); live(s, 20)
@@ -790,10 +792,11 @@ def test_a_dismissal_after_a_week_paid_ahead_tells_both_and_benefit_waits_for_it
 def test_pay_for_a_wage_of_ones_own_shop_from_the_household_counts_toward_it():
     s = _hamlet(); live(s, 10); routine(s)
     out = do(s, "p16", "pay", to="Gail Whiteley", amount=434, **{"for": "ob3"})
-    assert out.msg == "Paid $434.00 to Gail Whiteley. It was counted toward wages from Lumb's Grocer due Friday 13 March."
+    assert out.msg == ("Paid $434.00 to Gail Whiteley. It was counted toward wages from Lumb's Grocer due Friday 13 March"
+                       "; nothing more is taken for that day.")
     assert s.ledger.transfers[-1].src == "h9"
     assert do(s, "p9", "pay", 1, to="Dennis Brindle", amount=5, **{"for": "ob3"}).msg.startswith(
-        "Not done: you have nothing with the id 'ob3'")
+        "Not done: 'ob3' is not the id of anything you owe Dennis Brindle.")
 
 
 def test_curly_quotation_marks_in_a_note_cannot_close_its_quotation():
@@ -888,9 +891,9 @@ def test_for_cannot_name_an_ended_wage():
     s = _hamlet(); live(s, 12); routine(s)          # Saturday: the last pay was Friday 13 March
     assert do(s, "p16", "dismiss", who="Gail Whiteley").ok
     assert do(s, "p16", "pay", 1, to="Gail Whiteley", amount=10, **{"for": "ob3"}).msg == \
-        "Not done: you have nothing with the id 'ob3' that is owed to Gail Whiteley."
+        "Not done: 'ob3' is not the id of anything you owe Gail Whiteley. Nothing is owed to her on a schedule."
     assert do(s, "p9", "request", 2, to="Martin Lumb", text="x", amount=10, **{"for": "ob3"}).msg == \
-        "Not done: 'ob3' is not something Martin Lumb owes you."
+        "Not done: 'ob3' is not the id of anything Martin Lumb owes you. He owes you nothing on a schedule."
 
 
 def test_a_request_with_no_text_is_named_without_an_empty_quotation():
@@ -1001,7 +1004,8 @@ def test_a_part_payment_toward_the_first_friday_of_a_rise_does_not_lose_a_take_b
     assert do(s, "p16", "set_staff_pay", who="Gail Whiteley", weekly_pay=500).ok           # from Friday 20 March
     close(s); live(s, 4); routine(s)                 # Tuesday 17 March
     out = do(s, "p16", "pay", to="Gail Whiteley", amount=100, note="wages", **{"from": "Lumb's Grocer", "for": "ob3"})
-    assert out.msg.endswith("counted toward wages from Lumb's Grocer due Friday 20 March.")
+    assert out.msg.endswith("counted toward wages from Lumb's Grocer due Friday 20 March; $400.00 more is taken on that "
+                            "day.")
     assert s.get("obligations", "ob3").cents == 43_400                      # the rise is not taken in early
     out = do(s, "p16", "set_staff_pay", 2, who="Gail Whiteley", weekly_pay=434)
     assert out.ok and "from Friday 27 March" in out.msg and "This replaces the change to $500.00" in out.msg

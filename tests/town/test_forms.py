@@ -116,11 +116,12 @@ def test_a_payment_for_none_counts_toward_nothing_and_every_payment_says_what_it
     staff = next(j for j in jobs.held(s, org=org.id) if j.person != pid)
     name = s.get("people", staff.person).name
     out = do(s, pid, "pay", to=name, amount=20, note="a bonus", **{"from": org.name, "for": "none"})
-    assert out.msg == f"Paid $20.00 to {name}. It was not counted toward anything owed."
+    assert out.msg.startswith(f"Paid $20.00 to {name}. It was not counted toward anything owed. Wages from {org.name} (")
+    assert out.msg.endswith(" is still paid on Friday 6 March.")
     assert all(d.paid == 0 for d in s.where("dues", obligation=staff.wage_ob))
     out = do(s, pid, "pay", to=name, amount=20, note="wages", **{"from": org.name})
     assert "It was counted toward wages from" in out.msg
     form = next(f for f in forms(s, pid) if '"op": "pay"' in f)
-    assert '"for": "<id of what it is owed on, if any; none for a payment that is not toward anything owed>"' in form
+    assert '"for": "<id of what it is owed on; leave out to let it count toward what you owe them; none for a gift on top of what you owe>"' in form
     order = next(f for f in forms(s, pid) if '"op": "order_stock"' in f)
     assert '"baskets": <baskets a week; 0 to end the order>' in order

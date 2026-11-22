@@ -16,10 +16,10 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from townsim.town import jobs, obligations
-from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account_names, account_of, clean_text, controls,
-                               cut, dollars, fits, from_account, has_savings, knows, name_of_who, register, resolve,
-                               shown, to_cents)
+from townsim.town import jobs, names, obligations
+from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account_names, account_of, accounts_of,
+                               clean_text, controls, cut, dollars, fits, from_account, has_savings, knows, name_of_who,
+                               register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
 from townsim.town.entities import Message, Request
 from townsim.town.obligations import money, name_of
@@ -163,8 +163,35 @@ def _check_pay(store: Store, act: Act) -> str | None:
         if not (isinstance(ref, str) and store.has("obligations", ref)
                 and (store.get("obligations", ref).payer == source or _own_wage(store, act, ref))
                 and store.get("obligations", ref).payee == payee and not _ended_wage(store, ref)):
-            return f"you have nothing with the id '{shown(ref)}' that is owed to {name}."
+            owed = [o for o in _scheduled(store, source, payee)]
+            return (f"'{shown(ref)}' is not the id of anything you owe {name}. "
+                    + _what_is_owed(store, act.args.get("to"), payee, owed, "You owe {them}"))
     return _short_of(store, source, cents)
+
+
+def _scheduled(store: Store, payer: str, payee: str) -> list:
+    """What `payer` owes `payee` on a schedule or still owes: in force, or with arrears; by id."""
+    return [o for o in store.where("obligations", payer=payer) if o.payee == payee
+            and (o.status in obligations.SCHEDULED or obligations.owed_dues(store, o.id))]
+
+
+def _them(store: Store, account: str, written: Any) -> str:
+    """How the other side of what is owed is called: `her` or `him` for a person whose first name
+    tells which, else `them`."""
+    who = _resolve(store, written) if isinstance(written, str) else None
+    if who is not None and store.has("people", who):
+        first = store.get("people", who).name.split()[0]
+        return "her" if first in names.WOMEN else "him" if first in names.MEN else "them"
+    return "them"
+
+
+def _what_is_owed(store: Store, written: Any, account: str, owed: list, head: str) -> str:
+    """`You owe her: rent for 27 Wharf Street (ob28).` (or what `head` says), or that nothing is."""
+    them = _them(store, account, written)
+    if not owed:
+        return head.format(them=them).replace("You owe", "Nothing is owed to").replace(
+            "owes you", "owes you nothing on a schedule") + ("" if "owes you" in head else " on a schedule") + "."
+    return head.format(them=them) + ": " + "; ".join(f"{memo_shown(o.memo)} ({o.id})" for o in owed) + "."
 
 
 def _ended_wage(store: Store, ob_id: str) -> bool:
@@ -206,7 +233,7 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     source, ref = _source(store, act), _pay_ref(act)
     if _toward_nothing(act):                       # a gift or a bonus: counted toward nothing
         obligations.pay(store, source, payee, cents, memo, cause, match=False)
-        return f"Paid {money(cents)} to {name}. {NOT_COUNTED}"
+        return f"Paid {money(cents)} to {name}. {NOT_COUNTED}" + _still_taken(store, source, payee, set())
     if ref is not None and store.get("obligations", ref).payer != source:     # their business's wage, by hand
         wage, ref = ref, None
     else:
@@ -220,11 +247,42 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     elif not matches:
         told += " " + NOT_COUNTED
     if matches:
-        counted = []
-        for m in matches:
-            due = store.get("dues", m.due)
+        counted, dues = [], [store.get("dues", m.due) for m in matches]
+        for due in dues:
             counted.append(f"{memo_shown(store.get('obligations', due.obligation).memo)} due {date_text(due.day)}")
-        told += " It was counted toward " + "; ".join(counted) + "."
+        told += " It was counted toward " + "; ".join(counted) + _left_on(store, dues[-1], len(dues))
+    return told + _still_taken(store, source, payee, {store.get("dues", m.due).obligation for m in matches})
+
+
+def _left_on(store: Store, due, n: int) -> str:
+    """What is left on the last due a payment was counted toward: `; nothing more is taken for that
+    day.` (`those days`), or what more is taken on its day, or is still owed on it."""
+    rest = due.cents - due.paid
+    if rest <= 0:
+        return f"; nothing more is taken for {'that day' if n == 1 else 'those days'}."
+    if due.day >= store.day:
+        return f"; {money(rest)} more is taken on that day."
+    return f"; {money(rest)} of it is still owed."
+
+
+STILL_SHOWN = 3
+
+
+def _still_taken(store: Store, payer: str, payee: str, touched: set) -> str:
+    """What is still taken from `payer` for `payee` on its next day, for each obligation in force
+    between them that a payment did not touch: ` Rent for 33 Moor Road (ob28), $271.00, is still
+    taken on Monday 16 March.` (at most three)."""
+    told = ""
+    for o in [o for o in store.where("obligations", payer=payer) if o.payee == payee and o.status == "active"
+              and o.id not in touched][:STILL_SHOWN]:
+        day = obligations.next_instalment(store, o)
+        if day is None:
+            continue
+        due = next((d for d in store.where("dues", obligation=o.id, status="due") if d.day == day), None)
+        cents = obligations.instalment_cents(o, day) if due is None else due.cents - due.paid
+        what = memo_shown(o.memo)
+        how = "paid" if o.kind == "wage" else "taken"
+        told += f" {what[:1].upper()}{what[1:]} ({o.id}), {money(cents)}, is still {how} on {date_text(day)}."
     return told
 
 
@@ -438,29 +496,82 @@ def _owed_on(store: Store, act: Act, who: str) -> str | None:
     return None if _ended_wage(store, ob.id) else ob.id
 
 
-def _check_request(store: Store, act: Act) -> str | None:
+def _request_to(store: Store, act: Act) -> tuple[str | None, str]:
+    """Who a request reaches, or None and why not: a person; or for an organisation in the town,
+    its owner, or its contact if it has no owner, as a letter does. One outside the town is no
+    one here: the refusal says so, with what the records hold of payments between it and the
+    asker."""
     to = act.args.get("to")
     who = _resolve(store, to, act.actor)
     if who is None:
-        return f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
+        return None, f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
+    if store.has("orgs", who):
+        org = store.get("orgs", who)
+        if org.outside or not (org.owner or org.contact):
+            return None, _outside(store, act, org)
+        who = org.owner or org.contact
     if not store.has("people", who):
-        return f"{name_of_who(store, who)} is not a person."
+        return None, f"{name_of_who(store, who)} is not a person."
     if who == act.actor:
-        return "that is you."
+        return None, "that is you."
+    return who, ""
+
+
+_OUTSIDE_KINDS = {"region": "an office", "utility": "a company", "market": "shops and services"}
+
+
+def _outside(store: Store, act: Act, org) -> str:
+    """`<Org> is a firm outside <place>; a request reaches only people here.` and, when the records
+    hold a schedule between it and the asker's accounts, when it last paid and is next due."""
+    what = _OUTSIDE_KINDS.get(org.kind, "a firm")
+    told = f"{org.name} is {what} outside {store.place or 'the town'}; a request reaches only people here."
+    from townsim.town import facts                    # facts reads the operations' modules
+    mine = accounts_of(store, act.principal)
+    obs = [o for o in store.where("obligations", payer=org.id) if o.payee in mine and o.status in obligations.SCHEDULED]
+    obs += [o for o in store.all("obligations") if o.payer in mine and o.payee == org.id
+            and o.status in obligations.SCHEDULED]
+    for o in obs[:1]:
+        paid = facts.last_paid(store).get(o.id)
+        if paid is not None:
+            told += (f" {name_of(store, o.payer)} last paid {name_of(store, o.payee)} {money(paid[1])} on "
+                     f"{date_text(paid[0])} ({o.id})")
+            day = obligations.next_instalment(store, o)
+            told += f"; the next is due {date_text(day)}." if day is not None else "."
+    return told
+
+
+def _check_request(store: Store, act: Act) -> str | None:
+    who, why = _request_to(store, act)
+    if who is None:
+        return why
     cents = _asked_cents(act.args.get("amount"))
     if cents is None:
         return f"'{shown(act.args.get('amount'))}' is not an amount of money that can be paid."
-    if not _blank(act.args.get("for")):
+    if _request_ref(act) is not None:
         if _owed_on(store, act, who) is None:
-            return f"'{shown(act.args.get('for'))}' is not something {name_of_who(store, who)} owes you."
+            name = name_of_who(store, who)
+            owed = [o for a in accounts_of(store, who) for o in store.where("obligations", payer=a)
+                    if controls(store, act.actor, o.payee) and o.status == "active" and not _ended_wage(store, o.id)]
+            them = _them(store, account_of(store, who), name)
+            head = {"her": "She", "him": "He"}.get(them, "They") + (" owe" if them == "them" else " owes") + " you"
+            listed = ("; ".join(f"{memo_shown(o.memo)} ({o.id})" for o in owed) + ".") if owed else \
+                "nothing on a schedule."
+            return (f"'{shown(act.args.get('for'))}' is not the id of anything {name} owes you. "
+                    + (f"{head}: {listed}" if owed else f"{head} {listed}"))
     elif cents > 0 and account_of(store, who) == _own(store, act):
         return "that is your own household."
     return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)
 
 
+def _request_ref(act: Act) -> Any:
+    """What a request's `for` names, or None: blank, `none` or `nothing` name nothing."""
+    ref = act.args.get("for")
+    return None if _blank(ref) or (isinstance(ref, str) and ref.strip().lower() in NOT_TOWARD) else ref
+
+
 def _do_request(store: Store, act: Act, cause: str) -> str:
-    to = _person_to(store, act)
-    ob = "" if _blank(act.args.get("for")) else _owed_on(store, act, to)
+    to, _ = _request_to(store, act)
+    ob = "" if _request_ref(act) is None else _owed_on(store, act, to)
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, clean_text(act.args["text"]),
                  _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS, ob=ob)
     store.add("requests", rq, cause)
@@ -620,7 +731,8 @@ def _do_notes(store: Store, act: Act, cause: str) -> str:
 
 for _spec in (
     OpSpec("pay", '{"op": "pay", "to": "<name>", "amount": <dollars>, "note": "<what for>", '
-                  '"for": "<id of what it is owed on, if any; none for a payment that is not toward anything owed>"}',
+                  '"for": "<id of what it is owed on; leave out to let it count toward what you owe them; none for a '
+                  'gift on top of what you owe>"}',
            "Pay money once.", 0.25, _check_pay, _do_pay, 10, takes_from=True),
     OpSpec("standing_payment", '{"op": "standing_payment", "to": "<name>", "amount": <dollars>, '
                                '"day": "<day of the week>", "start": "<first date, e.g. Monday 13 April>", '

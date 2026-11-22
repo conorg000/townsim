@@ -39,7 +39,7 @@ def test_pay_moves_money_between_households():
 def test_pay_with_for_counts_toward_that_obligation():
     s = thin(); rent = ob_id(s, "h1", "rent")
     out = do(s, "p01", "pay", to="Wenlow Lettings", amount="$210", note="rent", **{"for": rent})
-    assert out.msg == "Paid $210.00 to Wenlow Lettings. It was counted toward rent due Monday 2 March."
+    assert out.msg == "Paid $210.00 to Wenlow Lettings. It was counted toward rent due Monday 2 March; nothing more is taken for that day."
     due = next(d for d in s.all("dues") if d.obligation == rent)
     assert (due.paid, due.status) == (21000, "paid")
 
@@ -47,15 +47,16 @@ def test_pay_with_for_counts_toward_that_obligation():
 def test_pay_without_for_still_counts_toward_what_is_owed():
     s = thin()
     out = do(s, "p01", "pay", to="Wenlow Lettings", amount=100)
-    assert out.msg == "Paid $100.00 to Wenlow Lettings. It was counted toward rent due Monday 2 March."
+    assert out.msg == ("Paid $100.00 to Wenlow Lettings. It was counted toward rent due Monday 2 March; $110.00 more is "
+                       "taken on that day.")
 
 
 def test_pay_for_something_not_owed_to_them_is_refused():
-    s = thin(); energy = ob_id(s, "h1", "energy")
+    s = thin(); energy = ob_id(s, "h1", "energy"); rent = ob_id(s, "h1", "rent")
     msg = refused(s, "p01", "pay", to="Wenlow Lettings", amount=10, **{"for": energy})
-    assert msg == f"Not done: you have nothing with the id '{energy}' that is owed to Wenlow Lettings."
+    assert msg == f"Not done: '{energy}' is not the id of anything you owe Wenlow Lettings. You owe them: rent ({rent})."
     assert refused(s, "p01", "pay", to="Wenlow Lettings", amount=10, **{"for": "ob999"}).endswith(
-        "nothing with the id 'ob999' that is owed to Wenlow Lettings.")
+        "'ob999' is not the id of anything you owe Wenlow Lettings. You owe them: rent (ob2).")
 
 
 def test_pay_to_no_one_too_much_or_yourself_is_refused():

@@ -499,7 +499,7 @@ def test_a_rent_changed_twice_with_a_rent_day_paid_by_hand_is_taken_once_a_day()
     ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=210)                  # more: from day 35
     to_day(s, 22)
     out = ok(s, "p03", "pay", to="Len Hale", amount=185, **{"for": rent.id})
-    assert out.msg == "Paid $185.00 to Len Hale. It was counted toward rent due Monday 30 March."
+    assert out.msg == "Paid $185.00 to Len Hale. It was counted toward rent due Monday 30 March; nothing more is taken for that day."
     ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=220)                  # more: from day 56
     to_day(s, 29)
     ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=230)                  # more: from day 63

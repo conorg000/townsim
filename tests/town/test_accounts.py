@@ -239,9 +239,9 @@ def test_a_request_for_something_not_owed_is_refused():
     [energy] = [o for o in s.where("obligations", payer="h2") if o.memo == "energy"]
     for wrong in (energy.id, "ob999", 6):
         out = _act(s, "p01", "request", to="Megan Pryce", text="Pay up.", amount=10, **{"for": wrong})
-        assert out.msg == f"Not done: '{wrong}' is not something Megan Pryce owes you."
+        assert out.msg == f"Not done: '{wrong}' is not the id of anything Megan Pryce owes you. They owe you: rent ({rent.id})."
     out = _act(s, "p02", "request", to="Megan Pryce", text="Pay up.", amount=10, **{"for": rent.id})
-    assert out.msg == f"Not done: '{rent.id}' is not something Megan Pryce owes you."
+    assert out.msg == f"Not done: '{rent.id}' is not the id of anything Megan Pryce owes you. They owe you nothing on a schedule."
     s.set("obligations", rent.id, T, status="stopped")
     assert not _act(s, "p01", "request", to="Megan Pryce", text="Pay up.", amount=10, **{"for": rent.id}).ok
     assert s.all("requests") == []

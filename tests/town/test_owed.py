@@ -164,3 +164,79 @@ def test_a_change_of_pay_names_the_wage_and_how_it_is_paid():
     assert out.ok
     told = [n.text for n in s.where("notices", to=staff.person)][-1]
     assert told.endswith(f"({staff.wage_ob}). It is paid into the household account each Friday, as now.")
+
+
+# paying: what it counted toward, and what is still to be taken
+
+def _landlord_and_tenant(s):
+    for h in s.all("households"):
+        if s.has("people", h.landlord):
+            tenant = next(p for p in h.members if s.get("people", p).age >= 18)
+            rent = next(o for o in s.where("obligations", payer=h.id) if o.kind == "rent")
+            return s.get("people", h.landlord), tenant, h, rent
+    raise AssertionError("no landlord here")
+
+
+def test_a_gift_to_the_landlord_says_the_rent_is_still_taken_and_a_payment_for_it_says_nothing_more_is():
+    from townsim.town.clock import date_text
+    s = place()
+    lord, tenant, h, rent = _landlord_and_tenant(s)
+    days(s, 3)
+    out = apply_act(s, Act(tenant, tenant, "pay", {"to": lord.name, "amount": rent.cents / 100, "for": "none"}), 0)
+    nxt = facts.next_instalment(s, rent)
+    assert out.msg == (f"Paid {money(rent.cents)} to {lord.name}. It was not counted toward anything owed. "
+                       f"{facts.memo(rent.memo)[:1].upper()}{facts.memo(rent.memo)[1:]} ({rent.id}), "
+                       f"{money(rent.cents)}, is still taken on {date_text(nxt)}.")
+    out = apply_act(s, Act(tenant, tenant, "pay", {"to": lord.name, "amount": rent.cents / 100, "for": rent.id}), 1)
+    assert out.msg == (f"Paid {money(rent.cents)} to {lord.name}. It was counted toward {facts.memo(rent.memo)} due "
+                       f"{date_text(nxt)}; nothing more is taken for that day.")
+    wrong = apply_act(s, Act(tenant, tenant, "pay", {"to": lord.name, "amount": 5, "for": "rent for the house due Monday"}), 2)
+    her = "her" if lord.name.split()[0] in __import__("townsim.town.names", fromlist=["WOMEN"]).WOMEN else "him"
+    assert wrong.msg == (f"Not done: 'rent for the house due Monday' is not the id of anything you owe {lord.name}. "
+                         f"You owe {her}: {facts.memo(rent.memo)} ({rent.id}).")
+
+
+def test_a_request_names_what_they_owe_and_none_names_nothing():
+    s = place()
+    lord, tenant, h, rent = _landlord_and_tenant(s)
+    t = s.get("people", tenant)
+    out = apply_act(s, Act(lord.id, lord.id, "request", {"to": t.name, "text": "The rent, please.", "amount": 5,
+                                                         "for": "the rent"}), 0)
+    they = "She" if t.name.split()[0] in __import__("townsim.town.names", fromlist=["WOMEN"]).WOMEN else "He"
+    assert out.msg == (f"Not done: 'the rent' is not the id of anything {t.name} owes you. {they} owes you: "
+                       f"{facts.memo(rent.memo)} ({rent.id}).")
+    assert apply_act(s, Act(lord.id, lord.id, "request", {"to": t.name, "text": "A hand on Saturday?", "amount": 0,
+                                                          "for": "none"}), 1).ok
+
+
+def test_a_request_to_a_shop_reaches_its_owner_and_one_to_a_firm_outside_is_refused_with_the_record():
+    s = place()
+    firm = next(o for o in s.all("orgs") if o.kind == "firm")
+    shop = next(o for o in s.all("orgs") if o.kind == "shop")
+    days(s, 9)
+    asker = firm.owner
+    out = apply_act(s, Act(asker, asker, "request", {"to": shop.name, "text": "Eggs on Thursday?", "amount": 0}), 0)
+    assert out.ok and s.all("requests")[-1].to == shop.owner
+    investor = next(o for o in s.all("obligations") if o.payee == firm.id and o.kind == "agreement")
+    inv = s.get("orgs", investor.payer)
+    out = apply_act(s, Act(asker, asker, "request", {"to": inv.name, "text": "Where is the money?", "amount": 100}), 1)
+    paid = facts.last_paid(s)[investor.id]
+    assert out.msg == (f"Not done: {inv.name} is a firm outside {s.place}; a request reaches only people here. "
+                       f"{inv.name} last paid {firm.name} {money(paid[1])} on {facts.date_text(paid[0])} "
+                       f"({investor.id}); the next is due {facts.date_text(facts.next_instalment(s, investor))}.")
+
+
+def test_an_agreement_about_hours_says_it_moves_money_only():
+    s = place()
+    shop = next(o for o in s.all("orgs") if o.kind == "shop")
+    from townsim.town import jobs
+    staff = next(j for j in jobs.held(s, org=shop.id) if j.person != shop.owner)
+    name = s.get("people", staff.person).name
+    out = apply_act(s, Act(shop.owner, shop.owner, "propose_agreement", {
+        "to": name, "amount": 30, "per": "once", "payer": "me", "what": "the extra hours on Saturday"}), 0)
+    assert out.ok and "This moves money only; it changes no one's hours or pay." in out.msg
+    rq = s.all("requests")[-1]
+    assert rq.summary.endswith("This moves money only; it changes no one's hours or pay.")
+    plain = apply_act(s, Act(shop.owner, shop.owner, "propose_agreement", {
+        "to": name, "amount": 30, "per": "once", "payer": "me", "what": "a share of the coal"}), 1)
+    assert plain.ok and "moves money only" not in plain.msg

@@ -224,10 +224,22 @@ def _check_propose(store: Store, act: Act) -> str | None:
     return why if terms is None else None
 
 
+WORK_WORDS = frozenset({"hour", "hours", "shift", "shifts", "wage", "wages", "work", "works", "working", "worked",
+                        "overtime", "rota", "job"})
+MONEY_ONLY = "This moves money only; it changes no one's hours or pay."
+
+
+def about_work(what: str) -> bool:
+    """Whether what an agreement is for speaks of hours, shifts, wages or work."""
+    return any(w.strip(".,;:!?'\"()").lower() in WORK_WORDS for w in what.split())
+
+
 def _do_propose(store: Store, act: Act, cause: str) -> str:
     t, _ = _agreement_terms(store, act)
     payer, payee = _names(store, t.mine, act.principal, t.who, t.payer, t.payee)
     summary = agreement_summary(payer, payee, t.cents, t.every, t.first, t.weeks, t.what)
+    if about_work(t.what):
+        summary = work._bounded(f"{summary} {MONEY_ONLY}")
     expires = min(store.day + core.REQUEST_DAYS, t.first - 1)          # it lapses before it would start
     rq = Request(store.new_id("rq", cause), store.day, act.actor, t.who, "", 0, expires, kind="agreement", summary=summary, org=t.mine, every=t.every, first=t.first, times=t.weeks,
                  pay=t.cents, payer=t.payer, payee=t.payee)
@@ -235,6 +247,8 @@ def _do_propose(store: Store, act: Act, cause: str) -> str:
     mine = "you" if t.mine == account_of(store, act.principal) else None
     yours = (mine or payer, payee) if t.payer == t.mine else (payer, mine or payee)
     said = agreement_summary(*yours, t.cents, t.every, t.first, t.weeks, t.what, verb="would pay")
+    if about_work(t.what):
+        said = f"{said} {MONEY_ONLY}"
     return (work.sent(store, rq, said) + core.also_paid(store, t.payer, t.payee, terms=(t.cents, t.every, t.first))
             + writer_text(unknown_names(store, act.actor, t.who, t.what)))
 
