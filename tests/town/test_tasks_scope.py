@@ -50,7 +50,7 @@ def test_task_instalments_count_toward_later_weeks_limit():
     assert not out.ok and "weekly limit of $780.00" in out.text
     assert ST.run_op(s, s.get("instances", "as1"), "pay", {**pay, "amount": 150}, 3).ok
     notices = [n.text for n in s.all("notices") if n.to == "p3"]
-    assert any(t.startswith("Tessaly Assistant for Harlow Springs Food Mart arranged a task: Local publicity (medium)")
+    assert any(t.startswith("Tessaly Assistant for Harlow Springs Food Mart arranged a task: Local publicity")
                for t in notices)
 
 
@@ -60,7 +60,7 @@ def test_on_accept_project_rechecked_when_accepted():
     ask = [{"op": "request", "to": "p7", "asks": "the use of your yard", "on_accept": [
         {"op": "project", "kind": "repair", "scale": "small", "target": "org11", "on_complete": []}]}]
     narrate(s, Outside({"ts1": ask}, default_lift=lift(others=(("p7", "Eric Reyes", "lend his yard"),))))
-    assert s.get("tasks", "ts1").status == "completed"
+    assert s.get("tasks", "ts1").status == "sent"
     rq = s.all("requests")[-1]
     assert apply_act(s, Act("p3", "p3", "connect", {"system": "Harlow Springs Food Mart account", "scope": "read only"}), 0).ok
     obs = len(s.all("obligations"))

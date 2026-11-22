@@ -1375,7 +1375,7 @@ def _run_tasks_list(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) 
 
 
 def _outcome(store: Store, t) -> str | None:
-    if t.status == "completed":
+    if t.status in ("completed", "sent"):
         return seat_ids.view(store, t.summary)
     if t.status == "stopped":
         return "cancelled" if t.note == "cancelled" else "stopped: nothing more is done or charged"

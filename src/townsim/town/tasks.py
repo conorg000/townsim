@@ -190,7 +190,7 @@ def _one(store: Store, x: dict, principal: str, names: dict[str, str], refs: dic
     op = x["op"]
     if op == "project":
         target = _target_name(store, x.get("target"), names, refs)
-        out = f"{PROJECT_WORDS[x['kind']]} ({x['scale']})" + (f" for {target}" if target else "")
+        out = PROJECT_WORDS[x["kind"]] + (f" for {target}" if target else "")
         then = [_one(store, y, principal, names, refs) for y in x.get("on_complete", [])]
         return "; then ".join([out] + then)
     if op == "invest":
@@ -365,9 +365,14 @@ def tell(store: Store, t: Task, cause: str, why: str = "") -> None:
             for pid in obligations.people_of(store, inst.client):
                 obligations.notify(store, pid, f"{inst.name} arranged a task: {t.summary}. {total} over "
                                                f"{_weeks(t.weeks)}, {weekly} a week from {first}.", cause)
+    elif s == "sent":
+        sent = "; ".join(f"a request to {name_of_who(store, r.to)}: \"{r.text}\"" for r in store.all("requests")
+                         if r.kind == "task" and r.org == t.id)
+        _tell_actor(store, t, f"Task {tid} sent: {sent}; you are told when it is answered.",
+                    f"Sent ({tid}): {sent}; you are told when it is answered.", cause)
     elif s == "completed":
         _tell_actor(store, t, f"Task {tid} completed: {t.summary}.", f"Done ({tid}): {t.summary}.", cause)
-        if is_instance(store, t.actor) and why == "now":
+        if is_instance(store, t.actor) and why == "now" and t.price_cents > 0:
             inst = store.get("instances", t.actor)
             for pid in obligations.people_of(store, inst.client):
                 obligations.notify(store, pid, f"{inst.name} arranged a task: {t.summary}. "
@@ -523,20 +528,35 @@ def schedule(store: Store, t: Task, entries: list[dict], cause: str, budget: int
             store.add("commits", Commit(store.new_id("cm", cause), cn.id, store.day, first_charge, "undertake", cause),
                       cause)
         _apply(store, t, [x for x in entries if x["op"] in ("create_org", "add_fact", "request")], refs, cause, names)
-        status = "scheduled" if billed else "completed"
+        status = "scheduled" if billed else ("sent" if not now and any(x["op"] == "request" for x in entries)
+                                             else "completed")
         store.set("tasks", t.id, cause, status=status, ob=ob, summary=summary(store, entries, t.principal, refs),
                   done_day=store.day if status == "completed" else -1)
         _keep(store, t, entries, refs, cause)
-    tell(store, t, cause, "now" if status == "completed" else "")
+    tell(store, t, cause, "now" if status in ("completed", "sent") else "")
     return status
 
 
 # --- narration ----------------------------------------------------------------------------------------
 
-def _ruled(store: Store, t: Task, reply) -> list[dict]:
-    """A reply's filing, checked; an invalid one is the fixed question."""
+def _ruled(store: Store, t: Task, reply) -> tuple[list[dict], bool]:
+    """A reply's filing, checked, and whether it was valid; an invalid one is the fixed question."""
     checked = narrator.check(store, t, narrator.parse_ruling(getattr(reply, "text", None)))
-    return checked if isinstance(checked, list) else [{"op": "ask", "question": narrator.FIXED_QUESTION}]
+    if isinstance(checked, list):
+        return checked, True
+    return [{"op": "ask", "question": narrator.FIXED_QUESTION}], False
+
+
+def chosen(ea: list[dict], va: bool, eb: list[dict], vb: bool, first: bool = False) -> list[dict] | None:
+    """The filing a task goes ahead with: a request for the new thing's name when either asks it; the one
+    valid filing when only one is; the first when both are and they are of the same kind (or `first`);
+    the fixed question when neither is valid; None when both are valid and differ in kind."""
+    for e, v in ((ea, va), (eb, vb)):
+        if v and narrator.asks_for_name(e):
+            return e
+    if va and vb:
+        return ea if narrator.same_kind(ea, eb) or first else None
+    return ea if va or not vb else eb
 
 
 def _cut(text: Any) -> str:
@@ -558,11 +578,9 @@ def narrate(store: Store, replier: Replier, keys: Keys, t: Task) -> str:
     messages = narrator.rule_messages(store, t, fields)
     model = replier.model_for("narrator")
     a, b = ask_all(replier, [(keys.next(model, store.day, "narrator", "rule", t.id), messages) for _ in range(2)])
-    ea, eb = _ruled(store, t, a), _ruled(store, t, b)
-    agreed = narrator.signature(ea) == narrator.signature(eb)
-    used = ea if agreed or narrator.same_kind(ea, eb) else None      # differing only in scale: the first's
-    if used is None and on_disagree(store) == "first":
-        used = ea
+    (ea, va), (eb, vb) = _ruled(store, t, a), _ruled(store, t, b)
+    agreed = va and vb and narrator.signature(ea) == narrator.signature(eb)
+    used = chosen(ea, va, eb, vb, on_disagree(store) == "first")
     store.set("tasks", t.id, cause, ruling_a=_cut(a.text), ruling_b=_cut(b.text), agreed=agreed)
     if used is None:
         store.set("tasks", t.id, cause, status="needs_detail", note=narrator.FIXED_QUESTION)
@@ -597,6 +615,10 @@ def narrate_day(store: Store, replier: Replier, keys: Keys) -> list[str]:
             store.undo_to(mark)
             store.engine_errors.append(f"narr:{t.id}: {type(e).__name__}: {str(e)[:200]}")
             store.set("tasks", t.id, _cause(t, store.day), status="declined", note="internal")
+            try:                                     # the actor is told as of any task that cannot be carried out
+                tell(store, t, _cause(t, store.day))
+            except Exception as e2:     # noqa: BLE001
+                store.engine_errors.append(f"narr:{t.id}: telling: {type(e2).__name__}: {str(e2)[:200]}")
         done.append(t.id)
     return done
 

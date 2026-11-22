@@ -8,7 +8,7 @@ from townsim.town.entities import Task
 
 
 def _task(s, principal="p3", fields=None):
-    return Task("ts1", s.day, principal, principal, "h2", "x", 0,
+    return Task("ts1", s.day, principal, principal, "h2", "Start Depot Walkers, Oak Walkers or Depot Corner Store", 0,
                 fields=json.dumps(fields or lift(targets=(("org11", "x"),), others=(("p7", "Eric Reyes", "help"),))))
 
 
@@ -29,7 +29,7 @@ def test_check_every_vocabulary_entry():
         "project": ([CAMPAIGN[0], SHOP_FIT], [[{**CAMPAIGN[0], "target": "org12"}],
                                              [{**CAMPAIGN[0], "on_complete": [INV]}]]),
         "request": ([REQ], [[{**REQ, "to": "p3"}], [{**REQ, "to": "p1"}]]),
-        "add_fact": ([FACT, {**CLUB}], [[{**FACT, "subject": "org10"}], [FACT, FACT, {**FACT, "subject": "h2"}]]),
+        "add_fact": ([FACT, {**CLUB}], [[{**FACT, "subject": "org10"}], [{**FACT, "text": "Eric Reyes agreed to help out on Sundays"}]]),
         "ask": ([{"op": "ask", "question": "Which street will the posters go up on?"}],
                 [[{"op": "ask", "question": "Which?"}, FACT], [{"op": "ask"}, {"op": "ask"}]]),
         "redirect": ([{"op": "redirect", "operation": "pay"}, {"op": "redirect", "operation": "look_up"}],
@@ -43,6 +43,10 @@ def test_check_every_vocabulary_entry():
             assert isinstance(out, list), (op, good, out)
         for bad in bads:
             assert isinstance(N.check(s, t, bad), str), (op, bad)
+    kept = N.check(s, t, [CAMPAIGN[0], FACT, FACT, {**FACT, "subject": "h2"}, CAMPAIGN[0]])
+    assert isinstance(kept, str)                                                  # five entries
+    kept = N.check(s, t, [CAMPAIGN[0], FACT, {**FACT, "text": "Eric Reyes agreed to it"}, {**FACT, "subject": "h2"}])
+    assert [x["op"] for x in kept] == ["project", "add_fact", "add_fact"]         # a fact of an act is left out
     vague = N.check(s, t, [{"op": "ask", "question": "Should you do it?"}])
     assert vague == [{"op": "ask", "question": N.FIXED_QUESTION}]           # a banned word: the fixed question
     assert isinstance(N.check(s, t, []), str) and isinstance(N.check(s, t, [INV] * 5), str)

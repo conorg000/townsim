@@ -51,7 +51,7 @@ def test_scripted_ruling_scheduled_priced_from_tables():
     assert (t.status, t.price_cents, t.weeks, t.agreed) == ("scheduled", 120_000, 2, True)
     assert (ob.kind, ob.payer, ob.payee, ob.cents, ob.first, ob.last, ob.memo, ob.ends, ob.made_by) == (
         "bill", "org11", trades, 60_000, 14, 21, "task ts1", "payer", "p3")
-    assert s.all("notices")[-1].text == ("Arranged (ts1): Local publicity (medium) for Harlow Springs Food Mart. "
+    assert s.all("notices")[-1].text == ("Arranged (ts1): Local publicity for Harlow Springs Food Mart. "
                                          "$1,200.00 over 2 weeks, $600.00 a week from Monday 16 March.")
     assert all(c.cause.startswith("narr:ts1:") for c in s.changes[mark:])
     mornings(s, 7)
@@ -59,7 +59,7 @@ def test_scripted_ruling_scheduled_priced_from_tables():
     mornings(s, 7)
     assert s.get("tasks", "ts1").status == "completed"
     assert sum(x.cents for x in s.ledger.transfers if x.dst == trades) == 120_000
-    assert s.all("notices")[-1].text == "Done (ts1): Local publicity (medium) for Harlow Springs Food Mart."
+    assert s.all("notices")[-1].text == "Done (ts1): Local publicity for Harlow Springs Food Mart."
 
 
 def test_over_budget_and_no_funds_change_nothing():
@@ -113,7 +113,9 @@ def test_no_narrated_entry_credits_any_account_in_the_place():
     rulings, lifts = {}, {}
     for i in range(40):
         tid = s.new_id("ts", CAUSE)
-        s.add("tasks", Task(tid, s.day, "p3", "p3", rng.choice(["h2", "org11"]), "something", 100_000_000), CAUSE)
+        s.add("tasks", Task(tid, s.day, "p3", "p3", rng.choice(["h2", "org11"]),
+                            "Corner Pantry, Depot Supper Club, Oak Street Market, Maple Walkers, Depot Deliveries",
+                            100_000_000), CAUSE)
         rulings[tid] = _random_entries(rng, s)
         lifts[tid] = lift(targets=(("org11", "x"), ("org10", "y")), others=(("p7", "Eric Reyes", "help"),))
     start = len(s.ledger.transfers)
@@ -186,11 +188,68 @@ def test_disagreeing_rulings_ask_the_fixed_question():
     _undertake(s, "p3", "Posters", 5000)
     _undertake(s, "p3", "Posters", 5000)
     other = [{"op": "invest", "target": "org11", "attribute": "visibility", "scale": "medium"}]
-    narrate(s, Outside({"ts1": (CAMPAIGN, other), "ts2": (CAMPAIGN, "no reply I can read")}))
+    narrate(s, Outside({"ts1": (CAMPAIGN, other), "ts2": ("no reply I can read", "nor this")}))
     for tid in ("ts1", "ts2"):
         t = s.get("tasks", tid)
         assert (t.status, t.note, t.agreed) == ("needs_detail", narrator.FIXED_QUESTION, False)
     assert s.all("notices")[-1].text == "Not arranged (ts2): What exactly will be done, by whom, and with what or whom?"
+
+
+def test_filings_of_the_same_kind_or_one_valid_go_ahead():
+    s = b_store()
+    s.transfer("org1", "h2", 1_000_000, "setup", CAUSE)
+    repaint = {"op": "project", "kind": "repair", "scale": "small", "target": "org11", "on_complete": []}
+    with_fact = {**repaint, "on_complete": [{"op": "add_fact", "subject": "org11",
+                                             "text": "the shop front is freshly painted green"}]}
+    club = {"op": "create_org", "ref": "new1", "kind": "club", "name": "Depot Parents", "offering": "shared school runs"}
+    texts = ["Repaint the shop front", "Posters", "Start Depot Parents, a club for school runs", "Repaint it"]
+    for x in texts:
+        _undertake(s, "p3", x, 50_000) if texts.index(x) < 2 else _undertake(s, "p5", x, 50_000)
+    narrate(s, Outside({"ts1": ([with_fact], [repaint]),                                  # an extra on completion
+                        "ts2": ("not a filing", CAMPAIGN),                                # one valid
+                        "ts3": ([club], [{"op": "redirect", "operation": "register_business"}]),
+                        "ts4": ([{**repaint, "target": "org12"}], [repaint])},            # not hers: one invalid
+                       lifts={"ts3": lift(targets=()), "ts4": lift(targets=(("org12", "x"),))}))
+    got = {t.id: (t.status, t.agreed) for t in s.all("tasks")}
+    assert got["ts1"] == ("scheduled", False) and "freshly painted" in s.get("tasks", "ts1").entries
+    assert got["ts2"] == ("scheduled", False) and s.get("tasks", "ts2").price_cents == 120_000
+    assert got["ts3"] == ("completed", False) and s.all("ventures")[-1].client == "h3"
+    assert got["ts4"][0] == "needs_detail"
+
+
+def test_a_filing_in_an_odd_shape_is_read_or_refused_and_the_actor_always_told():
+    from townsim.town import seat_tools as ST
+    s = b_store()
+    inst = s.get("instances", "as1")
+    for i in range(3):
+        assert ST.run_op(s, inst, "undertake", {"what": "Put posters up around town for the shop", "budget": 3000}, i).ok
+    as_object = [{**CAMPAIGN[0], "target": {"id": "org11", "name": "Harlow Springs Food Mart"}}]   # the review's
+    as_list = [{**CAMPAIGN[0], "target": ["org11"]}]
+    narrate(s, Outside({"ts1": as_object, "ts2": as_list, "ts3": CAMPAIGN}))
+    assert not s.engine_errors
+    assert s.get("tasks", "ts1").status == "scheduled" and s.get("tasks", "ts2").status == "needs_detail"
+    import townsim.town.tasks as T
+    real, T.schedule = T.schedule, lambda *a, **k: 1 / 0                     # a fault inside one task
+    try:
+        ST.run_op(s, inst, "undertake", {"what": "Posters again", "budget": 3000}, 9)
+        narrate(s, Outside({"ts4": CAMPAIGN}))
+    finally:
+        T.schedule = real
+    assert s.get("tasks", "ts4").status == "declined" and s.engine_errors[-1].startswith("narr:ts4: ZeroDivisionError")
+    assert s.all("notices")[-1].to == "as1" and s.all("notices")[-1].text == \
+        "Task ts4 not scheduled: it cannot be carried out."
+
+
+def test_names_are_the_actors_and_skills_are_training():
+    s = b_store()
+    club = {"op": "create_org", "ref": "new1", "kind": "club", "name": "Depot Parents", "offering": "shared school runs"}
+    _undertake(s, "p5", "Start a club for parents who share school runs", 50_000)
+    _undertake(s, "p5", "Train in bookkeeping at evening classes", 50_000)
+    skill = [{"op": "invest", "target": "p5", "attribute": "skill", "scale": "small"}]
+    narrate(s, Outside({"ts1": [club], "ts2": skill}, default_lift=lift(targets=())))
+    t1, t2 = s.get("tasks", "ts1"), s.get("tasks", "ts2")
+    assert (t1.status, t1.note) == ("needs_detail", "What is the new club to be called?") and not s.all("ventures")
+    assert t2.status == "scheduled" and t2.price_cents == 40_000 and '"kind": "training"' in t2.entries
 
 
 def test_rulings_differing_only_in_scale_take_the_first():
@@ -218,7 +277,7 @@ def test_completion_raises_attribute_by_curve_and_opens_shop():
     s = b_store()
     s.transfer("org1", "h2", 1_000_000, "setup", CAUSE)
     _undertake(s, "p3", "Advertise", 2000, **{"from": "Harlow Springs Food Mart"})
-    _undertake(s, "p3", "Open a second shop", 10_000)
+    _undertake(s, "p3", "Open a second shop, Depot Corner Store", 10_000)
     shop = [{"op": "project", "kind": "fit_out", "scale": "small", "target": None, "on_complete": [
         {"op": "create_org", "ref": "new1", "kind": "shop", "name": "Depot Corner Store", "offering": "groceries"},
         {"op": "add_fact", "subject": "new1", "text": "the store has a bakery counter"}]}]
@@ -241,7 +300,7 @@ def test_completion_raises_attribute_by_curve_and_opens_shop():
     assert [f.text for f in narrator.facts_of(s, v.org)] == ["the store has a bakery counter"]
     rent = [o for o in s.all("obligations") if o.payer == v.org]
     assert len(rent) == 1 and rent[0].cents == 15_000 and rent[0].payee == tasks._agency(s).id
-    assert "Fit-out of premises (small); then registers the shop \"Depot Corner Store\"" in s.get("tasks", "ts2").summary
+    assert "Fit-out of premises; then registers the shop \"Depot Corner Store\"" in s.get("tasks", "ts2").summary
     from townsim.town import firms
     while s.day % 7 != 6:
         s.advance_day()
@@ -277,11 +336,13 @@ def test_request_accept_applies_on_accept_and_charges_then():
         {"op": "project", "kind": "repair", "scale": "small", "target": "org11", "on_complete": []}]}]
     narrate(s, Outside({"ts1": ask}, lifts={"ts1": lift(others=(("p7", "Eric Reyes", "lend his yard"),))}))
     t = s.get("tasks", "ts1")
-    assert (t.status, t.price_cents) == ("completed", 60_000) and not t.ob
+    assert (t.status, t.price_cents) == ("sent", 60_000) and not t.ob
+    assert s.all("notices")[-1].text == ('Sent (ts1): a request to Eric Reyes: "the use of your yard for storage"; '
+                                         'you are told when it is answered.')
     rq = s.all("requests")[-1]
     assert (rq.kind, rq.sender, rq.to, rq.text, rq.org) == ("task", "p3", "p7", "the use of your yard for storage", "ts1")
     assert rq.summary == ("Accepting means: notes of Harlow Springs Food Mart: the shop keeps its stock in a yard on "
-                          "Maple Avenue; Repairs (small) for Harlow Springs Food Mart.")
+                          "Maple Avenue; Repairs for Harlow Springs Food Mart.")
     assert not narrator.facts_of(s, "org11") and len(s.all("tasks")) == 1
     mark = len(s.changes)
     assert apply_act(s, Act("p7", "p7", "answer", {"request": rq.id, "answer": "accept"}), 1).ok

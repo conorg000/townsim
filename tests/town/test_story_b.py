@@ -71,7 +71,7 @@ def test_story_b_sections_and_counts(b_run):
                                      "## Wording to read")]
     assert order == sorted(order)
     assert "### ts1, Monday 9 March: Tessaly Assistant for Harlow Springs Food Mart (as1), for Tara Russo" in text
-    assert "- Quote: $1,200.00 over 2 weeks" in text and "Local publicity (medium)" in text
+    assert "- Quote: $1,200.00 over 2 weeks" in text and "Local publicity" in text
     assert "- Narrator agreement (both filings valid): 1/1 (100%)" in text
     assert "- Tasks by actor: instance 1" in text and "- Spent through tasks: $1,200.00" in text
     assert "rl1 `weekly`, set by Tessaly Assistant for Harlow Springs Food Mart (as1)" in text and "fired on 2 days" in text and "Payments: $600.00 on Monday 16 March, $600.00 on Monday 23 March" in text

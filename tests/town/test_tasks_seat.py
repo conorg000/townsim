@@ -44,7 +44,7 @@ def test_tasks_create_list_get_cancel():
     assert read_only["error"] == "insufficient_scope"
     narrate(s, Outside({f"ts{i}": CAMPAIGN for i in range(1, 6)}))
     mask = seat_ids.mask(s, "org11")
-    assert _seen(s, "as1")[0] == (f"Task {tsk} scheduled: Local publicity (medium) for Harlow Springs Food Mart. Quote "
+    assert _seen(s, "as1")[0] == (f"Task {tsk} scheduled: Local publicity for Harlow Springs Food Mart. Quote "
                                   f"$1,200.00 over 2 weeks: $600.00 a week from Monday 16 March 2026, billed to checking "
                                   f"{mask}. Completes Monday 23 March 2026.")
     listed = json.loads(_run(s, "as1", "tasks_list", {}).text)["tasks"]
@@ -58,7 +58,7 @@ def test_tasks_create_list_get_cancel():
         "total": "1200.00", "weeks": 2, "weekly": "600.00", "first_payment": "2026-03-16",
         "billed_to": f"checking {mask}", "payee": trades}
     assert got["payments"] == [{"date": "2026-03-16", "amount": "600.00", "status": "paid"}]
-    assert got["scope"] == "Local publicity (medium) for Harlow Springs Food Mart" and got["outcome"] is None
+    assert got["scope"] == "Local publicity for Harlow Springs Food Mart" and got["outcome"] is None
     over = json.loads(_run(s, "as1", "tasks_get", {"task_id": seat_ids.display(s, "ts2")}).text)
     assert over["note"] == "the quote is $1,200.00 over 2 weeks, above its budget of $1.00. Nothing was charged."
     gone = json.loads(_run(s, "as1", "tasks_cancel", {"task_id": tsk}, 20).text)
@@ -93,7 +93,7 @@ def test_client_adults_told_of_instance_task():
     narrate(s, Outside({"ts1": [{"op": "project", "kind": "event", "scale": "small", "target": None,
                                  "on_complete": []}]}, default_lift=lift(targets=())))
     told = {n.to: n.text for n in s.all("notices") if "arranged a task" in n.text}
-    line = ("Tessaly Assistant for the Carter household arranged a task: An event (small). $250.00 over 1 week, "
+    line = ("Tessaly Assistant for the Carter household arranged a task: An event. $250.00 over 1 week, "
             "$250.00 a week from Monday 16 March.")
     assert told == {"p1": line, "p2": line}
 
@@ -150,7 +150,10 @@ def test_a_tasks_request_lapses_and_its_actor_is_told():
     _run(s, "as1", "tasks_create", {"description": "Ask Eric for his yard", "budget": 0})
     narrate(s, Outside({"ts1": [{"op": "request", "to": "p7", "asks": "the use of your yard", "on_accept": []}]},
                        default_lift=lift(others=(("p7", "Eric Reyes", "lend his yard"),))))
-    assert s.get("tasks", "ts1").status == "completed"
+    assert s.get("tasks", "ts1").status == "sent"
+    assert _seen(s, "as1")[-1] == (f'Task {seat_ids.display(s, "ts1")} sent: a request to Eric Reyes: "the use of your '
+                                   f'yard"; you are told when it is answered.')
+    assert not [n for n in s.all("notices") if "arranged a task" in n.text]
     for _ in range(15):
         s.advance_day()
     loop._lapse(s)
