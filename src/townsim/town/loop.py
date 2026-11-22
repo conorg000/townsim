@@ -184,10 +184,36 @@ def _tell_result(store: Store, outcome: Outcome) -> None:
     store.add("results", result, outcome.cause)
 
 
-def _tell_more(store: Store, pid: str, k: int, cause: str) -> None:
-    """Tell `pid` that `k` operations past the eighth (`MAX_ACTS`) were not carried out."""
+def _tell_more(store: Store, pid: str, k: int, cause: str, dropped: list | None = None) -> None:
+    """Tell `pid` that `k` operations past the eighth (`MAX_ACTS`) were not carried out; with lane B, each by
+    name (`dropped_text`)."""
     text = f"Not done: {k} more operations were written than the eight carried out in a day."
+    from townsim.town import lane_b
+    if dropped and lane_b.installed(store):
+        text = dropped_text(store, dropped, "being past the eight operations of a day")
     store.add("results", Result(store.new_id("res", cause), store.day, pid, MORE, text, False), cause)
+
+
+def _first_argument(store: Store, element: Any) -> str:
+    """`subscribe to "Tessaly Assistant"`, `message to Angela Russo`: an operation and its first argument (a
+    name in the place unquoted, anything else quoted)."""
+    if not isinstance(element, dict):
+        return "an operation that could not be read"
+    op = op_written(element.get("op")) or "an operation"
+    rest = [(k, v) for k, v in element.items() if k != "op"]
+    if not rest:
+        return op
+    k, v = rest[0]
+    text = " ".join(str(v).split())[:60] if isinstance(v, (str, int, float)) else "…"
+    from townsim.town.acts import resolve
+    named = isinstance(v, str) and resolve(store, v) is not None
+    return f"{op} {k} {text}" if named else f'{op} {k} "{text}"'
+
+
+def dropped_text(store: Store, dropped: list, why: str) -> str:
+    """`Not carried out, being past the eight operations of a day: subscribe to "Tessaly Assistant"; message to
+    Angela Russo.`"""
+    return f"Not carried out, {why}: " + "; ".join(_first_argument(store, e) for e in dropped) + "."
 
 
 def guarded_view(store: Store, pid: str, build: Any) -> Any:
@@ -238,7 +264,7 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
             outcomes.append(outcome)
             n += 1
         if len(elements) > MAX_ACTS:
-            _tell_more(store, pid, len(elements) - MAX_ACTS, f"op:{pid}:more:d{day}.{n}")
+            _tell_more(store, pid, len(elements) - MAX_ACTS, f"op:{pid}:more:d{day}.{n}", elements[MAX_ACTS:])
             n += 1
         views.mark_seen(store, pid, ids, f"routine:seen:{pid}")
         turns.append(Turn(pid, key, False, outcomes))

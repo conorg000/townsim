@@ -71,7 +71,9 @@ def test_install_makes_a_desk_per_outside_organisation():
     s = _store()
     got = [(d.org, d.kind, d.title) for d in s.all("desks")]
     assert got == [(AGENCY, "agency", "Lettings"), (SUP1, "supplier", "Trade sales"), (SUP2, "supplier", "Trade sales"),
-                   (MARKET, "spending", "Customer accounts"), (INVESTOR, "investor", "Investments")]
+                   (MARKET, "spending", "Customer accounts"), (INVESTOR, "investor", "Investments"),
+                   ("org4", "energy", "Customer accounts"), ("org2", "office", "Correspondence"),
+                   ("org14", "trades", "Accounts"), ("org1", "employer", "Payroll")]
     people = {p.name for p in s.all("people")}
     assert all(len(d.signer.split()) == 2 and d.signer not in people for d in s.all("desks"))
     assert len(s.all("spending")) == 9 and not desks.install(s)

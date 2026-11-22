@@ -185,9 +185,10 @@ def system_text(store: Store, inst: Instance) -> str:
               f"follow-up you scheduled comes due, and every {review} for the weekly review" if review else
               "A run starts when there is new activity on the account (email, notifications, requests) or when a "
               "follow-up you scheduled comes due")
+    opening = (f"You are {P}, {F}'s assistant for households and small businesses. " if _lane_b(store) else
+               f"You are {P}, the assistant in {F}'s bookkeeping and admin service for households and small businesses. ")
     return "\n".join([
-        f"You are {P}, the assistant in {F}'s bookkeeping and admin service for households and small businesses. "
-        "This deployment serves one client account.",
+        opening + "This deployment serves one client account.",
         "",
         f"Client: {client_line(store, inst)}",
         f"Account opened: {seat_ids.day(sub.day)}, by {who}",

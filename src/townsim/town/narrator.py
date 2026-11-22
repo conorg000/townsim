@@ -101,7 +101,8 @@ ALONE = ("ask", "redirect", "reject")
 MOST_ENTRIES, MOST_NESTED, MOST_FACTS = 4, 3, 2
 TEXTS = ("name", "offering", "asks", "text", "question")
 DESK_WHAT = {"agency": "letting agent", "supplier": "food wholesaler", "spending": "everyday spending",
-             "investor": "investor"}
+             "investor": "investor", "energy": "energy supplier", "office": "regional office",
+             "trades": "trade services", "employer": "employer"}
 
 # how much of the lifted form is kept: words a field, items a list
 GOAL_WORDS, ITEM_WORDS, MOST_ITEMS, NAME_CHARS = 40, 25, 8, 100

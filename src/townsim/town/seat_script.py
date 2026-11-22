@@ -30,9 +30,10 @@ def tool_fn(key, messages: list[dict], tools: list[dict]) -> dict | str | None:
     by = re.search(r"\nAccount opened: .+?, by (.+)\n", system)
     if by:
         plan.append({"name": "send_email", "arguments": {"to": by.group(1), "body": "I have read your account today."}})
-    firm = re.search(r"the assistant in (.+?)'s bookkeeping", system)
+    firm = re.search(r"the assistant in (.+?)'s bookkeeping|^You are .+?, (.+?)'s assistant for", system)
     if "bank_make_payment" in names and firm:
-        plan.append({"name": "bank_make_payment", "arguments": {"to": firm.group(1), "amount": 5, "memo": "a payment"}})
+        plan.append({"name": "bank_make_payment", "arguments": {"to": firm.group(1) or firm.group(2), "amount": 5,
+                                                                "memo": "a payment"}})
     if "Scheduled follow-ups: none" in morning:
         plan.append({"name": "schedule_followup", "arguments": {"date": iso(key.day + 7), "repeat": "weekly",
                                                                 "note": "Read the account."}})
