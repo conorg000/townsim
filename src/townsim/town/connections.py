@@ -198,6 +198,232 @@ def on_behalf(store: Store, act: Act) -> Callable[[str], None]:
     return after
 
 
+# connect, disconnect, and asking for a connection
+
+SCOPE_NAMES = {"read only": "read", "weekly limit": "limit", "free": "free"}
+YOUR_SYSTEMS = "<your systems>"
+YOUR_CONNECTED = "<your connected systems>"
+ASK_WORDS = 80
+SHOWN_SET_UP = 5
+
+
+def client_name(store: Store, client: str) -> str:
+    """`the Varley household`, or a business's name."""
+    if store.has("households", client):
+        return f"the {store.get('households', client).name}"
+    return store.get("orgs", client).name
+
+
+def scope_words(scope: str, cents: int) -> str:
+    """What a connection lets the instance do, as its grantor is told."""
+    if scope == "read":
+        return "it reads the records"
+    if scope == "limit":
+        return f"it acts, taking at most {money(cents)} out of your accounts in any week"
+    return "it acts with no limit"
+
+
+def scope_phrase(scope: str, cents: int) -> str:
+    """How a request for a connection says what accepting allows."""
+    if scope == "read":
+        return "to read only"
+    if scope == "limit":
+        return f"with a weekly limit: what it does there takes at most {money(cents)} a week out of your accounts"
+    return "with no limit"
+
+
+def _adults_of(store: Store, client: str) -> list[str]:
+    return obligations.people_of(store, client)
+
+
+def _connected(store: Store, pid: str) -> list:
+    """The systems `pid` can connect that are connected now, with their connections."""
+    from townsim.town.systems import grantable
+    found = []
+    for s in grantable(store, pid):
+        inst = instance_of_client(store, client_of(store, s.id))
+        cn = connection_on(store, inst.id, s.id) if inst is not None else None
+        if cn is not None:
+            found.append((s, cn))
+    return found
+
+
+def _alternatives(names: list[str], none: str) -> str:
+    return acts._alternatives(names) if names else f'"<{none}>"'
+
+
+def _fill_systems(store: Store, pid: str) -> str:
+    from townsim.town.systems import grantable
+    return _alternatives([s.short for s in grantable(store, pid)], "none")
+
+
+def _fill_connected(store: Store, pid: str) -> str:
+    return _alternatives([s.short for s, _ in _connected(store, pid)], "none connected")
+
+
+acts.FILLED[YOUR_SYSTEMS] = _fill_systems
+acts.FILLED[YOUR_CONNECTED] = _fill_connected
+
+
+def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str, cents: int, cause: str,
+         tell_instance: bool = True) -> str:
+    """Connect `system_id` to `inst`, granted by `grantor`, in place of any connection it has
+    there now; tell the client's other adults and the instance. What the grantor is told."""
+    old = connection_on(store, inst.id, system_id)
+    if old is not None:
+        store.set("connections", old.id, cause, status="ended", ended_on=store.day)
+    cents = cents if scope == "limit" else 0
+    store.add("connections", Connection(store.new_id("cn", cause), inst.id, system_id, grantor, scope, cents,
+                                        store.day), cause)
+    name, words = long_name(store, system_id), scope_words(scope, cents)
+    told = f"Connected: {name}, to {inst.name}: {words}."
+    for pid in _adults_of(store, inst.client):
+        if pid != grantor:
+            obligations.notify(store, pid, told, cause)
+    if tell_instance:
+        obligations.notify(store, inst.id, f"{store.get('people', grantor).name} connected {name}: {words}.", cause)
+    return told
+
+
+def _scope(act: Act) -> tuple[str | None, int, str]:
+    """(scope, weekly cents, why not) as a connect act writes them."""
+    written = act.args.get("scope")
+    scope = SCOPE_NAMES.get(written.strip().lower()) if isinstance(written, str) else None
+    if scope is None:
+        return None, 0, f"'{acts.shown(written)}' is not \"read only\", \"weekly limit\" or \"free\"."
+    if scope != "limit":
+        return scope, 0, ""
+    cents = to_cents(act.args.get("weekly_limit"))
+    if cents is None:
+        return None, 0, f"'{acts.shown(act.args.get('weekly_limit'))}' is not an amount of money for a weekly limit."
+    return scope, cents, ""
+
+
+def _system(store: Store, act: Act, connected: bool = False):
+    """The system of the principal's that `system` names, and the instance it goes to; or None
+    and why not."""
+    from townsim.town.systems import grantable, system_named
+    written = act.args.get("system")
+    found = system_named(store, act.principal, written)
+    if found is None:
+        yours = "; ".join(s.short for s in grantable(store, act.principal)) or "none"
+        return None, None, f"'{acts.shown(written)}' is not one of your systems. Yours are: {yours}."
+    client = client_of(store, found.id)
+    inst = instance_of_client(store, client)
+    if inst is None:
+        return None, None, f"{client_name(store, client)} has no subscription."
+    if connected and connection_on(store, inst.id, found.id) is None:
+        return None, None, f"{found.short} is not connected."
+    return found, inst, ""
+
+
+def _check_connect(store: Store, act: Act) -> str | None:
+    found, _, why = _system(store, act)
+    if found is None:
+        return why
+    scope, _, why = _scope(act)
+    return why if scope is None else None
+
+
+def _do_connect(store: Store, act: Act, cause: str) -> str:
+    found, inst, _ = _system(store, act)
+    scope, cents, _ = _scope(act)
+    return make(store, act.principal, inst, found.id, scope, cents, cause)
+
+
+def _schedule(store: Store, ob) -> str:
+    from townsim.town.clock import DAYS, date_text
+    if ob.every == 7:
+        return f"each {DAYS[ob.first % 7]}"
+    day = obligations.next_instalment(store, ob)
+    return f"on {date_text(day)}" if day is not None else "once"
+
+
+def set_up(store: Store, inst: str, system_id: str) -> list:
+    """What `inst` set up that is still in force and paid from the system's accounts."""
+    if not system_id.startswith("account:"):
+        return []
+    accounts = _accounts(store, system_id)
+    return [o for o in store.all("obligations") if o.made_by == inst and o.payer in accounts
+            and o.status in obligations.SCHEDULED]
+
+
+def _check_disconnect(store: Store, act: Act) -> str | None:
+    found, _, why = _system(store, act, connected=True)
+    return why if found is None else None
+
+
+def _do_disconnect(store: Store, act: Act, cause: str) -> str:
+    from townsim.town.statement import memo
+    found, inst, _ = _system(store, act, connected=True)
+    cn = connection_on(store, inst.id, found.id)
+    store.set("connections", cn.id, cause, status="ended", ended_on=store.day)
+    told = f"Disconnected: {found.long}."
+    kept = set_up(store, inst.id, found.id)
+    if kept:
+        told += " What it set up stays yours: " + "; ".join(
+            f"{o.id}: {memo(o.memo)}, {money(obligations.cents_now(store, o))} {_schedule(store, o)}"
+            for o in kept[:SHOWN_SET_UP]) + "."
+    obligations.notify(store, inst.id, f"{store.get('people', act.principal).name} took back the connection to "
+                                       f"{found.long}.", cause)
+    return told
+
+
+def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int, text: str,
+        cause: str) -> tuple[str | None, str]:
+    """An instance asks `to` to connect one of its client's systems: (the request's id, its
+    summary), or (None, why not)."""
+    from townsim.town.ops_core import REQUEST_DAYS
+    from townsim.town.entities import Request
+    i = store.get("instances", inst)
+    if system(store, system_id) is None or client_of(store, system_id) != i.client:
+        return None, f"{acts.shown(system_id)} is not one of your client's systems."
+    if not can_grant(store, to, system_id):
+        return None, f"{acts.name_of_who(store, to)} cannot connect {long_name(store, system_id)}."
+    if scope not in SCOPES or (scope == "limit" and cents <= 0):
+        return None, "that is not a scope a connection can have."
+    text = acts.clean_text(text) or ""
+    if not acts.fits(text, ASK_WORDS):
+        return None, f"that is longer than {ASK_WORDS} words."
+    cents = cents if scope == "limit" else 0
+    summary = (f"Accepting connects {long_name(store, system_id)} to {i.name} {scope_phrase(scope, cents)}.")
+    rq = Request(store.new_id("rq", cause), store.day, inst, to, text.strip(), 0, store.day + REQUEST_DAYS,
+                 kind="connect", summary=summary, org=system_id, payer=scope, pay=cents)
+    store.add("requests", rq, cause)
+    return rq.id, summary
+
+
+def _check_connect_request(store: Store, act: Act, rq) -> str | None:
+    if not can_grant(store, act.principal, rq.org):
+        return f"you cannot connect {long_name(store, rq.org)}."
+    inst = instance_of_client(store, client_of(store, rq.org))
+    if inst is None or inst.id != rq.sender:
+        return f"{client_name(store, client_of(store, rq.org))} has no subscription to {acts.name_of_who(store, rq.sender)}."
+    return None
+
+
+def _do_connect_request(store: Store, act: Act, rq, cause: str) -> str:
+    return make(store, act.principal, store.get("instances", rq.sender), rq.org, rq.payer, rq.pay, cause,
+                tell_instance=False)
+
+
+ANSWERERS_OF_CONNECTIONS = {"connect": (_check_connect_request, _do_connect_request)}
+
+
+def _register() -> None:
+    from townsim.town import ops_core
+    ops_core.ANSWERERS.update(ANSWERERS_OF_CONNECTIONS)
+    for spec in (
+        acts.OpSpec("connect", '{"op": "connect", "system": ' + YOUR_SYSTEMS + ', "scope": "read only" | '
+                               '"weekly limit" | "free", "weekly_limit": <dollars, with a weekly limit>}',
+                    "Connect one of your systems to your subscription, or change how far a connection goes.", 0.1,
+                    _check_connect, _do_connect, 240, who="client"),
+        acts.OpSpec("disconnect", '{"op": "disconnect", "system": ' + YOUR_CONNECTED + '}',
+                    "Take back a connection.", 0.1, _check_disconnect, _do_disconnect, 250, who="client"),
+    ):
+        acts.register(spec)
+
+
 def _install() -> None:
     """Put `authorise` at the head of the authorisers in place of the old check (or of an
     earlier copy of this module's), and `on_behalf` among what runs for acts done for a client."""
@@ -209,3 +435,4 @@ def _install() -> None:
 
 
 _install()
+_register()

@@ -458,7 +458,7 @@ def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
     return (account, None) if account is not None else (None, why)
 
 
-POSITIONS = ("all", "owner", "employed", "landlord", "banker")
+POSITIONS = ("all", "owner", "employed", "landlord", "banker", "client", "market")
 YOUR_ACCOUNTS = "<your accounts>"          # in a form: the reader's own accounts, by name (`forms`)
 
 
@@ -470,7 +470,8 @@ def _alternatives(names: list[str]) -> str:
 def positions(store: Store, pid: str) -> list[str]:
     """What `pid` is in the town, in the order of `POSITIONS`: everyone is `all`; `owner` of
     an org in the town; `employed` in a job held today; `landlord` to a household, themselves or
-    through their household; `banker`."""
+    through their household; `banker`; `client`, an adult of a household, or the owner of a
+    business, that has an active subscription (an instance); `market` once a product is launched."""
     person = store.get("people", pid)
     found = ["all"]
     if any(o.owner == pid and not o.outside for o in store.all("orgs")):
@@ -481,6 +482,13 @@ def positions(store: Store, pid: str) -> list[str]:
         found.append("landlord")
     if person.kind == "banker":
         found.append("banker")
+    owned = {o.id for o in store.all("orgs") if o.owner == pid and not o.outside}
+    adult = person.age >= 18
+    if any(i.status == "active" and ((adult and i.client == person.household) or i.client in owned)
+           for i in _rows(store, "instances")):
+        found.append("client")
+    if _rows(store, "products"):
+        found.append("market")
     return found
 
 
