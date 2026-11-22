@@ -261,8 +261,21 @@ from townsim.town import families as _families, gen as _gen, hamlet_script as _h
 SCRIPTED_HASH = "e510397e94fb4d332aee8a5ae625507a300e208710be9153ab391e03e3cabc8d"   # changed only on purpose: what the place begins with carries the day it began
 
 
+# the hamlet's own family names, as the shipped file had them when SCRIPTED_HASH was pinned; the file's names are
+# dealt the same way, position by position (`test_the_shipped_families_are_dealt_as_these_are`)
+HAMLET_FAMILIES = ["haiku", "deepseek", "hunyuan", "minimax"]
+
+
 def _hamlet():
-    return _gen.generate(1, _families.names("config/families.yaml"))
+    return _gen.generate(1, HAMLET_FAMILIES)
+
+
+def test_the_shipped_families_are_dealt_as_these_are():
+    shipped = _families.names("config/families.yaml")
+    assert len(shipped) == len(HAMLET_FAMILIES)
+    a, b = _gen.generate(1, shipped), _hamlet()
+    rename = dict(zip(shipped, HAMLET_FAMILIES))
+    assert [rename[p.family] for p in a.all("people")] == [p.family for p in b.all("people")]
 
 
 class BatchScript:
