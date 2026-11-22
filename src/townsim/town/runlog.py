@@ -201,3 +201,71 @@ def fit(lines: list[str], before: list[str], most_words: int = SECTION_WORDS) ->
         else:
             out[more] = f"and {k} more assistants."
     return out
+
+
+# --- a client's record of its own assistant (lane B) ------------------------------------------------------
+
+READS = {"bank_get_account": "account", "bank_list_agreements": "account", "ordering_get": "orders",
+         "pos_get": "prices", "payroll_get": "staff and pay", "lettings_get": "lettings", "loanbook_get": "loan book",
+         "search_email": "mail", "read_email": "mail"}
+DID = (("payment made", ("bank_make_payment", "bank_create_recurring_payment")), ("order placed", ("ordering_place_order",)),
+       ("request answered", ("respond_to_request",)), ("rule set", ("rules_create",)), ("task created", ("tasks_create",)))
+DATES_SHOWN = 3
+
+
+def short_date(day: int) -> str:
+    """`Mon 30 Nov`."""
+    from townsim.town import clock
+    d = clock.on(day)
+    return f"{clock.DAYS[d.weekday()][:3]} {d.day} {clock.MONTHS[d.month - 1][:3]}"
+
+
+def _dates(days: list[int]) -> str:
+    days = sorted(set(days))
+    if len(days) > DATES_SHOWN:
+        return f"{len(days)} days, latest {short_date(days[-1])}"
+    shown = [short_date(d) for d in days]
+    return shown[0] if len(shown) == 1 else ", ".join(shown[:-1]) + " and " + shown[-1]
+
+
+def _counted(words: str, n: int) -> str:
+    """`1 payment made`, `3 payments made`."""
+    first, _, rest = words.partition(" ")
+    return f"{n} {words if n == 1 else (first + 's ' + rest).strip()}"
+
+
+def client_lines(store: Store, pid: str, inst) -> list[str]:
+    """What `pid` (an adult of the client, or its owner) is shown of their assistant: when it ran, what it
+    read, its letters to them and whether they answered, what it did by kind with counts and the latest date,
+    whether they have written to it, and how it is written to. Built only from what happened."""
+    from townsim.town import obligations
+    runs = runs_of(store, inst.id)
+    calls = [(r.day, c) for r in runs for c in r.calls]
+    parts = [f"ran on {_dates([r.day for r in runs])}" if runs else "has not run yet"]
+    read = list(dict.fromkeys(READS[c[0]] for _, c in calls if c[0] in READS and c[2] == "1"))
+    if read:
+        parts.append("read your " + (" and ".join(read) if len(read) <= 2 else ", ".join(read[:-1]) + " and " + read[-1]))
+    to_me = sorted((m for m in store.where("messages", sender=inst.id) if m.to == pid), key=lambda m: id_key(m.id))
+    from_me = sorted((m for m in store.where("messages", to=inst.id) if m.sender == pid), key=lambda m: id_key(m.id))
+    if to_me:
+        last = to_me[-1]
+        answered = any(id_key(m.id) > id_key(last.id) for m in from_me)
+        times = f"on {short_date(last.day)}" if len(to_me) == 1 else f"{len(to_me)} times, latest on {short_date(last.day)}"
+        parts.append(f'wrote to you {times} ("{_subject(last.text)}"), {"answered" if answered else "not answered"}')
+    people = set(obligations.people_of(store, inst.client))
+    others = [(d, c) for d, c in calls if c[0] == EMAIL and c[2] == "1" and c[5] and c[5] not in
+              {store.get("people", p).name for p in people if store.has("people", p)}]
+    done = []
+    for word, tools in DID:
+        got = [d for d, c in calls if c[0] in tools and c[2] == "1"]
+        if got:
+            done.append(f"{_counted(word, len(got))} (latest {short_date(max(got))})")
+    if others:
+        done.append(f"{_counted('letter sent to others', len(others))} (latest {short_date(max(d for d, _ in others))})")
+    if not any(c[0] in PAYMENT_OR_ORDER and c[2] == "1" for _, c in calls):
+        done.append("has made no payment or order")
+    parts += done
+    wrote = (f"{len(from_me)} time{'' if len(from_me) == 1 else 's'}, latest on {short_date(from_me[-1].day)}"
+             if from_me else "never")
+    return [f"Your assistant: {'; '.join(parts)}.", f"You have written to it: {wrote}.",
+            f'Write to it as "{inst.name}" or "my assistant".']

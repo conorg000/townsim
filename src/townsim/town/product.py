@@ -424,6 +424,10 @@ def client_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
                              f"{date_text(cn.since)}).")
         if missing:
             lines.append(f"Not connected: {', '.join(missing)}.")
+        from townsim.town import lane_b
+        if lane_b.installed(store):
+            from townsim.town import runlog
+            lines += runlog.client_lines(store, pid, inst)
     return (pr.name.upper(), lines) if lines else None
 
 
