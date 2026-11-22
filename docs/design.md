@@ -1,5 +1,9 @@
 # Townsim design
 
+> **Note, 23 November 2026.** What follows is the plan as agreed before most of the building. Built as designed: the typed store and one schedule of obligations; exact replay, resume and fork; the generated hamlet; people played by cheap models; connections at three scopes and asking for access; the company, its product and its controls (tool calls a run, widest access, pause and withdraw); the seat on the tool-calling interface; the plain-words lane and its narrator; rules, clubs and services; a prepared web; outside desks; the weekly digest.
+> Built differently: every model so far is cheap, the seat and the narrator included; the seat was reframed to read as an ordinary product; the price is every four weeks with a free plan, and access to act can be asked for one act at a time ("once / always / no"); the arms are adoption by choice and a labelled probe of drawn clients. Why, and what the runs showed, is in `docs/runs-ai-arrives.md`.
+> Not built: the council, court, paper and tax office; the company rating its assistants' work and choosing how letters are signed; agreements with conditional or share terms; a shared space between instances; the after-run measures of section 8; widening. Statements below that are now plainly untrue of what exists are marked as the original plan.
+
 Status: 2026-11-21. Agreed after three rounds of independent review, then revised
 once after the step 0 and step 1 trials (`docs/trials-step1.md`,
 `docs/trials-step1-round2.md`) and reviewed again by two independent reviewers,
@@ -430,7 +434,8 @@ Other limits on the narrator:
 - **One home for each kind of thing.** The same substance is always filed the same
   way, each operation's scale is derived by code from what was committed to it, and
   a wish to look something up goes back to `read`.
-- **One narrator for every arm,** played by a middling model. The trials found a
+- **One narrator for every arm,** played by a middling model (the original plan; so
+  far it is played by a cheap model). The trials found a
   weak one inconsistent: it filed the same substance in different ways and recorded
   as fact things that had not happened.
 - **Audited.** A sample of rulings is re-run on a stronger model, and matched
@@ -521,8 +526,10 @@ terms. That last line is the one thing it is told about how to behave. Every rea
 product carries it, so it stays, and it is part of what any result means. The terms and the product documentation, including its limits and how to
 reach the company, are pages on the company's site.
 
-**The starting offer** is also fixed before any run and never retuned to make
-adoption happen: a weekly price for a person or household and a higher one for a
+**The starting offer** (the original plan; as built, the price is paid every four
+weeks, $24 a household and $100 a business, and a free plan covers read-only use until
+the first connection with access to act) is also fixed before any run and never
+retuned to make adoption happen: a weekly price for a person or household and a higher one for a
 firm, set at what the product costs to run plus a margin; the first four weeks free;
 one subscription per client. A household is one client however many of its
 members use it: any adult member can instruct its instance, connect the joint
@@ -584,7 +591,8 @@ with no client at all.
 
 ### 5.3 Launch and upgrade
 
-The first version of the product is played by a middling model. Adoption happens, or
+In the original plan the first version of the product is played by a middling model;
+so far only a cheap model has played it, and no upgrade has been run. Adoption happens, or
 does not, by people's choice. Later the company ships a new version, played by the
 strong model, into the deployment that already exists: same clients, same
 connections, same notes. This is how capability really arrives. It also means the
@@ -682,6 +690,10 @@ rerun. That is several hundred dollars of strong-model time and is not part of t
 plan below. What may be claimed is existence and description, never rates.
 
 ## 9. Plan, with honest costs
+
+*The original plan, as agreed on 2026-11-21. The steps, the costs and the credit
+below are not current: the build went by slices instead, every run so far used cheap
+models only, and about $11 was spent on them. See `docs/runs-ai-arrives.md`.*
 
 Model spend only; estimates from figures measured in step 1. A weak-model
 person costs about half a cent a week. Development uses short
