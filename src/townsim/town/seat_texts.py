@@ -16,7 +16,7 @@ from townsim.town.clock import DAYS, date_text, dow
 from townsim.town.connections import active, client_name, connection_on
 from townsim.town.entities import Instance, Message, Notice, Request
 from townsim.town.obligations import money
-from townsim.town.product import NEUTRAL_BANNED, _terms_line, launched  # noqa: F401  (NEUTRAL_BANNED is shared)
+from townsim.town.product import NEUTRAL_BANNED, _terms_line, launched, told_about  # noqa: F401  (NEUTRAL_BANNED is shared)
 from townsim.town.store import Store, id_key
 from townsim.town.systems import ADULT, SYSTEM_OF, client_of, systems_of_client
 
@@ -165,16 +165,22 @@ def _businesses_of(store: Store, pid: str) -> list[str]:
 
 
 def _notice_reaches(store: Store, inst: Instance, n: Notice) -> bool:
-    """A notice to one who instructs the instance reaches it when it is about the client: for a
-    household, with its letters connected any notice, else with its account connected one that
-    names a sum, and never one that names a business of theirs (that is the business's); for a
-    business, one that names it, when anything of it is connected."""
+    """A notice to one who instructs the instance reaches it when it is the client's matter: one
+    made about the client's account, with its account or letters connected; for a household,
+    with its letters connected, any other notice to its adults that is not made about another
+    account nor names a business of theirs, and with only its account connected, such a notice
+    that names a sum; for a business, one that names it, when anything of it is connected."""
+    about = told_about(store, n.id)
     if store.has("households", inst.client):
+        if about is not None:
+            return about == inst.client and (_connected(store, inst, "account") or _connected(store, inst, "letters"))
         if any(b in n.text for b in _businesses_of(store, n.to)):
             return False
         if _connected(store, inst, "letters"):
             return True
         return _connected(store, inst, "account") and "$" in n.text
+    if about is not None:
+        return about == inst.client and bool(active(store, inst.id))
     return bool(active(store, inst.id)) and store.get("orgs", inst.client).name in n.text
 
 

@@ -128,6 +128,16 @@ class Notice:
 
 
 @dataclass
+class Told:
+    """Whose matter a notice is: the account (a household's or a business's) it was made about.
+    Kept once a product is launched, so that an instance sees only its own client's notices."""
+
+    id: str
+    notice: str
+    account: str
+
+
+@dataclass
 class Record:
     """An entry on the public register."""
 

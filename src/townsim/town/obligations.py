@@ -283,19 +283,30 @@ def how_paid(store: Store, ob: Obligation, out: bool) -> str:
     return f"It is {'taken from' if out else 'paid into'} the {name} account {when}, as now."
 
 
-def notify(store: Store, pid: str, text: str, cause: str) -> None:
+def notify(store: Store, pid: str, text: str, cause: str) -> list[str]:
     """Tell `pid` something in a notice; a child's notice goes to the adults of their household
-    instead. The one way a notice is made."""
+    instead. The one way a notice is made. The ids of the notices made."""
     if store.has("people", pid) and store.get("people", pid).age < ADULT:
+        ids = []
         for adult in people_of(store, store.get("people", pid).household):
-            store.add("notices", Notice(store.new_id("n", cause), store.day, adult, text), cause)
-        return
-    store.add("notices", Notice(store.new_id("n", cause), store.day, pid, text), cause)
+            ids.append(store.new_id("n", cause))
+            store.add("notices", Notice(ids[-1], store.day, adult, text), cause)
+        return ids
+    nid = store.new_id("n", cause)
+    store.add("notices", Notice(nid, store.day, pid, text), cause)
+    return [nid]
+
+
+# Called with (store, account, notice ids, cause) for each notice made about an account
+# (`product` records whose matter it is, once a product is launched).
+ON_TELL: list = []
 
 
 def _tell(store: Store, account: str, text: str, cause: str) -> None:
     for person in people_of(store, account):
-        notify(store, person, text, cause)
+        ids = notify(store, person, text, cause)
+        for hook in ON_TELL:
+            hook(store, account, ids, cause)
 
 
 def _shown(text: str) -> str:

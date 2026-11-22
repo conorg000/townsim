@@ -12,7 +12,7 @@ from townsim.town.acts import (LONGEST_NAME, YOUR_ACCOUNTS, Act, OpSpec, account
                                is_savings, register, shown)
 from townsim.town.clock import date_text
 from townsim.town.connections import client_name, connection_on, instance_of_client
-from townsim.town.entities import Instance, Product, Record, Subscription
+from townsim.town.entities import Instance, Product, Record, Subscription, Told
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
 from townsim.town.systems import ADULT, systems_of_client
@@ -401,8 +401,24 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
 SECTIONS_OF_PRODUCT = (client_section, company_section)
 
 
+def _on_tell(store: Store, account: str, ids: list[str], cause: str) -> None:
+    """Once a product is launched, keep whose matter each notice about an account is."""
+    if not store.all("products"):
+        return
+    for nid in ids:
+        store.add("told", Told(store.new_id("tl", cause), nid, account), cause)
+
+
+def told_about(store: Store, notice: str) -> str | None:
+    """The account a notice was made about, when that was kept."""
+    rows = store.where("told", notice=notice)
+    return rows[0].account if rows else None
+
+
 def _register() -> None:
     from townsim.town import ops_core
+    obligations.ON_TELL[:] = [h for h in obligations.ON_TELL
+                              if getattr(h, "__qualname__", "") != "_on_tell"] + [_on_tell]
     ops_core.STOPPABLE.update(STOPPABLE_OF_PRODUCT)
     obligations.ON_LEAVE[:] = [h for h in obligations.ON_LEAVE
                                if getattr(h, "__qualname__", "") != "_on_leave"] + [_on_leave]

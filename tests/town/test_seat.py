@@ -227,3 +227,25 @@ def test_no_other_clients_records_reach_an_instance():
     t = turn(s, "as3", [call("read", what="account", **{"from": "Beth Varley"}), call("read", what="lets")])
     assert t.calls[1].result.startswith("Not done: 'lets' is not something that can be read.")
     assert money(s.balance("h6")) not in t.calls[0].result or money(s.balance("h6")) == money(s.balance("h5"))
+
+
+def test_a_notice_reaches_only_the_instance_whose_matter_it_is():
+    from townsim.town import connections, obligations, product
+    s = drawn()
+    seat.run_seat(s, scripted({}), Keys("t"), 0)
+    s.advance_day()
+    # Martin Lumb owns Lumb's Grocer; his household and his shop each subscribe, everything connected
+    product.subscribe(s, "p16", "h9", "", CAUSE)
+    product.subscribe(s, "p16", "org10", "", CAUSE)
+    home = connections.instance_of_client(s, "h9")
+    shop = connections.instance_of_client(s, "org10")
+    for inst, client in ((home, "h9"), (shop, "org10")):
+        for system in seat_texts.systems_of_client(s, client):
+            connections.make(s, "p16", inst, system.id, "free", 0, CAUSE, tell_instance=False)
+        s.set("instances", inst.id, CAUSE, seen=seat_texts.highest(s))
+    obligations._tell(s, "org10", "A payment of $40.00 due Tuesday 10 March (stock) could not be taken.", CAUSE)
+    obligations._tell(s, "h9", "A payment of $12.00 due Tuesday 10 March (coal) could not be taken.", CAUSE)
+    home_news = seat_texts.morning(s, s.get("instances", home.id))[0]
+    shop_news = seat_texts.morning(s, s.get("instances", shop.id))[0]
+    assert "$12.00" in home_news and "$40.00" not in home_news
+    assert "$40.00" in shop_news and "$12.00" not in shop_news
