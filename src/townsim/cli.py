@@ -1,5 +1,5 @@
 """The `townsim` command: the small economy's skill test, and the thin town run and
-replayed from a SQLite file, and forked into arms. Only `town-live` and `town-probe` call models, behind a cap."""
+replayed from a SQLite file, and forked into arms. Only `town-live`, `town-probe` and `town-seat-probe` call models, behind a cap."""
 
 import json
 import os
@@ -174,6 +174,16 @@ def _load_families(families: str, prices: str):
         _fail(f"cannot read the families from {_shown(families)} and {_shown(prices)}: {e}")
 
 
+def _load_seat(seat: str, prices: str):
+    """The seat's family, or one plain line and exit code 1."""
+    from townsim.town import families as fam
+
+    try:
+        return fam.load_seat(seat, prices)
+    except (OSError, ValueError) as e:
+        _fail(f"cannot read the seat from {_shown(seat)} and {_shown(prices)}: {e}")
+
+
 def _litellm():
     """LiteLLM's completion function and a cost function over its replies, loaded only here."""
     import litellm
@@ -195,6 +205,8 @@ def town_live_cmd(
     prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
                                         show_default="config/prices.yaml")] = _PRICES,
     past_refusal: Annotated[bool, typer.Option("--past-refusal", help="Resume a run past a stored refusal.")] = False,
+    seat: Annotated[str | None, typer.Option("--seat", help="YAML file of the seat's model, for a run with the "
+                                                            "product launched (config/seat.yaml).")] = None,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -206,11 +218,12 @@ def town_live_cmd(
     dollars = _cap(cap, live.MAX_CAP)
     _need_key("town-live")
     fams, price_list = _load_families(families, prices)
+    seat_family = _load_seat(seat, prices) if seat else None
     completion_fn, cost_fn = _litellm()
     with _plainly(db), RunDB(db) as rdb:
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
-                            past_refusal=past_refusal, echo=typer.echo)
+                            past_refusal=past_refusal, echo=typer.echo, seat=seat_family)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
         for name, n, spent in live.spend_by_family(rdb, run_id):
@@ -272,6 +285,58 @@ def town_probe_cmd(
     except OSError as e:
         _fail(f"cannot write {out}: {e.strerror or e}")
     typer.echo(probe.table(rows) if rows else "no replies")
+    typer.echo(f"spent ${sum(r.cost for r in rows):.4f}; rows written to {out}")
+    if stopped:
+        typer.echo(f"stopped: {stopped}")
+        if not stopped.startswith("cap: "):
+            raise typer.Exit(code=1)
+
+
+_SEAT_PROBE_OUT = "runs/seat-probe.json"
+
+
+@app.command("town-seat-probe")
+def town_seat_probe_cmd(
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
+    seat: Annotated[str, typer.Option("--seat", help="YAML file of the seat's model.")],
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    families: Annotated[str, typer.Option("--families", help="YAML file of the model families (their names only).",
+                                          show_default="config/families.yaml")] = _FAMILIES,
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    n: Annotated[int, typer.Option("--n", min=1, help="Times each drawn instance's first turn is run.")] = 2,
+    out: Annotated[str, typer.Option("--out", help="JSON file the rows are written to.")] = _SEAT_PROBE_OUT,
+) -> None:
+    """Run each drawn instance's first turn n times on the seat's model, after a week of the
+    hamlet's script and the launch made in memory, behind a spending cap; write the rows to --out
+    and print a table. CALLS A MODEL AND SPENDS MONEY. Exits 1 if it stopped other than at the cap."""
+    import dataclasses
+
+    from townsim.town import families as fam, seatprobe
+
+    dollars = _cap(cap, seatprobe.MAX_CAP)
+    _need_key("town-seat-probe")
+    seat_family = _load_seat(seat, prices)
+    from townsim.estimate import load_prices
+    price_list = load_prices(prices)
+    try:
+        store = seatprobe.morning(seed, fam.names(families))
+    except (OSError, ValueError) as e:
+        _fail(f"cannot make the morning: {e}")
+    completion_fn, cost_fn = _litellm()
+    stopped = None
+    try:
+        rows = seatprobe.run(store, seat_family, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
+    except seatprobe.ProbeStopped as e:
+        rows, stopped = e.rows, str(e)
+    kept = {"seed": seed, "n": n, "cap": dollars, "stopped": stopped, "seat": seat_family.model,
+            "rows": [dataclasses.asdict(r) for r in rows]}
+    try:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(kept, indent=1, ensure_ascii=False), encoding="utf-8")
+    except OSError as e:
+        _fail(f"cannot write {out}: {e.strerror or e}")
+    typer.echo(seatprobe.table(rows) if rows else "no turns")
     typer.echo(f"spent ${sum(r.cost for r in rows):.4f}; rows written to {out}")
     if stopped:
         typer.echo(f"stopped: {stopped}")

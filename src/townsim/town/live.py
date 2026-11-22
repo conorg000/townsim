@@ -26,6 +26,7 @@ from townsim.town.clock import date_text
 from townsim.town.families import Family
 from townsim.town.hamlet import RUN_WEEKS
 from townsim.town.modelreplier import ModelReplier, safe
+from townsim.town.replies import is_instance_id
 from townsim.town.rundb import RunDB
 from townsim.town.runs import resume, run
 
@@ -121,27 +122,42 @@ def _week_counts(db: RunDB, run_id: str, first: int, last: int) -> tuple[int, in
     return asks, unread
 
 
+def _check_seat(db: RunDB, run_id: str, store, seat: Family | None) -> None:
+    """Raise ValueError if the run was played with another seat than `seat`, or has a launched
+    product (whose instances call the seat) and no seat is given."""
+    noted = json.loads(db.note(run_id, "seat") or "null")
+    now = {"model": seat.model, "params": dict(seat.params)} if seat is not None else None
+    if noted is not None and noted != now:
+        raise ValueError(f"run {run_id!r} was played with the seat as {noted['model']} {noted['params']}; "
+                         f"now it is {now['model'] + ' ' + str(now['params']) if now else 'not given'}")
+    if seat is None and store.all("products"):
+        raise ValueError(f"run {run_id!r} has the product launched, and its instances need a seat (--seat)")
+
+
 def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Family], prices: dict[str, Price],
          cap: float, completion_fn: Callable, cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
-         sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False) -> LiveResult:
+         sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False,
+         seat: Family | None = None) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
     line a week; stop when the replier stops, echoing why.
 
     Raises ValueError, before anything is asked, for a cap that is not above 0 and at most
     `MAX_CAP`, weeks below 1, a resume whose noted seed or families differ, a run held by
     another process (a lock on `<db path>.lock` is held for the whole call), or a resume of a
-    run holding a stored refusal, unless `past_refusal`, when that is echoed as a warning."""
+    run holding a stored refusal, unless `past_refusal`, when that is echoed as a warning; or for
+    a run played with another seat, or with the product launched and no `seat`. The seat's calls
+    are made by the same replier, behind the same cap."""
     if not (isinstance(cap, (int, float)) and 0 < cap <= MAX_CAP):
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     if weeks < 1:
         raise ValueError(f"weeks must be 1 or more, got {weeks}")
     with _only_process(db, run_id):
         return _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-                     past_refusal)
+                     past_refusal, seat)
 
 
 def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-          past_refusal) -> LiveResult:
+          past_refusal, seat=None) -> LiveResult:
     try:
         db.get_run(run_id)
     except KeyError:
@@ -159,6 +175,9 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
                 raise ValueError(f"{refused}; to go on past it, resume with --past-refusal")
             echo(f"warning: {refused}; going on past it")
         store = resume(db, run_id)
+    _check_seat(db, run_id, store, seat)
+    if seat is not None:
+        db.put_note(run_id, "seat", json.dumps({"model": seat.model, "params": dict(seat.params)}, sort_keys=True))
     db.put_note(run_id, "cap", repr(float(cap)))
 
     def lost(amount: float) -> None:
@@ -167,7 +186,7 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
     family_of = {p.id: p.family for p in store.all("people")}
     extra = {} if sleep_fn is None else {"sleep_fn": sleep_fn}
     replier = ModelReplier(families, prices, family_of, completion_fn, cap=cap, spent=lambda: spent(db, run_id),
-                           cost_fn=cost_fn, lost=lost, **extra)
+                           cost_fn=cost_fn, lost=lost, seat=seat, **extra)
     end = 7 * weeks
     stopped = None
     while store.day < end:
@@ -195,7 +214,8 @@ def spend_by_family(db: RunDB, run_id: str) -> list[tuple[str, int, float]]:
     family_of = {p.id: p.family for p in db.load_snapshot(run_id, days[0]).all("people")} if days else {}
     counts = {name: [0, 0.0] for name in noted}
     for key, reply in db.replies(run_id):
-        name = family_of.get(key.split("|")[3])
+        actor = key.split("|")[3]
+        name = "seat" if is_instance_id(actor) else family_of.get(actor)
         counts.setdefault(name or "?", [0, 0.0])
         counts[name or "?"][0] += 1
         counts[name or "?"][1] += reply.cost

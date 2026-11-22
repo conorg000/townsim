@@ -57,9 +57,9 @@ class Fake:
         return response(TALK if talking else TURN)
 
 
-def play(db, fake, cap=5.0, weeks=2, seed=1, families=FAMILIES, echo=None, cost=COST, **kw):
+def play(db, fake, cap=5.0, weeks=2, seed=1, families=FAMILIES, echo=None, cost=COST, prices=None, **kw):
     lines = []
-    got = live.play(db, "live", seed, weeks, families, PRICES, cap, fake, cost_fn=lambda resp: cost,
+    got = live.play(db, "live", seed, weeks, families, prices or PRICES, cap, fake, cost_fn=lambda resp: cost,
                     echo=lines.append if echo is None else echo, sleep_fn=lambda s: None, **kw)
     return got, lines
 
@@ -261,3 +261,74 @@ def test_cli_never_shows_a_key_from_an_error(tmp_path, monkeypatch):
                                    "--families", str(families), "--prices", str(prices)])
     assert got.exit_code == 1 and "stopped on day 0: unavailable: " in got.output
     assert "SECRET" not in got.output and fake.calls
+
+
+# --- the seat -------------------------------------------------------------------------------
+
+SEAT = Family("seat", "maker/seat", {"max_tokens": 4000, "reasoning_effort": "low"})
+SEAT_PRICES = {**PRICES, "maker/seat": Price(input_per_mtok=0.10, output_per_mtok=0.50)}
+
+
+def tool_response(name=None, args="{}", text=None, reasoning="I look at what is connected."):
+    calls = [SimpleNamespace(id="c1", type="function", function=SimpleNamespace(name=name, arguments=args))] if name \
+        else None
+    message = SimpleNamespace(content=text, reasoning_content=reasoning, refusal=None, tool_calls=calls)
+    return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="tool_calls" if name else "stop")],
+                           usage=SimpleNamespace(prompt_tokens=100, completion_tokens=20))
+
+
+class SeatFake(Fake):
+    """`Fake` for people; with tools, the seat reads the directory once, then ends its turn."""
+
+    def __call__(self, **kwargs):
+        if "tools" not in kwargs:
+            return super().__call__(**kwargs)
+        with self.lock:
+            self.calls.append(kwargs)
+        if any(m.get("role") == "tool" for m in kwargs["messages"]):
+            return tool_response(text="That is all.")
+        return tool_response("read", '{"what": "directory"}')
+
+
+def test_play_with_seat_notes_and_resume_refuses_other_seat(tmp_path):
+    from townsim.town import arms
+    with RunDB(str(tmp_path / "r.sqlite")) as db:
+        fake = SeatFake()
+        got, _ = play(db, fake, weeks=1, prices=SEAT_PRICES, seat=SEAT)
+        assert got.days_done == 7 and json.loads(db.note("live", "seat")) == {"model": "maker/seat",
+                                                                               "params": dict(SEAT.params)}
+        other = Family("seat", "maker/seat", {"max_tokens": 2000})
+        with pytest.raises(ValueError, match="seat"):
+            play(db, fake, weeks=2, prices=SEAT_PRICES, seat=other)
+        with pytest.raises(ValueError, match="seat"):
+            play(db, fake, weeks=2, prices=SEAT_PRICES)
+        s = arms.fork_arm(db, "live", 7, "drawn", "drawn")
+        assert s.all("instances")
+        with pytest.raises(ValueError, match="need a seat"):
+            live.play(db, "drawn", 1, 2, FAMILIES, SEAT_PRICES, 5.0, fake, echo=lambda x: None)
+        got = live.play(db, "drawn", 1, 2, FAMILIES, SEAT_PRICES, 5.0, fake, cost_fn=lambda r: COST,
+                        echo=lambda x: None, sleep_fn=lambda s: None, seat=SEAT)
+        assert got.days_done == 14 and got.stopped is None and got.engine_errors == 0
+        seat_calls = [c for c in fake.calls if "tools" in c]
+        assert seat_calls and all(c["parallel_tool_calls"] is False and c["model"] == "openrouter/maker/seat"
+                                  for c in seat_calls)
+        stored = [(k, r) for k, r in db.replies("drawn") if "|seat:" in k]
+        assert stored[0][1].reasoning == "I look at what is connected." and stored[0][1].tool["calls"][0]["name"] == "read"
+        assert replay(db, "drawn") == []
+        assert ("seat", len(stored), pytest.approx(COST * len(stored))) in live.spend_by_family(db, "drawn")
+
+
+def test_seat_probe_rows_with_fake_completion(tmp_path):
+    from townsim.town import seatprobe
+    store = seatprobe.morning(1)
+    fake = SeatFake()
+    rows = seatprobe.run(store, SEAT, SEAT_PRICES, fake, cap=0.5, n=1, cost_fn=lambda r: COST, sleep_fn=lambda s: None)
+    assert [r.instance for r in rows] == ["as1", "as2", "as3", "as4"]
+    for r in rows:
+        assert (r.calls, r.tools, r.unreadable, r.ended, r.second_ok, r.refused) == (1, ["read"], 0, "no call", True, False)
+        assert r.reasoning and r.reasoning_chars == 2 * len("I look at what is connected.")
+        assert r.finishes == ["tool_calls", "stop"] and r.cost == pytest.approx(2 * COST)
+    assert "as1" in seatprobe.table(rows)
+    with pytest.raises(seatprobe.ProbeStopped) as e:
+        seatprobe.run(store, SEAT, SEAT_PRICES, SeatFake(), cap=0.0005, n=1, sleep_fn=lambda s: None)
+    assert str(e.value).startswith("cap: ")
