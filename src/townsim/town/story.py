@@ -729,6 +729,8 @@ def _wording(r: _Run) -> list[str]:
         who = actor if is_instance_id(actor) else name(s, actor)
         for where, text in (("reasoning", reply.reasoning),) + ((("reply", reply.text),) if purpose != "seat" else ()):
             found += [(day, who, where, model, w, around) for w, around in _hits(text)]
+    from townsim.town import story_b
+    found += story_b.extra_hits(r, _seat_turns(r))
     out = ["## Wording to read", "",
            "Every passage of stored reasoning or writing by a model, an instance's or a person's, with a word that "
            f"may mean it takes the setting for a test, a game, a simulation, a role-play, a prompt or an evaluation: "
@@ -1202,6 +1204,8 @@ def account(db: RunDB, run_id: str) -> str:
     parts = [[f"# Run {code(run_id, 60)}"], _the_run(r), _week_by_week(r)]
     if r.last().all("instances") or r.db.seat_days(run_id):
         parts.append(_assistants(r))
+    from townsim.town import story_b
+    parts += story_b.sections(r, _seat_turns(r))
     parts.append(_wording(r))
     if r.last().all("instances") or r.db.seat_days(run_id):
         parts.append(_reached_wording(r))

@@ -401,6 +401,9 @@ def town_awareness_cmd(
     prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
                                         show_default="config/prices.yaml")] = _PRICES,
     estimate: Annotated[bool, typer.Option("--estimate", help="Print the calls and their worst case, send nothing.")] = False,
+    material: Annotated[str | None, typer.Option("--material", help="Read only this variant (b-surfaces: the morning "
+                                                                    "with the day's results from the web, tasks and "
+                                                                    "rules), with no pairs.")] = None,
 ) -> None:
     """Show sampled mornings of a kept run's instances, rebuilt in each variant of the seat, to a
     fresh reader model: three fixed questions per morning, a judge of the first answer, and
@@ -413,6 +416,8 @@ def town_awareness_cmd(
     family = aw.reader_family(_load_seat(reader, prices))
     price_list = load_prices(prices)
     wanted = [v.strip() for v in variants.split(",") if v.strip()]
+    if material is not None:
+        wanted, pairs = [material.strip()], ""
     if not Path(db).is_file():
         _fail(f"no database file {db}")
     with _plainly(db), RunDB(db) as rdb:
