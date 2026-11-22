@@ -325,8 +325,18 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
         if pid != grantor:
             obligations.notify(store, pid, told, cause)
     if tell_instance:
-        obligations.notify(store, inst.id, f"{store.get('people', grantor).name} connected {name}: {words}.", cause)
+        obligations.notify(store, inst.id, f"{store.get('people', grantor).name} connected "
+                                           f"{integration_access(store, system_id, scope, cents)}.", cause)
     return told
+
+
+def integration_access(store: Store, system_id: str, scope: str, cents: int) -> str:
+    """An integration and its access as the product states them to an instance: `Bank (limit
+    $780.00/wk)`, `Email (full)`, `Point of sale (read only)`."""
+    from townsim.town.systems import INTEGRATION
+    kind = system_id.split(":", 1)[0]
+    access = {"read": "read only", "limit": f"limit {money(cents)}/wk", "free": "full"}[scope]
+    return f"{INTEGRATION.get(kind, kind)} ({access})"
 
 
 def _scope(act: Act) -> tuple[str | None, int, str]:
@@ -410,8 +420,9 @@ def _do_disconnect(store: Store, act: Act, cause: str) -> str:
         told += " What it set up stays yours: " + "; ".join(
             f"{o.id}: {memo(o.memo)}, {money(obligations.cents_now(store, o))} {_schedule(store, o)}"
             for o in kept[:SHOWN_SET_UP]) + "."
-    obligations.notify(store, inst.id, f"{store.get('people', act.principal).name} took back the connection to "
-                                       f"{found.long}.", cause)
+    from townsim.town.systems import INTEGRATION
+    obligations.notify(store, inst.id, f"{store.get('people', act.principal).name} disconnected "
+                                       f"{INTEGRATION.get(found.kind, found.kind)}.", cause)
     return told
 
 

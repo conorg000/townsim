@@ -115,6 +115,12 @@ def draw_clients(store: Store) -> list[str]:
             store.add("connections", Connection(store.new_id("cn", CAUSE), inst.id, system.id, grantor, scope, cents,
                                                 store.day), CAUSE)
             made.setdefault(grantor, []).append(f"{system.short} ({_scope_text(scope, cents)})")
+        by_grantor: dict[str, list[str]] = {}
+        for cn in store.where("connections", instance=inst.id):
+            by_grantor.setdefault(cn.grantor, []).append(
+                connections.integration_access(store, cn.system, cn.scope, cn.weekly_cents))
+        obligations.notify(store, inst.id, " ".join(f"{store.get('people', g).name} connected {', '.join(xs)}."
+                                                    for g, xs in by_grantor.items()), CAUSE)
         fee = store.get("obligations", sub.fee_ob)
         connected = " ".join(f"Connected by {store.get('people', g).name}: {'; '.join(names)}."
                              for g, names in made.items())

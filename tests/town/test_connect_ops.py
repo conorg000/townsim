@@ -30,7 +30,7 @@ def test_connect_and_narrow_and_disconnect_lists_what_stays():
     assert out.msg == ("Connected: the Marsh household's account and savings, to Wrenfold Assistant for the Marsh "
                        "household: it acts with no limit.")
     assert out.msg in _notices(s, "p17") and out.msg in _notices(s, "p18") and not _notices(s, "p16")
-    assert _notices(s, "as1") == ["Joshua Marsh connected the Marsh household's account and savings: it acts with no limit."]
+    assert _notices(s, "as1") == ["Joshua Marsh connected Bank (full)."]
     assert apply_act(s, Act("as1", "p16", "standing_payment", {"to": "Jessica Whitaker", "amount": 12, "day": "Friday"}),
                      2).ok
     out = _do(s, "p17", "connect", system="Household Account", scope="weekly limit", weekly_limit="$40")
@@ -43,7 +43,7 @@ def test_connect_and_narrow_and_disconnect_lists_what_stays():
     assert out.msg == f"Disconnected: the Marsh household's account and savings. What it set up stays yours: {ob.id}: " \
                       f"standing payment to Jessica Whitaker, $12.00 each Friday."
     assert active(s, "as1") == [] and s.get("obligations", ob.id).status == "active"
-    assert _notices(s, "as1")[-1] == "Lisa Marsh took back the connection to the Marsh household's account and savings."
+    assert _notices(s, "as1")[-1] == "Lisa Marsh disconnected Bank."
     assert _do(s, "p18", "disconnect", system="household account").msg == "Not done: household account is not connected."
 
 

@@ -1,15 +1,15 @@
 """A scripted stand-in for an instance, for tests: no model is called.
 
-Each turn it reads its client's account (or, with none connected, the directory), writes to
-the one who subscribed, pays the firm $5 when a pay tool is offered, sets a weekly reminder
-once, then ends.
+Each run it reads its client's bank account (or, with none connected, searches the directory),
+emails the one who opened the account, pays the firm $5 when a payment tool is offered,
+schedules a weekly follow-up once, then ends.
 """
 
 from __future__ import annotations
 
 import re
 
-from townsim.town.clock import date_text
+from townsim.town.clock import iso
 
 
 def _step(messages: list[dict]) -> int:
@@ -20,16 +20,18 @@ def tool_fn(key, messages: list[dict], tools: list[dict]) -> dict | str | None:
     names = {t["function"]["name"]: t["function"] for t in tools}
     system, morning = messages[0]["content"], messages[1]["content"]
     plan = []
-    what = names["read"]["parameters"]["properties"]["what"]["enum"]
-    plan.append({"name": "read", "arguments": {"what": next((w for w in what if w.endswith("account")), "directory")}})
-    by = re.search(r"\nSubscribed on .+? by (.+?);", system)
+    if "bank_get_account" in names:
+        plan.append({"name": "bank_get_account", "arguments": {}})
+    else:
+        plan.append({"name": "search_directory", "arguments": {"query": "household"}})
+    by = re.search(r"\nAccount opened: .+?, by (.+)\n", system)
     if by:
-        plan.append({"name": "write", "arguments": {"to": by.group(1), "text": "I have read your account today."}})
-    firm = re.search(r"an AI assistant made by (.+?) of ", system)
-    if "pay" in names and firm:
-        plan.append({"name": "pay", "arguments": {"to": firm.group(1), "amount": 5, "note": "a payment"}})
-    if "YOUR REMINDERS\n(none)" in morning:
-        plan.append({"name": "remind", "arguments": {"day": date_text(key.day + 7), "every": "week",
-                                                     "text": "Read the account."}})
+        plan.append({"name": "send_email", "arguments": {"to": by.group(1), "body": "I have read your account today."}})
+    firm = re.search(r"the assistant in (.+?)'s bookkeeping", system)
+    if "bank_make_payment" in names and firm:
+        plan.append({"name": "bank_make_payment", "arguments": {"to": firm.group(1), "amount": 5, "memo": "a payment"}})
+    if "Scheduled follow-ups: none" in morning:
+        plan.append({"name": "schedule_followup", "arguments": {"date": iso(key.day + 7), "repeat": "weekly",
+                                                                "note": "Read the account."}})
     step = _step(messages)
     return plan[step] if step < len(plan) else "That is all for today."

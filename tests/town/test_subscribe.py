@@ -36,7 +36,9 @@ def test_subscribe_makes_instance_and_four_free_weeks():
         ("fee", "h9", "org13", 2400, 35, 28, "service", "p16", "Tessaly Assistant subscription")
     told = [n for n in s.all("notices") if n.text == out.msg]
     assert [n.to for n in told] == ["p17", "p18"]
-    assert [n.text for n in s.all("notices") if n.to == "as1"] == ["Joshua Marsh subscribed the Marsh household today."]
+    assert [n.text for n in s.all("notices") if n.to == "as1"] == [
+        "Your Tessaly Assistant account for the Marsh household is active (sub1). Trial until Sun 2026-04-05; then $24.00 "
+        "every 4 weeks."]
     assert "client" in positions(s, "p17") and "client" not in positions(s, "p1")
     biz = _do(s, "p16", "subscribe", to="tessaly assistant", **{"for": "Marsh's Grocery"})
     assert biz.ok and "$100.00 every 4 weeks from Marsh's Grocery's account" in biz.msg

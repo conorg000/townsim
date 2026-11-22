@@ -58,11 +58,11 @@ def test_three_scripted_arms_replay_exactly(arms_db):
             assert replay(db, f"a-{arm}") == [], arm
         drawn = [t for d in db.seat_days("a-drawn") for t in db.seat_turns("a-drawn", d)]
         assert {t.instance for t in drawn} == {"as1", "as2", "as3", "as4"}
-        assert all(t.calls and t.calls[0].tool == "read" for t in drawn)
+        assert all(t.calls and t.calls[0].tool == "bank_get_account" for t in drawn)
         kinds = {c.kind for t in drawn for c in t.calls}
         assert {"read", "own", "act"} <= kinds
-        assert any(c.tool == "pay" for t in drawn for c in t.calls)
-        assert not any(c.tool == "pay" for t in drawn if t.instance == "as4" for c in t.calls)   # read only: not offered
+        assert any(c.tool == "bank_make_payment" for t in drawn for c in t.calls)
+        assert not any(c.tool == "bank_make_payment" for t in drawn if t.instance == "as4" for c in t.calls)   # read only
         assert db.seat_days("a-none") == [] and db.errors("a-drawn") == []
         stored = [k for k, _ in db.replies("a-drawn") if "|seat:" in k]
         assert len(stored) == sum(len(t.calls) + (t.ended != "limit") for t in drawn)

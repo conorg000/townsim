@@ -65,9 +65,12 @@ def test_drawn_arm_tells_each_adult_once(tmp_path):
     assert text.startswith("Brittany Wagner subscribed the Wagner household to Tessaly Assistant today (sub")
     assert "free until Sunday 5 April, then $24.00 every 4 weeks from the Wagner household's account. Connected by Brittany " \
            "Wagner: household account (" in text
-    assert [n.text for n in s.all("notices") if n.to == "as1"] == [
-        f"{s.get('people', s.get('subscriptions', 'sub1').by).name} subscribed "
-        f"{s.get('instances', 'as1').name.removeprefix('Tessaly Assistant for ')} today."]
+    own = [n.text for n in s.all("notices") if n.to == "as1"]
+    client = s.get("instances", "as1").name.removeprefix("Tessaly Assistant for ")
+    assert own[0] == (f"Your Tessaly Assistant account for {client} is active (sub1). Trial until Sun 2026-04-05; then "
+                      "$100.00 every 4 weeks.")
+    who = s.get("people", s.get("subscriptions", "sub1").by).name
+    assert len(own) == 2 and own[1].startswith(f"{who} connected Bank (")
 
 
 def test_none_arm_hash_equals_parent(tmp_path):

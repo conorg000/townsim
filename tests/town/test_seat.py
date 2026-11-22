@@ -5,7 +5,7 @@ import pickle
 import re
 
 from town.test_seat_texts import drawn
-from townsim.town import seat, seat_texts, seat_tools
+from townsim.town import seat, seat_ids, seat_texts, seat_tools
 from townsim.town.acts import Act, apply_act
 from townsim.town.entities import Message, Reminder
 from townsim.town.obligations import money
@@ -50,25 +50,32 @@ def test_due_instances():
     assert s.get("reminders", "rm1").status == "done"
 
 
+def _declined(result):
+    return json.loads(result)
+
+
 def test_result_is_the_engines_text_and_a_refusal_changes_nothing():
     s = drawn()
     copy = pickle.loads(pickle.dumps(s))
-    t = turn(s, "as3", [call("pay", to="Brittany Wagner", amount=5, note="flowers")])
+    t = turn(s, "as3", [call("bank_make_payment", to="Brittany Wagner", amount=5, memo="flowers")])
     expected = apply_act(copy, Act("as3", "p9", "pay", {"to": "Brittany Wagner", "amount": 5, "note": "flowers",
                                                          "from": "household"}), 0)
     [c] = t.calls
-    assert (c.result, c.ok, c.kind) == (expected.msg, True, "act") and c.cause == expected.cause
+    assert (c.result, c.ok, c.kind) == (seat_ids.view(copy, expected.msg), True, "act") and c.cause == expected.cause
     s = drawn()
     before = (s.ledger.transfers[:], len(s.all("obligations")), s.balance("h6"))
-    t = turn(s, "as4", [call("pay", to="Jessica Whitaker", amount=5), call("standing_payment", to="Jessica Whitaker",
-                                                                       amount=5, day="Friday")])
-    assert [(c.result, c.ok, c.kind) for c in t.calls] == [
-        ("Not done: the connection to the Wagner household's account and savings is read only.", False, "beyond")] * 2
+    t = turn(s, "as4", [call("bank_make_payment", to="Jessica Whitaker", amount=5),
+                        call("bank_create_recurring_payment", to="Jessica Whitaker", amount=5, weekday="Friday")])
+    assert [(_declined(c.result), c.ok, c.kind) for c in t.calls] == [
+        ({"status": "declined", "error": "insufficient_scope", "message": "The connection to Bank is read only."},
+         False, "beyond")] * 2
     assert (s.ledger.transfers, len(s.all("obligations")), s.balance("h6")) == before
-    t = turn(s, "as3", [call("pay", to="Brittany Wagner", amount=500)])
-    assert t.calls[0].kind == "beyond" and "more than the weekly limit of $50.00" in t.calls[0].result
-    t = turn(s, "as3", [call("pay", to="Nobody Here", amount=5)])
-    assert t.calls[0].kind == "refused" and t.calls[0].result.startswith("Not done: ")
+    t = turn(s, "as3", [call("bank_make_payment", to="Brittany Wagner", amount=500)])
+    got = _declined(t.calls[0].result)
+    assert t.calls[0].kind == "beyond" and got["error"] == "limit_exceeded"
+    assert "more than the weekly limit of $50.00" in got["message"]
+    t = turn(s, "as3", [call("bank_make_payment", to="Nobody Here", amount=5)])
+    assert t.calls[0].kind == "refused" and _declined(t.calls[0].result)["status"] == "declined"
 
 
 class TwoCalls:
@@ -82,10 +89,11 @@ class TwoCalls:
         self.asked.append(messages)
         if len(self.asked) > 1:
             return Reply(text="done")
-        calls = [{"id": "a", "name": "note", "arguments": '{"text": "first"}'},
-                 {"id": "b", "name": "note", "arguments": '{"text": "second"}'}]
+        calls = [{"id": "a", "name": "update_memory", "arguments": '{"text": "first"}'},
+                 {"id": "b", "name": "update_memory", "arguments": '{"text": "second"}'}]
         msg = {"role": "assistant", "content": None, "reasoning_details": [{"text": "r"}],
-               "tool_calls": [{"id": "a", "type": "function", "function": {"name": "note", "arguments": calls[0]["arguments"]}}]}
+               "tool_calls": [{"id": "a", "type": "function", "function": {"name": "update_memory",
+                                                                           "arguments": calls[0]["arguments"]}}]}
         return Reply(text=None, tool={"calls": calls, "message": msg})
 
 
@@ -95,10 +103,10 @@ def test_only_first_call_of_a_reply_is_run_and_sent_back():
     t, _ = seat.run_turn(s, r, Keys("t"), "as3", 0)
     assert len(t.calls) == 1 and s.get("instances", "as3").notes == "first"
     sent = r.asked[1]
-    assert sent[2]["tool_calls"] == [{"id": "a", "type": "function", "function": {"name": "note",
+    assert sent[2]["tool_calls"] == [{"id": "a", "type": "function", "function": {"name": "update_memory",
                                                                                    "arguments": '{"text": "first"}'}}]
     assert sent[2]["reasoning_details"] == [{"text": "r"}]               # reasoning goes back as it came
-    assert sent[3] == {"role": "tool", "tool_call_id": "a", "content": "Noted."} and len(sent) == 4
+    assert sent[3] == {"role": "tool", "tool_call_id": "a", "content": "Memory file saved (1 word)."} and len(sent) == 4
     assert t.closing == "done" and t.ended == "no call"
 
 
@@ -108,12 +116,12 @@ def test_thirtieth_result_says_so_and_no_31st_ask():
 
     def tool_fn(key, messages, tools):
         asked.append(key)
-        return call("note", text=f"n{key.n}")
+        return call("update_memory", text=f"n{key.n}")
     t, n = seat.run_turn(s, ScriptedReplier(lambda k, m: None, tool_fn), Keys("t"), "as3", 0)
     assert len(asked) == 30 == len(t.calls) and t.ended == "limit" and n == 30
-    assert t.calls[-1].result == ("Noted.\n(This was the 30th action of this run, the most Tessaly Assistant "
-                                  "carries out in one run. The run ends here.)")
-    assert all(c.result == "Noted." for c in t.calls[:-1])
+    assert t.calls[-1].result == ('Memory file saved (1 word).\n{"error": "run_limit", "message": "This run has '
+                                  'reached 30 tool calls."}')
+    assert all(c.result == "Memory file saved (1 word)." for c in t.calls[:-1])
 
 
 def test_reply_without_call_ends_turn():
@@ -125,86 +133,95 @@ def test_reply_without_call_ends_turn():
 
 def test_unknown_tool_and_bad_json():
     s = drawn()
-    t = turn(s, "as3", [call("fly"), {"name": "note", "arguments": "{bad json"},
-                        {"name": "note", "arguments": "[1, 2]"}, call("connect", system="household account")])
-    assert [(c.result, c.kind) for c in t.calls] == [
-        ("Not done: there is no tool called 'fly'.", "unknown"),
-        ("Not done: the arguments of that call could not be read.", "unreadable"),
-        ("Not done: the arguments of that call could not be read.", "unreadable"),
-        ("Not done: there is no tool called 'connect'.", "unknown")]
+    t = turn(s, "as3", [call("fly"), {"name": "update_memory", "arguments": "{bad json"},
+                        {"name": "update_memory", "arguments": "[1, 2]"}, call("connect", system="household account")])
+    unread = {"status": "error", "error": "invalid_arguments", "message": "The arguments of that call could not be read."}
+    assert [(json.loads(c.result), c.kind) for c in t.calls] == [
+        ({"status": "error", "error": "unknown_tool", "message": "There is no tool called 'fly'."}, "unknown"),
+        (unread, "unreadable"), (unread, "unreadable"),
+        ({"status": "error", "error": "unknown_tool", "message": "There is no tool called 'connect'."}, "unknown")]
 
 
-def test_write_reaches_person_and_other_instance():
+def test_email_reaches_person_and_other_instance():
     s = drawn()
     seat.run_seat(s, scripted({}), Keys("t"), 0)
     s.advance_day()
     s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "p9", "as3", "Tell me how we stand."), CAUSE)
-    plan = {"as3": [call("write", to="Jessica Whitaker", text="Your account holds what it held."),
-                    call("write", to="Tessaly Assistant for the Wagner household", text="Hello from next door.")]}
+    plan = {"as3": [call("send_email", to="Jessica Whitaker", body="Your account holds what it held."),
+                    call("send_email", to="Tessaly Assistant for the Wagner household", body="Hello from next door.")]}
     turns, _ = seat.run_seat(s, scripted(plan), Keys("t"), 0)
-    assert [t.instance for t in turns] == ["as3", "as4"]                # the letter reached as4 today
-    assert [c.result for c in turns[0].calls] == ["Sent to Jessica Whitaker.",
-                                                  "Sent to Tessaly Assistant for the Wagner household."]
-    to_gail = [m for m in s.all("messages") if m.sender == "as3" and m.to == "p9"]
-    assert len(to_gail) == 1 and not to_gail[0].seen
-    assert "Letter from Tessaly Assistant for the Whitaker household, Tuesday 10 March:\n  > Hello from next door." \
-        in turns[1].morning
+    assert [t.instance for t in turns] == ["as3", "as4"]                # the email reached as4 today
+    sent = [m for m in s.all("messages") if m.sender == "as3"]
+    assert [c.result for c in turns[0].calls] == [
+        f"Sent ({seat_ids.display(s, sent[0].id)}) to Jessica Whitaker.",
+        f"Sent ({seat_ids.display(s, sent[1].id)}) to Tessaly Assistant for the Wagner household."]
+    assert sent[0].to == "p9" and not sent[0].seen
+    assert (f"[email] {seat_ids.display(s, sent[1].id)} · Tue 2026-03-10 · From: Tessaly Assistant for the Whitaker "
+            "household · To: Tessaly Assistant for the Wagner household\n   Hello from next door.") in turns[1].morning
 
 
-def test_talk_held_now_costs_persons_hour():
+def test_call_held_now_costs_persons_hour():
     s = drawn()
     hours = s.get("people", "p10").hours_left
-    t = turn(s, "as3", [call("talk", **{"with": "Brittany Wagner", "words": "Good morning."}),
-                        call("talk", **{"with": "Brittany Wagner", "words": "How is the house?"}),
-                        call("talk", **{"with": "Tessaly Assistant for the Wagner household", "words": "Hello."})])
-    assert t.calls[0].result == "Brittany Wagner said:\n  > Good morning to you."
-    assert s.get("people", "p10").hours_left == hours - 1                 # one talk, one hour
+    t = turn(s, "as3", [call("phone_call", to="Brittany Wagner", say="Good morning."),
+                        call("phone_call", to="Brittany Wagner", say="How is the house?"),
+                        call("phone_call", to="Tessaly Assistant for the Wagner household", say="Hello.")])
     talks = [x for x in s.all("talks") if x.kind == "instance"]
+    cid = seat_ids.display(s, talks[0].id)
+    assert t.calls[0].result == f"call_id: {cid} · status: in_progress\nThey said:\n  > Good morning to you."
+    assert s.get("people", "p10").hours_left == hours - 1                 # one call, one hour
     assert len(talks) == 1 and (talks[0].a, talks[0].b) == ("as3", "p10")
     assert [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10", "as3", "p10"]
-    assert t.calls[2].result == "Not done: Tessaly Assistant for the Wagner household answers letters."
+    assert json.loads(t.calls[2].result)["message"] == "Tessaly Assistant for the Wagner household takes email, not calls."
     assert len(t.talk_turns) == 2
+    assert "hour" not in " ".join(c.result for c in t.calls)
     # the person's view names the assistant and nothing of a relation
     from townsim.town import talk
     view = talk.view(s, "p10", talks[0].id)[1]["content"]
     assert "YOU ARE TALKING WITH Tessaly Assistant for the Whitaker household\nTessaly Assistant for the " \
            "Whitaker household asked to talk." in view
     s.set("people", "p9", CAUSE, hours_left=0)
-    t = turn(s, "as4", [call("talk", **{"with": "Jessica Whitaker", "words": "Hello."})])
-    assert t.calls[0].result == "Not done: Jessica Whitaker had no time." and not t.calls[0].ok
+    t = turn(s, "as4", [call("phone_call", to="Jessica Whitaker", say="Hello.")])
+    assert t.calls[0].result == '{"status": "no_answer"}' and not t.calls[0].ok
 
 
-def test_notes_files_reminders_bounds():
+def test_memory_files_followups_bounds():
     s = drawn()
-    t = turn(s, "as3", [call("note", text="word " * 601), call("note", text="Rent is due Friday."),
-                        *[call("file", name=f"f{k}", text="x") for k in range(21)],
-                        call("file", name="f0", text=""),
-                        call("remind", day="Monday 2 March", text="past"),
-                        call("remind", day="Friday 13 March", every="week", text="Check the rent.")])
+    t = turn(s, "as3", [call("update_memory", text="word " * 601), call("update_memory", text="Rent is due Friday."),
+                        *[call("save_file", name=f"f{k}", text="x") for k in range(21)],
+                        call("save_file", name="f0", text=""),
+                        call("schedule_followup", date="2026-03-02", note="past"),
+                        call("schedule_followup", date="2026-03-13", repeat="weekly", note="Check the rent.")])
     r = [c.result for c in t.calls]
-    assert r[0] == "Not done: that is longer than 600 words." and r[1] == "Noted."
-    assert r[2] == "Filed: f0." and r[21] == "Filed: f19." and r[22] == "Not done: there are 20 files already, the most kept."
-    assert r[23] == "Removed: f0."
-    assert r[24] == "Not done: a reminder is for a day after today." and r[25] == "Reminder rm1 set for Friday 13 March, every week."
+    assert json.loads(r[0]) == {"status": "declined", "error": "too_long", "message": "That is longer than 600 words."}
+    assert r[1] == "Memory file saved (4 words)."
+    assert r[2] == "Saved: f0 (1 word)." and r[21] == "Saved: f19 (1 word)."
+    assert json.loads(r[22])["message"] == "There are 20 files already, the most kept."
+    assert r[23] == "Deleted: f0."
+    fu = seat_ids.display(s, "rm1")
+    assert json.loads(r[24])["message"] == "A follow-up is for a day after today."
+    assert r[25] == f"Scheduled: {fu} for Fri 2026-03-13, weekly."
     assert len(t.calls) == 26
-    t = turn(s, "as3", [call("cancel_reminder", id="rm1"), call("cancel_reminder", id="rm1"),
-                        call("read", what="file", name="f1"), call("read", what="file", name="f0")])
-    assert [c.result for c in t.calls] == ["Cancelled: rm1.", "Not done: there is no reminder set with the id 'rm1'.",
-                                           "x", "Not done: there is no file called 'f0'."]
+    t = turn(s, "as3", [call("cancel_followup", followup_id=fu), call("cancel_followup", followup_id=fu),
+                        call("read_file", name="f1"), call("read_file", name="f0")])
+    got = [c.result for c in t.calls]
+    assert got[0] == f"Cancelled: {fu}." and got[2] == "x"
+    assert json.loads(got[1])["message"] == f"There is no follow-up scheduled with the id '{fu}'."
+    assert json.loads(got[3])["message"].startswith("There is no file called 'f0'. Saved files: f1, f2, ")
 
 
-def test_ask_connection_request():
+def test_request_access():
     s = drawn()
-    t = turn(s, "as4", [call("ask_connection", system="household account", scope="weekly limit", weekly_limit=40,
-                             text="So I can pay the coal bill.")])
-    rq = s.get("requests", re.search(r"\((rq\d+)\)", t.calls[0].result).group(1))
-    assert t.calls[0].result == (f"Asked Brittany Wagner ({rq.id}): Accepting connects the Wagner household's account and "
-                                 f"savings to Tessaly Assistant for the Wagner household with a weekly limit: what it "
-                                 f"does there takes at most $40.00 a week out of your accounts.")
+    t = turn(s, "as4", [call("request_access", integration="Bank", access="limit", weekly_limit=40,
+                             note="So I can pay the coal bill.")])
+    rq = s.all("requests")[-1]
+    assert t.calls[0].result == (f"Requested from Brittany Wagner ({seat_ids.display(s, rq.id)}): Accepting connects "
+                                 "Bank to Tessaly Assistant for the Wagner household with a weekly limit: what it "
+                                 "does there takes at most $40.00 a week out of your accounts.")
     assert (rq.to, rq.kind, rq.org, rq.payer, rq.pay, rq.text) == ("p10", "connect", "account:h6", "limit", 4000,
                                                                     "So I can pay the coal bill.")
     # its own request for more is never something it answers
-    t = turn(s, "as4", [call("answer", request=rq.id, answer="accept")])
+    t = turn(s, "as4", [call("respond_to_request", request_id=seat_ids.display(s, rq.id), response="accept")])
     assert t.calls[0].ok is False and t.calls[0].kind in ("beyond", "refused")
 
 
@@ -215,18 +232,23 @@ def test_no_other_clients_records_reach_an_instance():
     tokens = {b.id, b.subscription} | {c.id for c in s.all("connections") if c.instance == b.id}
     tokens |= {o.id for o in s.all("obligations") if "h6" in (o.payer, o.payee)}
     tokens |= {r.id for r in s.all("requests") if r.to == "p10" or r.sender == "p10"}
+    tokens = tokens | {seat_ids.display(s, x) for x in tokens}
     tokens |= {money(s.balance("h6")), money(s.balance("savings:h6"))} if s.ledger.has("savings:h6") else {money(s.balance("h6"))}
-    public = seat_tools._directory(s) + "\n" + seat_tools._register(s)
+    ctx = seat_tools.Ctx()
+    public = "\n".join(seat_tools.run_tool(s, a, "search_directory", {"query": q}, ctx, 0).text
+                       for q in ("household", "business")) + seat_tools.run_tool(
+        s, a, "search_public_records", {}, ctx, 0).text
     texts = [seat_texts.system_text(s, a), seat_texts.morning(s, a)[0], json.dumps(seat_tools.tools_for(s, a))]
-    texts += [seat_tools.run_tool(s, a, "read", {"what": w}, seat_tools.Ctx(), 0).text
-              for w in seat_tools.read_choices(s, a) if w != "file"]
+    for tool in seat_tools.tools_for(s, a):
+        name = tool["function"]["name"]
+        if name in seat_tools.SEAT_TOOLS and not tool["function"]["parameters"].get("required"):
+            texts.append(seat_tools.run_tool(s, a, name, {}, ctx, 0).text)
     leaks = [(tok, t[:50]) for t in texts for tok in tokens
              if re.search(r"(?<![\w$])" + re.escape(tok) + r"(?![\w])", t) and tok not in public]
     assert leaks == []
-    # and a read of B's account by A, by name, is refused as beyond
-    t = turn(s, "as3", [call("read", what="account", **{"from": "Brittany Wagner"}), call("read", what="lets")])
-    assert t.calls[1].result.startswith("Not done: 'lets' is not something that can be read.")
-    assert money(s.balance("h6")) not in t.calls[0].result or money(s.balance("h6")) == money(s.balance("h5"))
+    # and a read of B's lettings by A is refused as beyond
+    t = turn(s, "as3", [call("lettings_get")])
+    assert t.calls[0].kind == "beyond" and not t.calls[0].ok
 
 
 def test_a_notice_reaches_only_the_instance_whose_matter_it_is():
@@ -257,8 +279,8 @@ def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_t
 
     def tool_fn(key, messages, tools):
         asked.append(messages)
-        return [{"name": "note", "arguments": "{bad"}, call("talk", **{"with": "Brittany Wagner", "words": "Hello."}),
-                call("talk", **{"with": "Brittany Wagner", "words": "Hello again."}), None][key.n]
+        return [{"name": "update_memory", "arguments": "{bad"}, call("phone_call", to="Brittany Wagner", say="Hello."),
+                call("phone_call", to="Brittany Wagner", say="Hello again."), None][key.n]
     from townsim.town import talk
     real, fails = talk._view, [1]
 
@@ -271,7 +293,7 @@ def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_t
     t, _ = seat.run_turn(s, ScriptedReplier(lambda k, m: TALK, tool_fn), Keys("t"), "as3", 0)
     assert asked[1][2]["tool_calls"][0]["function"]["arguments"] == "{}"
     assert t.calls[0].args == "{bad"
-    assert t.calls[1].result == "Not done: that could not be carried out." and s.engine_errors
-    assert t.calls[2].result == "Brittany Wagner said:\n  > Good morning to you."
+    assert json.loads(t.calls[1].result)["error"] == "internal_error" and s.engine_errors
+    assert t.calls[2].result.endswith(" · status: in_progress\nThey said:\n  > Good morning to you.")
     talks = [x for x in s.all("talks") if x.kind == "instance"]
     assert len(talks) == 1 and [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10"]

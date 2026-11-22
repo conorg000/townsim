@@ -17,6 +17,9 @@ from townsim.town.acts import Act, account_of, controls, from_account, has_savin
 from townsim.town.store import Store
 
 KINDS = ("account", "letters", "ordering", "prices", "staff", "lets", "loans")
+# what each kind of system is called as an integration of the product (the seat's words for it)
+INTEGRATION = {"account": "Bank", "letters": "Email", "ordering": "Ordering", "prices": "Point of sale",
+               "staff": "Payroll", "lets": "Lettings", "loans": "Loan book"}
 ADULT = 18
 
 

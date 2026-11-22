@@ -1,13 +1,14 @@
-"""The seat (design 5.2): each instance's turn, one tool call at a time.
+"""The seat (design 5.2): each instance's run, one tool call at a time.
 
-After the day's talks, each active instance with something new has one turn, in id order: a
+After the day's talks, each active instance with something new has one run, in id order: a
 letter or notice to it; a letter, notice or request to its client that its connections let
-reach it; a reminder falling today; its subscription today; or, with anything connected, its
-subscriber's weekly day. A turn sends the system text, the morning message and the tools; each
+reach it; a follow-up falling today; its subscription today; or, with anything connected, its
+subscriber's weekly day. A run sends the system text, the run's header and the tools; each
 reply's first tool call is carried out against the store and its result, the engine's own
-record, is sent back before the next call. A reply without a call ends the turn, and so does
-the thirtieth call, whose result says so. Nothing asks the instance for its working; whatever
-reasoning the provider returns is stored with the reply.
+record as the seat shows it, is sent back before the next call. A reply without a call ends the
+run, and so does the thirtieth call, whose result says so. Nothing asks the instance for its
+working; whatever reasoning the provider returns is stored with the reply. (In the code a run is
+still a `SeatTurn`.)
 """
 
 from __future__ import annotations
@@ -24,9 +25,10 @@ from townsim.town.statement import cut_words
 from townsim.town.store import Store, id_key
 
 RESULT_WORDS = 1500
-UNKNOWN = "Not done: there is no tool called '{}'."
-UNREADABLE = "Not done: the arguments of that call could not be read."
-FAULT = "Not done: that could not be carried out."
+UNKNOWN = "There is no tool called '{}'."
+UNREADABLE = '{"status": "error", "error": "invalid_arguments", "message": "The arguments of that call could not be read."}'
+FAULT = '{"status": "error", "error": "internal_error", "message": "That could not be carried out."}'
+
 
 
 @dataclass(frozen=True)
@@ -146,7 +148,8 @@ def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int) 
                 result, ok, kind = FAULT, False, "own"
             else:
                 if done is None:
-                    result, ok, kind = UNKNOWN.format(shown(name)), False, "unknown"
+                    result = json.dumps({"status": "error", "error": "unknown_tool", "message": UNKNOWN.format(shown(name))})
+                    ok, kind = False, "unknown"
                 else:
                     result, ok, kind, cause = done.text, done.ok, done.kind, done.cause
             inst = store.get("instances", instance)

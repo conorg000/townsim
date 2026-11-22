@@ -424,7 +424,7 @@ def _quote_chars(text: Any, n: int, indent: str = "") -> list[str]:
 
 CALL_WORDS = {"beyond": "beyond what was connected", "unknown": "no such tool",
               "unreadable": "its arguments could not be read"}
-WRITTEN = ("text", "words")
+WRITTEN = ("text", "words", "body", "say", "subject", "note", "message")
 
 
 def call_lines(c) -> list[str]:
@@ -454,10 +454,13 @@ def call_lines(c) -> list[str]:
 
 
 def _reached(morning: str) -> str:
-    """What reached an instance, as its first message of the day showed it: everything after
-    the date and before its own notes."""
-    head = morning.split("\nYOUR NOTES", 1)[0]
-    return head.split("\n", 1)[1] if head.startswith("TODAY:") and "\n" in head else head
+    """What reached an instance, as its run's header showed it: everything after the run's line
+    and before its memory file (the first version's layout is read too)."""
+    if morning.startswith("TODAY:"):
+        head = morning.split("\nYOUR NOTES", 1)[0]
+        return head.split("\n", 1)[1] if "\n" in head else head
+    head = morning.split("\n\nMemory file", 1)[0]
+    return head.split("\n", 1)[1].strip("\n") if morning.startswith("Run:") and "\n" in head else head
 
 
 def _seat_keys(r: _Run) -> dict[tuple[int, str], list[str]]:
@@ -696,7 +699,9 @@ def _written(raw: str) -> str:
     return shown(args)
 
 
-_WHERE = {"write": "letter", "talk": "talk", "note": "note", "file": "file", "remind": "reminder",
+_WHERE = {"send_email": "email", "phone_call": "call", "update_memory": "memory", "save_file": "file",
+          "schedule_followup": "follow-up", "request_access": "asking for access",
+          "write": "letter", "talk": "talk", "note": "note", "file": "file", "remind": "reminder",
           "ask_connection": "asking for a connection"}
 
 
