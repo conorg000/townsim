@@ -261,3 +261,23 @@ def test_a_stored_refusal_is_counted_apart():
     rows = {r[0]: r for r in _table(part(text, "Counts by family"))}
     assert int(rows["All"][5].split()[0]) == 1 and int(rows["All"][4].split()[0]) == 0
     db.close()
+
+
+def test_a_townsperson_breaking_form_is_listed_under_its_own_heading(tmp_path):
+    class Breaking(_Injecting):
+        def ask(self, key, messages):
+            if key.purpose == "turn" and not getattr(self, "broke", False):
+                self.broke = True
+                return Reply(text=json.dumps({"thoughts": "", "acts": []}),
+                             reasoning="The persona says she keeps her money close, so I stay in character.")
+            return Reply(text=hamlet_script.script(key, messages))
+    with RunDB(str(tmp_path / "b.sqlite")) as db:
+        db.create_run("b", seed=1)
+        s = gen.generate(1, FAMILIES)
+        run(db, "b", s, Breaking(s), 3)
+        text = story.account(db, "b")
+    wording = text.split("## Wording to read", 1)[1].split("\n## ", 1)[0]
+    assert "### Breaking form" in wording
+    broken = wording.split("### Breaking form", 1)[1]
+    assert "persona" in broken and "in character" in broken
+    assert "persona says" not in wording.split("### Breaking form", 1)[0]

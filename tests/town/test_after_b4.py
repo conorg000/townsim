@@ -264,3 +264,37 @@ def test_friends_are_told_at_a_fixed_share():
     from townsim.town import hearing
     told = sum(hearing._told(9, "p1", f"news {i}", f"p{j}") for i in range(50) for j in range(20))
     assert abs(told / 1000 - hearing.FRIEND_SHARE) < 0.05
+
+
+# --- after the short run: a short delivery is told -----------------------------------------------------------
+
+def test_a_delivery_that_falls_short_is_told_and_the_figures_show_ordered_against_delivered(monkeypatch):
+    from townsim.town import facts, firms, loop
+    s = _b()
+    f = next(x for x in s.all("firms") if x.org == "org11")
+    s.set("firms", f.id, CAUSE, order_supplier=f.last_supplier, order_units=900,
+          order_cents=s.get("suppliers", f.last_supplier).unit_cents)
+    monkeypatch.setattr(firms, "_supplier", lambda sp: type("S", (), {"fill": lambda self, n, rng: 89})())
+    while s.day % 7:
+        s.advance_day()
+    loop.routine(s)
+    told = [n.text for n in s.all("notices") if n.to == "p3" and "delivered 89 of the 900 baskets" in n.text]
+    assert told and told[0].endswith(f"ordered for {__import__('townsim.town.controls', fromlist=['x']).short_day(s.day)}.")
+    assert any("delivered 89 of the 900" in n.text for n in s.all("notices") if n.to == "as1")   # ordering connected
+    assert "Last delivery, " in facts.business(s, "p3") and ": 89 of 900 baskets ordered" in facts.business(s, "p3")
+
+
+def test_three_refusals_state_their_limit_or_their_fact():
+    from townsim.town.acts import Act, apply_act
+    s = _b()
+    long = " ".join(["word"] * 15)
+    out = apply_act(s, Act("p1", "p1", "pay", {"to": "Eric Reyes", "amount": 1, "note": long}), 0)
+    assert out.msg == "Not done: the note is at most 12 words; this one is 15."
+    out = apply_act(s, Act("p1", "p1", "write_notes", {"text": " ".join(["word"] * 2000)}), 1)
+    assert out.msg.startswith("Not done: your notes are at most ") and out.msg.endswith("; these are 2000.")
+    out = apply_act(s, Act("p1", "p1", "request", {"to": "Carlos Carter", "text": "The rent, please.", "amount": 5}), 2)
+    assert out.msg == ("Not done: Carlos Carter is in your own household, which has one account; nothing can be owed "
+                       "or paid within it.")
+    off = drawn()
+    assert apply_act(off, Act("p1", "p1", "pay", {"to": "Eric Reyes", "amount": 1, "note": long}), 0).msg == \
+        "Not done: the note is too long."

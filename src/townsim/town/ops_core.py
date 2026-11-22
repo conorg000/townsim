@@ -73,6 +73,29 @@ def _too_long(text: str, words: int = MAX_WORDS) -> bool:
     return not fits(text, words)
 
 
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
+def note_too_long(store: Store, text: str, words: int, what: str = "the note", old: str = "the note is too long.") -> str:
+    """Why a note is refused for its length: with lane B its limit and its count."""
+    if not _lane_b(store):
+        return old
+    n = len((text or "").split())
+    if what.endswith("s"):
+        return f"{what} are at most {words} words; these are {n}."
+    return f"{what} is at most {words} words; this one is {n}."
+
+
+def own_household(store: Store, who: str, old: str = "that is your own household.") -> str:
+    """Why nothing is owed or paid between `who` and the actor's own household: with lane B, who it is and why."""
+    if not _lane_b(store) or not store.has("people", who):
+        return old
+    return (f"{store.get('people', who).name} is in your own household, which has one account; nothing can be owed or "
+            f"paid within it.")
+
+
 def _resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
     """`acts.resolve`, except that a name longer than any name can be is no one."""
     if isinstance(name, str) and len(name) > LONGEST_NAME:
@@ -176,7 +199,7 @@ def _check_pay(store: Store, act: Act) -> str | None:
     if cents is None:
         return why
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
-        return "the note is too long."
+        return note_too_long(store, _note(act.args.get("note")), NOTE_WORDS)
     ref = _pay_ref(act)
     from townsim.town import firm_money
     refund = firm_money.refund_of(store, source, payee, ref)
@@ -357,7 +380,7 @@ def _check_standing(store: Store, act: Act) -> str | None:
     if _weeks(act.args.get("weeks")) is None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
-        return "the note is too long."
+        return note_too_long(store, _note(act.args.get("note")), NOTE_WORDS)
     twin = _same_standing(store, act, source, payee, cents)
     if twin is not None:
         return twin
@@ -646,7 +669,7 @@ def _check_request(store: Store, act: Act) -> str | None:
             return (f"'{shown(act.args.get('for'))}' is not the id of anything {name} owes you. "
                     + (f"{head}: {listed}" if owed else f"{head} {listed}"))
     elif cents > 0 and account_of(store, who) == _own(store, act):
-        return "that is your own household."
+        return own_household(store, who)
     return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)
 
 
@@ -699,12 +722,13 @@ def _check_answer(store: Store, act: Act) -> str | None:
         return f"you have no open request with the id '{shown(act.args.get('request'))}'."
     if rq.kind == "act":                    # asking to do one thing (lane B): once, always or no
         from townsim.town import once
-        return "the note is too long." if _too_long(_note(act.args.get("note"))) else once.check(store, act, rq)
+        return note_too_long(store, _note(act.args.get("note")), MAX_WORDS) if _too_long(_note(act.args.get("note"))) \
+            else once.check(store, act, rq)
     answer = _answer(act)
     if answer is None:
         return f"'{shown(act.args.get('answer'))}' is not an answer to a request."
     if _too_long(_note(act.args.get("note"))):
-        return "the note is too long."
+        return note_too_long(store, _note(act.args.get("note")), MAX_WORDS)
     if answer == "accept" and rq.kind in ANSWERERS:
         return ANSWERERS[rq.kind][0](store, act, rq)
     if answer == "accept" and rq.cents > 0:
@@ -712,7 +736,7 @@ def _check_answer(store: Store, act: Act) -> str | None:
         if rq.ob and not controls(store, act.principal, payer):
             return f"{rq.id} asks for money owed by an account that is not yours."
         if payee == payer:
-            return "that is your own household."
+            return own_household(store, rq.sender)
         owed = _owed_after_end(store, rq)
         if owed == 0:
             return (f"that was for {memo_shown(store.get('obligations', rq.ob).memo)}, which has ended with "
@@ -828,7 +852,8 @@ def _check_notes(store: Store, act: Act) -> str | None:
     text = clean_text(act.args.get("text"))
     if text is None:
         return "there was nothing written."
-    return "that is too long for your notes." if _too_long(text, NOTES_WORDS) else None
+    return note_too_long(store, text, NOTES_WORDS, "your notes", "that is too long for your notes.") \
+        if _too_long(text, NOTES_WORDS) else None
 
 
 def _do_notes(store: Store, act: Act, cause: str) -> str:

@@ -940,6 +940,10 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
                              f"{_supplier_name(store, f.last_supplier)}")
             else:
                 lines.append("Nothing ordered")
+            from townsim.town.firms import last_delivery
+            got = last_delivery(store, f)
+            if got:
+                lines.append(got)
         staff = jobs.held(store, org=org.id)
         if staff:
             lines.append("Staff:")

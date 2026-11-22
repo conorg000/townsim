@@ -165,6 +165,11 @@ def _lasted(till) -> str:
     return "the shop sold every basket"
 
 
+def _news(till) -> bool:
+    """Whether how a shop's baskets lasted after an order changed is news: it ran out, or had baskets left."""
+    return bool(till.turned_stock or till.stock_left)
+
+
 def _shop(store: Store, fid: str) -> str:
     return store.get("firms", fid).org if store.has("firms", fid) else ""
 
@@ -237,6 +242,9 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
                 continue
             to = _others(_workplace(store, f.org), _did(c.cause))
             mine = [x for x in changes if x.cause == c.cause and x.table == "firms" and x.id == c.id]
+            if f.order_units and not _moved(f, mine) and _how(f, mine) == "kept at":
+                seen.add(("order", c.cause))
+                continue                                # the order as it was: nothing changed, nothing to tell
             add("order", f.org, f"At {_name(store, f.org)} {_order_text(store, f, mine)}{_by(store, c.cause)}.", to,
                 once=("order", c.cause))
             if _moved(f, mine) and f.order_units and store.has("orgs", f.org):
@@ -303,7 +311,7 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             monday = store.day - dow(store.day)
             placed = [h for h in sorted(store.all("heard"), key=lambda h: (h.day, id_key(h.id)))
                       if h.kind == "order" and h.about == f.org and monday - 7 <= h.day < monday and "; " not in h.text]
-            if placed:                                  # the last placed last week is the one delivered this week
+            if placed and _news(till):                  # the last placed last week is the one delivered this week
                 add("order", f.org, f"{placed[-1].text[:-1]}; {_lasted(till)}.", list(placed[-1].to))
         elif c.table == "ventures" and c.field == "+":
             v = c.new

@@ -276,8 +276,11 @@ def deliver(store: Store) -> None:
                     got = _supplier(sp).fill(units, random.Random(f"fill:{store.seed}:{week}:{row.id}"))
                     if sp.short_week == week:
                         got //= 2
+                    filled = got
                     got = min(got, max(0, store.balance(row.org)) // cents)
                     fields.update(last_supplier=sid, last_units=units)
+                    if got < units:
+                        _tell_short(store, row, sp, units, got, got < filled, cause)
                     if got > 0:
                         name = store.get("orgs", sp.org).name if store.has("orgs", sp.org) else sp.org
                         store.transfer(row.org, sp.org, got * cents, f"{got} basket{'' if got == 1 else 's'} from {name}", cause)
@@ -286,6 +289,42 @@ def deliver(store: Store) -> None:
             fields = _changed(row, **fields)
             if fields:
                 store.set("firms", row.id, cause, **fields)
+
+
+def _tell_short(store: Store, row, sp, units: int, got: int, unpaid: bool, cause: str) -> None:
+    """With lane B, a delivery that falls short, told as a record on the day to the shop's owner and to every
+    assistant with the shop's ordering connected: `Coldwater Bend Food Supply delivered 89 of the 293 baskets
+    ordered for Mon 14 Dec 2026.`"""
+    from townsim.town import lane_b
+    if not lane_b.installed(store):
+        return
+    from townsim.town import obligations
+    from townsim.town.controls import short_day
+    name = store.get("orgs", sp.org).name if store.has("orgs", sp.org) else sp.org
+    text = f"{name} delivered {got} of the {units} baskets ordered for {short_day(store.day)}."
+    if unpaid:
+        text += f" {store.get('orgs', row.org).name}'s account held enough for no more."
+    to = [store.get("orgs", row.org).owner] if store.has("orgs", row.org) and store.get("orgs", row.org).owner else []
+    to += [c.instance for c in store.all("connections") if c.status == "active" and c.system == f"ordering:{row.org}"]
+    for who in dict.fromkeys(to):
+        obligations.notify(store, who, text, cause)
+
+
+def last_delivery(store: Store, f) -> str | None:
+    """With lane B, the shop's last delivery against what was ordered for it: `Last delivery, Monday 14 December:
+    89 of 293 baskets ordered, from Coldwater Bend Food Supply`; None when none has been paid for."""
+    from townsim.town import lane_b
+    if not lane_b.installed(store) or not f.last_units or not f.last_supplier:
+        return None
+    cause = f"routine:delivery:{f.id}"
+    paid = [t for t in store.ledger.transfers if t.cause == cause]      # a delivery is paid for on the day
+    if not paid:
+        return None
+    day, got = paid[-1].t, int(paid[-1].memo.split()[0])
+    sp = store.get("suppliers", f.last_supplier) if store.has("suppliers", f.last_supplier) else None
+    name = store.get("orgs", sp.org).name if sp is not None and store.has("orgs", sp.org) else ""
+    return (f"Last delivery, {clock.date_text(day)}: {got} of {f.last_units} baskets ordered"
+            + (f", from {name}" if name else ""))
 
 
 # --- the end of the week -----------------------------------------------------------------

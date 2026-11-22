@@ -167,7 +167,7 @@ def _agreement_terms(store: Store, act: Act) -> tuple[Terms | None, str]:
         return None, why
     other = account_of(store, who)
     if other == mine:
-        return None, "that is your own household." if store.has("households", mine) else \
+        return None, core.own_household(store, who) if store.has("households", mine) else \
             "that is the account it would be paid from."
     cents, why = core._amount(act.args.get("amount"))
     if cents is None:
