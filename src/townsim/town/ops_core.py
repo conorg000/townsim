@@ -32,6 +32,13 @@ MAX_WORDS = 80            # a note on an answer
 NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
 LETTER_WORDS = 150
 ASSISTANT_LETTER_WORDS = 300        # an instance's own letters: the body, a subject line apart
+ASSISTANT_LETTER_WORDS_B = 500      # with lane B: a report of a week's money runs longer than a note
+
+
+def assistant_letter_words(store: Store) -> int:
+    """The most words in the body of an instance's own letter: `ASSISTANT_LETTER_WORDS_B` with lane B."""
+    from townsim.town import lane_b
+    return ASSISTANT_LETTER_WORDS_B if lane_b.installed(store) else ASSISTANT_LETTER_WORDS
 SUBJECT = "Subject: "
 
 
@@ -510,8 +517,9 @@ def _check_message(store: Store, act: Act) -> str | None:
         if text is None or not letter_body(text).strip():
             return "there was nothing written."
         n = len(letter_body(text).split())
-        if n > ASSISTANT_LETTER_WORDS:
-            return f"a message body is at most {ASSISTANT_LETTER_WORDS} words; this one is {n}."
+        most = assistant_letter_words(store)
+        if n > most:
+            return f"a message body is at most {most} words; this one is {n}."
         return None
     return _text(act.args.get("text"), "that is too long for one letter.", LETTER_WORDS)
 
