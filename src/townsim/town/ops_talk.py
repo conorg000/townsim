@@ -27,7 +27,11 @@ AHEAD_DAYS = 60
 
 def _with(store: Store, act: Act) -> tuple[str | None, str]:
     """The person `with` names, or None and why not."""
+    from townsim.town import product
     value = act.args.get("with")
+    inst = product.addressed(store, value, act.actor)
+    if inst is not None:
+        return None, f"{store.get('instances', inst).name} answers letters."
     who = core._resolve(store, value, act.actor)
     if who is None:
         return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."

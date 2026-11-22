@@ -25,7 +25,7 @@ a heading, `From `, `With `, `<id> from `, `<name> said:` or `(` and a digit was
 
 from __future__ import annotations
 
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
 from townsim.town import acts, aims, facts, hours, jobs, talk, ties, unknown
@@ -58,6 +58,10 @@ NOT_ALL = "(not everything is shown today)"
 READ_WORDS = 250
 READ_CUT = 120
 
+# Sections shown after YOUR BUSINESS: each gives (heading, lines) for a reader, or None
+# (`product` adds its client's and its firm's people's sections).
+EXTRA_SECTIONS: list[Callable[[Store, str], tuple[str, list[str]] | None]] = []
+
 REPLY_FORM = ('Reply with JSON only, in this form:\n'
               '{"thoughts": "<what goes through your mind; no one else sees this>", '
               '"aims": [<up to five short lines: what is on your mind now>], '
@@ -84,9 +88,16 @@ def _ranked(store: Store, pid: str, rows: list, rank: dict[str, int] | None = No
 
     def key(row: Any) -> tuple:
         sender = getattr(row, "sender", None)
-        r = 0 if sender is None else rank.get(sender, acts.UNKNOWN)
+        r = 0 if sender is None or _own_instance(store, pid, sender) else rank.get(sender, acts.UNKNOWN)
         return r, row.day, id_key(row.id)
     return sorted(rows, key=key)
+
+
+def _own_instance(store: Store, pid: str, sender: str) -> bool:
+    """Whether `sender` is the instance of `pid`'s household or of a business `pid` owns."""
+    if not acts.is_instance(store, sender):
+        return False
+    return acts.controls(store, pid, store.get("instances", sender).client)
 
 
 def _unseen(store: Store, pid: str, rank: dict[str, int] | None = None) -> list:
@@ -133,9 +144,12 @@ def _item_text(store: Store, row: Any) -> str:
     return "\n".join(_item_lines(store, row))
 
 
+READS = ("read", "read_page")
+
+
 def _wakes(result) -> bool:
     """A refusal, or what was read, brings its actor a turn; other results wait for one."""
-    return not result.ok or result.op.strip().lower() == "read"
+    return not result.ok or result.op.strip().lower() in READS
 
 
 def with_news(store: Store) -> set[str]:
@@ -151,7 +165,7 @@ def has_news(store: Store, pid: str) -> bool:
 
 
 def _is_read(result) -> bool:
-    return result.ok and result.op.strip().lower() == "read"
+    return result.ok and result.op.strip().lower() in READS
 
 
 class _Results(NamedTuple):
@@ -316,6 +330,7 @@ class _Parts(NamedTuple):
     operations: list[str]
     pid: str = ""
     built: dict | None = None          # lines already laid out, by what they depend on
+    extras: tuple = ()                 # (heading, lines) of each of `EXTRA_SECTIONS` that has any
 
 
 class _Choice(NamedTuple):
@@ -385,7 +400,7 @@ def _parts(store: Store, pid: str) -> _Parts:
                   _appointments(store, pid),
                   people, also_here(store, pid, {who for who, _ in people}), facts.knowhow(store, pid), aims.lines(store, pid),
                   person.notes if person.notes.strip() else "", own_time(store, pid), acts.forms(store, pid), pid,
-                  {})
+                  {}, tuple(x for f in EXTRA_SECTIONS if (x := f(store, pid)) is not None))
 
 
 COUNTED = "#counted"               # the owner of a line that counts what is not shown
@@ -433,6 +448,8 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     business = parts.business[0](*c.business)
     if business:
         out.append(_Sec("YOUR BUSINESS", _rows(business)))
+    for head, lines in parts.extras:
+        out.append(_Sec(head, _rows(lines)))
     owe, owed = _once(parts, ("owed", c.owed), lambda: _owed(store, parts.pid, c.owed))
     if owe:
         out.append(_Sec("YOU OWE", _rows(owe)))
@@ -798,3 +815,10 @@ def mark_seen(store: Store, pid: str, ids: list[str], cause: str) -> None:
                 row = store.get(table, i)
                 if getattr(row, owner) == pid and not row.seen:
                     store.set(table, i, cause, seen=True)
+
+
+# and the product's sections, from `product` (imported with the operations)
+from townsim.town import product as _product  # noqa: E402
+
+EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _product.__name__]
+EXTRA_SECTIONS += list(getattr(_product, "SECTIONS_OF_PRODUCT", ()))

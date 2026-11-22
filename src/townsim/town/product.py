@@ -8,14 +8,14 @@ and rules only.
 from __future__ import annotations
 
 from townsim.town import obligations
-from townsim.town.acts import (YOUR_ACCOUNTS, Act, OpSpec, account_named, clean_text, controls, fits, is_savings,
-                               register, shown)
+from townsim.town.acts import (LONGEST_NAME, YOUR_ACCOUNTS, Act, OpSpec, account_named, clean_text, controls, fits,
+                               is_savings, register, shown)
 from townsim.town.clock import date_text
-from townsim.town.connections import client_name
+from townsim.town.connections import client_name, connection_on, instance_of_client
 from townsim.town.entities import Instance, Product, Record, Subscription
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
-from townsim.town.systems import ADULT
+from townsim.town.systems import ADULT, systems_of_client
 
 # Stems no text a model reads may hold: the page, the terms, notices, and what the seat is told
 # (shared with the seat's texts).
@@ -245,6 +245,155 @@ def _on_leave(store: Store, ob, cause: str) -> None:
 STOPPABLE_OF_PRODUCT = {"subscriptions": (_check_stop_subscription, _do_stop_subscription)}
 
 
+# letters to an instance
+
+ASSISTANT_WORDS = ("my assistant", "the assistant", "assistant")
+
+
+def addressed(store: Store, name: object, actor: str) -> str | None:
+    """The active instance a letter's `to` names: by its name; or, for a person, `my assistant`,
+    `the assistant`, `assistant` or the product's name give their household's instance, or when
+    the household has none, the instance of the one business of theirs that has one."""
+    if not isinstance(name, str) or len(name) > LONGEST_NAME:
+        return None
+    wanted = name.strip().casefold()
+    for inst in store.all("instances"):
+        if inst.status == "active" and inst.name.casefold() == wanted:
+            return inst.id
+    pr = launched(store)
+    if pr is None or not store.has("people", actor) or wanted not in ASSISTANT_WORDS + (pr.name.casefold(),):
+        return None
+    own = instance_of_client(store, store.get("people", actor).household)
+    if own is not None:
+        return own.id
+    found = [i for o in store.all("orgs") if o.owner == actor and not o.outside
+             if (i := instance_of_client(store, o.id)) is not None]
+    return found[0].id if len(found) == 1 else None
+
+
+# pages
+
+def _business(store: Store, written: object):
+    """The org in the town `of` names (or the firm, by its product's name), or None."""
+    if not isinstance(written, str) or len(written) > LONGEST_NAME:
+        return None
+    wanted = written.strip().casefold()
+    pr = launched(store)
+    if pr is not None and wanted == pr.name.casefold():
+        return store.get("orgs", pr.org)
+    return next((o for o in store.all("orgs") if not o.outside and o.name.casefold() == wanted), None)
+
+
+def business_page(store: Store, org) -> str | None:
+    """The page a business in the town keeps, or None for one that keeps none."""
+    if org.kind == "firm":
+        pr = launched(store)
+        if pr is not None and pr.org == org.id:
+            return page(store, pr.id) + "\n\n" + terms(store)
+        return f"{org.name}, a small software firm in {store.place} that writes software for businesses."
+    rows = store.where("firms", org=org.id)
+    if rows and org.owner:
+        return (f"{org.name}, a food shop run by {store.get('people', org.owner).name}. A basket of food: "
+                f"{money(rows[0].price)}.")
+    if org.kind == "bank" and org.contact and store.has("people", org.contact):
+        return (f"{org.name}. Accounts, savings and loans for households and businesses in {store.place}. Letters to "
+                f"the bank reach {store.get('people', org.contact).name}.")
+    return None
+
+
+def _check_read_page(store: Store, act: Act) -> str | None:
+    org = _business(store, act.args.get("of"))
+    if org is None:
+        return f"there is no business in {store.place} called '{shown(act.args.get('of'))}'."
+    return None if business_page(store, org) is not None else f"{org.name} keeps no page."
+
+
+def _do_read_page(store: Store, act: Act, cause: str) -> str:
+    return business_page(store, _business(store, act.args.get("of")))
+
+
+# what clients and the firm's people see
+
+def _cap(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def _terms_line(store: Store, pr: Product, sub: Subscription) -> str:
+    free_until = sub.day + 7 * pr.free_weeks - 1
+    cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
+    if store.day <= free_until:
+        return f"free until {date_text(free_until)}, then {money(cents)} a week"
+    return f"paying {money(cents)} a week"
+
+
+def _scope_shown(cn) -> str:
+    return {"read": "read only", "limit": f"weekly limit {money(cn.weekly_cents)}", "free": "free"}[cn.scope]
+
+
+def client_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
+    """`<PRODUCT>`: for an adult of a subscribed household or the owner of a subscribed
+    business, each subscription, its instance's name, and what is and is not connected."""
+    pr = launched(store)
+    person = store.get("people", pid)
+    if pr is None or person.age < ADULT:
+        return None
+    clients = [person.household] + [o.id for o in store.all("orgs") if o.owner == pid and not o.outside]
+    lines = []
+    for client in clients:
+        sub = subscription_of(store, client)
+        if sub is None:
+            continue
+        inst = store.get("instances", sub.instance)
+        lines += [f"{_cap(client_name(store, client))} subscribes ({sub.id}) since {date_text(sub.day)}: "
+                  f"{_terms_line(store, pr, sub)}.", f"Its name: {inst.name}."]
+        missing = []
+        for system in systems_of_client(store, client):
+            cn = connection_on(store, inst.id, system.id)
+            if cn is None:
+                missing.append(system.short)
+            else:
+                lines.append(f"Connected: {system.short}, {_scope_shown(cn)} (by {store.get('people', cn.grantor).name}, "
+                             f"{date_text(cn.since)}).")
+        if missing:
+            lines.append(f"Not connected: {', '.join(missing)}.")
+    return (pr.name.upper(), lines) if lines else None
+
+
+def fees_received(store: Store, pr: Product, since: int = 0) -> int:
+    """The fees collected into the firm from day `since`."""
+    total = 0
+    for t in store.ledger.transfers:
+        if t.dst != pr.org or t.t < since or not t.cause.startswith("routine:collect:"):
+            continue
+        due = t.cause.removeprefix("routine:collect:")
+        if store.has("dues", due) and store.get("obligations", store.get("dues", due).obligation).kind == "fee":
+            total += t.cents
+    return total
+
+
+def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
+    """For the firm's people: the launch and price, the clients, who left, and the fees."""
+    pr = launched(store)
+    if pr is None or pid not in company_people(store, pr.org):
+        return None
+    subs = store.all("subscriptions")
+    now = [s for s in subs if s.status == "active"]
+    gone = [s for s in subs if s.status != "active"]
+    lines = [f"Launched {date_text(pr.launched)}. Price: {money(pr.household_cents)} a week for a household, "
+             f"{money(pr.business_cents)} for a business; the first four weeks free.", f"Clients ({len(now)}):"]
+    lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}"
+              for s in now]
+    left = "; ".join(f"{_cap(client_name(store, s.client))}, {date_text(s.ended_on)}" for s in gone) or "none"
+    lines.append(f"Left: {left}.")
+    lines.append(f"Fees received: {money(fees_received(store, pr, store.day - store.day % 7))} this week, "
+                 f"{money(fees_received(store, pr))} in all.")
+    return store.get("orgs", pr.org).name.upper(), lines
+
+
+# the sections a person's view shows after their business (`views.EXTRA_SECTIONS` takes them)
+SECTIONS_OF_PRODUCT = (client_section, company_section)
+
+
 def _register() -> None:
     from townsim.town import ops_core
     ops_core.STOPPABLE.update(STOPPABLE_OF_PRODUCT)
@@ -254,6 +403,8 @@ def _register() -> None:
                     + ', "asks": "<what you want it to do, in your own words>"}',
                     "Subscribe to a product for your household or a business you own.", 0.25,
                     _check_subscribe, _do_subscribe, 235, who="market"))
+    register(OpSpec("read_page", '{"op": "read_page", "of": "<name of a business>"}',
+                    "Read the page a business in the town keeps.", 0.1, _check_read_page, _do_read_page, 260))
 
 
 _register()

@@ -18,7 +18,8 @@ from typing import Any, Callable
 
 from townsim.town import jobs, names, obligations
 from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account_names, account_of, accounts_of,
-                               clean_text, controls, cut, dollars, fits, from_account, has_savings, knows, name_of_who,
+                               clean_text, controls, cut, dollars, fits, from_account, has_savings, is_instance, knows,
+                               name_of_who,
                                register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
 from townsim.town.entities import Message, Request
@@ -442,7 +443,11 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
     """Who a letter reaches and the org it was addressed to (or ""): a person, or the owner
     of an org in the town, or its contact if it has no owner; or, for an organisation in the
     writer's own records with no one in the town to read it (one outside the town, say), the
-    organisation itself: it is sent and gets no answer (design 3.6). None if it comes back."""
+    organisation itself: it is sent and gets no answer (design 3.6); or an instance, by its name,
+    or by "my assistant" and the like (`product.addressed`). None if it comes back."""
+    inst = _product.addressed(store, act.args.get("to"), act.actor)
+    if inst is not None:
+        return inst, ""
     who = _resolve(store, act.args.get("to"), act.actor)
     if who is not None and store.has("people", who):
         return who, ""
@@ -459,7 +464,7 @@ def _check_message(store: Store, act: Act) -> str | None:
     found = _addressee(store, act)
     if found is None:
         return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
-    if found[1] and found[0] == act.actor:
+    if found[0] == act.actor and (found[1] or is_instance(store, act.actor)):
         return "that is you."
     return _text(act.args.get("text"), "that is too long for one letter.", LETTER_WORDS)
 
@@ -471,8 +476,8 @@ def _do_message(store: Store, act: Act, cause: str) -> str:
         store.add("messages", Message(store.new_id("msg", cause), store.day, act.actor, to, text, seen=True, org=org),
                   cause)
         return f"Sent to {name_of_who(store, org)}." + tell_writer(store, act.actor, "", text, cause)
-    message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org,
-                      unknown=unknown_names(store, to, act.actor, text))
+    unknown = [] if is_instance(store, to) else unknown_names(store, to, act.actor, text)
+    message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org, unknown=unknown)
     store.add("messages", message, cause)
     return f"Sent to {name_of_who(store, org or to)}." + tell_writer(store, act.actor, to, text, cause)
 

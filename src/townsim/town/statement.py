@@ -131,7 +131,26 @@ def other_and_memo(store: Store, line: Line, reader: str = "") -> str:
     if who and reader and who != reader and store.has("people", who):
         way = "from" if line.cents > 0 else "to"
         return f"{store.get('people', who).name} moved {money(abs(line.cents))} {way} {name_of(store, line.other)}"
-    return f"{name_of(store, line.other)}  {same_day(memo(line.memo), line.day)}"
+    return f"{name_of(store, line.other)}  {same_day(memo(line.memo), line.day)}{by_instance(store, line.cause)}"
+
+
+def by_instance(store: Store, cause: str) -> str:
+    """` (by <product>)` for a transfer an instance made, or one collected on an obligation an
+    instance set up; else ""."""
+    if not store.all("instances"):
+        return ""
+    who = ""
+    if cause.startswith("op:"):
+        who = cause.split(":")[1].split("/")[0]
+    elif cause.startswith("routine:collect:"):
+        due = cause.removeprefix("routine:collect:")
+        if store.has("dues", due):
+            who = store.get("obligations", store.get("dues", due).obligation).made_by
+    if not who or not store.has("instances", who):
+        return ""
+    inst = store.get("instances", who)
+    name = store.get("products", inst.product).name if store.has("products", inst.product) else inst.name
+    return f" (by {name})"
 
 
 class Statement(NamedTuple):

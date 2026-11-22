@@ -131,7 +131,7 @@ def test_forms_are_the_eight_in_order():
                                        '"note": "<what for>", "for": "<id of what it is owed on; leave out to let it count toward what you owe them; none for a gift on top of what you owe>"}')
     everyone = [s.name for s in sorted(REGISTRY.values(), key=lambda s: s.order) if s.who == "all"]
     assert everyone == names[:8] + ["move_money", "propose_agreement", "propose_end", "borrow", "repay", "converse",
-                                    "book_appointment"]
+                                    "book_appointment", "read_page"]
     assert len(forms(thin(), "p01")) == len(everyone)
 
 
