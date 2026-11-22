@@ -403,8 +403,8 @@ def _how(store: Store, pid: str, t: Talk) -> str:
 
 
 def _between_obligations(store: Store, pid: str, other: str, most: int) -> list[str]:
-    """What either side's accounts owe the other's, one line each as `WHAT IS OWED` writes
-    them: what is in force, and anything with arrears; at most `most`, then a counted line."""
+    """What either side's accounts owe the other's, one line each: what is in force, and
+    anything with arrears; at most `most`, then a counted line."""
     a, b = _sides(store, pid, other)
     rows = []
     for ob in store.all("obligations"):

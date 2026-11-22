@@ -40,6 +40,7 @@ CEILING = 2000
 CHAR_CEILING = 16000
 STATEMENT_LINES = 25
 COMING_KEPT = (5, 3, 4)            # payments going out and coming in, and the business's going out, when they give way
+COMING_LEAST = (3, 2, 2)           # and when they give way last of all
 RECENT_DAYS = 7                    # the statement's lines of the last seven days give way only to the last guard
 DEALT_DAYS = 28                    # people dealt with this recently, or lived or worked with, are kept
 IN_FULL = 3
@@ -329,6 +330,7 @@ class _Choice(NamedTuple):
     going_out: int = facts.GOING_OUT
     coming_in: int = facts.COMING_IN
     toward: bool = True
+    costs: bool = True
 
 
 class _Sec(NamedTuple):
@@ -357,14 +359,9 @@ class Layout(NamedTuple):
     trail: tuple = ()                  # the words of the whole as each step of giving way left it
 
 
-def _owed(store: Store, accounts: list[str], most: int) -> list[str]:
-    """`facts.owed_lines` for the household, then under its name for each business."""
-    lines = facts.owed_lines(store, accounts[0], most)
-    for org in accounts[1:]:
-        more = facts.owed_lines(store, org, most)
-        if more:
-            lines += [name_of_who(store, org)] + more
-    return lines
+def _owed(store: Store, pid: str, most: int) -> tuple[list[str], list[str]]:
+    """`YOU OWE` and `OWED TO YOU` (`facts.owed_sections`)."""
+    return facts.owed_sections(store, pid, most)
 
 
 def _parts(store: Store, pid: str) -> _Parts:
@@ -430,9 +427,11 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     business = parts.business[0](*c.business)
     if business:
         out.append(_Sec("YOUR BUSINESS", _rows(business)))
-    owed = _once(parts, ("owed", c.owed), lambda: _owed(store, parts.accounts, c.owed))
+    owe, owed = _once(parts, ("owed", c.owed), lambda: _owed(store, parts.pid, c.owed))
+    if owe:
+        out.append(_Sec("YOU OWE", _rows(owe)))
     if owed:
-        out.append(_Sec("WHAT IS OWED", _rows(owed)))
+        out.append(_Sec("OWED TO YOU", _rows(owed)))
     if parts.items:
         rows = [(line, r.id) for i, r in enumerate(parts.items[:c.in_full])
                 for line in _once(parts, ("item", r.id), lambda r=r: _item_lines(store, r))]
@@ -462,7 +461,7 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
         out.append(_Sec("ON YOUR MIND", _own("\n".join(parts.mind))))
     if parts.notes:
         out.append(_Sec("YOUR NOTES", _own(parts.notes)))
-    out.append(_Sec(None, [(line, None) for line in parts.hours], fixed=True))
+    out.append(_Sec(None, [(line, None) for line in (parts.hours if c.costs else parts.hours[:1])], fixed=True))
     out.append(_Sec("OPERATIONS", _plain("\n".join(parts.operations)), fixed=True))
     return out
 
@@ -598,17 +597,13 @@ def layout(store: Store, pid: str) -> Layout:
             c = shorter
             steps.append("coming")
             left = over(c)
-    if left > 0 and _owed(store, parts.accounts, facts.OWED_KEPT) != _owed(store, parts.accounts, c.owed):
+    if left > 0 and _owed(store, pid, facts.OWED_KEPT) != _owed(store, pid, c.owed):
         c = c._replace(owed=facts.OWED_KEPT)
         steps.append("owed")
         left = over(c)
     if left > 0 and till > 1:
         c = c._replace(business=(1,) + c.business[1:])
         steps.append("till")
-        left = over(c)
-    if left > 0 and parts.business[0](*c.business) != parts.business[0](*c.business[:2], False):
-        c = c._replace(business=c.business[:2] + (False,))       # only ever less: what was cut stays cut
-        steps.append("business")
         left = over(c)
     if left > 0 and any(" (counted toward " in x.memo for x in c.statement.lines):
         c = c._replace(toward=False)
@@ -632,6 +627,25 @@ def layout(store: Store, pid: str) -> Layout:
     if left > 0 and parts.results.latest_read is not None:
         c = c._replace(read_words=READ_CUT)
         steps.append("read")
+        left = over(c)
+    if left > 0 and _owed(store, pid, facts.OWED_LEAST) != _owed(store, pid, c.owed):
+        c = c._replace(owed=facts.OWED_LEAST)
+        steps.append("owed_least")
+        left = over(c)
+    if left > 0:
+        shorter = c._replace(going_out=COMING_LEAST[0], coming_in=COMING_LEAST[1],
+                             business=c.business[:1] + (COMING_LEAST[2],) + c.business[2:])
+        if _render(_sections(store, parts, shorter)) != _render(_sections(store, parts, c)):
+            c = shorter
+            steps.append("coming_least")
+            left = over(c)
+    if left > 0 and len(parts.hours) > 1:
+        c = c._replace(costs=False)
+        steps.append("costs")
+        left = over(c)
+    if left > 0 and parts.business[0](*c.business) != parts.business[0](*c.business[:2], False):
+        c = c._replace(business=c.business[:2] + (False,))       # only ever less: what was cut stays cut
+        steps.append("business")
         left = over(c)
     secs = _sections(store, parts, c)
     secs, taken, fired = _guard(secs, CEILING - base, CHAR_CEILING - len(system) - 0)

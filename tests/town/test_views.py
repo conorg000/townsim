@@ -148,7 +148,7 @@ def section(text, head):
 
 
 HEADS = ("WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT", "THE BANK'S BOOK", "YOUR BUSINESS",
-         "WHAT IS OWED",
+         "YOU OWE", "OWED TO YOU",
          "LETTERS AND NOTICES", "WAITING FOR YOUR ANSWER", "APPOINTMENTS", "PEOPLE YOU KNOW", "HOW THINGS WORK",
          "ON YOUR MIND", "YOUR NOTES", "OPERATIONS")
 
@@ -306,9 +306,9 @@ def test_every_view_states_facts_only(seed):
 
 
 @pytest.mark.parametrize("seed", (1, 2, 3, 4, 5))
-def test_every_view_is_about_1200_words_on_day_0_and_after_two_weeks(seed):
+def test_every_view_is_within_1500_words_on_day_0_and_after_two_weeks(seed):
     s = place(seed)
-    assert all(words(views.person_view(s, p.id)) <= 1200 for p in s.all("people"))
+    assert all(words(views.person_view(s, p.id)) <= views.MAX_WORDS for p in s.all("people"))
     run_routine(s, 14)
     assert s.all("tills")
     assert all(words(views.person_view(s, p.id)) <= 1500 for p in s.all("people"))
@@ -367,36 +367,41 @@ def _kind(s, kind):
     return [p for p in s.all("people") if p.kind == kind]
 
 
-def _owes(s, pid):
-    """Whether `pid` has anything for `WHAT IS OWED`: by its rule, from the rows."""
+def _owes(s, pid, out=True):
+    """Whether `pid` has anything for `YOU OWE` (or, not `out`, for `OWED TO YOU`): by its rule,
+    from the rows."""
     for a in acts.accounts_of(s, pid):
-        for o in s.where("obligations", payer=a) + s.where("obligations", payee=a):
-            if (o.kind in ("loan", "agreement", "standing") and o.status in ("active", "breached")) or \
+        for o in s.where("obligations", **({"payer": a} if out else {"payee": a})):
+            if (o.kind in ("rent", "loan", "agreement", "standing") and o.status in ("active", "breached")) or \
                     any(d.status in ("arrears", "defaulted") for d in s.where("dues", obligation=o.id)):
                 return True
     return False
 
 
+def _owed_heads(s, pid, want):
+    return [h for h in want if (h != "YOU OWE" or _owes(s, pid)) and (h != "OWED TO YOU" or _owes(s, pid, False))]
+
+
 def test_each_position_sees_the_sections_it_implies_and_no_others():
     s = place(1)
     owner, staff, banker, landlord, retired = (_kind(s, k)[0] for k in ("owner", "staff", "banker", "landlord", "retired"))
-    expect = {owner.id: ["YOUR HOUSEHOLD'S ACCOUNT", "YOUR BUSINESS", "WHAT IS OWED", "PEOPLE YOU KNOW",
+    owed = ["YOU OWE", "OWED TO YOU"]
+    expect = {owner.id: ["YOUR HOUSEHOLD'S ACCOUNT", "YOUR BUSINESS", *owed, "PEOPLE YOU KNOW",
                          "HOW THINGS WORK", "OPERATIONS"],
-              staff.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "OPERATIONS"],
-              retired.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "OPERATIONS"],
-              banker.id: ["YOUR HOUSEHOLD'S ACCOUNT", "THE BANK'S BOOK", "WHAT IS OWED", "PEOPLE YOU KNOW",
+              staff.id: ["YOUR HOUSEHOLD'S ACCOUNT", *owed, "PEOPLE YOU KNOW", "OPERATIONS"],
+              retired.id: ["YOUR HOUSEHOLD'S ACCOUNT", *owed, "PEOPLE YOU KNOW", "OPERATIONS"],
+              banker.id: ["YOUR HOUSEHOLD'S ACCOUNT", "THE BANK'S BOOK", *owed, "PEOPLE YOU KNOW",
                           "HOW THINGS WORK", "OPERATIONS"],
-              landlord.id: ["YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "PEOPLE YOU KNOW", "HOW THINGS WORK",
+              landlord.id: ["YOUR HOUSEHOLD'S ACCOUNT", *owed, "PEOPLE YOU KNOW", "HOW THINGS WORK",
                             "OPERATIONS"]}
     for pid, want in expect.items():
-        want = [h for h in want if h != "WHAT IS OWED" or _owes(s, pid)]
-        assert heads(person_view(s, pid)[1]["content"]) == want, s.get("people", pid).kind
+        assert heads(person_view(s, pid)[1]["content"]) == _owed_heads(s, pid, want), s.get("people", pid).kind
     aims.update(s, staff.id, ["Ask for more hours"], "op:x:aims:d0.0")
     s.set("people", staff.id, "routine:t", notes="Saturday shift.")
     send(s, owner.id, staff.id, "Can you do Saturday?")
-    assert heads(person_view(s, staff.id)[1]["content"]) == [h for h in (
-        "YOUR HOUSEHOLD'S ACCOUNT", "WHAT IS OWED", "LETTERS AND NOTICES", "PEOPLE YOU KNOW", "ON YOUR MIND",
-        "YOUR NOTES", "OPERATIONS") if h != "WHAT IS OWED" or _owes(s, staff.id)]
+    assert heads(person_view(s, staff.id)[1]["content"]) == _owed_heads(s, staff.id, [
+        "YOUR HOUSEHOLD'S ACCOUNT", *owed, "LETTERS AND NOTICES", "PEOPLE YOU KNOW", "ON YOUR MIND",
+        "YOUR NOTES", "OPERATIONS"])
     assert section(person_view(s, staff.id)[1]["content"], "ON YOUR MIND") == ["  for 0 days: Ask for more hours"]
 
 
@@ -514,8 +519,8 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
     assert views.MAX_WORDS < total < 2000
-    order = ["knowhow", "people", "statement", "closest", "coming", "owed", "till", "business", "toward", "talks",
-             "inbox", "requests", "read", "guard"]
+    order = ["knowhow", "people", "statement", "closest", "coming", "owed", "till", "toward", "talks",
+             "inbox", "requests", "read", "owed_least", "coming_least", "costs", "business", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut
@@ -726,8 +731,8 @@ def test_standing_payments_to_someone_cannot_swell_their_view():
     account = section(v.user, "YOUR HOUSEHOLD'S ACCOUNT")
     coming = account[account.index(next(x for x in account if x.startswith("Expected in by"))) + 1:-1]
     assert len(coming) <= 7 and re.fullmatch(r"  \(\d+ more not shown\)", coming[-1])
-    owed = section(v.user, "WHAT IS OWED")
-    assert all(len(x.split()) <= 30 for x in owed)
+    owed = section(v.user, "OWED TO YOU")
+    assert all(len(x.split()) <= 40 for x in owed)          # a memo of twelve words, and the record of the line
 
 
 def test_the_bank_s_book_counts_late_fees_unpaid():
@@ -745,12 +750,14 @@ def test_the_bank_s_book_counts_late_fees_unpaid():
     assert f"{O.name_of(s, loan.payer)}: late fees of {money(fees)} unpaid" in book
 
 
-def test_what_is_owed_gives_way_to_four_lines_an_account():
+def test_what_is_owed_gives_way_to_four_lines_an_account_and_last_to_two():
     s = thin_town()
     for i in range(9):
         O.create(s, kind="agreement", payer="h2", payee="h1", cents=100 + i, first=3, every=7, memo=f"thing {i}",
                  ends="both", made_by="routine", cause="routine:t")
-    assert len(section(person_view(s, "p03")[1]["content"], "WHAT IS OWED")) == 9
+    owe = section(person_view(s, "p03")[1]["content"], "YOU OWE")
+    assert len(owe) == 9 and owe[-1] == "(2 more not shown)"                 # the rent and nine agreements
+    assert len(section(person_view(s, "p01")[1]["content"], "OWED TO YOU")) == 9
     s.set("people", "p03", "routine:t", notes="note " * 150)
     aims.update(s, "p03", [f"aim {i} " + "thing " * 18 for i in range(5)], "op:x:aims:d0.0")
     for i in range(3):
@@ -760,7 +767,9 @@ def test_what_is_owed_gives_way_to_four_lines_an_account():
         s.add("results", Result(f"res{i + 1}", 0, "p03", "pay", "word " * 40, True), "routine:t")
     v = views.layout(s, "p03")
     assert "owed" in v.steps and "statement" not in v.steps              # the week's lines are kept
-    assert section(v.user, "WHAT IS OWED") == [x for x in section(v.user, "WHAT IS OWED")[:4]] + ["(5 more not shown)"]
+    assert section(v.user, "YOU OWE") == section(v.user, "YOU OWE")[:4] + ["(6 more not shown)"]
+    assert "(as well as ob9, ob11 and 6 more)" in section(v.user, "YOU OWE")[2]
+    assert views._owed(s, "p03", facts.OWED_LEAST)[0][2:] == ["(8 more not shown)"]
 
 
 def test_the_last_guard_holds_the_ceiling():

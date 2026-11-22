@@ -98,7 +98,8 @@ class _Seen:
                 self.requests[-1] = self.requests[-1][:2] + (_cents(m.group(1)),)
             elif self.requests and not line.startswith(("  ", "(")) and self.requests[-1][0] not in self.summaries:
                 self.summaries[self.requests[-1][0]] = line
-        self.owed = self.sections.get("WHAT IS OWED", [])
+        self.owed = [x for x in self.sections.get("YOU OWE", []) + self.sections.get("OWED TO YOU", [])
+                     if not x.endswith(":")]
         business = self.sections.get("YOUR BUSINESS", [])
         self.business = business[0] if business else ""
         self.price = next((_cents(m.group(1)) for line in business if (m := _PRICE.match(line))), None)

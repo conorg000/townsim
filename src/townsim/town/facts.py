@@ -17,10 +17,10 @@ from bisect import bisect_left
 
 from townsim.econ.firm import Firm
 from townsim.town import firms, jobs, names, ties
-from townsim.town.acts import TIE_RANKS, knows, name_of_who
+from townsim.town.acts import TIE_RANKS, accounts_of, knows, name_of_who
 from townsim.town.clock import DAYS, date_in, date_text, dow, week
-from townsim.town.obligations import (LATE_FEE_CENTS, OWED, SCHEDULED, last_cents, last_instalment, money, name_of,
-                                      cents_now, owed_dues, pending_change, upcoming)
+from townsim.town.obligations import (LATE_FEE_CENTS, OWED, SCHEDULED, instalment_cents, last_cents, last_instalment,
+                                      money, name_of, cents_now, next_instalment, owed_dues, pending_change, upcoming)
 from townsim.town.store import Store, id_key
 
 WHO_WORDS = 300
@@ -586,6 +586,7 @@ def who(store: Store, pid: str) -> str:
 
 OWED_LINES = 8
 OWED_KEPT = 4                      # what is owed when it gives way
+OWED_LEAST = 2                     # and when it gives way last of all
 BOOK_LINES = 12
 GOING_OUT = 10
 COMING_IN = 6
@@ -631,6 +632,140 @@ def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
     if len(rows) > most:
         rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]
     return rows
+
+
+LAST_PAID_DAYS = 35                # how far back the ledger is read for when each was last paid
+
+
+def last_paid(store: Store) -> dict[str, tuple[int, int]]:
+    """(day, cents) of the latest payment toward each obligation over the last five weeks, from
+    the ledger: what was taken for one of its dues, or a payment by hand counted toward it.
+    Kept while the store is unchanged."""
+    return ties.kept(store, ("last_paid",), lambda: _last_paid(store))
+
+
+def _last_paid(store: Store) -> dict[str, tuple[int, int]]:
+    found: dict[str, tuple[int, int]] = {}
+    between: dict[tuple[str, str], list] = {}
+    since = store.day - LAST_PAID_DAYS
+    for x in reversed(store.ledger.transfers):
+        if x.t < since:
+            break
+        if x.cause.startswith("routine:collect:"):
+            due = x.cause.removeprefix("routine:collect:")
+            if store.has("dues", due):
+                found.setdefault(store.get("dues", due).obligation, (x.t, x.cents))
+            continue
+        at = x.memo.find(" (counted toward ")
+        if at == -1:
+            continue
+        if (x.src, x.dst) not in between:
+            between[(x.src, x.dst)] = [o for o in store.where("obligations", payer=x.src) if o.payee == x.dst]
+        tail = x.memo[at:]
+        for ob in between[(x.src, x.dst)]:
+            if f"{ob.memo} due " in tail:
+                found.setdefault(ob.id, (x.t, x.cents))
+    return found
+
+
+def _sum(cents: int, usual: int) -> str:
+    """`, <$x>` for a sum that is not the usual instalment; "" for one that is."""
+    return "" if cents == usual else f", {money(cents)}"
+
+
+def _paid_last(store: Store, ob) -> str:
+    """`last paid <date>` (and the sum, when it was not the usual one), or `nothing paid yet`."""
+    got = last_paid(store).get(ob.id)
+    if got is None:
+        paid = [d for d in store.where("dues", obligation=ob.id, status="paid") if d.paid > 0]
+        if paid:
+            d = max(paid, key=lambda d: d.day)
+            got = (d.day, d.paid)
+    return f"last paid {date_text(got[0])}{_sum(got[1], cents_now(store, ob))}" if got else "nothing paid yet"
+
+
+def _next_due(store: Store, ob) -> str:
+    """`next due <date>` (and the sum, when it is not the usual one; and a change of amount to
+    come), or ""."""
+    day = next_instalment(store, ob)
+    if day is None:
+        return ""
+    due = next((d for d in store.where("dues", obligation=ob.id, status="due") if d.day == day), None)
+    cents = instalment_cents(ob, day) if due is None else due.cents - due.paid
+    coming = pending_change(store, ob)
+    change = f" ({money(coming[0])} from {date_text(coming[1])})" if coming and coming[1] > day else ""
+    return f"next due {date_text(day)}{_sum(cents, cents_now(store, ob))}{change}"
+
+
+def side_of(store: Store, ob, account: str) -> str:
+    """Who one side of `ob` is, for its other side to read: the person of that account who agreed
+    it, with their household in brackets; else the account's name."""
+    if store.has("households", account):
+        made = [p for p in dict.fromkeys((ob.made_by, ob.party))
+                if store.has("people", p) and store.get("people", p).household == account]
+        if len(made) == 1:
+            return f"{store.get('people', made[0]).name} ({name_of(store, account)})"
+    return name_of(store, account)
+
+
+def _end(ob) -> str:
+    if ob.every == 0:
+        return ""
+    if ob.last is None:
+        return " until stopped" if ob.ends == "payer" else " until either side ends it"
+    if last_cents(ob) != ob.cents:
+        return f" until {ends_on(ob)}, the last {money(last_cents(ob))}"
+    return f" until {ends_on(ob)}"
+
+
+def owed_rows(store: Store, account: str, out: bool, most: int = OWED_LINES) -> list[str]:
+    """What `account` owes (`out`) or is owed that matters week to week: rents, loans, agreements
+    and standing payments in force, and anything at all with arrears; one line each, in id order,
+    with the other side, what it is, when it was last paid, when it is next due and its end; at
+    most `most`, then a line counting the rest. A standing payment or agreement to someone the
+    account also pays on another line says so (`as well as <id>`)."""
+    obs = [ob for ob in store.where("obligations", **({"payer": account} if out else {"payee": account}))]
+    rows = []
+    for ob in obs:
+        late, since = arrears(store, ob.id)
+        if not late and not (ob.kind in _OWED_KINDS + ("rent",) and ob.status in SCHEDULED):
+            continue
+        other = ob.payee if out else ob.payer
+        party = f"to {side_of(store, ob, other)}" if out else f"from {side_of(store, ob, other)}"
+        if ob.every == 0:
+            how = f"{money(ob.cents)} once on {when(ob.first)}"
+        else:
+            how = f"{money(cents_now(store, ob))} " + {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
+        also = [o.id for o in obs if out and o.id != ob.id and o.payee == ob.payee and o.status in SCHEDULED
+                and ob.kind in ("standing", "agreement")]
+        also_text = (f" (as well as {', '.join(also[:2])}" + (f" and {len(also) - 2} more" if len(also) > 2 else "")
+                     + ")") if also else ""
+        parts = [f"{ob.id}: {memo(ob.memo)}, {how} {party}{also_text}{_end(ob) if ob.status in SCHEDULED else ''}",
+                 _paid_last(store, ob)]
+        if late:
+            parts.append(f"{money(late)} overdue since {date_text(since)}")
+        nxt = _next_due(store, ob) if ob.status in SCHEDULED else ""
+        if nxt:
+            parts.append(nxt)
+        rows.append("; ".join(parts))
+    if len(rows) > most:
+        rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]
+    return rows
+
+
+def owed_sections(store: Store, pid: str, most: int = OWED_LINES) -> tuple[list[str], list[str]]:
+    """The lines of `YOU OWE` and `OWED TO YOU` (`owed_rows`) for the accounts `pid` holds: the
+    household's, then each business's, each under its own heading when they have a business."""
+    accounts = accounts_of(store, pid)
+    owe: list[str] = []
+    owed: list[str] = []
+    for account in accounts:
+        head = ["Your household:" if account == accounts[0] else f"{name_of(store, account)}:"] \
+            if len(accounts) > 1 else []
+        for rows, into in ((owed_rows(store, account, True, most), owe), (owed_rows(store, account, False, most), owed)):
+            if rows:
+                into += head + rows
+    return owe, owed
 
 
 def bank_book(store: Store, pid: str) -> str:
@@ -800,6 +935,10 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
                 lines += _shop_extras(store, org, f)
         lines.append(f"Going out by {date_text(store.day + AHEAD)}:")
         lines += _coming(store, org.id, out_most)
+        coming_in = [u for u in upcoming(store, org.id, AHEAD) if not u.out]
+        if coming_in:
+            lines.append(f"Expected in by {date_text(store.day + AHEAD)}:")
+            lines += coming(store, coming_in, COMING_IN if out_most >= GOING_OUT else max(1, out_most // 2))
         blocks += lines
     return blocks
 
@@ -814,17 +953,24 @@ def _last_delivery(store: Store, f) -> str:
     return ""
 
 
+_SPENT_ON = {"stock": "stock", "wages": "wages", "rent": "rent and running costs", "loans": "loans", "other": "other"}
+
+
 def _week_money(store: Store, org) -> str:
     """What the shop's account took and paid out last week (Monday to Sunday), from its own
-    account: takings, and wages, stock, rent, loans and anything else paid out."""
+    account: `Last week's money: took <$x>, paid out <$y> (stock <$a>, wages <$b>, rent and running costs
+    <$c>, ...), <$x - $y> over` (or `short`), and what else came in that week; an opening balance
+    is not money that came in."""
     monday = store.day - dow(store.day) - 7
     if monday < 0:
         return ""
     took = other_in = 0
-    out = {"wages": 0, "stock": 0, "rent": 0, "loans": 0, "other": 0}
+    out = {"stock": 0, "wages": 0, "rent": 0, "loans": 0, "other": 0}
     for x in store.ledger.transfers[bisect_left(store.ledger.transfers, monday, key=lambda x: x.t):]:
         if x.t > monday + 6:
             break
+        if x.cause == "routine:setup":
+            continue
         if x.dst == org.id:
             if x.cause == firms.SHOPPING:
                 took += x.cents
@@ -832,11 +978,11 @@ def _week_money(store: Store, org) -> str:
                 other_in += x.cents
         elif x.src == org.id:
             out[_spent_on(store, x)] += x.cents
-    paid = ", ".join(f"{k} {money(v)}" for k, v in out.items() if v)
-    line = f"Last week's money: took {money(took)}"
-    if other_in:
-        line += f", and {money(other_in)} more came in"
-    return line + (f"; paid out {paid}" if paid else "; paid out nothing")
+    spent = sum(out.values())
+    paid = ", ".join(f"{_SPENT_ON[k]} {money(v)}" for k, v in out.items() if v)
+    line = f"Last week's money: took {money(took)}, paid out {money(spent)}" + (f" ({paid})" if paid else "")
+    line += f", {money(abs(took - spent))} {'over' if took >= spent else 'short'}"
+    return line + (f"; {money(other_in)} more came in besides" if other_in else "")
 
 
 def _spent_on(store: Store, x) -> str:
