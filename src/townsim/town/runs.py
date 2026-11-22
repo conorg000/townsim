@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from townsim.town.loop import run_day
 from townsim.town.replies import Keys, Recording, Replaying, Replier, ReplayMismatch, StopRun
 from townsim.town.rundb import RunDB
@@ -71,9 +73,13 @@ def replay(db: RunDB, run_id: str) -> list[str]:
     return pending
 
 
-def fork(db: RunDB, parent: str, at_day: int, new_id: str, seed: int | None = None) -> Store:
-    """A new run whose first snapshot is the parent's for `at_day`."""
+def fork(db: RunDB, parent: str, at_day: int, new_id: str, seed: int | None = None,
+         setup: Callable[[Store], None] | None = None) -> Store:
+    """A new run whose first snapshot is the parent's for `at_day`, changed by `setup` first
+    when one is given (an arm's launch, say)."""
     store = db.load_snapshot(parent, at_day)
+    if setup is not None:
+        setup(store)
     db.create_run(new_id, seed if seed is not None else db.get_run(parent)["seed"], parent, at_day)
     db.save_snapshot(new_id, at_day, store)
     return db.load_snapshot(new_id, at_day)

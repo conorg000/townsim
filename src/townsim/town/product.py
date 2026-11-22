@@ -133,10 +133,11 @@ def _highest(store: Store, table: str, prefix: str) -> str:
     return rows[-1].id if rows else f"{prefix}0"
 
 
-def subscribe(store: Store, by: str, client: str, asks: str, cause: str) -> str:
+def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: bool = True) -> str:
     """Subscribe `client` (a household or a business) to the launched product, taken out by
     `by`: the subscription, the client's instance and the weekly fee from the end of the free
-    weeks; the client's other adults and the instance are told. Returns what `by` is told."""
+    weeks; the instance is told, and the client's other adults when `tell`. Returns what `by`
+    is told."""
     pr = launched(store)
     sid, iid = store.new_id("sub", cause), store.new_id("as", cause)
     name = f"{pr.name} for {client_name(store, client)}"
@@ -150,7 +151,7 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str) -> str:
     told = (f"Subscribed: {name} ({sid}). Free until {date_text(store.day + 7 * pr.free_weeks - 1)}; then "
             f"{money(cents)} a week from {account_name(store, client)}, until the subscription is stopped. Nothing is "
             f"connected to it yet.")
-    for pid in obligations.people_of(store, client):
+    for pid in obligations.people_of(store, client) if tell else []:
         if pid != by:
             obligations.notify(store, pid, told, cause)
     obligations.notify(store, iid, f"{store.get('people', by).name} subscribed {client_name(store, client)} today.",

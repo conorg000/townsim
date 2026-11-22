@@ -1,5 +1,5 @@
 """The `townsim` command: the small economy's skill test, and the thin town run and
-replayed from a SQLite file. Only `town-live` and `town-probe` call models, behind a cap."""
+replayed from a SQLite file, and forked into arms. Only `town-live` and `town-probe` call models, behind a cap."""
 
 import json
 import os
@@ -297,6 +297,30 @@ def town_replay_cmd(
         if not rdb.snapshot_days(run_id):
             _fail(f"run {run_id!r} in {db} has no days kept")
         _replay(rdb, run_id)
+
+
+@app.command("town-arms")
+def town_arms_cmd(
+    db: Db,
+    parent: Annotated[str, typer.Option("--parent", help="The run to fork from.")],
+    at_day: Annotated[int, typer.Option("--at-day", help="The day (a Monday) whose morning the arms start from.")],
+    prefix: Annotated[str, typer.Option("--prefix", help="The arms are <prefix>-none, <prefix>-choice and <prefix>-drawn.")],
+) -> None:
+    """Fork a kept run on one morning into three arms: no product; the product launched; the
+    product launched with clients drawn from the seed. No model is called."""
+    from townsim.town import arms
+    from townsim.town.rundb import RunDB
+
+    if not Path(db).is_file():
+        _fail(f"no database file {db}")
+    with _plainly(db), RunDB(db) as rdb:
+        rdb.get_run(parent)
+        if rdb.snapshot_hash(parent, at_day) is None:
+            _fail(f"run {parent!r} in {db} has no morning kept for day {at_day}")
+        for arm in arms.ARMS:
+            store = arms.fork_arm(rdb, parent, at_day, f"{prefix}-{arm}", arm)
+            subs = ", ".join(f"{s.id} {s.client}" for s in store.all("subscriptions"))
+            typer.echo(f"{prefix}-{arm}: day {at_day}" + (f"; drawn: {subs}" if subs else ""))
 
 
 @app.command("town-story")
