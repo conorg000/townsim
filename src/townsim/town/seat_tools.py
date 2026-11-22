@@ -1291,6 +1291,170 @@ B_TOOLS = (
 )
 SEAT_TOOLS.update({t.name: t for t in B_TOOLS})
 
+
+# --- tasks (lane B) ----------------------------------------------------------------------------------
+
+TASK_WORDS, LISTED_WORDS = 150, 20
+
+
+def _client_accounts_b(store: Store, inst: Instance) -> set[str]:
+    from townsim.town.systems import ventures_of
+    return {inst.client} | {v.org for v in ventures_of(store, inst.client)}
+
+
+def client_tasks(store: Store, inst: Instance) -> list:
+    """The tasks of the client's: the instance's, and those paid from the client's accounts."""
+    mine = _client_accounts_b(store, inst)
+    return [t for t in store.all("tasks") if t.actor == inst.id or t.account in mine]
+
+
+def _task(store: Store, inst: Instance, written: Any):
+    if not isinstance(written, str) or not store.has("tasks", written):
+        return None
+    t = store.get("tasks", written)
+    return t if t in client_tasks(store, inst) else None
+
+
+def _paid(store: Store, t) -> int:
+    return sum(d.paid for d in store.where("dues", obligation=t.ob)) if t.ob else 0
+
+
+def _task_accounts(store: Store, inst: Instance) -> list[str]:
+    return bank_accounts(store, inst.client)[:1] + [a for a, _, _ in venture_accounts(store, inst)]
+
+
+def _run_tasks_create(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    cause = _cause(inst, "tasks_create", store, n)
+    text = clean_text(args.get("description"))
+    if text is None or not text.strip():
+        return _declined_as(store, inst, _not("the description is not text.", cause), "invalid_argument")
+    if not fits(text, TASK_WORDS):
+        return _declined_as(store, inst, _not(f"the description is longer than {TASK_WORDS} words; this one is "
+                                              f"{len(text.split())}.", cause), "too_long")
+    budget = acts.dollars(args.get("budget"))
+    if budget is None or budget < 0:
+        return _declined_as(store, inst, _not(f"'{shown(args.get('budget'))}' is not an amount of money.", cause),
+                            "invalid_argument")
+    wanted = {"what": text, "budget": args.get("budget")}
+    if isinstance(args.get("account"), str) and args["account"].strip():
+        wanted["account"] = args["account"]
+    done = run_op(store, inst, "undertake", wanted, n)
+    if not done.ok:
+        low = done.text.lower()
+        if "tasks a day are taken" in low or "no more undertakings" in low:
+            return _declined_as(store, inst, done, "limit_reached")
+        return _declined_as(store, inst, done, None if done.kind == "beyond" else _code(done))
+    t = store.all("tasks")[-1]
+    return _json_done({"status": "received", "task_id": seat_ids.display(store, t.id),
+                       "scoped_by": seat_ids.clock.iso(store.day)}, "act", done.cause)
+
+
+def _completes(store: Store, t) -> str | None:
+    if not t.ob:
+        return seat_ids.clock.iso(t.done_day) if t.status == "completed" and t.done_day >= 0 else None
+    ob = store.get("obligations", t.ob)
+    return seat_ids.clock.iso(ob.last) if ob.last is not None else None
+
+
+def _run_tasks_list(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import tasks
+    cause = _cause(inst, "tasks_list", store, n)
+    rows = []
+    for t in client_tasks(store, inst):
+        closed = t.status not in tasks.OPEN
+        if closed and max(t.day, t.done_day) < store.day - tasks.SHOWN_DAYS:
+            continue
+        words = t.text.split()
+        rows.append({"task_id": seat_ids.display(store, t.id), "created": seat_ids.clock.iso(t.day),
+                     "description": " ".join(words[:LISTED_WORDS]) + ("…" if len(words) > LISTED_WORDS else ""),
+                     "status": tasks.shown_status(t), "quote": _usd(t.price_cents), "weeks": t.weeks,
+                     "paid": _usd(_paid(store, t)), "completes": _completes(store, t)})
+    return _json_done({"tasks": rows}, "read", cause)
+
+
+def _outcome(store: Store, t) -> str | None:
+    if t.status == "completed":
+        return seat_ids.view(store, t.summary)
+    if t.status == "stopped":
+        return "cancelled" if t.note == "cancelled" else "stopped: nothing more is done or charged"
+    return None
+
+
+def _run_tasks_get(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import tasks
+    cause = _cause(inst, "tasks_get", store, n)
+    t = _task(store, inst, args.get("task_id"))
+    if t is None:
+        return _declined_as(store, inst, _not(f"there is no task with the id '{shown(args.get('task_id'))}'.", cause,
+                                              "read"), "not_found")
+    quote = None
+    if t.ob:
+        ob = store.get("obligations", t.ob)
+        quote = {"total": _usd(t.price_cents), "weeks": t.weeks, "weekly": _usd(ob.cents),
+                 "first_payment": seat_ids.clock.iso(ob.first), "billed_to": tasks._account_label(store, t),
+                 "payee": name_of(store, ob.payee)}
+    payments = [{"date": seat_ids.clock.iso(d.day), "amount": _usd(d.cents), "status": d.status}
+                for d in sorted(store.where("dues", obligation=t.ob), key=lambda d: d.day)] if t.ob else []
+    reqs = [{"request_id": seat_ids.display(store, r.id), "to": acts.name_of_who(store, r.to), "asks": r.text,
+             "status": r.status} for r in store.all("requests") if r.kind == "task" and r.org == t.id]
+    note = None
+    if t.status in ("needs_detail", "beyond") and t.note:
+        note = seat_ids.view(store, _integration_names(store, inst, t.note))
+    elif t.status in ("redirected", "declined", "over_budget", "no_funds"):
+        told = [x.text for x in store.all("notices") if x.to == inst.id and x.text.startswith(f"Task {t.id} not")]
+        note = seat_ids.view(store, told[-1].split(": ", 1)[1]) if told else None
+    return _json_done({"task_id": seat_ids.display(store, t.id), "created": seat_ids.clock.iso(t.day),
+                       "description": t.text, "budget": _usd(t.budget_cents), "status": tasks.shown_status(t),
+                       "scope": seat_ids.view(store, t.summary) if t.summary else None, "quote": quote,
+                       "payments": payments, "requests": reqs, "outcome": _outcome(store, t), "note": note},
+                      "read", cause)
+
+
+def _run_tasks_cancel(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import tasks
+    cause = _cause(inst, "tasks_cancel", store, n)
+    t = _task(store, inst, args.get("task_id"))
+    if t is None:
+        return _declined_as(store, inst, _not(f"there is no task with the id '{shown(args.get('task_id'))}'.", cause),
+                            "not_found")
+    if t.status not in ("scheduled", "in_progress") or not t.ob:
+        return _declined_as(store, inst, _not(f"task {t.id} is not scheduled.", cause), "invalid_request")
+    done = run_op(store, inst, "stop", {"id": t.ob}, n)
+    if not done.ok:
+        return _declined_as(store, inst, done, None if done.kind == "beyond" else _code(done))
+    tasks.cancel(store, t, f"narr:{t.id}:cancel")
+    return _json_done({"status": "cancelled", "task_id": seat_ids.display(store, t.id), "paid": _usd(_paid(store, t))},
+                      "act", done.cause)
+
+
+def _tasks_create_schema(store: Store, inst: Instance) -> dict:
+    return {"type": "object", "properties": {
+        "description": _str("what is to be done, at most 150 words", most=1200),
+        "budget": _num("USD, the most the client pays for the task in all; 0 for work that costs nothing"),
+        "account": _str(enum=_task_accounts(store, inst))},
+        "required": ["description", "budget"]}
+
+
+TASK_TOOLS = (
+    SeatTool("tasks_create",
+             lambda s, i: ("Create a task for work that no integration carries out, described in plain words. Tasks "
+                           "are scoped by the end of the day: the cost and time are quoted from standard rates and, if "
+                           "the quote is within the budget, the task is scheduled and billed weekly to the client's bank "
+                           "account until it is done. The outcome arrives as a notification."),
+             _tasks_create_schema, _run_tasks_create, lambda s, i: _lane_b(s) and _connected("account", acting=True)(s, i)),
+    SeatTool("tasks_list", lambda s, i: "List the client's tasks: those open, and those closed in the last 28 days.",
+             lambda s, i: {"type": "object", "properties": {}}, _run_tasks_list, lambda s, i: _lane_b(s)),
+    SeatTool("tasks_get", lambda s, i: ("Get one task in full: what was asked, its status, the quote, payments, "
+                                         "requests sent and their answers, and the outcome."),
+             lambda s, i: {"type": "object", "properties": {"task_id": _str()}, "required": ["task_id"]},
+             _run_tasks_get, lambda s, i: _lane_b(s)),
+    SeatTool("tasks_cancel", lambda s, i: ("Cancel a scheduled task. Payments already made are not refunded; nothing "
+                                            "more is done or charged."),
+             lambda s, i: {"type": "object", "properties": {"task_id": _str()}, "required": ["task_id"]},
+             _run_tasks_cancel, lambda s, i: _lane_b(s) and _connected("account", acting=True)(s, i)),
+)
+SEAT_TOOLS.update({t.name: t for t in TASK_TOOLS})
+
 # result texts the seat writes itself (for the neutrality test)
 FIXED_TEXTS = ("Memory file saved ({n} words).", "Saved: {name} ({n} words).", "Deleted: {name}.",
                "Scheduled: {fu} for {date}, weekly.", "Cancelled: {fu}.", "Requested from {name} ({rq}): {summary}",
