@@ -27,8 +27,9 @@ def test_company_people_see_instances_week_and_a_run():
     assert s.day == 15 and s.all("runlogs")
     head, lines = company_section(s, "p11")
     assert head == "TESSALY SOFTWARE"
-    shop = next(x for x in lines if x.startswith("  Harlow Springs Food Mart, since Monday 9 March"))
-    assert shop.endswith(": 4 runs; 4 letters to the client, 0 from it; 4 payments or orders made; asked of it at "
+    shop = next(x for x in lines if x.startswith("  Harlow Springs Food Mart (sub1): subscribed by Tara Russo on Monday "
+                                                 "9 March; Business plan, $100.00 every 4 weeks; trial ends"))
+    assert shop.endswith("; 4 runs; 4 letters to the client, 0 from it; 4 payments or orders made; asked of it at "
                          "sign-up: nothing written.")
     assert lines[6].endswith('asked of it at sign-up: "Keep an eye on what comes in and goes out. Tell me…".')
     start = lines.index("Assistants this week (from Monday 16 March):")
@@ -64,15 +65,16 @@ def test_company_section_within_length():
     _, lines = company_section(s, "p11")
     after = lines[[i for i, x in enumerate(lines) if x.startswith("Fees received")][0] + 1:]
     assert len(after) <= 18 and after[-1].startswith("Limits:") and sum(len(x.split()) for x in after) <= 300
-    assert len([x for x in lines if ", since " in x]) == len(s.all("subscriptions"))
-    assert all(len(x.split()) < 60 for x in lines)
+    assert len([x for x in lines if "): subscribed by " in x]) == len(s.all("subscriptions"))
+    assert all(len(x.split()) < 75 for x in lines)
 
 
 def test_clients_do_not_see_the_company_section():
     s = _week()
     assert company_section(s, "p3") is None and company_section(s, "p1") is None
     _, lines = company_section(s, "p11")
-    records = [x.split(": ", 1)[1] for x in lines if x.startswith("  ") and ", since " in x]
+    records = [x.split(": ", 1)[1] for x in lines if x.startswith("  ") and "): subscribed by " in x]
+    assert records
     weeks = [x.split(": ", 1)[1] for x in lines if x.startswith("Tessaly Assistant for")]
     # the company's own assistant, with everything of the firm's connected, sees none of it
     product.subscribe(s, "p11", "org13", "", CAUSE)

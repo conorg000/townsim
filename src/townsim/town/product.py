@@ -440,15 +440,76 @@ def _business_page(store: Store, org) -> str | None:
     return None
 
 
+PART_WORDS = 220            # a page read in parts of at most this many words (a reading shows 250)
+PART_PLACE = "<, part>"
+
+
+def page_parts(text: str) -> list[str]:
+    """A page in parts of at most `PART_WORDS` words, whole lines kept together where they fit."""
+    parts, cur, n = [], [], 0
+    for line in text.split("\n"):
+        words = len(line.split())
+        while words > PART_WORDS:                  # a line longer than a part is cut between words
+            if cur:
+                parts.append("\n".join(cur))
+                cur, n = [], 0
+            head = line.split()
+            parts.append(" ".join(head[:PART_WORDS]))
+            line = " ".join(head[PART_WORDS:])
+            words = len(line.split())
+        if n + words > PART_WORDS and cur:
+            parts.append("\n".join(cur))
+            cur, n = [], 0
+        cur.append(line)
+        n += words
+    if cur:
+        parts.append("\n".join(cur))
+    return parts or [""]
+
+
+def _part(act: Act) -> int | None:
+    v = act.args.get("part", 1)
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v.strip())
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 1 else None
+
+
+def _fill_part(store: Store, pid: str) -> str:
+    from townsim.town import lane_b
+    return ', "part": <1 unless a page says it has more parts>' if lane_b.installed(store) else ""
+
+
 def _check_read_page(store: Store, act: Act) -> str | None:
     org = _business(store, act.args.get("of"))
     if org is None:
         return f"there is no business in {store.place} called '{shown(act.args.get('of'))}'."
-    return None if business_page(store, org) is not None else f"{org.name} keeps no page."
+    text = business_page(store, org)
+    if text is None:
+        return f"{org.name} keeps no page."
+    from townsim.town import lane_b
+    if lane_b.installed(store):
+        k, n = _part(act), len(page_parts(text))
+        if k is None or k > n:
+            return f"the page of {org.name} has {n} part{'' if n == 1 else 's'}; '{shown(act.args.get('part'))}' is none of them."
+    return None
 
 
 def _do_read_page(store: Store, act: Act, cause: str) -> str:
-    return business_page(store, _business(store, act.args.get("of")))
+    org = _business(store, act.args.get("of"))
+    text = business_page(store, org)
+    from townsim.town import lane_b
+    if not lane_b.installed(store):
+        return text
+    parts, k = page_parts(text), _part(act)
+    if len(parts) == 1:
+        return parts[0]
+    out = parts[k - 1]
+    if k < len(parts):
+        out += (f'\n(Part {k} of {len(parts)}. Part {k + 1} is read with {{"op": "read_page", "of": "{org.name}", '
+                f'"part": {k + 1}}}.)')
+    else:
+        out += f"\n(Part {k} of {len(parts)}, the last.)"
+    return out
 
 
 # what clients and the firm's people see
@@ -514,6 +575,30 @@ def fees_received(store: Store, pr: Product, since: int = 0) -> int:
     return total
 
 
+def client_line(store: Store, pr: Product, sub: Subscription) -> str:
+    """A client as the firm's people read it: who it is and where, who subscribed and when, the plan, the trial,
+    the fees received, the next fee, and whether it has ended."""
+    from townsim.town import firm_money
+    from townsim.town.firm_money import client_label
+    plan = "Household" if store.has("households", sub.client) else "Business"
+    by = store.get("people", sub.by).name if store.has("people", sub.by) else sub.by
+    out = [f"{_cap(client_label(store, sub.client))} ({sub.id}): subscribed by {by} on {date_text(sub.day)}"]
+    if not sub.fee_ob:
+        out.append("no fee")
+    else:
+        ob = store.get("obligations", sub.fee_ob)
+        trial = sub.day + 7 * pr.free_weeks - 1
+        out.append(f"{plan} plan, {money(obligations.cents_now(store, ob))} {period(pr)}")
+        out.append(f"trial {'ends' if store.day <= trial else 'ended'} {date_text(trial)}")
+        out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
+        nxt = obligations.instalment_days(ob, store.day, 1) if ob.status == "active" else []
+        if sub.status == "active" and nxt:
+            out.append(f"next fee {money(obligations.instalment_cents(ob, nxt[0]))} on {date_text(nxt[0])}")
+    if sub.status != "active":
+        out.append(f"ended {date_text(sub.ended_on)}")
+    return "; ".join(out)
+
+
 def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     """For the firm's people: the launch and price, the clients, who left, and the fees."""
     pr = launched(store)
@@ -528,8 +613,7 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
              f"{money(pr.business_cents)} for a business; the first {pr.free_weeks} weeks free.", f"Clients ({len(now)}):"]
     if b:
         from townsim.town import runlog
-        lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}: "
-                  f"{runlog.client_record(store, s)}." for s in now]
+        lines += [f"  {client_line(store, pr, s)}; {runlog.client_record(store, s)}." for s in subs]
     else:
         lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}"
                   for s in now]
@@ -576,7 +660,8 @@ def _register() -> None:
                     + ', "asks": "<what you want it to do, in your own words>"}',
                     "Subscribe to a product for your household or a business you own.", 0.25,
                     _check_subscribe, _do_subscribe, 235, who="market"))
-    register(OpSpec("read_page", '{"op": "read_page", "of": "<name of a business>"}',
+    FILLED[PART_PLACE] = _fill_part
+    register(OpSpec("read_page", '{"op": "read_page", "of": "<name of a business>"' + PART_PLACE + '}',
                     "Read the page a business in the town keeps.", 0.1, _check_read_page, _do_read_page, 260))
 
 

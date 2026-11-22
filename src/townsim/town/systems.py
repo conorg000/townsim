@@ -64,6 +64,12 @@ def venture_of(store: Store, org: str):
     return next((v for v in store.all("ventures") if v.org == org), None)
 
 
+def own_client(store: Store, v) -> bool:
+    """Whether a venture is a client of its own: it holds an active or paused subscription in its own name, so
+    its systems are its subscription's, not its founding client's."""
+    return any(sub.client == v.org and sub.status == "active" for sub in store.all("subscriptions"))
+
+
 def ventures_of(store: Store, client: str) -> list:
     """The client's ventures, in id order (every status)."""
     return [v for v in store.all("ventures") if v.client == client] if store.all("ventures") else []
@@ -113,14 +119,17 @@ def system(store: Store, system_id: str) -> System | None:
 def systems_of_client(store: Store, client: str) -> list[System]:
     """A household's or a business's systems, in `KINDS` order; then, for each of its active
     ventures, the venture's own (`VENTURE_KINDS`). A venture is no client: it has none of its own."""
-    if venture_of(store, client) is not None:
-        return []
+    own = venture_of(store, client)
+    if own is not None:              # a venture is no client, unless it subscribes in its own name
+        if not own_client(store, own):
+            return []
+        return [x for x in (system(store, f"{kind}:{own.org}") for kind in VENTURE_KINDS.get(own.kind, ())) if x]
     found = [system(store, f"{kind}:{client}") for kind in KINDS if kind not in ("loans", "members")]
     if store.has("households", client):
         bank = _bank(store, client)
         found.append(system(store, f"loans:{bank.id}") if bank else None)
     for v in ventures_of(store, client):
-        if v.status == "active":
+        if v.status == "active" and not own_client(store, v):
             found += [system(store, f"{kind}:{v.org}") for kind in VENTURE_KINDS.get(v.kind, ())]
     return [s for s in found if s is not None]
 
@@ -132,7 +141,9 @@ def client_of(store: Store, system_id: str) -> str:
     if kind == "loans":
         return store.get("people", store.get("orgs", owner).contact).household
     v = venture_of(store, owner)
-    return v.client if v is not None else owner
+    if v is None:
+        return owner
+    return v.org if own_client(store, v) else v.client
 
 
 def long_name(store: Store, system_id: str) -> str:

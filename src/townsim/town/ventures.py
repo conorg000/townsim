@@ -66,10 +66,12 @@ def name_problem(store: Store, name: Any) -> str | None:
     if text is None or "\n" in text.strip() or not NAME_MIN <= len(text.strip()) <= NAME_MAX:
         return f"a name is one line of {NAME_MIN} to {NAME_MAX} characters."
     wanted = text.strip().casefold()
-    from townsim.town import product
-    pr = product.launched(store)
-    if pr is not None and wanted == pr.name.casefold():
-        return f"{pr.name} is already the product of {store.get('orgs', pr.org).name}."
+    from townsim.town import lane_b, product
+    firm = next((o for o in store.all("orgs") if o.kind == "firm" and not o.outside), None)
+    if firm is not None and (product.launched(store) is not None or lane_b.installed(store)):
+        made = product.product_name(firm.name)       # the firm's from the place's first day, launched or not
+        if wanted == made.casefold():
+            return f"{made} is already the product of {firm.name}."
     for table in ("people", "households", "orgs"):
         if any(r.name.casefold() == wanted for r in store.all(table)):
             return f"there is already someone in {store.place or 'the town'} called '{shown(text.strip())}'."

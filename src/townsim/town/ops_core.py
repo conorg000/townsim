@@ -171,6 +171,10 @@ def _check_pay(store: Store, act: Act) -> str | None:
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
         return "the note is too long."
     ref = _pay_ref(act)
+    from townsim.town import firm_money
+    refund = firm_money.refund_of(store, source, payee, ref)
+    if refund is not None:
+        return firm_money.refund_problem(store, refund, cents) or _short_of(store, source, cents)
     if ref is not None:
         if not (isinstance(ref, str) and store.has("obligations", ref)
                 and (store.get("obligations", ref).payer == source or _own_wage(store, act, ref))
@@ -243,6 +247,11 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     memo = quoted(note) if note else f"payment to {name}"
     source, ref = _source(store, act), _pay_ref(act)
+    from townsim.town import firm_money
+    refund = firm_money.refund_of(store, source, payee, ref)
+    if refund is not None:                         # a refund of fees: counted toward nothing, kept as a refund
+        obligations.pay(store, source, payee, cents, firm_money.refund_memo(store, refund), cause, match=False)
+        return f"Refunded {money(cents)} to {name} ({firm_money.refund_memo(store, refund)})."
     if _toward_nothing(act):                       # a gift or a bonus: counted toward nothing
         obligations.pay(store, source, payee, cents, memo, cause, match=False)
         return f"Paid {money(cents)} to {name}. {NOT_COUNTED}" + _still_taken(store, source, payee, set())
@@ -342,7 +351,8 @@ def _check_standing(store: Store, act: Act) -> str | None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
         return "the note is too long."
-    return None
+    from townsim.town import firm_money
+    return firm_money.standing_problem(store, source, payee, _scheduled(store, source, payee))
 
 
 def _do_standing(store: Store, act: Act, cause: str) -> str:
@@ -595,6 +605,9 @@ def _check_request(store: Store, act: Act) -> str | None:
     cents = _asked_cents(act.args.get("amount"))
     if cents is None:
         return f"'{shown(act.args.get('amount'))}' is not an amount of money that can be paid."
+    from townsim.town import firm_money
+    if firm_money.request_payee(store, act) is not None:
+        return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)
     if _request_ref(act) is not None:
         if _owed_on(store, act, who) is None:
             name = name_of_who(store, who)
@@ -619,11 +632,15 @@ def _request_ref(act: Act) -> Any:
 
 def _do_request(store: Store, act: Act, cause: str) -> str:
     to, _ = _request_to(store, act)
-    ob = "" if _request_ref(act) is None else _owed_on(store, act, to)
+    from townsim.town import firm_money
+    business = firm_money.request_payee(store, act) or ""
+    ob = "" if business or _request_ref(act) is None else _owed_on(store, act, to)
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, clean_text(act.args["text"]),
-                 _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS, ob=ob)
+                 _asked_cents(act.args.get("amount")), store.day + REQUEST_DAYS, ob=ob, org=business)
     store.add("requests", rq, cause)
     said = f"you ask them for {money(rq.cents)}" if rq.cents else "you ask them for no money"
+    if rq.cents and business:
+        said += f", paid to {name_of_who(store, business)}"
     if rq.cents and ob:
         said += f" toward {memo_shown(store.get('obligations', ob).memo)} ({ob})"
     said += "."
@@ -692,6 +709,8 @@ def _request_accounts(store: Store, rq: Request) -> tuple[str, str]:
     if rq.ob:
         ob = store.get("obligations", rq.ob)
         return ob.payer, ob.payee
+    if rq.kind == "ask" and rq.org and store.has("orgs", rq.org):     # asked for a business of the sender's
+        return account_of(store, rq.to), rq.org
     return account_of(store, rq.to), account_of(store, rq.sender)
 
 
