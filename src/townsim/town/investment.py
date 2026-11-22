@@ -92,19 +92,21 @@ def review(store: Store) -> None:
     investor = store.get("orgs", ob.payer)
     weeks, share = decision(store)
     cents = obligations.cents_now(store, ob)
+    ends = ob.last                                   # the term reviewed: its last payment is made today as agreed
     if weeks:
         new = int(round(cents * share))
-        last = ob.last + 7 * weeks
+        first, last = ends + 7, ends + 7 * weeks     # the renewal: from the first payment after today
         store.set("obligations", ob.id, CAUSE, last=last)
-        if new != cents:                             # the renewed weeks at the renewed amount
-            store.set("obligations", ob.id, CAUSE, next_cents=new, next_from=ob.last + 7)
+        if new != cents:
+            store.set("obligations", ob.id, CAUSE, next_cents=new, next_from=first)
         body = (f"Following our review of {firm.name}'s paying clients and fees received, {investor.name} renews its "
-                f"investment for {weeks} weeks at {money(new)} a week.")
-        note = f"Account note: {money(new)} a week from {short(ob.last + 7)} to {short(last)}; {REVIEW}."
+                f"investment for {weeks} weeks at {money(new)} a week, from {short(first)} to {short(last)}.")
+        note = (f"Account note: {money(new)} a week from {short(first)}, the last payment on {short(last)}; "
+                f"{REVIEW}.")
     else:
         body = (f"Following our review of {firm.name}'s paying clients and fees received, {investor.name} does not "
                 f"renew its investment.")
-        note = f"Account note: the last payment of {money(cents)} is made on {short(ob.last)}; none is scheduled after it."
+        note = f"Account note: the last payment of {money(cents)} is made on {short(ends)}; none is scheduled after it."
     from townsim.town import desks
     d = desks.desk_of(store, investor.id)
     signed = f"\n\n{d.signer}, {investor.name}" if d else ""

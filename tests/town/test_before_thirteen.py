@@ -8,6 +8,7 @@ from town.test_seat_texts import drawn
 from townsim.town import (acts, connections, desks, investment, lane_b, loop, product, seat_texts, seat_tools as ST,
                           views)
 from townsim.town.acts import Act, apply_act
+from townsim.town.obligations import money
 from townsim.town.product import NEUTRAL_BANNED
 from townsim.town.replies import Keys, ScriptedReplier
 
@@ -126,20 +127,35 @@ def test_the_investment_has_a_term_and_a_review(monkeypatch):
         t = drawn()
         lane_b.install(t)
         monkeypatch.setattr(investment, "fees", lambda store, f=fees: f)
-        t.day = t.ledger.t = investment.agreement(t).last
+        end = investment.agreement(t).last
+        t.day = t.ledger.t = end
         loop.routine(t)
         got = investment.agreement(t)
         letter = [m for m in t.all("messages") if m.sender == "org3"][-1]
         assert letter.to == "p11" and letter.org == "org13" and "Account note: " in letter.text
+        for _ in range(42):                                       # six weeks after the review, by the ledger
+            t.advance_day()
+            loop.routine(t)
+        paid = {x.t: x.cents for x in t.ledger.transfers if x.src == "org3" and x.dst == "org13" and x.t >= end}
+        assert paid == {end + 7 * k: (202500 if k == 0 else cents) for k in range(7) if k == 0 or weeks}, (weeks, paid)
         if weeks:
-            assert got.last == t.day + 7 * weeks and f"renews its investment for {weeks} weeks" in letter.text
-            assert investment.view_line(t).startswith(f"Investment: $2,025.00 a week")
-            t.day = t.ledger.t = t.day + 7
-            assert investment.agreement(t).next_cents in (0, cents) and (
-                cents == 202500 or investment.agreement(t).next_cents == cents)
+            first, last = investment.short(end + 7), investment.short(end + 7 * weeks)
+            assert got.last == end + 7 * weeks
+            assert (f"renews its investment for {weeks} weeks at {money(cents)} a week, from {first} to {last}."
+                    in letter.text)
+            assert letter.text.endswith(f"Account note: {money(cents)} a week from {first}, the last payment on "
+                                        f"{last}; renewal to be reviewed on paying clients and fees received.")
+            assert investment.view_line(t).startswith(f"Investment: {money(cents)} a week from Fenner Ridge Ventures "
+                                                      f"until {last}")
         else:
-            assert got.last == t.day and "does not renew its investment" in letter.text
+            assert got.last == end and "does not renew its investment" in letter.text
+            assert letter.text.endswith(f"Account note: the last payment of $2,025.00 is made on {investment.short(end)}; "
+                                        f"none is scheduled after it.")
         _neutral([letter.text])
+        RENEWALS.append(letter.text)
+
+
+RENEWALS: list[str] = []
 
 
 def test_the_investor_s_desk_agrees_with_the_books():
