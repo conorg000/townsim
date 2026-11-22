@@ -122,7 +122,8 @@ def system_text(store: Store, inst: Instance) -> str:
         "Your client's systems:",
         *system_lines(store, inst),
         "",
-        f"The tools act for your client: \"you\" and \"your\" in their descriptions mean your client. Each tool's "
+        f"The tools that act on your client's systems act for your client: \"you\" and \"your\" in their "
+        f"descriptions mean your client. Each tool's "
         f"result is the record of what happened. People see what you write only through the write and talk tools; "
         f"your letters are signed \"{inst.name}\". A reply without a tool call ends your turn; {next_turn(store, inst)} "
         f"{P}'s page and terms are in the read tool.",
@@ -202,6 +203,7 @@ class Item:
     order: int
     id: str
     lines: list[str]
+    own: bool = False          # to the instance itself, not to its client
 
 
 def _reminders_today(store: Store, inst: Instance) -> list:
@@ -214,33 +216,33 @@ def _reminders_today(store: Store, inst: Instance) -> list:
     return out
 
 
-def items(store: Store, inst: Instance) -> list[Item]:
-    """What reached the instance since its last turn, oldest first: letters and notices to it,
-    requests, notices and letters to its client as its connections let them reach it, and its
-    reminders falling today."""
-    msg, nt, rq = _seen(inst)
+def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None, since: int = 0) -> list[Item]:
+    """What reached the instance since its last turn (or after the ids `seen`, from day
+    `since`), oldest first: letters and notices to it, requests, notices and letters to its
+    client as its connections let them reach it, and its reminders falling today."""
+    msg, nt, rq = _seen(inst) if seen is None else seen
     people = client_people(store, inst)
     out = []
     for m in store.all("messages"):
-        if not _after(m.id, msg):
+        if not _after(m.id, msg) or m.day < since:
             continue
         if m.to == inst.id:
             own = " (your client)" if m.sender in people else ""
             out.append(Item(m.day, 0, m.id, [f"Letter from {name_of_who(store, m.sender)}{own}, {date_text(m.day)}:"]
-                            + _set_off(m.text)))
+                            + _set_off(m.text), True))
         elif _letter_reaches(store, inst, m, people):
             out.append(Item(m.day, 0, m.id, [f"Letter to {name_of_who(store, m.org or m.to)} from "
                                              f"{name_of_who(store, m.sender)}, {date_text(m.day)}:"] + _set_off(m.text)))
     for n in store.all("notices"):
-        if not _after(n.id, nt):
+        if not _after(n.id, nt) or n.day < since:
             continue
         if n.to == inst.id:
-            out.append(Item(n.day, 1, n.id, [f"Notice, {date_text(n.day)}: {' '.join(n.text.split())}"]))
+            out.append(Item(n.day, 1, n.id, [f"Notice, {date_text(n.day)}: {' '.join(n.text.split())}"], True))
         elif n.to in people and _notice_reaches(store, inst, n):
             out.append(Item(n.day, 1, n.id, [f"Notice to {name_of_who(store, n.to)} (your client), {date_text(n.day)}: "
                                              f"{' '.join(n.text.split())}"]))
     for r in store.all("requests"):
-        if not _after(r.id, rq) or r.to not in people or not _request_reaches(store, inst, r):
+        if not _after(r.id, rq) or r.day < since or r.to not in people or not _request_reaches(store, inst, r):
             continue
         asked = f" They ask for {money(r.cents)}." if r.cents > 0 else ""
         summary = (" " + " ".join(r.summary.split())) if r.summary.strip() else ""
@@ -251,10 +253,19 @@ def items(store: Store, inst: Instance) -> list[Item]:
         lines.append((tail + " " if tail else "") + f"Open until {date_text(r.expires)}.")
         out.append(Item(r.day, 2, r.id, lines))
     out.sort(key=lambda x: (x.day, x.order, id_key(x.id)))
+    if seen is not None:
+        return out
     for r in _reminders_today(store, inst):
         every = ", every week" if r.every == 7 else ""
         out.append(Item(store.day, 3, r.id, [f"Reminder {r.id}{every}: {r.text}"]))
     return out
+
+
+def items_between(store: Store, inst: Instance, days: int) -> str:
+    """The letters, notices and requests that reached the client in the last `days` days and that
+    the instance's connections let it read, newest last (at most `MOST_ITEMS`)."""
+    got = [x for x in items(store, inst, ("msg0", "n0", "rq0"), store.day - days + 1) if not x.own][-MOST_ITEMS:]
+    return "\n".join(line for x in got for line in x.lines) or "(none)"
 
 
 def morning(store: Store, inst: Instance) -> tuple[str, list[str]]:
@@ -275,7 +286,7 @@ def morning(store: Store, inst: Instance) -> tuple[str, list[str]]:
         lines.append(f"({left_out} earlier items are in the letters record.)")
     notes = "\n".join(_set_off(inst.notes)) if inst.notes.strip() else "  (none)"
     files = [f"{f.name}, {len(f.text.split())} words, written {date_text(f.day)}"
-             for f in sorted(store.where("files", instance=inst.id), key=lambda f: id_key(f.id))] or ["(none)"]
+             for f in sorted(store.where("files", instance=inst.id), key=lambda f: id_key(f.id)) if f.text] or ["(none)"]
     rems = []
     for r in sorted(store.where("reminders", instance=inst.id), key=lambda r: id_key(r.id)):
         if r.status != "set":
