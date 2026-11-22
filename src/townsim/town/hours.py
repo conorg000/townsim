@@ -9,7 +9,7 @@ from __future__ import annotations
 from townsim.town import jobs
 from townsim.town.clock import dow
 from townsim.town.entities import Work
-from townsim.town.store import Store
+from townsim.town.store import Store, id_key
 
 WEEK_HOURS = 70.0
 WORK_HOURS = {"household paperwork": 1.5, "ordering": 4.0, "the books": 3.0, "rota and pay": 2.0}
@@ -124,21 +124,15 @@ def _cause_op(cause: str) -> str:
     return parts[2] if len(parts) >= 4 and parts[0] == "op" else ""
 
 
-def used(store: Store, pid: str) -> str:
-    """What used `pid`'s own time this week, read from the change log: their illness; or the
-    largest three of the extra hours they worked or accepted, the talks they had, the letters
-    they wrote and their other acts, each with its hours; or that their work takes the week."""
-    from townsim.town.clock import DAYS, date_text
-    p = store.get("people", pid)
-    if p.ill_until >= store.day:
-        return f"you are ill until {date_text(p.ill_until)}"
-    monday = store.day - dow(store.day)
+def _spent(store: Store, changes: list, pid: str, monday: int) -> dict[str, list]:
+    """What took `pid`'s own hours in `changes` from `monday`, newest first: what -> [hours, count]."""
+    from townsim.town.clock import DAYS
     spent: dict[str, list] = {}            # what -> [hours, count]; in the order first met
     items = {r.id: store.get("work", r.work).what for r in store.all("returned")
              if r.monday == monday and r.by == pid and store.has("work", r.work)}
-    item_of = {c.cause: items[c.id] for c in store.changes if c.table == "returned" and c.field == "+"
+    item_of = {c.cause: items[c.id] for c in changes if c.table == "returned" and c.field == "+"
                and c.id in items}
-    for c in reversed(store.changes):
+    for c in reversed(changes):
         if c.day < monday:
             break
         if c.table != "people" or c.id != pid or c.field != "hours_left" or not isinstance(c.old, (int, float)) \
@@ -148,7 +142,7 @@ def used(store: Store, pid: str) -> str:
         gone = round(c.old - c.new, 2)
         op = _cause_op(c.cause)
         if c.cause in item_of:
-            key = f"the week's {item_of[c.cause]}"
+            key = f"the week's {item_of[c.cause].removeprefix('the ')}"
         elif op == "work_extra_hours":
             shop = next((o.name for o in store.all("orgs") if o.owner == pid and store.where("firms", org=o.id)), "")
             key = f"extra hours worked at {shop} on {DAYS[dow(c.day)]}" if shop else f"extra hours worked on {DAYS[dow(c.day)]}"
@@ -163,6 +157,42 @@ def used(store: Store, pid: str) -> str:
         got = spent.setdefault(key, [0.0, 0])
         got[0] += gone
         got[1] += 1
+    return spent
+
+
+def note_spent(store: Store, changes: list) -> None:
+    """With lane B, at the end of the day: keep what took each person's own hours today (from the day's changes,
+    which a day run from its morning always holds), so that what used the week's hours is a record."""
+    from townsim.town.entities import Spent
+    today = [c for c in changes if c.day == store.day]
+    people = sorted({c.id for c in today if c.table == "people" and c.field == "hours_left"}, key=id_key)
+    cause = "routine:spent"
+    for pid in people:
+        for what, (h, n) in _spent(store, today, pid, store.day - dow(store.day)).items():
+            store.add("spent", Spent(store.new_id("ht", cause), pid, store.day, what, round(h, 2), n), cause)
+
+
+def used(store: Store, pid: str) -> str:
+    """What used `pid`'s own time this week: their illness; or the largest three of the extra hours they worked or
+    accepted, the talks they had, the letters they wrote and their other acts, each with its hours; or that their
+    work takes the week. Without lane B it is read from the change log; with lane B from the kept record of earlier
+    days this week (`note_spent`, so it survives a snapshot) and today's changes, which a day always holds."""
+    from townsim.town.clock import date_text
+    p = store.get("people", pid)
+    if p.ill_until >= store.day:
+        return f"you are ill until {date_text(p.ill_until)}"
+    monday = store.day - dow(store.day)
+    from townsim.town import lane_b
+    if lane_b.installed(store):
+        today = [c for c in store.changes if c.day == store.day]
+        spent = _spent(store, today, pid, monday)
+        for r in sorted((r for r in store.all("spent") if r.person == pid and monday <= r.day < store.day),
+                        key=lambda r: (-r.day, id_key(r.id))):
+            got = spent.setdefault(r.what, [0.0, 0])
+            got[0] += r.hours
+            got[1] += r.n
+    else:
+        spent = _spent(store, store.changes, pid, monday)
     if not spent:
         if p.hours_week <= 0:
             return f"your work takes all {WEEK_HOURS:g} hours of the week"
@@ -189,7 +219,7 @@ def no_time(store: Store, pid: str, needed: float, work: str = "") -> str:
     back = f" It returns on {date_text(returns_on(store, pid))}."
     if left <= 0:
         return f"you have no time of your own left this week ({used(store, pid)}).{back}"
-    takes = f"this, with the week's {work}, takes" if work else "this takes"
+    takes = f"this, with the week's {work.removeprefix('the ')}, takes" if work else "this takes"
     return (f"you have {round(left, 2):g} hours of your own left this week, and {takes} {length(needed)} "
             f"({used(store, pid)}).{back}")
 

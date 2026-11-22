@@ -113,6 +113,9 @@ def close(store: Store, since: int | None = None) -> None:
     if since is not None:
         from townsim.town import hearing
         hearing.note_day(store, store.changes[since:])
+        from townsim.town import hours, lane_b
+        if lane_b.installed(store):
+            hours.note_spent(store, store.changes[since:])
     store.advance_day()
 
 

@@ -26,7 +26,7 @@ TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "re
           "aims", "talks", "lines", "appointments", "instances", "connections", "commits", "files", "reminders",
           "products", "subscriptions", "told", "ventures", "members", "rules", "bases", "tasks", "facts", "settings",
           "pages", "desks", "answers", "holds", "discounts", "spending", "controls", "runlogs", "returned", "plans", "asks",
-          "duties", "traits", "workrules", "heard")
+          "duties", "traits", "workrules", "heard", "spent")
 
 # Fields looked up often enough to be indexed, each a sorted tuple of field names.
 INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
