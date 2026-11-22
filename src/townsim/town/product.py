@@ -325,6 +325,10 @@ def business_page(store: Store, org) -> str | None:
         if pr is not None and pr.org == org.id:
             return page(store, pr.id) + "\n\n" + terms(store)
         return f"{org.name}, a small software firm in {store.place} that writes software for businesses."
+    from townsim.town import ventures
+    founded = ventures.page(store, org)
+    if founded is not None:
+        return founded
     rows = store.where("firms", org=org.id)
     if rows and org.owner:
         return (f"{org.name}, a food shop run by {store.get('people', org.owner).name}. A basket of food: "

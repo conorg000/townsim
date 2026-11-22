@@ -22,7 +22,7 @@ from townsim.town.systems import OWN, SYSTEM_OF, can_grant, client_of, long_name
 NO_CONNECTION = "you have no connection that allows you to act for them."
 NOT_FOR_A_CLIENT = "that is not something done for a client."
 SCOPES = ("read", "limit", "free")
-MOVES_NO_MONEY = ("letters", "prices")     # systems connected read only or free, never with a weekly limit
+MOVES_NO_MONEY = ("letters", "prices", "members")     # systems connected read only or free, never with a weekly limit
 
 
 def no_limit_here(store: Store, system_id: str) -> str | None:
@@ -70,6 +70,8 @@ def _answer(store: Store, act: Act) -> int:
         return rq.pay if rq.payer == account_of(store, act.principal) else 0
     if rq.kind == "loan":                   # the bank's money, lent
         return rq.pay
+    if rq.kind == "join":                   # a member's weekly fee
+        return rq.pay
     return 0
 
 
@@ -110,7 +112,13 @@ COMMITMENT: dict[str, Callable[[Store, Act], int]] = {
     "pay": _amount, "repay": _amount, "move_money": _amount, "standing_payment": _amount,
     "propose_agreement": _agreement, "answer": _answer, "order_stock": _order, "offer_job": _offer_job,
     "offer_shifts": _shifts, "set_staff_pay": _staff_pay, "borrow": _borrow,
+    "register_business": lambda store, act: _registration(),
 }
+
+
+def _registration() -> int:
+    from townsim.town import ventures
+    return ventures.REGISTRATION_CENTS
 
 
 def commitment(store: Store, act: Act) -> int:
@@ -133,16 +141,32 @@ def _account_name(store: Store, system_id: str) -> str:
     return f"{store.get('orgs', owner).name}'s account"
 
 
+def pooled(store: Store, system_id: str) -> list[str]:
+    """The systems whose acts count toward one weekly limit with `system_id`: a client's system of
+    a kind and the same kind of system of every venture founded for that client (amendment 2: what
+    is paid out of a venture's account counts toward the client's own limit)."""
+    from townsim.town.systems import client_of, ventures_of
+    if not store.all("ventures"):
+        return [system_id]
+    kind = system_id.split(":", 1)[0]
+    if kind == "loans":
+        return [system_id]
+    client = client_of(store, system_id)
+    return list(dict.fromkeys([f"{kind}:{client}"] + [f"{kind}:{v.org}" for v in ventures_of(store, client)]))
+
+
 def used(store: Store, cn: Connection, day: int) -> int:
     """What has been taken or committed this week (Monday to `day`) under the instance's
-    connections to this system: every commit made this week; every instalment falling this
-    week of what the instance set up that is paid from the system's accounts (made before this
-    week, or an agreement or loan, which comes into being when someone else accepts it); and
-    the first instalment of every open agreement it proposed before this week, paid from them."""
+    connections to this system and to the systems pooled with it (`pooled`): every commit made
+    this week; every instalment falling this week of what the instance set up that is paid from
+    those systems' accounts (made before this week, or an agreement or loan, which comes into being
+    when someone else accepts it); and the first instalment of every open agreement it proposed
+    before this week, paid from them."""
     monday = day - day % 7
-    same = {c.id for c in store.where("connections", instance=cn.instance) if c.system == cn.system}
+    pool = set(pooled(store, cn.system))
+    same = {c.id for c in store.where("connections", instance=cn.instance) if c.system in pool}
     total = sum(m.cents for c in same for m in store.where("commits", connection=c) if monday <= m.day <= day)
-    accounts = _accounts(store, cn.system)
+    accounts = set().union(*(_accounts(store, p) for p in pool))
     for ob in store.all("obligations"):
         if ob.made_by != cn.instance or ob.payer not in accounts or ob.status not in obligations.SCHEDULED:
             continue

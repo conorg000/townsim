@@ -521,3 +521,36 @@ class Subscription:
     instance: str
     status: str = "active"
     ended_on: int = -1
+
+
+@dataclass
+class Venture:
+    """A service, club or shop founded on day `day` by `founder` for `client` (the household or
+    business whose instance founded it, or the founder's household), done by `by` (a person or an
+    instance). `org` is its own organisation, with its own account; `fee_cents` is what members who
+    join from now pay a week. `status` is active or closed."""
+
+    id: str
+    org: str
+    client: str
+    founder: str
+    kind: str
+    offering: str
+    fee_cents: int
+    day: int
+    by: str
+    status: str = "active"
+
+
+@dataclass
+class Member:
+    """`account` (a household or a business), joined to `venture` on `since` by `person`'s accepting;
+    `fee_ob` is its fee obligation ("" for no fee). `status` is active or left."""
+
+    id: str
+    venture: str
+    account: str
+    person: str
+    since: int
+    fee_ob: str
+    status: str = "active"

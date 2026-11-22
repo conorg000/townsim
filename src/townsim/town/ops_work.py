@@ -566,7 +566,14 @@ def _price(value: Any) -> int | None:
     return cents if cents is not None and MIN_PRICE <= cents <= MAX_PRICE else None
 
 
+def _for_venture(act: Act) -> bool:
+    return act.args.get("for") not in (None, "")
+
+
 def _check_price(store: Store, act: Act) -> str | None:
+    if _for_venture(act):
+        from townsim.town import ventures
+        return ventures.check_fee(store, act)
     fid, why = _own_shop(store, act)
     if fid is None:
         return why
@@ -577,6 +584,9 @@ def _check_price(store: Store, act: Act) -> str | None:
 
 
 def _do_price(store: Store, act: Act, cause: str) -> str:
+    if _for_venture(act):
+        from townsim.town import ventures
+        return ventures.do_fee(store, act, cause)
     fid, _ = _own_shop(store, act)
     cents = _price(act.args.get("price"))
     store.set("firms", fid, cause, price=cents)
@@ -720,7 +730,7 @@ for _spec in (
     OpSpec("set_staff_pay", '{"op": "set_staff_pay", "who": "<name>", "weekly_pay": <dollars>}',
            "Change the weekly pay of someone at your business, or your own.", 0.1, _check_staff_pay,
            _do_staff_pay, 120, who="owner"),
-    OpSpec("set_price", '{"op": "set_price", "price": <dollars>}',
+    OpSpec("set_price", '{"op": "set_price", "price": <dollars>' + "<for one of your services or clubs>" + '}',
            "Change your shop's price.", 0.1, _check_price, _do_price, 130, who="owner"),
     OpSpec("order_stock", '{"op": "order_stock", ' + _SUPPLIER_PART + ', "baskets": <baskets a week; 0 to end the order>}',
            "Order stock for Monday.", 0.5, _check_order, _do_order, 140, who="owner"),

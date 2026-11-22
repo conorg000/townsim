@@ -16,10 +16,13 @@ from townsim.town import acts
 from townsim.town.acts import Act, account_of, controls, from_account, has_savings, is_savings
 from townsim.town.store import Store
 
-KINDS = ("account", "letters", "ordering", "prices", "staff", "lets", "loans")
+KINDS = ("account", "letters", "ordering", "prices", "staff", "lets", "loans", "members")
 # what each kind of system is called as an integration of the product (the seat's words for it)
 INTEGRATION = {"account": "Bank", "letters": "Email", "ordering": "Ordering", "prices": "Point of sale",
-               "staff": "Payroll", "lets": "Lettings", "loans": "Loan book"}
+               "staff": "Payroll", "lets": "Lettings", "loans": "Loan book", "members": "Members"}
+# the systems of a venture, by its kind, listed under its client (`systems_of_client`)
+VENTURE_KINDS = {"service": ("account", "letters", "members"), "club": ("account", "letters", "members"),
+                 "shop": ("account", "letters", "ordering", "prices", "staff")}
 ADULT = 18
 
 
@@ -56,6 +59,16 @@ def _letter(store: Store, household: str) -> str:
     return store.get("people", who).name if who else f"the {store.get('households', household).name}"
 
 
+def venture_of(store: Store, org: str):
+    """The venture whose organisation `org` is, or None."""
+    return next((v for v in store.all("ventures") if v.org == org), None)
+
+
+def ventures_of(store: Store, client: str) -> list:
+    """The client's ventures, in id order (every status)."""
+    return [v for v in store.all("ventures") if v.client == client] if store.all("ventures") else []
+
+
 def system(store: Store, system_id: str) -> System | None:
     """The system `system_id` names, if it is one the store has."""
     if not isinstance(system_id, str) or ":" not in system_id:
@@ -80,6 +93,11 @@ def system(store: Store, system_id: str) -> System | None:
         org = store.get("orgs", owner)
         if org.outside or not org.owner:
             return None
+        if kind == "members":
+            v = venture_of(store, owner)
+            if v is None or v.kind not in ("service", "club"):
+                return None
+            return System(system_id, kind, owner, f"{org.name} members", f"the members of {org.name}")
         shop = bool(store.where("firms", org=owner))
         texts = {"account": (f"{org.name} account", f"{org.name}'s account"),
                  "letters": (f"{org.name} letters", f"letters to {org.name}"),
@@ -93,20 +111,28 @@ def system(store: Store, system_id: str) -> System | None:
 
 
 def systems_of_client(store: Store, client: str) -> list[System]:
-    """A household's or a business's systems, in `KINDS` order."""
-    found = [system(store, f"{kind}:{client}") for kind in KINDS if kind != "loans"]
+    """A household's or a business's systems, in `KINDS` order; then, for each of its active
+    ventures, the venture's own (`VENTURE_KINDS`). A venture is no client: it has none of its own."""
+    if venture_of(store, client) is not None:
+        return []
+    found = [system(store, f"{kind}:{client}") for kind in KINDS if kind not in ("loans", "members")]
     if store.has("households", client):
         bank = _bank(store, client)
         found.append(system(store, f"loans:{bank.id}") if bank else None)
+    for v in ventures_of(store, client):
+        if v.status == "active":
+            found += [system(store, f"{kind}:{v.org}") for kind in VENTURE_KINDS.get(v.kind, ())]
     return [s for s in found if s is not None]
 
 
 def client_of(store: Store, system_id: str) -> str:
-    """The household or business whose system it is: for the loan book, the banker's household."""
+    """The household or business whose system it is: for the loan book, the banker's household;
+    for a venture's, the client it was founded for."""
     kind, owner = system_id.split(":", 1)
     if kind == "loans":
         return store.get("people", store.get("orgs", owner).contact).household
-    return owner
+    v = venture_of(store, owner)
+    return v.client if v is not None else owner
 
 
 def long_name(store: Store, system_id: str) -> str:
@@ -131,7 +157,8 @@ def can_grant(store: Store, pid: str, system_id: str) -> bool:
 def grantable(store: Store, pid: str) -> list[System]:
     """Every system `pid` can connect: their household's, then each business they own."""
     clients = [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid and not o.outside]
-    return [s for c in clients for s in systems_of_client(store, c) if can_grant(store, pid, s.id)]
+    found = [s for c in clients for s in systems_of_client(store, c) if can_grant(store, pid, s.id)]
+    return list({s.id: s for s in found}.values())
 
 
 def system_named(store: Store, pid: str, short: Any) -> System | None:
@@ -229,15 +256,38 @@ def _answer(store: Store, act: Act) -> str | None:
         if store.has("orgs", rq.payee) and store.get("orgs", rq.payee).contact == act.principal:
             return f"loans:{rq.payee}"
         return account_system(rq.payer)
+    if rq.kind == "join":                  # the joining account pays the fee
+        return account_system(rq.payer)
     return None                        # job, shifts, connect: the client's own
 
 
 def _business(kind: str) -> Callable[[Store, Act], str | None]:
+    """The first organisation by id the principal owns that has a system of `kind`; or, when none
+    has, the first they own (whose operations' own checks then say what it is not)."""
     def of(store: Store, act: Act) -> str | None:
         owned = [o for o in store.all("orgs") if o.owner == act.principal and not o.outside]
-        return f"{kind}:{owned[0].id}" if owned else None
+        having = [o for o in owned if system(store, f"{kind}:{o.id}") is not None]
+        return f"{kind}:{(having or owned)[0].id}" if owned else None
     of.__name__ = of.__qualname__ = f"_{kind}_of"
     return of
+
+
+def _venture_named(store: Store, act: Act, key: str) -> str | None:
+    """The members system of the service or club of the principal's that `key` names, or None."""
+    from townsim.town import ventures
+    v = ventures.named(store, act.principal, act.args.get(key) if isinstance(act.args, dict) else None)
+    return f"members:{v.org}" if v is not None else None
+
+
+def _invite(store: Store, act: Act) -> str | None:
+    return _venture_named(store, act, "of")
+
+
+def _set_price(store: Store, act: Act) -> str | None:
+    """A shop's prices; or, with `for`, the members of the service or club it names."""
+    if isinstance(act.args, dict) and act.args.get("for") not in (None, ""):
+        return _venture_named(store, act, "for")
+    return _business("prices")(store, act)
 
 
 def _lets_of(store: Store, act: Act) -> str | None:
@@ -248,7 +298,8 @@ SYSTEM_OF: dict[str, Callable[[Store, Act], str | None]] = {
     "pay": _drawn, "standing_payment": _drawn, "stop": _stop, "request": _request,
     "propose_agreement": _drawn, "propose_end": _propose_end, "borrow": _drawn, "repay": _repay,
     "move_money": _move, "read": _drawn, "answer": _answer,
-    "order_stock": _business("ordering"), "set_price": _business("prices"),
+    "order_stock": _business("ordering"), "set_price": _set_price,
+    "register_business": _drawn, "invite_member": _invite,
     "offer_job": _business("staff"), "offer_shifts": _business("staff"), "dismiss": _business("staff"),
     "set_staff_pay": _business("staff"),
     "set_rent": _lets_of, "serve_notice": _lets_of,

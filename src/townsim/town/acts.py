@@ -67,6 +67,15 @@ class OpSpec:
 
 REGISTRY: dict[str, OpSpec] = {}
 
+# Operations that only some places have (lane B's): each name, and what says whether a store has it.
+# One a store does not have is shown to no one and is no operation there.
+GATES: dict[str, Callable[[Store], bool]] = {}
+
+
+def available(store: Store, name: str) -> bool:
+    gate = GATES.get(name)
+    return gate is None or bool(gate(store))
+
 
 def _same(a: OpSpec, b: OpSpec) -> bool:
     """The same spec, even from a reloaded module: same text and same named functions."""
@@ -122,6 +131,8 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     `op:<actor>/<principal>:...` for an act done for someone else; for an act naming no
     operation, the tag has `?` in place of the operation's name. Hours are the actor's."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
+    if spec is not None and not available(store, spec.name):
+        spec = None
     person = isinstance(act.actor, str) and store.has("people", act.actor)
     held = _positions_or_none(store, act.actor if person else act.principal)
     outside = spec is not None and spec.who != "all" and spec.who not in held
@@ -510,7 +521,7 @@ def forms(store: Store, actor: str) -> list[str]:
     drawn = [n for n in names if n != SAVINGS]
     shown_forms = []
     for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name)):
-        if spec.who not in held:
+        if spec.who not in held or not available(store, spec.name):
             continue
         form = spec.form.replace(YOUR_ACCOUNTS, _alternatives(names))
         for holder, fill in FILLED.items():

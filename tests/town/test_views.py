@@ -992,10 +992,10 @@ def test_the_last_guard_holds_the_character_ceiling_and_keeps_counted_lines():
 # An operation not in either set fails the tripwire below: classify it, and if it names an id,
 # add a sample of it here.
 GIVES_AN_ID = {"standing_payment", "request", "offer_job", "offer_shifts", "propose_agreement", "propose_end",
-               "borrow", "converse", "book_appointment", "subscribe"}
+               "borrow", "converse", "book_appointment", "subscribe", "invite_member"}
 NAMES_NO_ID = {"pay", "stop", "message", "answer", "read", "write_notes",   # a letter's id is shown to no one
                "dismiss", "move_money", "order_stock", "quit", "set_price", "set_staff_pay", "work_extra_hours",
-               "repay", "set_rent", "serve_notice", "connect", "disconnect", "read_page"}
+               "repay", "set_rent", "serve_notice", "connect", "disconnect", "read_page", "register_business"}
 
 
 def test_every_confirmation_carries_its_id_within_twelve_words():
@@ -1037,6 +1037,13 @@ def test_every_confirmation_carries_its_id_within_twelve_words():
     product.launch(g)
     out = apply_act(g, Act(owner, owner, "subscribe", {"to": product.launched(g).name}), 9)
     made["subscribe"] = (out, g.all("subscriptions")[-1].id)
+    from townsim.town import lane_b
+    lane_b.install(g)
+    out = apply_act(g, Act(owner, owner, "register_business", {"name": "Ridge Walkers", "kind": "club",
+                                                               "offering": "walks", "weekly_fee": 0}), 10)
+    assert out.ok, out.msg
+    out = apply_act(g, Act(owner, owner, "invite_member", {"of": "Ridge Walkers", "to": g.get("people", idle).name}), 11)
+    made["invite_member"] = (out, g.all("requests")[-1].id)
     assert set(made) == GIVES_AN_ID & set(REGISTRY)
     for op, (out, new) in made.items():
         assert out.ok, (op, out.msg)

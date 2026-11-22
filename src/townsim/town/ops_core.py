@@ -812,3 +812,8 @@ ANSWERERS.update(getattr(_connections, "ANSWERERS_OF_CONNECTIONS", {}))
 from townsim.town import product as _product  # noqa: E402
 
 STOPPABLE.update(getattr(_product, "STOPPABLE_OF_PRODUCT", {}))
+
+# and the services and clubs people found, with the requests to join them, from `ventures`
+from townsim.town import ventures as _ventures  # noqa: E402
+
+ANSWERERS.update(getattr(_ventures, "ANSWERERS_OF_VENTURES", {}))

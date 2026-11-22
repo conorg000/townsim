@@ -38,6 +38,7 @@ KIND_OF: dict[str, tuple[str, ...]] = {
     "order_stock": ("ordering",), "set_price": ("prices",),
     "offer_job": ("staff",), "offer_shifts": ("staff",), "dismiss": ("staff",), "set_staff_pay": ("staff",),
     "set_rent": ("lets",), "serve_notice": ("lets",),
+    "register_business": ("account",), "invite_member": ("members",),
 }
 NOTES_WORDS, FILES, FILE_WORDS, REMIND_WORDS, NAME_CHARS = 600, 20, 1000, 40, 60
 READ_ITEMS = 40
@@ -318,6 +319,7 @@ INTEGRATION_TOOLS: tuple[OpTool, ...] = (
 )
 OP_TOOLS = {t.name: t for t in INTEGRATION_TOOLS}
 TOOL_OF_OP = {t.op: t.name for t in INTEGRATION_TOOLS}
+TOOL_OF_OP.update({"register_business": "business_register", "invite_member": "members_invite"})  # own tools
 
 
 def _op_function(store: Store, inst: Instance, t: OpTool) -> dict:

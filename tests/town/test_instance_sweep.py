@@ -6,7 +6,7 @@ import pickle
 import random
 
 from town.helpers import generated
-from townsim.town import hamlet_script, ops_core  # noqa: F401  (registers the operations)
+from townsim.town import hamlet_script, lane_b, ops_core  # noqa: F401  (registers the operations)
 from townsim.town.acts import Act, actor_name, apply_act
 from townsim.town.connections import commitment, used
 from townsim.town.entities import Connection, Instance, Request
@@ -72,13 +72,15 @@ def _args(s, client: str, principal: str) -> dict[str, list[dict]]:
         "read": [{"what": w, **src} for w in ("account", "account in full", "agreements")],
         "answer": [{"request": r, "answer": a} for r in rqs for a in ("decline", "accept")],
         "order_stock": [{"supplier": "Netherby Falls Wholesale", "baskets": 3}],
-        "set_price": [{"price": 9.5}],
+        "set_price": [{"price": 9.5}, {"for": f"Club {client}", "price": 3}],
         "offer_job": [{"to": "Lisa Marsh", "weekly_pay": 300, "hours": 20}],
         "offer_shifts": [{"to": staff, "hours": 2}],
         "dismiss": [{"who": staff}],
         "set_staff_pay": [{"who": staff, "weekly_pay": 400}],
         "set_rent": [{"tenant": tenant, "weekly": 200}],
         "serve_notice": [{"tenant": tenant}],
+        "register_business": [{"name": f"Club {client}", "kind": "club", "offering": "walks", "weekly_fee": 2, **src}],
+        "invite_member": [{"of": f"Club {client}", "to": "Jessica Whitaker"}, {"of": f"Club {client}", "to": "Lisa Marsh"}],
     }
 
 
@@ -91,6 +93,7 @@ def _requests_to(s, principal: str) -> None:
 
 def test_every_connectable_operation_by_an_instance_raises_no_engine_error():
     s = week()
+    lane_b.install(s, CAUSE)
     made = _instances(s)
     done, n = 0, 0
     for client, principal in CLIENTS:
@@ -113,6 +116,7 @@ def test_no_act_is_carried_out_beyond_what_was_connected():
     what is committed this week never passes the limit."""
     rng = random.Random("sweep:scopes")
     s = week()
+    lane_b.install(s, CAUSE)
     scopes = {}
 
     def scope_of(system):
@@ -136,7 +140,9 @@ def test_no_act_is_carried_out_beyond_what_was_connected():
                     args = {**args, "amount": rng.choice((1, 20, 90, 400))}
                 act = Act(made[client], principal, op, args)
                 system = SYSTEM_OF[op](s, act)
-                scope = scopes.get(system, "none")
+                now = next((c for c in s.all("connections") if c.instance == made[client] and c.system == system
+                            and c.status == "active"), None)       # a venture's, connected when it was founded
+                scope = scopes.get(system, now.scope if now is not None else "none")
                 cents = commitment(s, act)
                 before, mark = s.hash(), s.mark()
                 n += 1
