@@ -671,6 +671,9 @@ def _check_answer(store: Store, act: Act) -> str | None:
     rq = _open_request(store, act)
     if rq is None:
         return f"you have no open request with the id '{shown(act.args.get('request'))}'."
+    if rq.kind == "act":                    # asking to do one thing (lane B): once, always or no
+        from townsim.town import once
+        return "the note is too long." if _too_long(_note(act.args.get("note"))) else once.check(store, act, rq)
     answer = _answer(act)
     if answer is None:
         return f"'{shown(act.args.get('answer'))}' is not an answer to a request."
@@ -716,6 +719,9 @@ def _request_accounts(store: Store, rq: Request) -> tuple[str, str]:
 
 def _do_answer(store: Store, act: Act, cause: str) -> str:
     rq = _open_request(store, act)
+    if rq.kind == "act":
+        from townsim.town import once
+        return once.do(store, act, rq, cause, _note(act.args.get("note")))
     accepted = _answer(act) == "accept"
     store.set("requests", rq.id, cause, status="accepted" if accepted else "declined", closed_on=store.day,
               closed_by=act.actor)

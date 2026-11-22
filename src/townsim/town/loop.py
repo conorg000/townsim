@@ -270,17 +270,19 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
             n += 1
         views.mark_seen(store, pid, ids, f"routine:seen:{pid}")
         turns.append(Turn(pid, key, False, outcomes))
-    held = []
+    held, called = [], []
     for ref in talk.todays(store):
         h = talk.hold(store, replier, keys, ref, n)
         n = h.n
         turns += h.turns
+        called += h.seat
         if h.talk:
             held.append(TalkHeld(h.talk, [t.key for t in h.turns]))
     from townsim.town import seat              # the seat reads the operations' modules, which read this one
     seated, n = seat.run_seat(store, replier, keys, n)
     for st in seated:
         turns += st.talk_turns
+    seated = called + seated                   # a call's turns came with its talk
     from townsim.town import rules, tasks
     tasks.narrate_day(store, replier, keys)
     n = rules.run_rules(store, n)

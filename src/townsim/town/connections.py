@@ -160,6 +160,19 @@ def pooled(store: Store, system_id: str) -> list[str]:
     return list(dict.fromkeys([f"{kind}:{client}"] + [f"{kind}:{v.org}" for v in ventures_of(store, client)]))
 
 
+# an act a client answered "once" to (lane B, `once`): carried out while it is on this stack, by identity
+ONCE: list[Act] = []
+
+
+def once_key(instance: str, system_id: str) -> str:
+    """What a `Commit` of an act done once names in place of a connection."""
+    return f"once:{instance}:{system_id}"
+
+
+def _doing_once(act: Act) -> bool:
+    return bool(ONCE) and ONCE[-1] is act
+
+
 def used(store: Store, cn: Connection, day: int) -> int:
     """What has been taken or committed this week (Monday to `day`) under the instance's
     connections to this system and to the systems pooled with it (`pooled`): every commit made
@@ -170,6 +183,7 @@ def used(store: Store, cn: Connection, day: int) -> int:
     monday = day - day % 7
     pool = set(pooled(store, cn.system))
     same = {c.id for c in store.where("connections", instance=cn.instance) if c.system in pool}
+    same |= {once_key(cn.instance, p) for p in pool}             # acts done once count toward it too
     total = sum(m.cents for c in same for m in store.where("commits", connection=c) if monday <= m.day <= day)
     accounts = set().union(*(_accounts(store, p) for p in pool))
     for ob in store.all("obligations"):
@@ -236,7 +250,32 @@ def authorise(store: Store, act: Act) -> str | None:
     system_id = SYSTEM_OF[op](store, act)
     if system_id is None or system(store, system_id) is None:
         return NOT_FOR_A_CLIENT
+    if _doing_once(act):
+        return _once_check(store, inst, system_id, act.principal, lambda: commitment(store, act))
     return _scope_check(store, inst, system_id, act.principal, lambda: commitment(store, act), op == "read")
+
+
+def _once_check(store: Store, inst: Instance, system_id: str, principal: str, cents: Callable[[], int]) -> str | None:
+    """Why an act its client answered "once" to is refused now, or None: the system is the client's and theirs to
+    connect; the company's controls apply as to any act; and a weekly limit, the connection's when the system is
+    connected with one and the company's when it sets one, counts it with everything else taken this week."""
+    name = long_name(store, system_id)
+    if client_of(store, system_id) != inst.client or not can_grant(store, principal, system_id):
+        return f"{name} is not one of the client's to connect."
+    cn = connection_on(store, inst.id, system_id)
+    base = cn if cn is not None and cn.scope == "limit" else Connection("", inst.id, system_id, principal, "free", 0,
+                                                                         store.day)
+    from townsim.town import controls
+    scope, limit = controls.narrowed(store, base.scope, base.weekly_cents)
+    if scope == "read":
+        return controls.read_only_sentence(store)
+    if scope == "limit":
+        taken, so_far = cents(), used(store, base, store.day)
+        if taken > 0 and so_far + taken > limit:
+            return (f"that would take {money(taken)} out of {_account_name(store, system_id)} this week; with "
+                    f"{money(so_far)} already taken or committed this week, that is more than the weekly limit of "
+                    f"{money(limit)}.")
+    return None
 
 
 def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, cents: Callable[[], int],
@@ -288,6 +327,7 @@ def on_behalf(store: Store, act: Act) -> Callable[[str], None]:
     op = act.op.strip().lower()
     system_id = SYSTEM_OF[op](store, act)
     cn = connection_on(store, act.actor, system_id)
+    key = once_key(act.actor, system_id) if _doing_once(act) else (cn.id if cn is not None else "")
 
     about = ""
     if op == "set_staff_pay":
@@ -297,7 +337,7 @@ def on_behalf(store: Store, act: Act) -> Callable[[str], None]:
 
     def after(cause: str) -> None:
         if cents > 0:
-            store.add("commits", Commit(store.new_id("cm", cause), cn.id, store.day, cents, op, cause, about), cause)
+            store.add("commits", Commit(store.new_id("cm", cause), key, store.day, cents, op, cause, about), cause)
     return after
 
 

@@ -1,10 +1,11 @@
 """The harness: every freedom of the seat carried out end to end, with scripted people, seat, narrator and desks,
-and the world changed as each tool said. No model is called."""
+and the world changed as each tool said; and a client who calls their own assistant, whose run asks to do one thing,
+answered once. No model is called."""
 
 import json
 
 from town.test_b_runs import _b_parent
-from townsim.town import connections, loop, ops_core, outside_script, product, web
+from townsim.town import connections, loop, ops_core, outside_script, plans, product, talk, web
 from townsim.town.acts import Act, apply_act
 from townsim.town.replies import Keys, ScriptedReplier
 from townsim.town.rundb import RunDB
@@ -43,7 +44,17 @@ def _plan(day: int) -> list[dict]:
     return []
 
 
+PAY_ONCE = {"integration": "Bank", "access": "limit", "weekly_limit": 50, "action": "bank_make_payment",
+            "arguments": {"to": "Eric Reyes", "amount": 5, "memo": "garden twine"},
+            "note": "For the twine Eric left on the step."}
+
+
 def _seat(key, messages, tools):
+    if key.actor == "as2" and key.ref:          # a call from the Carters: it asks to pay once, and says so
+        step = sum(1 for m in messages if m.get("role") == "tool")
+        return [{"name": "request_access", "arguments": PAY_ONCE},
+                {"name": "phone_call", "arguments": {"to": "Jennifer Carter", "say": "I have sent you the request."}},
+                "Done for now."][min(step, 2)]
     plan = _plan(key.day) if key.actor == "as1" else []
     step = sum(1 for m in messages if m.get("role") == "tool")
     return plan[step] if step < len(plan) else "Done for today."
@@ -64,13 +75,21 @@ def test_every_freedom_carried_out_end_to_end(tmp_path):
 
     def people(key, messages):            # everyone accepts what is asked of them by the shop's assistant
         st = box["s"]
+        if key.actor == "p1" and key.purpose == "talk":
+            return json.dumps({"say": "Thank you, I will look.", "acts": [], "end": False})
         if outside_script.is_outside(key.actor) or key.purpose != "turn":
             return outside_script.reply(key, messages)
+        if key.actor == "p1" and "called" not in box:          # Jennifer Carter calls her assistant, on the free plan
+            box["called"] = key.day
+            return json.dumps({"thoughts": "", "aims": [], "acts": [
+                {"op": "converse", "with": "my assistant", "opening": "Can you pay Eric for the twine?"}]})
         mine = [r for r in st.where("requests", status="open") if r.to == key.actor and r.kind in ("join", "connect")]
-        if not mine:
+        once = [r for r in st.where("requests", status="open") if r.to == key.actor and r.kind == "act"]
+        if not mine and not once:
             return outside_script.reply(key, messages)
         return json.dumps({"thoughts": "", "aims": [], "acts": [{"op": "answer", "request": r.id, "answer": "accept"}
-                                                                 for r in mine]})
+                                                                 for r in mine]
+                           + [{"op": "answer", "request": r.id, "answer": "once"} for r in once]})
     replier, keys = ScriptedReplier(people, _seat), Keys("h")
     turns = []
     for _ in range(15):
@@ -109,4 +128,13 @@ def test_every_freedom_carried_out_end_to_end(tmp_path):
     assert any(c.table == "firms" and c.field == "price" and c.new == 1050 and c.cause.startswith("op:as1/")
                for c in s.changes)
     FREEDOMS.append("point of sale asked for at full access, accepted, and a price set")
+    call = next(t for t in s.all("talks") if t.a == "p1" and t.b == "as2")          # a call to one's own assistant
+    assert call.status == "held" and [x.speaker for x in talk.lines_of(s, call.id)][:2] == ["p1", "as2"]
+    FREEDOMS.append("Jennifer Carter called her assistant the same day; its side was a run of its own")
+    [ak] = s.all("asks")                                                             # one thing done once
+    assert ak.answer == "once" and ak.done and ak.instance == "as2"
+    paid = [x for x in s.ledger.transfers if x.src == "h1" and x.dst == "h4" and x.cents == 500]
+    assert len(paid) == 1 and connections.active(s, "as2") == []
+    assert plans.is_free(s, product.subscription_of(s, "h1"))
+    FREEDOMS.append("a payment asked for once, answered once and made, nothing connected, the plan still free")
     assert not s.engine_errors and ops_core is not None

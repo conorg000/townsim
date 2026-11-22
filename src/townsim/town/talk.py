@@ -218,6 +218,7 @@ class Held:
     talk: str
     turns: list = field(default_factory=list)
     n: int = 0
+    seat: list = field(default_factory=list)        # with lane B, the run of an assistant called by its client
 
 
 def hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int = 0) -> Held:
@@ -268,6 +269,8 @@ def _hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int) -> Held:
         store.add("talks", Talk(tk, store.day, ap.a, ap.b, "appointment", "", "held", ref=ap.id), cause)
         for p in (ap.a, ap.b):
             _take_hour(store, p, cause)
+    elif store.has("talks", ref) and acts.is_instance(store, store.get("talks", ref).b):
+        return _call(store, replier, keys, store.get("talks", ref), n)
     elif store.has("talks", ref):
         t = store.get("talks", ref)
         tk = t.id
@@ -294,6 +297,30 @@ def _hold(store: Store, replier: Replier, keys: Keys, ref: str, n: int) -> Held:
         store.engine_errors.append(f"talk {ref!r} d{store.day}: nothing to hold")
         return Held("", [], n)
     return _converse(store, replier, keys, tk, n)
+
+
+def _call(store: Store, replier: Replier, keys: Keys, t: Talk, n: int) -> Held:
+    """A client's talk with their own assistant (lane B): held when the assistant is active and the client has
+    not talked twice today (their hour was taken when they asked); the client's opening is its first line and the
+    assistant's side is a run of its own (`seat.run_call`), in which `phone_call` says each thing back."""
+    cause = f"routine:talk:{t.id}"
+    inst = store.get("instances", t.b)
+    if inst.status != "active" or not _free(store, t.a, hour=False):
+        store.set("talks", t.id, cause, status="not held")
+        left = store.get("people", t.a).hours_left
+        store.set("people", t.a, cause, hours_left=round(left + TALK_HOURS, 2))
+        text = (f"{inst.name} did not answer: it is {inst.status}." if inst.status != "active"
+                else f"You had already talked twice today; the talk with {inst.name} was not held.")
+        _tell(store, t.a, text, cause)
+        return Held("", [], n)
+    store.set("talks", t.id, cause, status="held")
+    _line(store, t.id, t.a, t.opening, [], cause)
+    from townsim.town import seat
+    run, n = seat.run_call(store, replier, keys, inst.id, t.id, n)
+    if not [x for x in lines_of(store, t.id) if x.speaker == inst.id]:
+        _line(store, t.id, inst.id, "", [], cause)          # it said nothing
+    store.set("talks", t.id, cause, unseen=[t.a])
+    return Held(t.id, list(run.talk_turns), n, [run])
 
 
 def _line(store: Store, tk: str, speaker: str, text: str, results: list[str], cause: str) -> None:
@@ -366,6 +393,50 @@ def _tell_result(store: Store, outcome: Outcome) -> str:
     store.add("results", Result(rid, store.day, act.actor, loop.op_written(act.op), outcome.msg, outcome.ok),
               outcome.cause)
     return rid
+
+
+def _answering(store: Store, replier: Replier, keys: Keys, inst: str, pid: str, words: str, ctx: Any, cause: str,
+               tk: str) -> tuple[str, bool]:
+    """An assistant says `words` on the call its client made to it (`_call`): each side says at most `TURNS`
+    things, the client first, so the assistant has the last word; the client answers each, as in any talk."""
+    person = store.get("people", pid)
+    me = name_of_who(store, inst)
+    _line(store, tk, inst, said(words, person.name), [], cause)
+    store.set("talks", tk, cause, unseen=[pid])
+    mine = len([x for x in lines_of(store, tk) if x.speaker == inst])
+    if len([x for x in lines_of(store, tk) if x.speaker == pid]) >= TURNS:
+        ctx.talks.pop(pid, None)
+        return "\n(You part after this.)", True
+    try:
+        messages, ids = _view(store, pid, tk)
+    except Exception as e:      # noqa: BLE001  (any fault in building a view)
+        raise _NoView(f"view:{pid}:d{store.day}: {type(e).__name__}: {e}") from e
+    key = keys.next(replier.model_for(pid), store.day, pid, "talk", tk)
+    reply = replier.ask(key, messages)
+    parsed = parse_say(reply.text)
+    if parsed is None:
+        ctx.turns.append(loop.Turn(pid, key.text(), True, [], tk))
+        _line(store, tk, pid, "", [], cause)
+        ctx.talks.pop(pid, None)
+        return f"{person.name} said nothing.\n({person.name} ended the talk.)", True
+    text = said(parsed["say"], me)
+    outcomes, results = [], []
+    for element in parsed["acts"][:MAX_ACTS]:
+        outcome = _apply(store, pid, element, ctx.n)
+        results.append(_tell_result(store, outcome))
+        outcomes.append(outcome)
+        ctx.n += 1
+    views.mark_seen(store, pid, ids, f"routine:seen:{pid}")
+    _line(store, tk, pid, text, results, cause)
+    ctx.turns.append(loop.Turn(pid, key.text(), False, outcomes, tk))
+    shown_text = f"{person.name} said:\n  > {text}" if text else f"{person.name} said nothing."
+    if parsed["end"]:
+        ctx.talks.pop(pid, None)
+        return shown_text + f"\n({person.name} ended the talk.)", True
+    if mine >= TURNS:
+        ctx.talks.pop(pid, None)
+        return shown_text + "\n(You part after this.)", True
+    return shown_text, True
 
 
 # --- what a speaker is shown -------------------------------------------------------------
@@ -654,6 +725,8 @@ def instance_says(store: Store, replier: Replier, keys: Keys, inst: str, pid: st
     whether it was said. Each side says at most `TURNS` things."""
     person = store.get("people", pid)
     tk = ctx.talks.get(pid)
+    if tk is not None and store.get("talks", tk).kind == "asked":
+        return _answering(store, replier, keys, inst, pid, words, ctx, cause, tk)
     if tk is None:
         if not _free(store, pid):
             return f"Not done: {_why_not(store, pid, person.name)}.", False

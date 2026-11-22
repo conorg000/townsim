@@ -25,11 +25,30 @@ ABOUT_WORDS = 12
 AHEAD_DAYS = 60
 
 
-def _with(store: Store, act: Act) -> tuple[str | None, str]:
-    """The person `with` names, or None and why not."""
+def own_assistant(store: Store, act: Act) -> str | None:
+    """With lane B, the actor's own assistant that `with` names ("my assistant", its name, ...), when it is one
+    of theirs; else None."""
+    from townsim.town import lane_b, product
+    if not lane_b.installed(store) or not store.has("people", act.actor):
+        return None
+    inst = product.addressed(store, act.args.get("with"), act.actor)
+    return inst if inst is not None and inst in {i.id for i in product.own_instances(store, act.actor)} else None
+
+
+def _with(store: Store, act: Act, booking: bool = False) -> tuple[str | None, str]:
+    """The person `with` names (with lane B, or the actor's own assistant, talked with today), or None and why
+    not."""
     from townsim.town import product
     value = act.args.get("with")
     inst = product.addressed(store, value, act.actor)
+    mine = own_assistant(store, act)
+    if mine is not None:
+        name = store.get("instances", mine).name
+        if booking:
+            return None, f"{name} is talked with the same day, with converse."
+        if store.get("instances", mine).status != "active":
+            return None, f"{name} is paused."
+        return mine, ""
     if inst is not None:
         return None, f"{store.get('instances', inst).name} answers letters."
     who = core._resolve(store, value, act.actor)
@@ -69,7 +88,7 @@ def _check_converse(store: Store, act: Act) -> str | None:
 
 def _do_converse(store: Store, act: Act, cause: str) -> str:
     who, _ = _with(store, act)
-    name = store.get("people", who).name
+    name = store.get("people", who).name if store.has("people", who) else store.get("instances", who).name
     tk = store.new_id("tk", cause)
     opening = talk.said(act.args["opening"], name)
     store.add("talks", Talk(tk, store.day, act.actor, who, "asked", opening, "waiting"), cause)
@@ -113,7 +132,7 @@ def _today_short(store: Store, act: Act, who: str) -> str | None:
 
 
 def _check_book(store: Store, act: Act) -> str | None:
-    who, why = _with(store, act)
+    who, why = _with(store, act, booking=True)
     if who is None:
         return why
     day, why = _when(store, act)

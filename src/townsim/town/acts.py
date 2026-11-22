@@ -179,7 +179,7 @@ def apply_act(store: Store, act: Act, n: int, via: str = "") -> Outcome:
     return Outcome(True, told, act, cause)
 
 
-_VIA = ("auto", "narr")
+_VIA = ("auto", "narr", "once")
 
 
 def _cause_parts(cause: str) -> tuple[str, str]:

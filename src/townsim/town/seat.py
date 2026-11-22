@@ -103,22 +103,34 @@ def _sent_back(reply, cid: str, readable: bool = True) -> dict:
     return msg
 
 
-def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int) -> tuple[SeatTurn, int]:
-    """The instance's turn today. `n` is the day's running count of acts, which its acts go on."""
+def run_call(store: Store, replier: Replier, keys: Keys, instance: str, tk: str, n: int) -> tuple[SeatTurn, int]:
+    """With lane B, the run of an instance its client called (talk `tk`, held now): its header is the call, and
+    `phone_call` to the caller says each thing back on it. Nothing it has been shown is marked, and no follow-up
+    is used up: the day's run still comes."""
+    return run_turn(store, replier, keys, instance, n, called=tk)
+
+
+def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int, called: str = "") -> tuple[SeatTurn, int]:
+    """The instance's turn today (or, with `called`, the run of a call to it). `n` is the day's running count of
+    acts, which its acts go on."""
     inst = store.get("instances", instance)
     day = store.day
     system = system_text(store, inst)
     first, seen = morning(store, inst)
     reminders = _reminders_today(store, inst)
+    ctx = Ctx(replier, keys)
+    if called:
+        from townsim.town.seat_texts import call_header
+        first, seen, reminders = call_header(store, inst, called), list(inst.seen), []
+        ctx.talks[store.get("talks", called).a] = called
     tools = tools_for(store, inst)
     messages = [{"role": "system", "content": system}, {"role": "user", "content": first}]
     model = replier.model_for(inst.id)
     most = launched(store).max_calls
-    ctx = Ctx(replier, keys)
     calls: list[SeatCall] = []
     closing, ended = None, "no call"
     for i in range(most):
-        key = keys.next(model, day, inst.id, "seat")
+        key = keys.next(model, day, inst.id, "seat", called)
         reply = replier.ask_tools(key, messages, tools)
         got = (reply.tool or {}).get("calls") or []
         if not got:

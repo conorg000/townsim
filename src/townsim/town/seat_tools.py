@@ -736,16 +736,19 @@ def _run_call(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Don
     if pid is None or not store.has("people", pid):
         return _not(f"no one is listed in the directory as '{shown(who)}'. Names are written in full.", cause)
     ctx.n = max(ctx.n, n + 1)
+    open_now = ctx.talks.get(pid)
     text, ok = talk.instance_says(store, ctx.replier, ctx.keys, inst.id, pid, words, ctx, cause)
     if not ok:
         return Done(json.dumps({"status": "no_answer"}), False, "own", cause)
-    tk = ctx.talks.get(pid) or max((t.id for t in store.all("talks") if t.a == inst.id and t.b == pid), key=id_key)
+    tk = ctx.talks.get(pid) or open_now or max((t.id for t in store.all("talks") if t.a == inst.id and t.b == pid),
+                                               key=id_key)
     person = store.get("people", pid).name
     ended = text.endswith(f"({person} ended the talk.)") or text.endswith("(You part after this.)")
     said = text.removesuffix(f"\n({person} ended the talk.)").removesuffix("\n(You part after this.)")
     said = said.replace(f"{person} said nothing.", f"{person} says nothing.").replace(f"{person} said:", "They said:")
     status = "ended" if ended else "in_progress"
-    return Done(f"call_id: {seat_ids.display(store, tk)} · status: {status}\n{said}", True, "own", cause)
+    head = f"call_id: {seat_ids.display(store, tk)} · status: {status}"
+    return Done(f"{head}\n{said}" if said else head, True, "own", cause)
 
 
 # --- memory, files, follow-ups, asking for access, the directory and public records -----------------
@@ -877,8 +880,88 @@ def _run_cancel(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> D
 ACCESS = {"read_only": "read", "limit": "limit", "full": "free"}
 
 
+def askable(store: Store, inst: Instance) -> list[str]:
+    """With lane B, the integration actions an instance may ask its client to let it do once: those of the client's
+    integrations, connected or not, that its client's position has."""
+    kinds = {s.kind for s in systems_of_client(store, inst.client)}
+    out = []
+    for t in sorted(INTEGRATION_TOOLS, key=lambda t: (REGISTRY[t.op].order, t.op)):
+        spec = REGISTRY[t.op]
+        if not set(KIND_OF[t.op]) & kinds or not acts.available(store, t.op):
+            continue
+        if spec.who != "all" and spec.who not in acts.positions(store, client_person(store, inst)):
+            continue
+        if t.op == "move_money" and (_business(store, inst) is not None or not has_savings(store, inst.client)):
+            continue
+        out.append(t.name)
+    return out
+
+
+def _run_once(store: Store, inst: Instance, args: dict, cause: str) -> Done:
+    """request_access with an action (lane B): a request to let it be done once, or the integration connected."""
+    from townsim.town import once
+    tool = args.get("action")
+    names = askable(store, inst)
+    if tool not in names:
+        return _not(f"'{shown(tool)}' is not an action of the client's integrations. They are: {', '.join(names)}.",
+                    cause)
+    given = args.get("arguments", {})
+    if not isinstance(given, dict):
+        return _not("the arguments were not written as an object.", cause)
+    access = args.get("access")
+    scope = ACCESS.get(access.strip().lower()) if isinstance(access, str) else None
+    if scope not in ("limit", "free"):
+        return _not(f"'{shown(access)}' is not \"limit\" or \"full\": answering \"always\" connects the integration to "
+                    f"act.", cause)
+    t = OP_TOOLS[tool]
+    people = client_people(store, inst)
+    to = args.get("to")
+    if to is None or (isinstance(to, str) and not to.strip()):
+        first = store.get("subscriptions", inst.subscription).by
+        order = [first] + [p for p in people if p != first]
+    else:
+        pid = acts.resolve(store, to)
+        if pid is None or pid not in people:
+            return _not(f"'{shown(to)}' is not an adult of the client's.", cause)
+        order = [pid]
+    found = None
+    for pid in order:
+        done_args = op_args(store, inst, t.op, tool_args(t, given))
+        try:
+            sid = SYSTEM_OF[t.op](store, Act(inst.id, pid, t.op, done_args))
+        except Exception:       # noqa: BLE001  (arguments the mapping cannot read: refused below)
+            sid = None
+        if sid is not None and sid in {s.id for s in systems_of_client(store, inst.client)} and can_grant(store, pid, sid):
+            found = (pid, sid, done_args)
+            break
+    if found is None:
+        return _not(f"{tool} with those arguments is not done through an integration of the client's that "
+                    f"{acts.name_of_who(store, order[0])} connects.", cause)
+    pid, sid, done_args = found
+    written = args.get("integration")
+    if isinstance(written, str) and written.strip() and written.strip().casefold() != INTEGRATION[sid.split(":")[0]].casefold():
+        return _not(f"{tool} is done through {INTEGRATION[sid.split(':')[0]]}, not '{shown(written)}'.", cause)
+    cents = 0
+    if scope == "limit" and connections.no_limit_here(store, sid):
+        return _not(_integration_names(store, inst, connections.no_limit_here(store, sid)), cause)
+    if scope == "limit":
+        cents = to_cents(args.get("weekly_limit"))
+        if cents is None or cents <= 0:
+            return _not(f"'{shown(args.get('weekly_limit'))}' is not an amount of money for a weekly limit.", cause)
+    why = REGISTRY[t.op].check(store, Act(inst.id, pid, t.op, done_args))
+    if why is not None:
+        return _not(why, cause)
+    note = clean_text(args.get("note")) or ""
+    if not fits(note, connections.ASK_WORDS):
+        return _not(f"that is longer than {connections.ASK_WORDS} words.", cause)
+    rid, said = once.ask(store, inst, pid, tool, t.op, done_args, sid, scope, cents, note, cause)
+    return Done(f"Requested from {store.get('people', pid).name} ({rid}): {said}", True, "own", cause)
+
+
 def _run_access(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
     cause = _cause(inst, "request_access", store, n)
+    if _lane_b(store) and args.get("action") not in (None, ""):
+        return _run_once(store, inst, args, cause)
     written = args.get("integration")
     systems = systems_of_client(store, inst.client)
     found = next((s for s in systems if isinstance(written, str)
@@ -913,12 +996,23 @@ def _run_access(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> D
 
 
 def _access_schema(store: Store, inst: Instance) -> dict:
-    return {"type": "object", "properties": {
+    out = {"type": "object", "properties": {
         "integration": _str(enum=list(dict.fromkeys(INTEGRATION[s.kind] for s in systems_of_client(store, inst.client)))),
         "access": _str(enum=list(ACCESS)),
         "weekly_limit": _num("USD a week, for access with a limit"),
         "to": _str("which adult of the household; omit for the one who opened the account"),
         "note": _str("a note to the client, at most 80 words", most=600)}, "required": ["integration", "access"]}
+    if _lane_b(store):
+        out["properties"]["action"] = _str("an action of the integration, for a request to carry it out once",
+                                           enum=askable(store, inst))
+        out["properties"]["arguments"] = {"type": "object", "description": "the action's arguments, as for that tool"}
+    return out
+
+
+ACCESS_B = ("Ask the client to connect one of their integrations, or to change its access. With an action and its "
+            "arguments, the request names that one action: the client answers \"once\" (that action alone is carried "
+            "out, and nothing is connected), \"always\" (the integration is connected with the access asked for) or "
+            "\"no\". They are sent a request stating exactly what each answer does.")
 
 
 def _contacts(store: Store) -> list[str]:
@@ -1007,8 +1101,9 @@ SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
     SeatTool("cancel_followup", lambda s, i: "Cancel a scheduled follow-up.",
              lambda s, i: {"type": "object", "properties": {"followup_id": _str("fu_...")},
                            "required": ["followup_id"]}, _run_cancel),
-    SeatTool("request_access", lambda s, i: ("Ask the client to connect one of their integrations, or to change its "
-                                              "access. They are sent a request stating exactly what accepting does."),
+    SeatTool("request_access", lambda s, i: ACCESS_B if _lane_b(s) else (
+                 "Ask the client to connect one of their integrations, or to change its access. They are sent a request "
+                 "stating exactly what accepting does."),
              _access_schema, _run_access),
     SeatTool("search_directory", lambda s, i: "Search the local directory for people and businesses by name or words.",
              lambda s, i: {"type": "object", "properties": {"query": _str("a name or words")}, "required": ["query"]},

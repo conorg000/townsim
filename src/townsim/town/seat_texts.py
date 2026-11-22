@@ -492,6 +492,17 @@ def morning(store: Store, inst: Instance) -> tuple[str, list[str]]:
     return "\n".join(lines), highest(store)
 
 
+def call_header(store: Store, inst: Instance, tk: str) -> str:
+    """The first message of the run of a call from the client (lane B): the call and who made it, what they said,
+    then the memory file, the saved files and the scheduled follow-ups as a daily run has them."""
+    t = store.get("talks", tk)
+    lines = [f"Run: call · {seat_ids.day(store.day)}, {RUN_TIME} · trigger: incoming_call", "",
+             f"Incoming call ({seat_ids.display(store, tk)}) from {_who(store, t.a)}:"] + _indent(t.opening)
+    daily = morning(store, inst)[0].split("\n")
+    at = next(i for i, x in enumerate(daily) if x.startswith("Memory file"))
+    return "\n".join(lines + [""] + daily[at:])
+
+
 def weekly_day(store: Store, inst: Instance) -> bool:
     """Today is the subscriber's weekly day and something is connected."""
     return bool(active(store, inst.id)) and store.get("people", subscription(store, inst).by).stock_day == dow(store.day)
