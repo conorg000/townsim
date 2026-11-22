@@ -316,11 +316,12 @@ def _call(store: Store, replier: Replier, keys: Keys, t: Talk, n: int) -> Held:
     store.set("talks", t.id, cause, status="held")
     _line(store, t.id, t.a, t.opening, [], cause)
     from townsim.town import seat
-    run, n = seat.run_call(store, replier, keys, inst.id, t.id, n)
+    got = seat.guarded_turn(store, inst.id, lambda: seat.run_call(store, replier, keys, inst.id, t.id, n))
+    run, n = got if got is not None else (None, n)        # a run that faulted is undone: it said nothing
     if not [x for x in lines_of(store, t.id) if x.speaker == inst.id]:
         _line(store, t.id, inst.id, "", [], cause)          # it said nothing
     store.set("talks", t.id, cause, unseen=[t.a])
-    return Held(t.id, list(run.talk_turns), n, [run])
+    return Held(t.id, list(run.talk_turns) if run else [], n, [run] if run else [])
 
 
 def _line(store: Store, tk: str, speaker: str, text: str, results: list[str], cause: str) -> None:

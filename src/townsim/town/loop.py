@@ -112,11 +112,22 @@ def close(store: Store, since: int | None = None) -> None:
     firms.close_week(store)
     if since is not None:
         from townsim.town import hearing
-        hearing.note_day(store, store.changes[since:])
+        _guarded(store, "hearing", lambda: hearing.note_day(store, store.changes[since:]))
         from townsim.town import hours, lane_b
         if lane_b.installed(store):
-            hours.note_spent(store, store.changes[since:])
+            _guarded(store, "hours", lambda: hours.note_spent(store, store.changes[since:]))
     store.advance_day()
+
+
+def _guarded(store: Store, what: str, fn: Any) -> None:
+    """`fn()`; or, if it raises, the store left as it was and an engine error kept
+    (`<what>:d<day>: <type>: <message>`): the evening's notes that fault never stop the day."""
+    mark = store.mark()
+    try:
+        fn()
+    except Exception as e:          # noqa: BLE001  (a fault in what the evening keeps)
+        store.undo_to(mark)
+        store.engine_errors.append(f"{what}:d{store.day}: {type(e).__name__}: {str(e)[:200]}")
 
 
 def who_acts(store: Store) -> list[str]:

@@ -112,6 +112,8 @@ def _what(store: Store, inst: Instance, system) -> str:
         return "the household's tenancies and rents"
     if system.kind == "loans":
         return f"{store.get('orgs', system.owner).name} loan book"
+    if system.kind == "members":     # a service or club that is a client in its own name
+        return f"the members of {name}"
     return {"ordering": "supplier orders, stock and sales", "prices": "prices", "staff": "staff and pay"}[system.kind]
 
 

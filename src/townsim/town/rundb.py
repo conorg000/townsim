@@ -48,6 +48,12 @@ create table if not exists notes (
 """
 
 
+class NotKept(KeyError):
+    """A run, or a day of one, that the database has nothing kept for: its first argument is what was looked
+    up (the run's id, or the run and the day). A KeyError, so a lookup may still be caught as one; the command
+    says it plainly, where any other KeyError is a fault."""
+
+
 class RunDB:
     """Every write commits, or rolls back if it fails, so no write lock is left held."""
 
@@ -89,7 +95,7 @@ class RunDB:
     def get_run(self, run_id: str) -> dict:
         row = self._db.execute("select id, seed, parent, parent_day, schema from runs where id = ?", (run_id,)).fetchone()
         if row is None:
-            raise KeyError(run_id)
+            raise NotKept(run_id)
         return dict(zip(("id", "seed", "parent", "parent_day", "schema"), row))
 
     # replies
@@ -165,7 +171,7 @@ class RunDB:
             raise ValueError(f"run {run_id!r} was kept under schema {schema}; this code reads schema {SCHEMA}")
         row = self._db.execute("select blob from snapshots where run = ? and day = ?", (run_id, day)).fetchone()
         if row is None:
-            raise KeyError((run_id, day))
+            raise NotKept((run_id, day))
         return pickle.loads(row[0])
 
     def snapshot_hash(self, run_id: str, day: int) -> str | None:
@@ -184,7 +190,7 @@ class RunDB:
     def changes(self, run_id: str, day: int) -> list:
         row = self._db.execute("select blob from changes where run = ? and day = ?", (run_id, day)).fetchone()
         if row is None:
-            raise KeyError((run_id, day))
+            raise NotKept((run_id, day))
         return pickle.loads(row[0])
 
     def change_days(self, run_id: str) -> list[int]:
@@ -198,7 +204,7 @@ class RunDB:
     def turns(self, run_id: str, day: int) -> list:
         row = self._db.execute("select blob from turns where run = ? and day = ?", (run_id, day)).fetchone()
         if row is None:
-            raise KeyError((run_id, day))
+            raise NotKept((run_id, day))
         return pickle.loads(row[0])
 
     def turn_days(self, run_id: str) -> list[int]:

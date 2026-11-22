@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Iterator
 
+import click
 import typer
 
 app = typer.Typer(help="Run the thin town or a generated hamlet and replay it, or run the small economy's skill test.")
@@ -58,15 +59,30 @@ def skill_cmd(
 @contextmanager
 def _plainly(db: str) -> Iterator[None]:
     """A file that is not a database, a place a file cannot be made, or a bad run or
-    snapshot, as one plain line and exit code 1."""
+    snapshot, as one plain line and exit code 1. A fault of the engine's (one that escaped a
+    day, or any other exception) is said as one too: what failed, its type and its message,
+    with anything shaped like a key removed (`modelreplier.safe`); never as something not kept."""
+    from townsim.town.rundb import NotKept
+    from townsim.town.runs import DayFault
     try:
         yield
+    except (typer.Exit, typer.Abort, click.ClickException):
+        raise
     except sqlite3.Error as e:
         _fail(f"cannot use {db} as a run database: {e}")
-    except KeyError as e:
+    except NotKept as e:
         _fail(f"{db} has nothing kept for {e.args[0]!r}" if e.args else f"{db} is missing something it needs")
+    except DayFault as e:
+        _fail(_fault_line(str(e)))
     except ValueError as e:
         _fail(str(e))
+    except Exception as e:      # noqa: BLE001  (an engine fault: said, never hidden)
+        _fail(_fault_line(f"engine fault: {type(e).__name__}: {e}"))
+
+
+def _fault_line(text: str) -> str:
+    from townsim.town.modelreplier import safe
+    return safe(text)
 
 
 def _replay(db, run_id: str) -> None:

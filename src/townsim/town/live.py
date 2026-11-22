@@ -28,7 +28,7 @@ from townsim.town.hamlet import RUN_WEEKS
 from townsim.town.modelreplier import ModelReplier, safe
 from townsim.town.replies import is_instance_id
 from townsim.town.rundb import RunDB
-from townsim.town.runs import resume, run
+from townsim.town.runs import DayFault, resume, run
 
 MAX_CAP = 5.0   # dollars a live run may be capped at, at most
 
@@ -154,7 +154,8 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
          seat: Family | None = None, start: str | None = None, outside: dict[str, Family] | None = None,
          settings: dict | None = None, lanes: str | None = None) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
-    line a week; stop when the replier stops, echoing why.
+    line a week; stop when the replier stops, echoing why, or when a fault escapes a day (`runs.DayFault`: its
+    morning and every reply paid for are kept), echoing what failed, its type and message made `safe`.
 
     Raises ValueError, before anything is asked, for a cap that is not above 0 and at most
     `MAX_CAP`, weeks below 1, a resume whose noted seed or families differ, a run held by
@@ -252,7 +253,12 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
         today = store.day
         monday = today - today % 7
         days = min(monday + 7, end) - today
-        store = run(db, run_id, store, replier, days)
+        try:
+            store = run(db, run_id, store, replier, days)
+        except DayFault as e:       # its morning and every reply paid for are kept; the run says what failed
+            stopped = safe(str(e))
+            echo(f"stopped on day {e.day}: {stopped}")
+            return LiveResult(e.day, spent(db, run_id), stopped, len(db.errors(run_id)))
         if store.day > today:
             asks, unread = _week_counts(db, run_id, monday, store.day - 1)
             echo(f"week {monday // 7 + 1}  {date_text(monday)}  {store.hash()[:12]}  asks {asks}  "

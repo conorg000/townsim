@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import Callable
 
 from townsim.town.acts import shown
 from townsim.town.product import launched
@@ -193,6 +194,23 @@ def run_seat(store: Store, replier: Replier, keys: Keys, n: int) -> tuple[list[S
         return turns, n
     for inst in sorted(store.all("instances"), key=lambda i: id_key(i.id)):
         if is_due(store, store.get("instances", inst.id)):
-            turn, n = run_turn(store, replier, keys, inst.id, n)
-            turns.append(turn)
+            got = guarded_turn(store, inst.id, lambda: run_turn(store, replier, keys, inst.id, n))
+            if got is not None:
+                turn, n = got
+                turns.append(turn)
     return turns, n
+
+
+def guarded_turn(store: Store, instance: str, run: Callable[[], tuple[SeatTurn, int]]) -> tuple[SeatTurn, int] | None:
+    """What `run()` returns; or, if it raises anything but `StopRun` or `ReplayMismatch`, None, with the store
+    left as it was and an engine error kept (`seat:<instance>:d<day>: <type>: <message>`): one instance's run
+    that faults (its texts, its tools' list, its close) never stops the day."""
+    mark = store.mark()
+    try:
+        return run()
+    except (StopRun, ReplayMismatch):
+        raise
+    except Exception as e:      # noqa: BLE001  (a fault in one instance's run: undone and kept, never raised)
+        store.undo_to(mark)
+        store.engine_errors.append(f"seat:{instance}:d{store.day}: {type(e).__name__}: {str(e)[:200]}")
+        return None

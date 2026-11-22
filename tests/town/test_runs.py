@@ -345,3 +345,49 @@ def test_scripted_hashes_unchanged(tmp_path):
         db.create_run("h", seed=1)
         final = run(db, "h", _hamlet(), ScriptedReplier(_hamlet_script.script), 56)
     assert final.day == 56 and final.hash() == SCRIPTED_HASH
+
+
+def test_a_fault_in_the_evenings_notes_is_undone_and_kept_and_the_day_ends(tmp_path, monkeypatch):
+    from townsim.town import hearing
+    from townsim.town.entities import Notice
+
+    def note_day(store, changes):
+        if store.day == 2:
+            store.add("notices", Notice(store.new_id("n", "routine:test"), store.day, "p01", "half kept"), "routine:test")
+            raise KeyError("members")
+    monkeypatch.setattr(hearing, "note_day", note_day)
+    with RunDB(str(tmp_path / "h.sqlite")) as db:
+        db.create_run("h", seed=1)
+        store = run(db, "h", thin_town(), ScriptedReplier(thin_script), 4)
+        assert store.day == 4 and db.errors("h") == [(2, "hearing:d2: KeyError: 'members'")]
+        assert not [n for n in store.all("notices") if n.text == "half kept"]
+
+
+def test_a_fault_that_escapes_a_day_is_raised_as_a_day_fault_keeping_its_morning_and_replies(tmp_path, monkeypatch):
+    """Nothing that escapes a day ends a run quietly: `run` raises `DayFault` naming the day and the fault; the
+    days before it, that morning and the replies paid for that day are kept, so a resume starts from that morning."""
+    import townsim.town.runs as runs_mod
+    from townsim.town.runs import DayFault
+    real = runs_mod.run_day
+
+    def run_day(store, replier, keys):
+        if store.day == 2:
+            replier.ask(keys.next(replier.model_for("p01"), 2, "p01", "turn"), [{"role": "user", "content": "x"}])
+            raise KeyError("members")
+        return real(store, replier, keys)
+    monkeypatch.setattr(runs_mod, "run_day", run_day)
+    with RunDB(str(tmp_path / "f.sqlite")) as db:
+        db.create_run("f", seed=1)
+        with pytest.raises(DayFault) as got:
+            run(db, "f", thin_town(), ScriptedReplier(thin_script), 4)
+        assert got.value.day == 2 and isinstance(got.value.__cause__, KeyError)
+        assert str(got.value) == "engine fault on day 2: KeyError: 'members'"
+        assert db.snapshot_days("f") == [0, 1, 2] and db.change_days("f") == [0, 1]
+        assert db.get_reply("f", "f|d2|p01|turn:|0") is not None
+        assert resume(db, "f").day == 2
+    # a mismatch is a mismatch, never a fault
+    monkeypatch.setattr(runs_mod, "run_day", lambda s, r, k: (_ for _ in ()).throw(ReplayMismatch("k", "missing")))
+    with RunDB(str(tmp_path / "m.sqlite")) as db:
+        db.create_run("m", seed=1)
+        with pytest.raises(ReplayMismatch):
+            run(db, "m", thin_town(), ScriptedReplier(thin_script), 1)

@@ -297,3 +297,29 @@ def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_t
     assert t.calls[2].result.endswith(" · status: in_progress\nThey said:\n  > Good morning to you.")
     talks = [x for x in s.all("talks") if x.kind == "instance"]
     assert len(talks) == 1 and [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10"]
+
+
+def test_a_fault_in_one_instances_run_is_undone_and_kept_and_the_others_run(monkeypatch):
+    """A fault outside any tool (its texts, here) in one instance's run leaves the store as it was before that run,
+    is kept as an engine error, and the instances after it still have theirs; a stop is never swallowed."""
+    from townsim.town.entities import Notice
+    from townsim.town.replies import StopRun
+    s = drawn()
+    real = seat.system_text
+
+    def system_text(store, inst):
+        if inst.id == "as2":
+            store.add("notices", Notice(store.new_id("n", CAUSE), store.day, "p1", "half made"), CAUSE)
+            raise KeyError("members")
+        return real(store, inst)
+    monkeypatch.setattr(seat, "system_text", system_text)
+    notices, seen = len(s.all("notices")), list(s.get("instances", "as2").seen)
+    turns, _ = seat.run_seat(s, scripted({}), Keys("t"), 0)
+    assert [t.instance for t in turns] == ["as1", "as3", "as4", "as5"]
+    assert s.engine_errors == ["seat:as2:d7: KeyError: 'members'"]
+    assert not [n for n in s.all("notices")[notices:] if n.text == "half made"]
+    assert s.get("instances", "as2").seen == seen                    # nothing of its run is kept
+    monkeypatch.setattr(seat, "system_text", lambda store, inst: (_ for _ in ()).throw(StopRun("cap")))
+    import pytest
+    with pytest.raises(StopRun):
+        seat.run_seat(drawn(), scripted({}), Keys("t"), 0)

@@ -411,3 +411,26 @@ def test_a_request_made_during_a_call_is_answered_in_the_call():
     [row] = s.all("asks")
     assert row.answer == "once" and row.done and row.day == 7
     assert any(c.cause.startswith("once:") and c.field == "order_units" for c in s.changes)
+
+
+def test_a_fault_in_the_run_of_a_call_is_undone_and_kept_and_the_talk_and_day_go_on(monkeypatch):
+    """A call whose assistant's run faults outside its tools: that run is undone and kept as an engine error, the
+    assistant said nothing on the call, and the day ends as any other."""
+    from townsim.town import seat as seat_mod
+    s = world()
+    _subscribe(s)
+    _act(s, OWNER, "converse", **{"with": "my assistant", "opening": "Can the shop order more baskets?"})
+    real = seat_mod.run_turn
+
+    def run_turn(store, replier, keys, instance, n, called=""):
+        if called:
+            raise KeyError("members")
+        return real(store, replier, keys, instance, n, called)
+    monkeypatch.setattr(seat_mod, "run_turn", run_turn)
+    day = s.day
+    report = loop.run_day(s, ScriptedReplier(outside_script.reply, seat_script.tool_fn), Keys("t"))
+    assert s.day == day + 1 and f"seat:as1:d{day}: KeyError: 'members'" in s.engine_errors
+    [held] = [t for t in s.all("talks") if t.b == "as1"] or [None]
+    assert held is not None and held.status == "held"
+    assert [ln.text for ln in s.where("lines", talk=held.id) if ln.speaker == "as1"] == [""]
+    assert report.seat and all(t.instance == "as1" for t in report.seat)     # its day's own run still came

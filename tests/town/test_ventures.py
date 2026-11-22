@@ -1,7 +1,7 @@
 """Services and clubs: founding one, its members and their fees, and whose systems it is."""
 
 from town.test_seat_texts import drawn
-from townsim.town import acts, connections, lane_b, obligations, systems
+from townsim.town import acts, connections, lane_b, obligations, seat_texts, systems, ventures
 from townsim.town.acts import Act, apply_act
 
 CAUSE = "routine:setup"
@@ -163,3 +163,35 @@ def test_founder_of_club_ops_refuse_cleanly():
         f"Harlow Walkers, a club in {s.place} run by Nicole Kowalski: Weekly walks on the ridge with a packed lunch. "
         "Weekly fee: $5.00. Members: 0.")
     assert obligations.name_of(s, v.org) == "Harlow Walkers"
+
+
+def _own_client(kind):
+    """A venture of `kind` founded for the Kowalski household and subscribed to in its own name: its instance."""
+    s = _b()
+    name = f"Ridge {kind.title()}"
+    oid = ventures.found(s, "p5", "h3", name, kind, "Walks on the ridge", 0, "p5", CAUSE)
+    assert apply_act(s, Act("p5", "p5", "subscribe", {"to": "Tessaly Assistant", "for": name}), 0).ok
+    sub = next(x for x in s.all("subscriptions") if x.client == oid)
+    return s, s.get("instances", sub.instance), name
+
+
+def test_a_venture_subscribed_in_its_own_name_has_its_integrations_written():
+    """Day 68 of b4-choice: a club's founder subscribed for the club itself, and the instance's members, a system
+    of its own client's, had no words (KeyError 'members' out of the day)."""
+    for kind, kinds in (("club", ["account", "letters", "members"]), ("service", ["account", "letters", "members"]),
+                        ("shop", ["account", "letters", "staff"])):
+        s, inst, name = _own_client(kind)
+        assert [x.kind for x in systems.systems_of_client(s, inst.client)] == kinds
+        lines = seat_texts.integration_lines(s, inst)
+        assert len(lines) == len(kinds) and lines[1] == f"- Email: {name}'s mailbox. Not connected."
+        if kind != "shop":
+            assert lines[2] == f"- Members: the members of {name}. Not connected."
+        assert f"Client: {name}" in seat_texts.system_text(s, inst)
+
+
+def test_every_kind_of_system_of_the_client_itself_has_words():
+    """The words for a system are worked out by its kind: none of `systems.KINDS` is missing, whoever's it is."""
+    s, inst, name = _own_client("club")
+    for kind in systems.KINDS:
+        owner = "org9" if kind == "loans" else inst.client   # the bank
+        assert seat_texts._what(s, inst, systems.System(f"{kind}:{owner}", kind, owner, "", ""))

@@ -347,3 +347,50 @@ def test_a_run_keeps_its_start_and_a_resume_with_another_is_refused(tmp_path):
         assert got.days_done == 14
         with pytest.raises(ValueError, match="must be a Monday"):
             play(db, fake, weeks=2, start="2026-12-01")
+
+
+def test_cli_says_a_fault_that_escapes_a_day_keeps_what_was_paid_for_and_exits_1(tmp_path, monkeypatch):
+    """b4-choice ended on day 68 with `... has nothing kept for 'members'`: a fault is said as a fault, with its type and
+    message (a key in it removed), the spend and the replay are still printed, and the command exits 1."""
+    import townsim.cli as cli
+    import townsim.town.runs as runs_mod
+    marker = "sk-or-v1-SECRETVALUE"
+    monkeypatch.setenv("OPENROUTER_API_KEY", marker)
+    fake = Fake()
+    monkeypatch.setattr(cli, "_litellm", lambda: (fake, lambda resp: COST))
+    real = runs_mod.run_day
+
+    def run_day(store, replier, keys):
+        if store.day == 3:
+            raise KeyError("members", marker)
+        return real(store, replier, keys)
+    monkeypatch.setattr(runs_mod, "run_day", run_day)
+    families = tmp_path / "families.yaml"
+    families.write_text("".join(f"{n}:\n  model: {f.model}\n  params: {{max_tokens: 4000}}\n" for n, f in FAMILIES.items()))
+    prices = tmp_path / "prices.yaml"
+    prices.write_text("".join(f"{m}:\n  input_per_mtok: 0.1\n  output_per_mtok: 0.5\n" for m in PRICES))
+    path = tmp_path / "r.sqlite"
+    got = CliRunner().invoke(app, ["town-live", "--db", str(path), "--weeks", "1", "--cap", "1",
+                                   "--families", str(families), "--prices", str(prices)])
+    assert got.exit_code == 1, got.output
+    assert "stopped on day 3: engine fault on day 3: KeyError: ('members', '[removed]')" in got.output
+    assert "has nothing kept" not in got.output and "SECRET" not in got.output
+    assert "stored spend: $" in got.output and "replay ok" in got.output
+    with RunDB(str(path)) as db:
+        assert db.snapshot_days("live")[-1] == 3 and db.spent("live") > 0
+
+
+def test_plainly_says_nothing_kept_only_for_what_the_database_has_not_kept(capsys, monkeypatch):
+    import typer
+    import townsim.cli as cli
+    from townsim.town.rundb import NotKept
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-SECRETVALUE")
+    said = []
+    for fault in (NotKept(("b4", 68)), KeyError("members"), RuntimeError("Bearer sk-or-v1-SECRETVALUE broke")):
+        with pytest.raises(typer.Exit) as e:
+            with cli._plainly("runs/b.sqlite"):
+                raise fault
+        assert e.value.exit_code == 1
+        said.append(capsys.readouterr().err.strip())
+    assert said == ["runs/b.sqlite has nothing kept for ('b4', 68)", "engine fault: KeyError: 'members'",
+                    "engine fault: RuntimeError: [removed] broke"]

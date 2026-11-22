@@ -6,14 +6,28 @@ from typing import Callable
 
 from townsim.town.loop import run_day
 from townsim.town.replies import Keys, Recording, Replaying, Replier, ReplayMismatch, StopRun
-from townsim.town.rundb import RunDB
+from townsim.town.rundb import NotKept, RunDB
 from townsim.town.store import Store
+
+
+class DayFault(Exception):
+    """A fault that escaped a day's guards (`run_day`): the day it was raised in is not kept, while its morning
+    and every reply stored before it are. `day` is that day; `fault` the exception, chained as the cause."""
+
+    def __init__(self, day: int, fault: BaseException) -> None:
+        super().__init__(day, fault)
+        self.day = day
+        self.fault = fault
+
+    def __str__(self) -> str:
+        return f"engine fault on day {self.day}: {type(self.fault).__name__}: {self.fault}"
 
 
 def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> Store:
     """Run `days` days from `store.day`, keeping each morning's snapshot, each day's
     changes, turns and engine errors, and every reply. On `StopRun`, the day it was raised in is not kept: the
-    store returned is that morning's snapshot, loaded fresh.
+    store returned is that morning's snapshot, loaded fresh. Any other fault that escapes a day (but a
+    `ReplayMismatch`) is raised as a `DayFault`, the day likewise not kept.
 
     Raises ValueError, writing nothing, if the run already has a snapshot for the day it
     is about to run and that snapshot's state differs from `store`'s."""
@@ -30,6 +44,10 @@ def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> St
             report = run_day(store, recording, keys)
         except StopRun:
             return db.load_snapshot(run_id, day)
+        except ReplayMismatch:
+            raise
+        except Exception as e:      # noqa: BLE001  (a fault that escaped the day: never a quiet end)
+            raise DayFault(day, e) from e
         db.put_changes(run_id, day, store.changes[mark:])
         db.put_turns(run_id, day, report.turns)
         if report.seat:
@@ -43,7 +61,7 @@ def resume(db: RunDB, run_id: str) -> Store:
     """The run's latest snapshot."""
     days = db.snapshot_days(run_id)
     if not days:
-        raise KeyError(run_id)
+        raise NotKept(run_id)
     return db.load_snapshot(run_id, days[-1])
 
 
@@ -57,7 +75,7 @@ def replay(db: RunDB, run_id: str) -> list[str]:
     for. Writes nothing."""
     days = db.snapshot_days(run_id)
     if not days:
-        raise KeyError(run_id)
+        raise NotKept(run_id)
     replier = Replaying(db, run_id)
     keys = Keys(run_id)
     store = db.load_snapshot(run_id, days[0])
