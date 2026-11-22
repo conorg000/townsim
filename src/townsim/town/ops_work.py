@@ -23,7 +23,7 @@ from typing import Any
 
 from townsim.town import firms, hours, jobs, obligations, statement
 from townsim.town import ops_core as core
-from townsim.town.acts import (FILLED, REGISTRY, YOUR_ACCOUNTS, Act, OpSpec, _alternatives, account_named, dollars, fits,
+from townsim.town.acts import (FILLED, REGISTRY, YOUR_ACCOUNTS, Act, OpSpec, _alternatives, account_named, actor_name, dollars, fits,
                                is_savings, name_of_who, register, shown, to_cents)
 from townsim.town.clock import date_in, date_text
 from townsim.town.entities import Job, Org, Request
@@ -446,7 +446,7 @@ def _do_dismiss(store: Store, act: Act, cause: str) -> str:
     text = f"{org} has ended your job. Your last pay {paid}."
     note = core._note(act.args.get("text"))
     if note:
-        text += f" {store.get('people', act.actor).name} wrote: {quoted(note)}"
+        text += f" {actor_name(store, act.actor)} wrote: {quoted(note)}"
     jobs.tell(store, who, text, cause)          # told first; then what follows from the end
     jobs.finish(store, job.id, last, cause)
     return f"{store.get('people', who).name} has left {org}. Their last pay {paid}."

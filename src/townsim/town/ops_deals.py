@@ -30,7 +30,7 @@ from typing import Any, NamedTuple
 from townsim.town import facts, jobs, obligations
 from townsim.town import ops_core as core
 from townsim.town import ops_work as work
-from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, controls, fits, from_account, name_of_who,
+from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, actor_name, controls, fits, from_account, name_of_who,
                                register, shown, to_cents)
 from townsim.town.clock import date_text, date_year, parse_date, unreadable
 from townsim.town.entities import Org, Record, Request
@@ -338,7 +338,7 @@ def _do_propose_end(store: Store, act: Act, cause: str) -> str:
     ob, _, to = _ending(store, act)
     last = _end_day(store, ob)
     kept, days = _paid_ahead(store, ob, last)
-    summary = work._bounded(f"{_cut(store.get('people', act.actor).name)} asks to end {memo_shown(ob.memo)} "
+    summary = work._bounded(f"{_cut(actor_name(store, act.actor))} asks to end {memo_shown(ob.memo)} "
                             f"({ob.id}): no payment after {date_year(last)}.{_kept_text(store, ob, kept, days)}")
     rq = Request(store.new_id("rq", cause), store.day, act.actor, to, "", 0, last, kind="end",
                  summary=summary, ob=ob.id, first=last, pay=kept)

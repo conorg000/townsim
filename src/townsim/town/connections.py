@@ -72,6 +72,13 @@ def _order(store: Store, act: Act) -> int:
     return units * store.get("suppliers", sid).unit_cents if sid is not None and units else 0
 
 
+def _borrow(store: Store, act: Act) -> int:
+    """A loan asked for takes its weekly repayment out once it is lent."""
+    from townsim.town import ops_deals
+    loan, _ = ops_deals._loan_terms(store, act)
+    return ops_deals.loan_schedule(loan.cents, loan.weeks)[1] if loan is not None else 0
+
+
 def _offer_job(store: Store, act: Act) -> int:
     return to_cents(act.args.get("weekly_pay")) or 0
 
@@ -94,7 +101,7 @@ def _staff_pay(store: Store, act: Act) -> int:
 COMMITMENT: dict[str, Callable[[Store, Act], int]] = {
     "pay": _amount, "repay": _amount, "move_money": _amount, "standing_payment": _amount,
     "propose_agreement": _agreement, "answer": _answer, "order_stock": _order, "offer_job": _offer_job,
-    "offer_shifts": _shifts, "set_staff_pay": _staff_pay,
+    "offer_shifts": _shifts, "set_staff_pay": _staff_pay, "borrow": _borrow,
 }
 
 

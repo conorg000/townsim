@@ -124,8 +124,9 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
     person = isinstance(act.actor, str) and store.has("people", act.actor)
     held = _positions_or_none(store, act.actor if person else act.principal)
-    if spec is not None and spec.who != "all" and spec.who not in held:
-        spec = None   # an operation outside the positions of the one it is done for is one they do not have
+    outside = spec is not None and spec.who != "all" and spec.who not in held
+    if outside and person:
+        spec = None   # an operation outside the actor's positions is one they do not have
     who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
     cause = f"op:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
@@ -138,6 +139,8 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
             reason = authorise(store, act)
             if reason is not None:
                 return Outcome(False, f"Not done: {reason}", act, cause, beyond=True)
+        if outside:                    # done for a client, outside the positions of the one it is done for
+            return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
         hours = 0.0
         if person:                     # an instance's acts take no one's hours
             hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
@@ -350,6 +353,11 @@ def name_of_who(store: Store, who: str) -> str:
         if store.has(table, who):
             return store.get(table, who).name
     return who
+
+
+def actor_name(store: Store, who: str) -> str:
+    """The name of whoever did an act: a person's name, or an instance's."""
+    return name_of_who(store, who)
 
 
 def is_instance(store: Store, who: object) -> bool:
