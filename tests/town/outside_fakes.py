@@ -39,6 +39,9 @@ class Outside:
             got = self.lifts.get(key.ref, self.default_lift)
             return got if isinstance(got, str) else json.dumps(got)
         if key.actor == "narrator":
+            if key.ref not in self.rulings:          # a task the test did not script: the scripted narrator's
+                from townsim.town import outside_script
+                return outside_script.outside(key, messages)
             r = self.rulings[key.ref]
             r = r[key.n] if isinstance(r, tuple) else r
             return r if isinstance(r, str) else json.dumps({"entries": r})

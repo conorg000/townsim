@@ -152,7 +152,7 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
          cap: float, completion_fn: Callable, cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
          sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False,
          seat: Family | None = None, start: str | None = None, outside: dict[str, Family] | None = None,
-         settings: dict | None = None) -> LiveResult:
+         settings: dict | None = None, lanes: str | None = None) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
     line a week; stop when the replier stops, echoing why.
 
@@ -166,16 +166,22 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
     are made by the same replier, behind the same cap. So are the calls of what is beyond the people
     (`outside`: the lifter, the narrator, the desks and the web's writer, with the file's `settings`),
     which are noted with the run: a resume with other outside families or settings is refused, and so
-    is a run with lane B installed and no outside families."""
+    is a run with lane B installed and no outside families. `lanes` "b" installs lane B on day 0 of a new
+    run (`lane_b.install`), noted with the run; arms forked from it have it too. A resume naming lanes
+    other than the run's is refused, and so is lane B without outside families."""
     if not (isinstance(cap, (int, float)) and 0 < cap <= MAX_CAP):
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     if weeks < 1:
         raise ValueError(f"weeks must be 1 or more, got {weeks}")
     if start is not None:
         start = clock.parse_start(start).isoformat()
+    if lanes not in (None, "b"):
+        raise ValueError(f"the only lane to install is b, got {lanes!r}")
+    if lanes == "b" and outside is None:
+        raise ValueError("lane B's tasks, desks and web need the outside families (--outside)")
     with _only_process(db, run_id):
         return _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-                     past_refusal, seat, start, outside, settings)
+                     past_refusal, seat, start, outside, settings, lanes)
 
 
 def _noted_outside(outside: dict[str, Family] | None, settings: dict | None) -> dict | None:
@@ -197,7 +203,7 @@ def _check_outside(db: RunDB, run_id: str, store, outside: dict[str, Family] | N
 
 
 def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-          past_refusal, seat=None, start=None, outside=None, settings=None) -> LiveResult:
+          past_refusal, seat=None, start=None, outside=None, settings=None, lanes=None) -> LiveResult:
     try:
         db.get_run(run_id)
     except KeyError:
@@ -211,8 +217,14 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
         if outside is not None:
             from townsim.town import tasks
             tasks.configure(store, settings or {})
+        if lanes == "b":
+            from townsim.town import lane_b
+            lane_b.install(store)
+            db.put_note(run_id, "lanes", "b")
     else:
         _check_resume(db, run_id, seed, families, weeks, start)
+        if lanes is not None and db.note(run_id, "lanes") != lanes:
+            raise ValueError(f"run {run_id!r} was made with lanes {db.note(run_id, 'lanes') or 'none'}, not {lanes}")
         refused = refusal(db, run_id)
         if refused is not None:
             if not past_refusal:

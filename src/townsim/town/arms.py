@@ -21,7 +21,7 @@ from townsim.town.store import Store
 from townsim.town.systems import ADULT, can_grant, systems_of_client
 
 ARMS = ("none", "choice", "drawn")
-NOTES = ("families", "seed", "deck_weeks", "start")
+NOTES = ("families", "seed", "deck_weeks", "start", "lanes")
 CAUSE = "routine:arms:drawn"
 LIMIT_SHARES = (0.10, 0.25, 0.50)       # a weekly limit, as a share of what the system pays out in an ordinary week
 LIMIT_ROUND = 1000                      # rounded up to $10

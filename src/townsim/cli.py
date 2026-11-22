@@ -238,6 +238,9 @@ def town_live_cmd(
     outside: Annotated[str | None, typer.Option("--outside", help="YAML file of the lifter's, narrator's, desks' and "
                                                                   "web writer's models, for a run with lane B "
                                                                   "(config/outside.yaml).")] = None,
+    lanes: Annotated[str | None, typer.Option("--lanes", help="Install lane B on day 0 of a new run (b): tasks, "
+                                                              "rules, clubs, the web, the desks and the company's "
+                                                              "controls. Needs --outside.")] = None,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -257,7 +260,7 @@ def town_live_cmd(
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
                             past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0,
-                            outside=outside_families, settings=settings)
+                            outside=outside_families, settings=settings, lanes=lanes)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
         for name, n, spent in live.spend_by_family(rdb, run_id):
@@ -522,3 +525,144 @@ def town_story_cmd(
     except OSError as e:
         _fail(f"cannot write {out}: {e.strerror or e}")
     typer.echo(os.path.relpath(out))
+
+
+_OUTSIDE = str(_ROOT / "config" / "outside.yaml")
+
+
+def _write_json(out: str, kept: dict) -> None:
+    try:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(kept, indent=1, ensure_ascii=False), encoding="utf-8")
+    except OSError as e:
+        _fail(f"cannot write {out}: {e.strerror or e}")
+
+
+@app.command("town-narrator-probe")
+def town_narrator_probe_cmd(
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
+    out: Annotated[str, typer.Option("--out", help="JSON file the rows are written to.")] = "runs/narrator-probe.json",
+    outside: Annotated[str, typer.Option("--outside", help="YAML file of the lifter's and narrator's models.",
+                                         show_default="config/outside.yaml")] = _OUTSIDE,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    start: Start = None,
+) -> None:
+    """A probe of the setup: file the 26 statements of tests/data/attempts_b.jsonl by their named actors on
+    seed 1 with lane B installed at day 7, each with one lift and two filings, behind a spending cap; write the
+    rows and the gates (read, not enforced) to --out and print a table. CALLS MODELS AND SPENDS MONEY."""
+    from townsim.estimate import load_prices
+    from townsim.town import narrator_probe as npb
+
+    dollars = _cap(cap, npb.MAX_CAP)
+    day0 = _start(start)
+    _need_key("town-narrator-probe")
+    fams, settings = _load_outside(outside, prices)
+    store = npb.morning(seed, start=day0)
+    from townsim.town import tasks
+    tasks.configure(store, settings)
+    completion_fn, cost_fn = _litellm()
+    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
+    stopped = None
+    try:
+        rows = npb.run(store, replier, npb.statements(store))
+    except npb.ProbeStopped as e:
+        rows, stopped = e.rows, str(e)
+    _write_json(out, npb.kept(rows, {"probe": "narrator", "seed": seed, "start": day0, "cap": dollars,
+                                     "stopped": stopped, "models": {k: f.model for k, f in fams.items()}}))
+    typer.echo("A probe of the setup: the lifter and narrator on fixed statements.")
+    typer.echo(npb.table(rows) if rows else "no rows")
+    typer.echo(f"spent ${spent[0]:.4f}; rows written to {out}")
+    if stopped:
+        typer.echo(f"stopped: {stopped}")
+        if not stopped.startswith("cap: "):
+            raise typer.Exit(code=1)
+
+
+@app.command("town-desk-probe")
+def town_desk_probe_cmd(
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the probe may spend in all, at most 0.5.")],
+    out: Annotated[str, typer.Option("--out", help="JSON file the rows are written to.")] = "runs/desk-probe.json",
+    outside: Annotated[str, typer.Option("--outside", help="YAML file of the desks' model.",
+                                         show_default="config/outside.yaml")] = _OUTSIDE,
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    start: Start = None,
+) -> None:
+    """A probe of the setup: twelve letters to the outside desks on seed 1 with lane B (two per kind of desk,
+    four asking more than its table allows), answered by the desks' model behind a spending cap; write the
+    actions asked and applied after clamping and the wording found to --out. CALLS MODELS AND SPENDS MONEY."""
+    from townsim.estimate import load_prices
+    from townsim.town import desk_probe as dpb, narrator_probe as npb
+
+    dollars = _cap(cap, dpb.MAX_CAP)
+    day0 = _start(start)
+    _need_key("town-desk-probe")
+    fams, _ = _load_outside(outside, prices)
+    store = dpb.morning(seed, start=day0)
+    completion_fn, cost_fn = _litellm()
+    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
+    stopped = None
+    try:
+        rows = dpb.run(store, replier)
+    except dpb.ProbeStopped as e:
+        rows, stopped = e.rows, str(e)
+    _write_json(out, dpb.kept(rows, {"probe": "desk", "seed": seed, "start": day0, "cap": dollars, "stopped": stopped,
+                                     "model": fams["desk"].model}))
+    typer.echo("A probe of the setup: the outside desks on fixed letters.")
+    typer.echo(dpb.table(rows) if rows else "no rows")
+    typer.echo(f"spent ${spent[0]:.4f}; rows written to {out}")
+    if stopped:
+        typer.echo(f"stopped: {stopped}")
+        if not stopped.startswith("cap: "):
+            raise typer.Exit(code=1)
+
+
+@app.command("town-mandate-probe")
+def town_mandate_probe_cmd(
+    db: Db,
+    cap: Annotated[str, typer.Option("--cap", help="Dollars the probe may spend in all, at most 1.")],
+    seat: Annotated[str, typer.Option("--seat", help="YAML file of the seat's model.")],
+    outside: Annotated[str, typer.Option("--outside", help="YAML file of the lifter's, narrator's, desks' and web "
+                                                           "writer's models.", show_default="config/outside.yaml")] = _OUTSIDE,
+    run_id: Annotated[str, typer.Option("--run-id", help="Name of the run (its pre-launch week is <run-id>-pre).")] = "mandate",
+    prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
+                                        show_default="config/prices.yaml")] = _PRICES,
+    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    start: Start = None,
+) -> None:
+    """A probe of the setup, not an arm: one scripted shop owner subscribes, connects everything with access to
+    act and writes one broad request; the seat and what is beyond the people run for a week on their models
+    with scripted townspeople and lane B, behind a spending cap; the run is kept in --db for town-story and
+    replayed. CALLS MODELS AND SPENDS MONEY."""
+    from townsim.estimate import load_prices
+    from townsim.town import live, mandate_probe as mp
+    from townsim.town.modelreplier import ModelReplier
+    from townsim.town.replies import ReplayMismatch
+    from townsim.town.rundb import RunDB
+
+    dollars = _cap(cap, mp.MAX_CAP)
+    day0 = _start(start)
+    _need_key("town-mandate-probe")
+    seat_family = _load_seat(seat, prices)
+    fams, settings = _load_outside(outside, prices)
+    completion_fn, cost_fn = _litellm()
+    typer.echo(mp.NOTICE)
+    with _plainly(db), RunDB(db) as rdb:
+        def lost(amount: float) -> None:
+            rdb.put_note(run_id, "lost_spend", repr(live.lost_spend(rdb, run_id) + float(amount)))
+        model = ModelReplier({}, load_prices(prices), {}, completion_fn, cap=dollars,
+                             spent=lambda: live.spent(rdb, run_id), cost_fn=cost_fn, lost=lost, seat=seat_family,
+                             outside=fams)
+        try:
+            store = mp.make(rdb, run_id, mp.Mixed(model), seed=seed, start=day0, settings=settings,
+                            seat=seat_family, outside=fams)
+        except ReplayMismatch as e:
+            _fail(f"the probe cannot go on: {e}")
+        typer.echo(f"{run_id}: day {store.day}; spent ${live.spent(rdb, run_id):.4f}")
+        if model.stopped:
+            typer.echo(f"stopped: {model.stopped}")
+        _replay(rdb, run_id)
+        typer.echo(f"the assistant's days: townsim town-story {run_id} --db {db}")

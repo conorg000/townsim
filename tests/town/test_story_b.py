@@ -30,7 +30,9 @@ def _tool_fn(key, messages, tools):
     step = sum(1 for m in messages if m.get("role") == "tool")
     if step < len(plan):
         return plan[step]
-    return "Done." if plan else seat_script.tool_fn(key, messages, tools)
+    if plan:
+        return "Done."
+    return seat_script.tool_fn(key, messages, [t for t in tools if t["function"]["name"] != "tasks_create"])
 
 
 class _World(Outside):

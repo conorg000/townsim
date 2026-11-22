@@ -133,9 +133,9 @@ def test_day_order_with_lane_b(tmp_path):
         stopped = run(db, "b", s, _StopAtNarrator(scripted), 1)
         assert stopped.day == 7 and not stopped.all("tasks")             # the day is not kept
         assert [k for k, _ in db.replies("b") if "|lifter|" in k]          # the lifter's reply is
-        lifted = len([c for c in outside.calls if c[0].actor == "lifter"])
+        lifted = len([c for c in outside.calls if c[0].actor == "lifter" and c[0].ref == "ts1"])
         end = run(db, "b", stopped, scripted, 7)
-        assert len([c for c in outside.calls if c[0].actor == "lifter"]) == lifted   # served as stored, not asked again
+        assert len([c for c in outside.calls if c[0].actor == "lifter" and c[0].ref == "ts1"]) == lifted   # stored
         assert end.get("tasks", "ts1").status in ("scheduled", "in_progress", "completed")
         day7 = [c for c in end.changes if c.day == 7]
         order = [c.cause.split(":")[0] for c in day7 if re.match(r"(op:as1|narr:|auto:)", c.cause)]

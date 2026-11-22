@@ -4,7 +4,7 @@ drawn run, and the limits; nothing of it reaches any assistant."""
 import json
 
 from town.test_seat_texts import drawn
-from townsim.town import connections, hamlet_script, lane_b, loop, product, seat_script, seat_texts, seat_tools as ST
+from townsim.town import connections, lane_b, loop, outside_script, product, seat_script, seat_texts, seat_tools as ST
 from townsim.town.acts import Act, apply_act
 from townsim.town.product import NEUTRAL_BANNED, company_section
 from townsim.town.replies import Keys, ScriptedReplier
@@ -16,7 +16,7 @@ def _week():
     """Seed 1's drawn clients with lane B, eight days of the hamlet's script and the scripted seat."""
     s = drawn()
     lane_b.install(s)
-    replier, keys = ScriptedReplier(hamlet_script.script, seat_script.tool_fn), Keys("t")
+    replier, keys = ScriptedReplier(outside_script.reply, seat_script.tool_fn), Keys("t")
     for _ in range(8):
         loop.run_day(s, replier, keys)
     return s
@@ -28,7 +28,7 @@ def test_company_people_see_instances_week_and_a_run():
     head, lines = company_section(s, "p11")
     assert head == "TESSALY SOFTWARE"
     shop = next(x for x in lines if x.startswith("  Harlow Springs Food Mart, since Monday 9 March"))
-    assert shop.endswith(": 3 runs; 3 letters to the client, 0 from it; 3 payments or orders made; asked of it at "
+    assert shop.endswith(": 4 runs; 4 letters to the client, 0 from it; 4 payments or orders made; asked of it at "
                          "sign-up: nothing written.")
     assert lines[6].endswith('asked of it at sign-up: "Keep an eye on what comes in and goes out. Tell me…".')
     start = lines.index("Assistants this week (from Monday 16 March):")
@@ -58,7 +58,7 @@ def test_company_section_within_length():
         if product.subscription_of(s, h.id) is None:
             product.subscribe(s, h.members[0], h.id, "Please keep an eye on the household's bills and tell us what is due "
                                                      "each week before anything is paid.", CAUSE)
-    replier, keys = ScriptedReplier(hamlet_script.script, seat_script.tool_fn), Keys("t")
+    replier, keys = ScriptedReplier(outside_script.reply, seat_script.tool_fn), Keys("t")
     for _ in range(8):
         loop.run_day(s, replier, keys)
     _, lines = company_section(s, "p11")
