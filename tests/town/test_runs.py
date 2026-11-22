@@ -258,7 +258,7 @@ def test_a_view_that_raises_skips_that_person_that_day_and_the_run_goes_on(tmp_p
 
 from townsim.town import families as _families, gen as _gen, hamlet_script as _hamlet_script  # noqa: E402
 
-SCRIPTED_HASH = "ea720ed14671b8f50edce581e97134f5db9ae4cbe179200a64c963bdd0a40cb9"   # changed only on purpose: a request keeps when and by whom it closed
+SCRIPTED_HASH = "e510397e94fb4d332aee8a5ae625507a300e208710be9153ab391e03e3cabc8d"   # changed only on purpose: what the place begins with carries the day it began
 
 
 def _hamlet():

@@ -75,7 +75,7 @@ def test_ids_go_back_through_one_place():
     rent = next(o for o in s.all("obligations") if o.payer == "org11" and o.kind == "rent")
     shown = ST.seat_ids.display(s, rent.id)
     listed = ST.run_tool(s, shop, "bank_list_agreements", {}, ST.Ctx(), 0).text
-    assert f"{shown}: " in listed and f"{rent.id}:" not in listed and "2026, active" in listed
+    assert f"{shown}: " in listed and f"{rent.id}:" not in listed and ", next due Mon 2026-03-09 $141.00" in listed
     out = ST.run_tool(s, shop, "loan_repay", {"agreement_id": shown, "amount": 1}, ST.Ctx(), 1)
     assert rent.id not in out.text
     fu = ST.run_tool(s, shop, "schedule_followup", {"date": "2026-03-16", "repeat": "weekly", "note": "review"},
@@ -183,3 +183,46 @@ def test_a_letter_s_subject_is_counted_apart_and_a_long_body_is_refused_with_its
     schema = {t["function"]["name"]: t for t in ST.tools_for(s, inst)}["send_email"]["function"]["parameters"]
     assert "300 words" in schema["properties"]["body"]["description"]
     assert "120 characters" in schema["properties"]["subject"]["description"]
+
+
+def test_the_agreements_list_and_the_cancel_and_end_tools_agree():
+    from townsim.town.acts import Act
+    from townsim.town.seat_tools import _client_accounts, _group
+    s = drawn()
+    for inst in s.all("instances"):
+        if "bank_list_agreements" not in _names(s, inst.id):
+            continue
+        listed = ST.run_tool(s, inst, "bank_list_agreements", {}, ST.Ctx(), 0).text
+        assert "first " not in listed and ", next due " in listed
+        for ob in s.all("obligations"):
+            if ob.status != "active" or not {ob.payer, ob.payee} & _client_accounts(s, inst):
+                continue
+            assert ST.seat_ids.display(s, ob.id) in listed
+            group = _group(s, inst, ob)
+            pid = ST._grantor(s, inst, "stop", {"id": ob.id})
+            stop = REGISTRY["stop"].check(s, Act(inst.id, pid, "stop", {"id": ob.id}))
+            end = REGISTRY["propose_end"].check(s, Act(inst.id, pid, "propose_end", {"id": ob.id}))
+            if group == "own":
+                assert stop is None, (ob, stop)
+            if group == "agreement":
+                assert end is None or "payment left" in end or "no payment falls" in end, (ob, end)
+            if group == "living":
+                cancel = ST.run_tool(s, inst, "bank_cancel", {"id": ST.seat_ids.display(s, ob.id)}, ST.Ctx(), 1)
+                assert "not an agreement with anyone; it cannot be cancelled" in json.loads(cancel.text)["message"]
+    home = s.get("instances", "as3")
+    fee = s.get("obligations", s.get("subscriptions", home.subscription).fee_ob)
+    out = ST.run_tool(s, home, "propose_termination", {"agreement_id": ST.seat_ids.display(s, fee.id)}, ST.Ctx(), 2)
+    assert json.loads(out.text)["message"] == (f"{ST.seat_ids.display(s, fee.id)} is a standing payment of the client's "
+                                               "own, not an agreement; bank_cancel ends it.")
+    listed = ST.run_tool(s, home, "bank_list_agreements", {}, ST.Ctx(), 3).text
+    assert "Regular household spending (not an agreement; cannot be cancelled):\n  " in listed
+    assert ", since Monday 6 July 2015, next due Mon 2026-03-09 $122.00, last Mon 2040-05-28" in listed
+
+
+def test_a_person_proposing_to_end_what_is_not_an_agreement_is_told_what_it_is():
+    from townsim.town.acts import Act, apply_act
+    s = drawn()
+    spend = next(o for o in s.all("obligations") if o.payer == "h5" and o.cannot_stop == "living")
+    out = apply_act(s, Act("p9", "p9", "propose_end", {"id": spend.id}), 0)
+    assert out.msg == (f"Not done: {spend.id} is household spending (regular spending), not an agreement with anyone; "
+                       "it cannot be ended.")

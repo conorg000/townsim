@@ -16,6 +16,7 @@ argument an instance passes that is an id is read through `seat_ids.internal` fi
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -118,7 +119,9 @@ def _not(text: str, cause: str = "", kind: str = "own") -> Done:
 def declined(store: Store, inst: Instance, done: Done) -> str:
     """A refusal as the seat returns it: the engine's sentence under a code."""
     message = done.text.removeprefix("Not done: ").strip()
-    message = seat_ids.view(store, _integration_names(store, inst, message[:1].upper() + message[1:]))
+    if not re.match(r"[a-z]+\d+\b", message):          # a sentence opening with an id keeps it as it is
+        message = message[:1].upper() + message[1:]
+    message = seat_ids.view(store, _integration_names(store, inst, message))
     low = message.lower()
     if done.kind == "beyond":
         code = "limit_exceeded" if "weekly limit" in low else "insufficient_scope"
@@ -332,7 +335,11 @@ def tool_args(t: OpTool, args: dict) -> dict:
 
 
 def _run_op_tool(t: OpTool) -> Callable[[Store, Instance, dict, Ctx, int], Done]:
-    return lambda store, inst, args, ctx, n: run_op(store, inst, t.op, tool_args(t, args), n)
+    def run(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+        done = _not_cancellable(store, inst, t.name, tool_args(t, args), _cause(inst, t.name, store, n)) \
+            if t.name in ("bank_cancel", "propose_termination") else None
+        return done if done is not None else run_op(store, inst, t.op, tool_args(t, args), n)
+    return run
 
 
 # --- the integrations' reads ----------------------------------------------------------------------
@@ -438,8 +445,98 @@ def _run_bank_get(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) ->
     return _read_account(store, inst, "account in full" if detail == "full" else "account", n)
 
 
+HEADINGS = (
+    ("in", "Paid to the client:"),
+    ("own", "Recurring payments set up by the client (bank_cancel cancels one):"),
+    ("agreement", "Agreements with others (propose_termination asks the other side to end one):"),
+    ("owed", "Rent, loans and wages (bank_cancel stops paying one, which is recorded as a breach; loan_repay pays a "
+             "loan off):"),
+    ("living", "Regular household spending (not an agreement; cannot be cancelled):"),
+)
+
+
+def _group(store: Store, inst: Instance, ob) -> str:
+    """Where an obligation of the client's stands in the list: what the cancelling and ending
+    tools do with it."""
+    if ob.payee in _client_accounts(store, inst) and ob.payer not in _client_accounts(store, inst):
+        return "in"
+    if ob.cannot_stop:
+        return "living"
+    if ob.kind == "agreement":
+        return "agreement"
+    if ob.kind in ("standing", "fee"):
+        return "own"
+    return "owed"
+
+
+def _client_accounts(store: Store, inst: Instance) -> set[str]:
+    from townsim.town.acts import savings_of
+    return {inst.client, savings_of(inst.client)} if store.has("households", inst.client) else {inst.client}
+
+
+def agreement_line(store: Store, ob, accounts: set[str] = frozenset()) -> str:
+    """An obligation as the list shows it: what, how much, how often, with whom, since when, the
+    next payment due, and its last when it has one."""
+    from townsim.town import obligations as O
+    from townsim.town.statement import began, memo
+    party = f"from {name_of(store, ob.payer)}" if ob.payee in accounts else f"to {name_of(store, ob.payee)}"
+    how = {7: "every week", 28: "every 4 weeks"}.get(ob.every, "once" if ob.every == 0 else f"every {ob.every} days")
+    out = f"{ob.id}: {memo(ob.memo)}, {money(O.cents_now(store, ob))} {how}"
+    nxt = O.next_instalment(store, ob)
+    when = began(store, ob).replace("first ", "starting ")
+    out += f" {party}, {when}"
+    if nxt is not None:
+        out += f", next due {seat_ids.day(nxt)} {money(O.instalment_cents(ob, nxt))}"
+    end = O.last_instalment(ob)
+    if ob.last is not None and end is not None:
+        out += f", last {seat_ids.day(end)}"
+    return out
+
+
+def agreements_list(store: Store, inst: Instance) -> str:
+    """The client's obligations in force, grouped by what bank_cancel and propose_termination do
+    with each, and a shop's standing supplier order."""
+    from townsim.town.obligations import SCHEDULED
+    accounts = _client_accounts(store, inst)
+    rows = [ob for ob in store.all("obligations") if (ob.payer in accounts or ob.payee in accounts)
+            and ob.status in SCHEDULED]
+    out = []
+    org = _business(store, inst)
+    if org is not None:
+        order = facts.standing_order(store, org.id)
+        if order:
+            out += ["Supplier order (ordering_place_order changes it):"] + [f"  {x}" for x in order]
+    for key, head in HEADINGS:
+        mine = [ob for ob in rows if _group(store, inst, ob) == key]
+        if mine:
+            out += [head] + [f"  {agreement_line(store, ob, accounts)}" for ob in mine]
+    return "\n".join(out) or "Nothing in force."
+
+
 def _run_bank_agreements(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
-    return _read_account(store, inst, "agreements", n)
+    cause = _cause(inst, "bank_list_agreements", store, n)
+    refusal = _needs(store, inst, "account", cause)
+    return refusal if refusal is not None else Done(agreements_list(store, inst), True, "read", cause)
+
+
+def _not_cancellable(store: Store, inst: Instance, tool: str, args: dict, cause: str) -> Done | None:
+    """A refusal stating what an obligation of the client's is, when the tool asked does not end it."""
+    from townsim.town.obligations import SCHEDULED
+    from townsim.town.ops_deals import not_an_agreement
+    ob_id = args.get("id")
+    if not (isinstance(ob_id, str) and store.has("obligations", ob_id)):
+        return None
+    ob = store.get("obligations", ob_id)
+    if ob.status not in SCHEDULED or not ({ob.payer, ob.payee} & _client_accounts(store, inst)):
+        return None
+    if tool == "bank_cancel" and ob.cannot_stop:
+        return Done(f"Not done: {ob.id} is {'household spending' if ob.cannot_stop == 'living' else 'a bill'} "
+                    f"({ob.memo}), not an agreement with anyone; it cannot be cancelled.", False, "refused", cause)
+    if tool == "propose_termination" and ob.kind != "agreement":
+        why = not_an_agreement(ob, stop="bank_cancel", repay="loan_repay", dismiss="payroll_end_employment",
+                               whose="the client's")
+        return Done(f"Not done: {why}", False, "refused", cause)
+    return None
 
 
 def _bank_schema(store: Store, inst: Instance) -> dict:

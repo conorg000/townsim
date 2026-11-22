@@ -194,4 +194,4 @@ def test_agreements_show_a_wage_s_change_of_pay_coming_with_its_day():
     assert out.ok, out.msg
     wage = s.get("jobs", next(j.id for j in s.all("jobs") if j.person == "p15")).wage_ob
     line = next(r for r in agreements_text(s, "h8").split("\n") if r.startswith(f"{wage}:"))
-    assert "$287.10 every week from Marsh's Grocery, $300.00 from Friday 13 March, first" in line, line
+    assert "$287.10 every week from Marsh's Grocery, $300.00 from Friday 13 March, since " in line, line

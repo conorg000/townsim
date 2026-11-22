@@ -797,6 +797,7 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
     _opening_tills(s, seed, attempt, units, share, cap, opening)
     _deal(s, random.Random(f"gen:{seed}:{attempt}:families"), families)
     _deck(s, random.Random(f"gen:{seed}:{attempt}:deck"), weeks)
+    _starts(s, random.Random(f"gen:{seed}:{attempt}:starts"))
     for p in s.all("people"):
         free = hours.free_hours(s, p.id)
         s.set("people", p.id, SETUP, hours_week=free, hours_left=free)
@@ -860,6 +861,60 @@ def _deal(s: Store, rng: random.Random, families: list[str]) -> None:
         for i, pid in enumerate(ids):
             s.set("people", pid, SETUP, family=order[(i + offset) % len(order)])
         offset += len(ids)
+
+
+# When what the place began with began, in weeks before its first instalment: drawn once, on a
+# stream of its own, so nothing else about the place changes. No money moves.
+TENANCY_WEEKS = (26, 780)          # how long a household has lived where it lives
+SHOP_LEASE_WEEKS = (52, 780)
+BENEFIT_WEEKS = (4, 156)
+LOAN_TERMS = (104, 156, 208, 260, 312, 520)
+MORTGAGE_TERMS = (1300, 1560)      # 25 and 30 years
+DEBT_WEEKS = (1, 12)               # a debt between households agreed lately
+INVESTMENT_WEEKS = (26, 104)
+
+
+def _term_elapsed(remaining: int, terms: tuple[int, ...]) -> int:
+    """Weeks already paid on a loan with `remaining` weeks to run: its term is the shortest of
+    `terms` at least four weeks longer."""
+    term = next((t for t in terms if t >= remaining + 4), remaining + 4)
+    return term - remaining
+
+
+def _starts(s: Store, rng: random.Random) -> None:
+    """Give every job's wage, let, loan and standing arrangement set up with the place the day it
+    really began (`Obligation.since`, before day 0), on the weekday it falls: a job's from its
+    tenure, a tenancy's or mortgage's from how long the household has lived there (a mortgage's
+    consistent with the term left), a loan's from its term, a pension's from the holder's age."""
+    wage_of_job = {j.wage_ob: j for j in s.all("jobs")}
+    moved_in: dict[str, int] = {}
+    for ob in s.all("obligations"):          # a mortgage fixes when its household moved in
+        if ob.kind == "loan" and ob.memo.startswith("mortgage") and ob.last is not None:
+            moved_in[ob.payer] = _term_elapsed((ob.last - ob.first) // 7 + 1, MORTGAGE_TERMS)
+    for ob in s.all("obligations"):
+        if ob.every != 7:
+            continue
+        if ob.id in wage_of_job:
+            weeks = max(1, -(-(ob.first - wage_of_job[ob.id].since) // 7))
+        elif ob.kind == "wage" and ob.memo == "state pension":
+            ages = [s.get("people", p).age for p in s.get("households", ob.payee).members if s.has("people", p)]
+            weeks = max(1, (max(ages) - PENSION_AGE) * 52 + rng.randint(0, 51))
+        elif ob.kind == "wage":
+            weeks = rng.randint(*BENEFIT_WEEKS)
+        elif ob.kind == "loan" and ob.last is not None:
+            weeks = moved_in.get(ob.payer) if ob.memo.startswith("mortgage") else _term_elapsed(
+                (ob.last - ob.first) // 7 + 1, LOAN_TERMS)
+        elif ob.kind in ("rent", "bill") and s.has("households", ob.payer):
+            weeks = moved_in.setdefault(ob.payer, rng.randint(*TENANCY_WEEKS))
+        elif ob.kind == "rent":
+            weeks = rng.randint(*SHOP_LEASE_WEEKS)
+        elif ob.kind == "agreement" and s.has("orgs", ob.payer):
+            weeks = rng.randint(*INVESTMENT_WEEKS)
+        elif ob.kind == "agreement":
+            weeks = rng.randint(*DEBT_WEEKS)
+        else:
+            continue
+        s.set("obligations", ob.id, SETUP, since=ob.first - 7 * weeks)
 
 
 def _deck(s: Store, rng: random.Random, weeks: int) -> None:

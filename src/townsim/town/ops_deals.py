@@ -283,6 +283,22 @@ def _end_day(store: Store, ob) -> int | None:
     return days[0] - 1 if days else None
 
 
+def not_an_agreement(ob, stop: str = "stop", repay: str = "repay", dismiss: str = "dismiss", whose: str = "your") -> str:
+    """Why `ob` is not ended by proposing an end: what it is, and what ends it."""
+    if ob.cannot_stop:
+        return (f"{ob.id} is {'household spending' if ob.cannot_stop == 'living' else 'a bill'} ({ob.memo}), not an "
+                f"agreement with anyone; it cannot be ended.")
+    if ob.kind in ("standing", "fee"):
+        return f"{ob.id} is a standing payment of {whose} own, not an agreement; {stop} ends it."
+    if ob.kind == "loan":
+        return f"{ob.id} is a loan, not an agreement; it ends when it is repaid ({repay})."
+    if ob.kind == "wage":
+        return f"{ob.id} is wages for a job, not an agreement; it ends with the job ({dismiss})."
+    if ob.kind == "rent":
+        return f"{ob.id} is rent, not an agreement; {stop} stops paying it, which is recorded as a breach."
+    return f"{ob.id} is a {ob.kind}, not an agreement."
+
+
 def _ending(store: Store, act: Act) -> tuple[Any, str, str]:
     """(the agreement, the other side's account, who answers for it), or None and why not."""
     ob_id = act.args.get("id")
@@ -291,6 +307,8 @@ def _ending(store: Store, act: Act) -> tuple[Any, str, str]:
         return None, "", none
     ob = store.get("obligations", ob_id)
     mine = [a for a in (ob.payer, ob.payee) if controls(store, act.principal, a)]
+    if mine and ob.status == "active" and ob.kind != "agreement":
+        return None, "", not_an_agreement(ob)
     if ob.kind != "agreement" or ob.status != "active" or not mine:
         return None, "", none
     if len(mine) == 2:

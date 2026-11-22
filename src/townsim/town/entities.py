@@ -178,6 +178,7 @@ class Obligation:
     stopped_on: int = -1       # the day its payer stopped it (stopped or breached), or -1
     cannot_stop: str = ""      # why its payer may not stop it: "living", "energy", "work" (`obligations.UNSTOPPABLE`)
     party: str = ""            # an agreement: the person who agreed to what `made_by` proposed
+    since: int | None = None   # the day it began, when that was before `first` (one set up with the place)
 
 
 @dataclass

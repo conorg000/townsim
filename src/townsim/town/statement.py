@@ -7,7 +7,7 @@ import re
 from bisect import bisect_left
 from typing import NamedTuple
 
-from townsim.town.clock import date_text
+from townsim.town.clock import date_in, date_text
 from townsim.town.obligations import (OWED, SCHEDULED, Upcoming, last_cents, last_instalment, money, name_of,
                                       cents_now, pending_change, upcoming)
 from townsim.town.store import Store
@@ -253,6 +253,14 @@ def lowest_line(st: Statement) -> str:
     return f"Lowest point before {date_text(st.until + 1)}: {money(lowest(st))}"
 
 
+def began(store: Store, ob) -> str:
+    """`since Friday 14 March 2025` for one that began before its first instalment here, else
+    `first Monday 9 March`."""
+    if ob.since is not None and ob.since < ob.first:
+        return f"since {date_in(ob.since, store.day)}"
+    return f"first {date_text(ob.first)}"
+
+
 def agreements_text(store: Store, account: str) -> str:
     """Every obligation `account` pays or receives, ordered for its reader: those in force
     (active or breached) that it pays, then those in force that it receives, each by id, then
@@ -278,12 +286,12 @@ def agreements_text(store: Store, account: str) -> str:
             continue
         how = {1: "every day", 7: "every week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
         end = last_instalment(ob)                    # the day its last instalment falls, not its raw `last`
-        until = f", until {date_text(end)}" if ob.last is not None else ""
+        until = f", until {date_in(end, store.day)}" if ob.last is not None else ""
         if ob.last is not None and last_cents(ob) != ob.cents:
-            until = f", the last, on {date_text(end)}, {money(last_cents(ob))}"
+            until = f", the last, on {date_in(end, store.day)}, {money(last_cents(ob))}"
         coming = pending_change(store, ob)            # a rent or wage re-priced from a day not yet come
         change = f", {money(coming[0])} from {date_text(coming[1])}" if coming else ""
-        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(cents_now(store, ob))} {how} {party}{change}, first {date_text(ob.first)}"
+        rows.append(f"{ob.id}: {memo(ob.memo)}, {money(cents_now(store, ob))} {how} {party}{change}, {began(store, ob)}"
                     f"{until}, {ob.status}")
     if len(rows) > AGREEMENT_LINES:
         rows = rows[:AGREEMENT_LINES] + [f"({len(rows) - AGREEMENT_LINES} more not shown)"]

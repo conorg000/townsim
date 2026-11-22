@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "dd147feb1fb157f091a09c5327e34174756e0bde9031f07b6486532e3a041bc4"
+SEED_1_HASH = "1295f9312d03d5711608bd68e22aae970230e42dda61b1015ba05eae5adb0762"
 
 
 @functools.lru_cache(maxsize=None)
@@ -449,3 +449,13 @@ def test_names_are_one_country_s_and_the_bank_a_branch():
     bank = next(o for o in s.all("orgs") if o.kind == "bank")
     assert bank.name.endswith(" Savings Bank") and s.place not in bank.name
     assert product.business_page(s, bank).startswith(f"{bank.name}, {s.place} branch. ")
+
+
+def test_what_the_place_begins_with_began_before_day_0_and_no_money_moved():
+    s = gen.generate(1, FAMILIES)
+    weekly = [o for o in s.all("obligations") if o.every == 7]
+    assert weekly and all(o.since is not None and o.since < o.first and (o.first - o.since) % 7 == 0 for o in weekly)
+    for j in s.all("jobs"):
+        wage = s.get("obligations", j.wage_ob)
+        assert wage.since <= j.since < wage.since + 7          # the first payday of the job
+    assert not [t for t in s.ledger.transfers if t.t < 0]
