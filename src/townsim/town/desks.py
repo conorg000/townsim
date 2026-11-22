@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from typing import Any
 
 from townsim.town import names, obligations, standards
@@ -534,6 +535,40 @@ def apply(store: Store, d, writer: str, action: Any, cause: str) -> str:
         return f"dropped: {type(e).__name__}"
 
 
+def account_note(store: Store, result: str, changed: bool) -> str:
+    """The line code adds after a desk's words, in its organisation's voice, stating exactly what was applied
+    to the correspondent's account, or that nothing was changed; what the records agree with whatever the
+    email says."""
+    from townsim.town.clock import date_year
+    from townsim.town.jobs import next_monday
+    if not changed or not result.startswith("applied: "):
+        return "Account note: no change has been made to the account."
+    what = result.removeprefix("applied: ")
+    m = re.match(r"(\d+)% to ", what)
+    if m:
+        n = int(m.group(1))
+        when = date_year(next_monday(store.day))
+        return (f"Account note: volume discount {n}% applies to orders from {when}." if n else
+                f"Account note: no volume discount applies to orders from {when}.")
+    m = re.match(r"time to pay to (\d{4}-\d{2}-\d{2})", what)
+    if m:
+        return (f"Account note: no late fee, notice or default applies to the rent arrears until "
+                f"{date_year(_day_of(m.group(1)))}; the arrears stay owed.")
+    m = re.match(r"(accept|decline) ", what)
+    if m:
+        return f"Account note: your request has been {m.group(1)}ed."
+    m = re.match(r"(\$[\d,]+\.\d\d) a week from (\d{4}-\d{2}-\d{2})", what)
+    if m:
+        return f"Account note: the weekly amount is {m.group(1)} from {date_year(_day_of(m.group(2)))}."
+    return "Account note: no change has been made to the account."
+
+
+def _day_of(iso_text: str) -> int:
+    from datetime import date
+    from townsim.town import clock
+    return (date.fromisoformat(iso_text) - clock.start()).days
+
+
 # --- the morning --------------------------------------------------------------------------------------------
 
 def _suspicious(text: str) -> bool:
@@ -554,6 +589,7 @@ def _answer_one(store: Store, replier: Replier, keys: Keys, d, item) -> None:
     raw = getattr(reply, "text", None)
     email, action = parse(raw)
     asked = json.dumps(action, sort_keys=True, default=str)[:500] if action is not None else ""
+    mark = store.mark()
     if email is None:
         email, result = FALLBACK, "unread reply"
     elif _suspicious(email):
@@ -561,6 +597,7 @@ def _answer_one(store: Store, replier: Replier, keys: Keys, d, item) -> None:
     else:
         email = _cut(email, EMAIL_CUT)
         result = apply(store, d, item.sender, action, cause)
+    email += "\n\n" + account_note(store, result, store.mark() != mark)
     _send(store, d, item.sender, email, cause)
     store.add("answers", DeskAnswer(store.new_id("da", cause), d.id, item.id, store.day,
                                     raw[:REPLY_CHARS] if isinstance(raw, str) else "", asked, result), cause)

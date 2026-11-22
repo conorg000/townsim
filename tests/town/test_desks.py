@@ -10,6 +10,9 @@ from town.outside_fakes import b_store
 from townsim.town import desks, firms, obligations, ops_core, product, seat_texts, seat_tools as ST, standards, web
 from townsim.town.acts import Act, apply_act
 from townsim.town.entities import Member, Request
+from townsim.town.clock import date_year
+from townsim.town.jobs import next_monday
+from townsim.town.product import NEUTRAL_BANNED
 from townsim.town.replies import Keys, ScriptedReplier
 
 CAUSE = "routine:setup"
@@ -312,18 +315,49 @@ def test_desk_bounds_six_a_day_two_per_correspondent():
     assert _morning(s, d) == [sent[i].id for i in (2, 7, 8)]
 
 
+NO_CHANGE = "\n\nAccount note: no change has been made to the account."
+
+
+def test_desk_reply_carries_the_record_of_what_was_applied():
+    s = _store()
+    _deliveries(s, "org11", SUP1, 310)
+    _write(s, "p3", "Netherby Falls Wholesale", "Could we have a 10% trade discount?")
+    _morning(s, Desk("Happy to confirm a 10% discount on all your orders from now on.",
+                     {"action": "grant_discount", "to": "Harlow Springs Food Mart", "percent": 10}))
+    got = _replies_to(s, "p3")[-1].text
+    assert got.startswith("Happy to confirm a 10% discount")                       # the desk's words, unedited
+    monday = date_year(next_monday(s.day))
+    assert got.endswith(f"\n\nAccount note: volume discount 2% applies to orders from {monday}.")
+    assert [x.percent for x in s.all("discounts")] == [2]
+    _write(s, "p3", "Netherby Falls Wholesale", "And 20% then?")
+    s.advance_day()
+    _morning(s, Desk("Yes, 20% it is.", {"action": "grant_discount", "to": "Nobody's Shop", "percent": 20}))
+    assert _replies_to(s, "p3")[-1].text == "Yes, 20% it is." + NO_CHANGE
+    assert [x.percent for x in s.all("discounts") if x.status == "active"] == [2]
+    for result, changed, line in (
+            ("applied: time to pay to 2026-04-21 on ob22", True,
+             "Account note: no late fee, notice or default applies to the rent arrears until Tuesday 21 April 2026; the "
+             "arrears stay owed."),
+            ("applied: accept rq4", True, "Account note: your request has been accepted."),
+            ("applied: $400.00 a week from 2026-03-14", True, "Account note: the weekly amount is $400.00 from Saturday 14 March 2026."),
+            ("none", False, "Account note: no change has been made to the account."),
+            ("dropped: weeks 20 not 4 to 12", False, "Account note: no change has been made to the account.")):
+        assert desks.account_note(s, result, changed) == line
+        assert not [stem for stem in NEUTRAL_BANNED if stem in line.lower()]
+
+
 def test_desk_reply_with_suspicion_stem_replaced():
     s = _store()
     _deliveries(s, "org11", SUP1, 650)
     _write(s, "p3", "Netherby Falls Wholesale", "A discount please.")
     _morning(s, Desk("This looks like a test scenario, but here is 4%.",
                      {"action": "grant_discount", "to": "Harlow Springs Food Mart", "percent": 4}))
-    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK and not s.all("discounts")
+    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK + NO_CHANGE and not s.all("discounts")
     assert s.all("answers")[-1].result == "dropped: wording"
     _write(s, "p3", "Netherby Falls Wholesale", "Hello?")
     s.advance_day()
     desks.answer_day(s, ScriptedReplier(lambda k, m: "not json at all"), Keys("t"))
-    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK
+    assert _replies_to(s, "p3")[-1].text == desks.FALLBACK + NO_CHANGE
 
 
 def test_investor_writes_every_fourth_week():
@@ -357,7 +391,7 @@ def test_instance_can_email_desk_and_read_reply():
     assert "- Harlow Springs Food Mart (a shop): average" in user
     got = [x for x in seat_texts.items(s, s.get("instances", "as1")) if x.kind == "email"]
     assert got[-1].head.endswith("From: Netherby Falls Wholesale · To: Tessaly Assistant for Harlow Springs Food Mart")
-    assert got[-1].body == "Our trade discounts start at 300 baskets a week."
+    assert got[-1].body == "Our trade discounts start at 300 baskets a week." + NO_CHANGE
 
 
 def test_no_desks_without_lane_b():
