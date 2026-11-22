@@ -300,3 +300,31 @@ def test_a_run_with_a_call_to_the_assistant_and_an_act_done_once_replays_exactly
         assert cn is not None and cn.scope == "free" and not plans.is_free(end, _sub(end))
         day = talks[0].day
         assert any(c.key.split("|")[4].startswith("seat:tk") for t in db.seat_turns("o", day) for c in t.calls)
+
+
+# --- results in the client's own records, after the fact ---------------------------------------------------
+
+def test_the_client_sees_what_was_done_once_and_the_shops_weeks_since():
+    s = world()
+    rq = _asked(s)
+    before = product.client_section(s, OWNER)[1]
+    assert not [x for x in before if x.startswith(("Done once", "What your assistant did"))]
+    assert 'It asked to do one thing for you 1 time: not yet answered 1.' in before
+    _act(s, OWNER, "answer", request=rq.id, answer="once")
+    assert _ask(s, {**ASK, "action": "pos_set_price", "integration": "Point of sale", "access": "full",
+                    "arguments": {"price": 9.5}}).ok
+    _days(s, 8)
+    lines = product.client_section(s, OWNER)[1]
+    assert lines[3] == "Your assistant: has not run yet; 1 order placed (latest Mon 9 Mar)."
+    assert lines[6:] == [
+        'It asked to do one thing for you 2 times: answered "once" 1; not yet answered 1.',
+        "Done once for you: Mon 9 Mar, ordered 260 baskets from Coldwater Bend Food Supply at $6.57 a basket, for "
+        "Monday 16 March.",
+        "What your assistant did to the shop's orders and price: Mon 9 Mar, ordered 260 baskets a week from Coldwater "
+        "Bend Food Supply (once, at your answer).",
+        "The shop's week from Mon 9 Mar: sold 260 baskets, lost 128 sales for want of stock and 0 for want of staff, "
+        "threw away 0, took $2,652.00."]
+    till = next(x for x in s.all("tills") if x.week == 2 and s.get("firms", x.firm).org == SHOP)
+    assert (till.sold, till.turned_stock, till.spoiled) == (260, 128, 0)      # the till's own record, as it closed
+    assert not [(w, x) for x in lines for w in NEUTRAL_BANNED if w in x.lower()]
+    assert not [x for x in lines if "would" in x or "could have" in x]

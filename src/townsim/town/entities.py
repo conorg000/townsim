@@ -780,7 +780,7 @@ class ActAsk:
     """What an instance asked its client to let it do once (lane B), kept apart from the request `request` so
     that it is fixed when the client sees it: the integration tool and the operation, the arguments the act is
     done with (JSON), the system it uses, and the last day of the paid plan's free weeks the request stated
-    (-1 for none). `answer` is "", once, always, no or lapsed; `result` what came of a "once"."""
+    (-1 for none). `answer` is "", once, always or no; `result` what came of a "once", as the client was told it."""
 
     id: str
     request: str

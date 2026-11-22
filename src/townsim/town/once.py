@@ -176,7 +176,7 @@ def do(store: Store, act: Act, rq, cause: str, note: str) -> str:
             connections.ONCE.pop()
         kind = "act" if out.ok else ("beyond" if out.beyond else "refused")
         shown = _shown_result(store, inst, Done(out.msg, out.ok, kind, out.cause)).text
-        store.set("asks", row.id, cause, answer="once", result=shown, done=out.ok, day=store.day)
+        store.set("asks", row.id, cause, answer="once", result=out.msg, done=out.ok, day=store.day)
         cn = connections.connection_on(store, inst.id, row.system)
         integration = _integration(store, row.system)
         stands = (f"{integration} is not connected to it." if cn is None else

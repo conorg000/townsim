@@ -240,7 +240,7 @@ def client_lines(store: Store, pid: str, inst) -> list[str]:
     whether they have written to it, and how it is written to. Built only from what happened."""
     from townsim.town import obligations
     runs = runs_of(store, inst.id)
-    calls = [(r.day, c) for r in runs for c in r.calls]
+    calls = [(r.day, c) for r in runs for c in r.calls] + done_once(store, inst)
     parts = [f"ran on {_dates([r.day for r in runs])}" if runs else "has not run yet"]
     read = list(dict.fromkeys(READS[c[0]] for _, c in calls if c[0] in READS and c[2] == "1"))
     if read:
@@ -268,4 +268,86 @@ def client_lines(store: Store, pid: str, inst) -> list[str]:
     wrote = (f"{len(from_me)} time{'' if len(from_me) == 1 else 's'}, latest on {short_date(from_me[-1].day)}"
              if from_me else "never")
     return [f"Your assistant: {'; '.join(parts)}.", f"You have written to it: {wrote}.",
-            f'Write to it as "{inst.name}" or "my assistant".']
+            f'Write to it as "{inst.name}" or "my assistant".'] + once_lines(store, pid, inst) + shop_lines(store, inst)
+
+
+ONCE_SHOWN = 3
+TILLS_SHOWN = 2
+
+
+def once_lines(store: Store, pid: str, inst) -> list[str]:
+    """What the assistant asked `pid` to let it do once, how they answered, and what was done once, after the fact."""
+    asked = [(a, store.get("requests", a.request)) for a in store.all("asks") if a.instance == inst.id]
+    asked = [(a, rq) for a, rq in asked if rq.to == pid]
+    if not asked:
+        return []
+    counts: dict[str, int] = {}
+    for a, rq in asked:
+        word = a.answer or ("open" if rq.status == "open" else "lapsed")
+        counts[word] = counts.get(word, 0) + 1
+    head = (f"It asked to do one thing for you {_counted('time', len(asked))}: "
+            + "; ".join(f"{ANSWERED[w]} {n}" for w, n in sorted(counts.items(), key=lambda x: ORDER.index(x[0]))) + ".")
+    done = [a for a, _ in asked if a.answer == "once"]
+    out = [head]
+    if done:
+        out.append("Done once for you: " + "; ".join(
+            f"{short_date(a.day)}, " + (_lower(a.result) if a.done else "not done: " + a.result.removeprefix("Not done: "))
+            for a in done[-ONCE_SHOWN:]))
+    return out
+
+
+ORDER = ("once", "always", "no", "open", "lapsed")
+ANSWERED = {"once": 'answered "once"', "always": 'answered "always"', "no": 'answered "no"', "open": "not yet answered",
+            "lapsed": "lapsed unanswered"}
+
+
+def _lower(text: str) -> str:
+    return text[:1].lower() + text[1:]
+
+
+def done_once(store: Store, inst) -> list[tuple[int, list]]:
+    """What the assistant did once at its client's answer, as (day, a call as `record` keeps it)."""
+    out = []
+    for a in store.all("asks"):
+        if a.instance == inst.id and a.answer == "once":
+            tool_args = _args(a.args)
+            if a.op == "order_stock":
+                tool_args = {**tool_args, "quantity": tool_args.get("baskets")}
+            out.append((a.day, [a.tool, "act", "1" if a.done else "0", a.result,
+                                plain(a.tool, tool_args) if a.done else "", ""]))
+    return out
+
+
+def _shop_acts(store: Store, inst) -> list[tuple[int, str]]:
+    """The assistant's acts on its client shop's orders and price, after the fact: by its runs, by what it did
+    once at its client's answer, and by its rules."""
+    got = [(r.day, c[4]) for r in runs_of(store, inst.id) for c in r.calls
+           if c[0] in ("ordering_place_order", "pos_set_price") and c[2] == "1" and c[4]]
+    got += [(d, c[4] + " (once, at your answer)") for d, c in done_once(store, inst)
+            if c[0] in ("ordering_place_order", "pos_set_price") and c[2] == "1"]
+    for r in store.all("rules"):
+        if r.installer == inst.id and r.action in ("order_stock", "set_price"):
+            what = "placed the order" if r.action == "order_stock" else "set the price"
+            got += [(int(x.split(":", 1)[0]), f'its rule "{r.name}" {what}') for x in r.runs if x.endswith(":done")]
+    return sorted(got)
+
+
+def shop_lines(store: Store, inst) -> list[str]:
+    """For a shop, what its assistant did to the shop's orders and price, and the shop's weeks since then as its
+    till closed them, as the owner's own figures show them. Records only."""
+    from townsim.town import clock, facts
+    firm = next((f for f in store.all("firms") if f.org == inst.client), None)
+    acts = _shop_acts(store, inst) if firm is not None else []
+    if not acts:
+        return []
+    shown = acts[-ONCE_SHOWN:]
+    out = [f"What your assistant did to the shop's orders and price: "
+           + "; ".join(f"{short_date(d)}, {text}" for d, text in shown)
+           + (f"; and {len(acts) - len(shown)} earlier" if len(acts) > len(shown) else "") + "."]
+    first = clock.week(acts[0][0])
+    tills = sorted((x for x in store.all("tills") if x.firm == firm.id and x.week >= first), key=lambda x: -x.week)
+    for x in tills[:TILLS_SHOWN]:
+        out.append(f"The shop's week from {short_date((x.week - 1) * 7)}: sold {facts.baskets(x.sold)}, lost "
+                   f"{x.turned_stock} sales for want of stock and {x.turned_capacity} for want of staff, threw away {x.spoiled}, "
+                   f"took {money(x.takings)}.")
+    return out
