@@ -273,6 +273,16 @@ def name_of(store: Store, account: str) -> str:
 ADULT = 18                           # a child, under this age, is told nothing: their household's adults are
 
 
+def how_paid(store: Store, ob: Obligation, out: bool) -> str:
+    """How `ob` is paid, for a notice of a change to it, said to its payer (`out`) or payee: `It is
+    taken from the household account each Monday, as now.` (`paid into`, for the payee)."""
+    from townsim.town.clock import DAYS
+    account = ob.payer if out else ob.payee
+    name = "household" if store.has("households", account) else name_of(store, account)
+    when = f"each {DAYS[ob.first % 7]}" if ob.every == 7 else "on its day"
+    return f"It is {'taken from' if out else 'paid into'} the {name} account {when}, as now."
+
+
 def notify(store: Store, pid: str, text: str, cause: str) -> None:
     """Tell `pid` something in a notice; a child's notice goes to the adults of their household
     instead. The one way a notice is made."""

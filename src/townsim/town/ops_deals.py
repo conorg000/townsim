@@ -235,7 +235,8 @@ def _do_propose(store: Store, act: Act, cause: str) -> str:
     mine = "you" if t.mine == account_of(store, act.principal) else None
     yours = (mine or payer, payee) if t.payer == t.mine else (payer, mine or payee)
     said = agreement_summary(*yours, t.cents, t.every, t.first, t.weeks, t.what, verb="would pay")
-    return work.sent(store, rq, said) + writer_text(unknown_names(store, act.actor, t.who, t.what))
+    return (work.sent(store, rq, said) + core.also_paid(store, t.payer, t.payee, terms=(t.cents, t.every, t.first))
+            + writer_text(unknown_names(store, act.actor, t.who, t.what)))
 
 
 def _check_agreement(store: Store, act: Act, rq: Request) -> str | None:
@@ -621,16 +622,16 @@ def make_rent_change(store: Store, c: RentChange, cause: str) -> str:
     change in words (`for <street> changes from <$a> to <$b> a week from <date>.` and so on)."""
     obligations.reprice(store, c.ob.id, c.cents, c.day, cause)
     if c.cents == c.ob.cents:
-        change = f"for {_address(c.h)} stays {money(c.cents)} a week."
+        change = f"for {_address(c.h)} ({c.ob.id}) stays {money(c.cents)} a week."
     else:
-        change = (f"for {_address(c.h)} changes from {money(c.ob.cents)} to {money(c.cents)} a week "
+        change = (f"for {_address(c.h)} ({c.ob.id}) changes from {money(c.ob.cents)} to {money(c.cents)} a week "
                   f"from {date_year(c.day)}.")
     if c.pending is not None:
         change += f" This replaces the change to {money(c.pending[0])} that was to start on {date_year(c.pending[1])}."
     for d in c.kept:
         change += (f" The rent due {date_year(d.day)} stays {money(d.cents)}: "
                    f"{money(d.paid)} has been paid toward it already.")
-    _tell(store, _adults(store, c.h.id), f"Your rent {change}", cause)
+    _tell(store, _adults(store, c.h.id), f"Your rent {change} {obligations.how_paid(store, c.ob, True)}", cause)
     return change
 
 

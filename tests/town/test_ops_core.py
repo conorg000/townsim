@@ -75,7 +75,7 @@ def test_standing_payment_sets_up_a_weekly_obligation():
     s = thin()
     out = do(s, "p01", "standing_payment", to="Megan Pryce", amount=20, day="Thursday", weeks=3, note="")
     ob = s.all("obligations")[-1]
-    assert out.msg == (f"Set up ({ob.id}): $20.00 to Megan Pryce every Thursday, first on Thursday 5 March, "
+    assert out.msg == (f"Set up ({ob.id}): $20.00 to Megan Pryce each Thursday from Thursday 5 March, the "
                        "last on Thursday 19 March.")
     assert (ob.kind, ob.payer, ob.payee, ob.cents, ob.first, ob.every, ob.last, ob.ends, ob.made_by) == \
         ("standing", "h1", "h2", 2000, 3, 7, 17, "payer", "p01")
@@ -88,7 +88,7 @@ def test_standing_payment_starts_on_the_weekday_on_or_after_start():
              weeks=0, note="garden")
     ob = s.all("obligations")[-1]
     assert (ob.first, ob.last, ob.memo) == (10, None, '"garden"')
-    assert out.msg == f"Set up ({ob.id}): $5.00 to Craig Pryce every Thursday, first on Thursday 12 March."
+    assert out.msg == f"Set up ({ob.id}): $5.00 to Craig Pryce each Thursday from Thursday 12 March."
     do(s, "p01", "standing_payment", 1, to="Craig Pryce", amount=5, day=" sun. ", start="10 March")
     assert s.all("obligations")[-1].first == 13
 
@@ -104,10 +104,11 @@ def test_standing_payment_without_start_is_never_today():
 def test_a_second_payment_to_someone_already_owed_is_shown_as_a_second():
     s = thin(); rent = ob_id(s, "h1", "rent")
     out = do(s, "p01", "standing_payment", to="Wenlow Lettings", amount=210, day="Friday", weeks=0)
-    assert out.msg.endswith(f". This is in addition to rent ({rent}), which already goes to them on Monday 2 March.")
+    assert out.msg.endswith(f". Wenlow Lettings also takes rent ({rent}), $210.00 each Monday. Together $420.00 leaves "
+                            f"each week.")
     do(s, "p01", "pay", 1, to="Wenlow Lettings", amount=210)
     out = do(s, "p01", "standing_payment", 2, to="Wenlow Lettings", amount=5, day="Friday")
-    assert f"in addition to rent ({rent}), which already goes to them on Monday 9 March." in out.msg
+    assert f"Wenlow Lettings also takes rent ({rent}), $210.00 each Monday." in out.msg
 
 
 def test_standing_payment_refusals():
@@ -120,7 +121,7 @@ def test_standing_payment_refusals():
     assert refused(s, "p01", "standing_payment", **{**base, "start": "Sunday 1 March"}) == \
         "Not done: 'Sunday 1 March' is not a date that can be read. Write it like Monday 16 March."   # passed
     assert do(s, "p01", "standing_payment", **{**base, "start": "1 March"}).msg.endswith(
-        "first on Thursday 4 March 2027.")                                    # no year: the next 1 March
+        "from Thursday 4 March 2027.")                                    # no year: the next 1 March
     for weeks in (-1, 1.5, "two", True, 521):
         assert refused(s, "p01", "standing_payment", **{**base, "weeks": weeks}).startswith("Not done:")
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Sanjay"}) == \

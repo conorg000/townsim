@@ -524,9 +524,11 @@ def _do_staff_pay(store: Store, act: Act, cause: str) -> str:
         ob = obligations.create(store, kind="wage", payer=job.org, payee=worker.household, cents=weekly, first=start,
                                 every=7, memo=f"wages from {org}", ends="both", made_by="routine", cause=cause)
     store.set("jobs", job.id, cause, weekly=weekly, wage_ob=ob)
+    paid = obligations.how_paid(store, store.get("obligations", ob), False)
     if job.person == act.principal:
-        return f"{org} pays you {money(weekly)} a week from {date_text(start)}.{replaced}"
-    jobs.tell(store, job.person, f"{org} pays you {money(weekly)} a week from {date_text(start)}.{replaced}", cause)
+        return f"{org} pays you {money(weekly)} a week from {date_text(start)} ({ob}).{replaced} {paid}"
+    jobs.tell(store, job.person, f"{org} pays you {money(weekly)} a week from {date_text(start)} ({ob}).{replaced} "
+                                 f"{paid}", cause)
     return f"{org} pays {worker.name} {money(weekly)} a week from {date_text(start)}.{replaced}"
 
 

@@ -438,9 +438,10 @@ def test_a_rent_change_takes_28_days_and_the_tenant_is_told():
     rent = next(o for o in s.where("obligations", payer="h2") if o.kind == "rent")
     n = len(s.all("obligations"))
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
-    assert out.msg == "The rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 30 March 2026."
+    assert out.msg == "The rent for 4 Mill Lane (ob6) changes from $185.00 to $200.00 a week from Monday 30 March 2026."
     for pid in ("p03", "p04"):
-        assert told(s, pid)[-1] == "Your rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 30 March 2026."
+        assert told(s, pid)[-1] == ("Your rent for 4 Mill Lane (ob6) changes from $185.00 to $200.00 a week from Monday 30 "
+                                    "March 2026. It is taken from the household account each Monday, as now.")
     ob = s.get("obligations", rent.id)                     # one rent for the let, re-priced
     assert len(s.all("obligations")) == n and (ob.cents, ob.next_cents, ob.next_from, ob.last) == (18_500, 20_000, 28, None)
     assert f"{rent.id}: rent, $185.00 every week to Hale, $200.00 from Monday 30 March, first" in agreements_text(s, "h2")
@@ -451,13 +452,14 @@ def test_a_rent_change_takes_28_days_and_the_tenant_is_told():
     assert refused(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=200) == \
         "Not done: the rent for 4 Mill Lane is to be $200.00 a week from Monday 30 March already."
     out = ok(s2, "p06", "set_rent", tenant="Craig Pryce", weekly=220)
-    assert out.msg == ("The rent for 4 Mill Lane changes from $185.00 to $220.00 a week from Monday 27 April 2026. "
+    assert out.msg == ("The rent for 4 Mill Lane (ob6) changes from $185.00 to $220.00 a week from Monday 27 April 2026. "
                        "This replaces the change to $200.00 that was to start on Monday 30 March 2026.")
     to_day(s2, 57)
     assert _rent_paid(s2, 21) == [(21, 18_500), (28, 18_500), (35, 18_500), (42, 18_500), (49, 18_500), (56, 22_000)]
     out = ok(s, "p06", "set_rent", tenant="Megan", weekly=210)      # more than the change pending: 28 days from today
-    assert told(s, "p04")[-1] == ("Your rent for 4 Mill Lane changes from $185.00 to $210.00 a week from Monday 6 April 2026. "
-                                  "This replaces the change to $200.00 that was to start on Monday 30 March 2026.")
+    assert told(s, "p04")[-1] == ("Your rent for 4 Mill Lane (ob6) changes from $185.00 to $210.00 a week from Monday 6 April 2026. "
+                                  "This replaces the change to $200.00 that was to start on Monday 30 March 2026. "
+                                  "It is taken from the household account each Monday, as now.")
     to_day(s, 43)
     assert _rent_paid(s) == [(0, 18_500), (7, 18_500), (14, 18_500), (21, 18_500), (28, 18_500), (35, 21_000),
                              (42, 21_000)]
@@ -476,12 +478,12 @@ def test_taking_back_a_rise_needs_no_notice():
     ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)                  # from Monday 30 March
     to_day(s, 10)
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=190)
-    assert out.msg == ("The rent for 4 Mill Lane changes from $185.00 to $190.00 a week from Monday 30 March 2026. "
+    assert out.msg == ("The rent for 4 Mill Lane (ob6) changes from $185.00 to $190.00 a week from Monday 30 March 2026. "
                        "This replaces the change to $200.00 that was to start on Monday 30 March 2026.")
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=185)
-    assert out.msg == ("The rent for 4 Mill Lane stays $185.00 a week. "
+    assert out.msg == ("The rent for 4 Mill Lane (ob6) stays $185.00 a week. "
                        "This replaces the change to $190.00 that was to start on Monday 30 March 2026.")
-    assert told(s, "p03")[-1] == "Your " + out.msg.removeprefix("The ")
+    assert told(s, "p03")[-1] == "Your " + out.msg.removeprefix("The ") + " It is taken from the household account each Monday, as now."
     to_day(s, 36)
     assert _rent_paid(s) == [(d, 18_500) for d in (0, 7, 14, 21, 28, 35)]
 
@@ -535,7 +537,7 @@ def test_a_change_of_rent_leaves_a_breached_rent_breached_at_the_new_price():
     assert do(s, "p03", "stop", id=rent.id).ok
     to_day(s, 8)
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=200)
-    assert out.msg == "The rent for 4 Mill Lane changes from $185.00 to $200.00 a week from Monday 13 April 2026."
+    assert out.msg == "The rent for 4 Mill Lane (ob6) changes from $185.00 to $200.00 a week from Monday 13 April 2026."
     to_day(s, 50)
     assert s.get("obligations", rent.id).status == "breached"
     assert _rent_paid(s, 1) == []                                     # nothing taken: it is withheld
@@ -948,7 +950,7 @@ def test_a_part_payment_toward_the_first_day_of_a_rise_does_not_lose_a_take_back
     ok(s, "p03", "pay", to="Len Hale", amount=50, **{"for": rent.id})         # toward day 28's rent
     assert s.get("obligations", rent.id).cents == 18_500                      # the rise is not taken in early
     out = ok(s, "p06", "set_rent", tenant="Craig Pryce", weekly=185)
-    assert out.msg == ("The rent for 4 Mill Lane stays $185.00 a week. This replaces the change to $200.00 that was "
+    assert out.msg == ("The rent for 4 Mill Lane (ob6) stays $185.00 a week. This replaces the change to $200.00 that was "
                        "to start on Monday 30 March 2026. The rent due Monday 30 March 2026 stays $200.00: $50.00 has "
                        "been paid toward it already.")
     to_day(s, 64)

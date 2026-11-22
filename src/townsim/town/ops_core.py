@@ -284,22 +284,52 @@ def _do_standing(store: Store, act: Act, cause: str) -> str:
         first = start + (wd - dow(start)) % 7
     weeks = _weeks(act.args.get("weeks"))
     last = first + 7 * (weeks - 1) if weeks > 0 else None
-    already = [o for o in store.all("obligations") if o.payer == own and o.payee == payee and o.status == "active"]
     note = _note(act.args.get("note"))
     memo = quoted(note) if note else f"standing payment to {name}"
     ob = obligations.create(store, kind="standing", payer=own, payee=payee, cents=cents, first=first, every=7,
                             last=last, memo=memo, ends="payer", made_by=act.actor, cause=cause)
-    told = f"Set up ({ob}): {money(cents)} to {name} every {DAYS[wd]}, first on {date_in(first, store.day)}"
+    told = f"Set up ({ob}): {money(cents)} to {name} each {DAYS[wd]} from {date_in(first, store.day)}"
     if last is not None:
-        told += f", last on {date_in(last, store.day)}"
-    told += "."
-    for other in already:
-        when = obligations.next_instalment(store, other)
-        if when is not None:
-            told += (f" This is in addition to {memo_shown(other.memo)} ({other.id}), which already goes to them "
-                     f"on {date_text(when)}.")
-            break
-    return told
+        told += f", the last on {date_in(last, store.day)}"
+    return told + "." + also_paid(store, own, payee, ob)
+
+
+def also_paid(store: Store, payer: str, payee: str, ob_id: str = "", terms: tuple[int, int, int] | None = None) -> str:
+    """What else `payer` pays `payee` on a schedule besides `ob_id`, and the weekly total with it:
+    ` <Payee> also takes <memo> (<id>), <$x> each <day> (<$y> from <date>). Together <$z> leaves
+    each <day> (<$w> from <date>).` (`each week` when the days differ); for an agreement only
+    proposed, its `terms` (cents, every, first) in place of `ob_id`, and `would leave`; "" when
+    there is nothing else."""
+    from types import SimpleNamespace
+    new = store.get("obligations", ob_id) if store.has("obligations", ob_id) else None
+    would = new is None and terms is not None
+    if would:
+        new = SimpleNamespace(id="", cents=terms[0], every=terms[1], first=terms[2], next_from=-1, next_cents=0)
+    others = [o for o in store.where("obligations", payer=payer) if o.payee == payee and o.id != ob_id
+              and o.status in obligations.SCHEDULED and obligations.next_instalment(store, o) is not None]
+    if not others:
+        return ""
+    name = name_of(store, payee)
+    told = ""
+    for o in others:
+        coming = obligations.pending_change(store, o)
+        day = f" each {DAYS[o.first % 7]}" if o.every == 7 else f" on {date_text(obligations.next_instalment(store, o))}"
+        later = f" ({money(coming[0])} from {date_text(coming[1])})" if coming else ""
+        told += f" {name} also takes {memo_shown(o.memo)} ({o.id}), {money(obligations.cents_now(store, o))}{day}{later}."
+    weekly = [o for o in others + ([new] if new is not None else []) if o.every == 7]
+    if new is None or new.every != 7 or len(weekly) < 2:
+        return told
+    total = sum(obligations.cents_now(store, o) for o in weekly)
+    changes = [c for o in weekly if (c := obligations.pending_change(store, o))]
+    later = ""
+    if changes:
+        at = max(day for _, day in changes)
+        then = sum(c[0] if (c := obligations.pending_change(store, o)) and c[1] <= at else obligations.cents_now(store, o)
+                   for o in weekly)
+        later = f" ({money(then)} from {date_text(at)})"
+    days = {o.first % 7 for o in weekly}
+    when = f"each {DAYS[days.pop()]}" if len(days) == 1 else "each week"
+    return told + f" Together {money(total)} {'would leave' if would else 'leaves'} {when}{later}."
 
 
 # stop

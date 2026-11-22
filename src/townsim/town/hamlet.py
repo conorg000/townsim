@@ -117,8 +117,8 @@ def _hours_cut(store: Store, e: Event, cause: str) -> str | None:
     replaced = (f" This replaces the change to {money(told[0])} that was to start on {date_text(told[1])}."
                 if told else "")
     _tell(store, [e.who], f"{store.get('orgs', job.org).name} has cut your hours to {hours:g} a week from "
-                          f"{date_text(monday)}. Your pay is {money(weekly)} a week from {date_text(friday)}."
-                          f"{replaced}", cause)
+                          f"{date_text(monday)}. Your pay ({wage.id}) is {money(weekly)} a week from "
+                          f"{date_text(friday)}.{replaced} {obligations.how_paid(store, wage, False)}", cause)
     return None
 
 
@@ -217,8 +217,9 @@ def _energy_price(store: Store, e: Event, cause: str) -> str | None:
         obligations.reprice(store, ob.id, cents, day, cause)
         replaced = (f" This replaces the change to {money(told[0])} that was to start on {date_text(told[1])}."
                     if told else "")
-        _tell(store, _adults(store, ob.payer), f"{name} is changing its prices: your energy bill is "
-                                               f"{money(cents)} a week from {date_text(day)}.{replaced}", cause)
+        _tell(store, _adults(store, ob.payer), f"{name} is changing its prices: your energy bill ({ob.id}) is "
+                                               f"{money(cents)} a week from {date_text(day)}.{replaced} "
+                                               f"{obligations.how_paid(store, ob, True)}", cause)
     return None
 
 

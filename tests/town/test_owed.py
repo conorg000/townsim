@@ -100,3 +100,67 @@ def test_money_a_partner_moved_from_their_business_is_told_as_theirs():
     mine = section(person_view(s, owner.id)[1]["content"], "YOUR HOUSEHOLD'S ACCOUNT")
     assert any(x.endswith(f"$1,000.00  {owner.name} moved $1,000.00 from {firm.name}") for x in theirs)
     assert any(x.endswith(f"$1,000.00  {firm.name}  moved between your own accounts") for x in mine)
+
+
+# a change to rent says what will be taken, and a second payment to the same payee says the totals
+
+def _agency_tenant(s):
+    from townsim.town import facts as F
+    for h in s.all("households"):
+        rent = [o for o in F.rents(s, h.id) if s.has("orgs", o.payee) and s.get("orgs", o.payee).outside]
+        if rent:
+            adult = next(p for p in h.members if s.get("people", p).age >= 18)
+            return h, rent[0], adult
+    raise AssertionError("no agency tenant")
+
+
+def test_a_second_standing_payment_to_the_landlord_is_told_the_totals_and_owed_lines_say_as_well_as():
+    from townsim.town import ops_deals
+    from townsim.town.clock import DAYS, date_text, date_year
+    s = place()
+    h, rent, adult = _agency_tenant(s)
+    new = rent.cents + 3_500
+    change, _ = ops_deals.change_of_rent(s, h, rent, new)
+    ops_deals.make_rent_change(s, change, "routine:t")
+    agency = s.get("orgs", rent.payee).name
+    notice = [n.text for n in s.where("notices", to=adult)][-1]
+    assert notice == (f"Your rent for {h.street} ({rent.id}) changes from {money(rent.cents)} to {money(new)} a week "
+                      f"from {date_year(change.day)}. It is taken from the household account each Monday, as now.")
+    out = apply_act(s, Act(adult, adult, "standing_payment", {"to": agency, "amount": new / 100, "day": "Monday",
+                                                              "weeks": 0, "note": "rent"}), 0)
+    ob = s.all("obligations")[-1]
+    first = ob.first
+    assert out.msg == (f"Set up ({ob.id}): {money(new)} to {agency} each Monday from {date_text(first)}. "
+                       f"{agency} also takes rent for {h.street} ({rent.id}), {money(rent.cents)} each Monday "
+                       f"({money(new)} from {date_text(change.day)}). Together {money(rent.cents + new)} leaves each "
+                       f"Monday ({money(2 * new)} from {date_text(change.day)}).")
+    owe = section(person_view(s, adult)[1]["content"], "YOU OWE")
+    assert any(x.startswith(f'{ob.id}: "rent", {money(new)} a week to {agency} (as well as {rent.id}) until stopped')
+               for x in owe)
+    assert DAYS[first % 7] == "Monday"
+
+
+def test_a_proposed_agreement_to_someone_already_paid_says_the_totals_it_would_make():
+    s = place()
+    debt = next(o for o in s.all("obligations") if o.kind == "agreement" and s.has("households", o.payer)
+                and s.has("households", o.payee))
+    debtor, creditor = s.get("people", debt.made_by), s.get("people", debt.party)
+    out = apply_act(s, Act(debtor.id, debtor.id, "propose_agreement", {
+        "to": creditor.name, "amount": 7, "per": "week", "weeks": 4, "payer": "me", "what": "eggs"}), 0)
+    assert out.ok, out.msg
+    payee = s.get("households", creditor.household).name
+    assert f" {payee} also takes paying back {creditor.name} ({debt.id}), {money(debt.cents)} each " in out.msg
+    assert f"Together {money(debt.cents + 700)} would leave each " in out.msg
+
+
+def test_a_change_of_pay_names_the_wage_and_how_it_is_paid():
+    s = place()
+    shop = next(o for o in s.all("orgs") if o.kind == "shop")
+    from townsim.town import jobs
+    staff = next(j for j in jobs.held(s, org=shop.id) if j.person != shop.owner)
+    name = s.get("people", staff.person).name
+    out = apply_act(s, Act(shop.owner, shop.owner, "set_staff_pay", {"who": name, "weekly_pay": staff.weekly / 100 + 10}),
+                    0)
+    assert out.ok
+    told = [n.text for n in s.where("notices", to=staff.person)][-1]
+    assert told.endswith(f"({staff.wage_ob}). It is paid into the household account each Friday, as now.")

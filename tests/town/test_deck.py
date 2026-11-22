@@ -1,3 +1,4 @@
+import re
 """The place over the whole run: repairs to rented houses are the landlord's, an agency raises
 rents as a landlord here does, prices change, hours are cut, and what is settled is told."""
 
@@ -74,8 +75,8 @@ def test_an_agency_raises_a_rent_with_four_weeks_notice_in_a_landlord_s_words():
     ob = s.get("obligations", rent.id)
     assert (ob.next_cents, ob.next_from) == (new, day) and day - s.day >= 28
     from townsim.town.clock import date_year
-    text = (f"Your rent for {h.street} changes from ${old / 100:,.2f} to ${new / 100:,.2f} a week from "
-            f"{date_year(day)}.")
+    text = (f"Your rent for {h.street} ({rent.id}) changes from ${old / 100:,.2f} to ${new / 100:,.2f} a week from "
+            f"{date_year(day)}. It is taken from the household account each Monday, as now.")
     assert {n.text for n in told} == {text}
     assert len([o for o in s.where("obligations", payer=h.id) if o.kind == "rent"]) == 1
 
@@ -98,7 +99,8 @@ def test_the_energy_price_changes_with_four_weeks_notice():
     for ob, cents in bills:
         now = s.get("obligations", ob)
         assert now.next_cents == round(cents * 0.9) and now.next_from - s.day >= 28 and now.cents == cents
-    assert told and all("is changing its prices: your energy bill is" in n.text for n in told)
+    assert told and all(re.search(r"is changing its prices: your energy bill \(ob\d+\) is .+\. It is taken from the "
+                                  r"household account each Wednesday, as now\.$", n.text) for n in told)
 
 
 def test_an_outside_employer_cuts_hours_and_pay_from_next_week():
@@ -178,7 +180,7 @@ def test_every_energy_bill_taken_is_what_was_last_told_for_its_day(seed):
     from townsim.town.clock import parse_date
     s = _quiet_weeks(seed)
     assert s.engine_errors == []
-    told_re = re.compile(r"your energy bill is \$([\d,.]+) a week from (\w+ \d+ \w+)\.")
+    told_re = re.compile(r"your energy bill \(ob\d+\) is \$([\d,.]+) a week from (\w+ \d+ \w+)\.")
     for h in s.all("households"):
         ob = next(o for o in s.where("obligations", payer=h.id) if o.memo == "energy")
         first = next(c.new for c in s.changes if c.table == "obligations" and c.id == ob.id and c.field == "+").cents

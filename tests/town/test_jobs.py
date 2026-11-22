@@ -308,7 +308,8 @@ def test_set_staff_pay_takes_effect_after_this_friday():
     live(s, 1)
     out = do(s, "p01", "set_staff_pay", who="Craig Pryce", weekly_pay=500)
     assert out.msg == "Marsh's Stores pays Craig Pryce $500.00 a week from Friday 13 March."
-    assert told(s, "p03") == ["Marsh's Stores pays you $500.00 a week from Friday 13 March."]
+    assert told(s, "p03") == ["Marsh's Stores pays you $500.00 a week from Friday 13 March (ob9). It is paid into the "
+                              "household account each Friday, as now."]
     job = job_of(s, "p03", "org3")
     ob = s.get("obligations", job.wage_ob)                # the one wage, re-priced from that Friday
     assert job.weekly == 50_000 and (ob.cents, ob.next_cents, ob.next_from) == (44_000, 50_000, 11)
@@ -334,7 +335,7 @@ def test_an_owners_own_draw_may_be_set_to_nothing():
     set_cash(s, "org3", 1_000_000)
     jid = jobs.start(s, "p01", "org3", 30_000, 38, 4, T, since=-7)
     out = do(s, "p01", "set_staff_pay", who="Ruth Ashby", weekly_pay=0)
-    assert out.msg == "Marsh's Stores pays you $0.00 a week from Friday 13 March."
+    assert out.msg == "Marsh's Stores pays you $0.00 a week from Friday 13 March (ob10). It is paid into the household account each Friday, as now."
     wage = s.get("jobs", jid).wage_ob                      # the one wage, re-priced to nothing
     ob = s.get("obligations", wage)
     assert (ob.status, ob.last, ob.next_cents, ob.next_from) == ("active", None, 0, 11) and s.get("jobs", jid).weekly == 0
@@ -343,7 +344,7 @@ def test_an_owners_own_draw_may_be_set_to_nothing():
     assert [d.day for d in s.where("dues", obligation=wage)] == [4]          # an instalment of nothing opens no due
     assert not [u for u in O.upcoming(s, "h1", 21) if u.obligation == wage]
     out = do(s, "p01", "set_staff_pay", who="Ruth Ashby", weekly_pay=200)    # on a Saturday
-    assert out.msg == "Marsh's Stores pays you $200.00 a week from Friday 3 April." and out.ok
+    assert out.msg == "Marsh's Stores pays you $200.00 a week from Friday 3 April (ob10). It is paid into the household account each Friday, as now." and out.ok
     assert s.get("jobs", jid).wage_ob == wage
     to_day(s, 40)
     assert paid(s, "org3", "h1") == [(4, 30_000), (32, 20_000), (39, 20_000)]
@@ -619,7 +620,7 @@ def test_a_draw_set_to_nothing_and_back_never_pays_a_friday_twice(start):
     days = [t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.t >= start]
     assert len(days) == len(set(days)), days
     first_new = min(t.t for t in s.ledger.transfers if t.src == "org11" and t.dst == "h2" and t.cents == 30_000)
-    assert out.msg.startswith(f"Hartcliffe Food Hall pays you $300.00 a week from {date_text(first_new)}. "
+    assert out.msg.startswith(f"Hartcliffe Food Hall pays you $300.00 a week from {date_text(first_new)} (ob6). "
                               f"This replaces the change to $0.00 that was to start on {date_text(first_new)}.")
     assert {o.id for o in s.all("obligations") if o.payer == "org11" and o.payee == "h2" and o.kind == "wage"} == \
         {s.get("jobs", next(j.id for j in s.where("jobs", person="p3"))).wage_ob}
@@ -947,8 +948,9 @@ def test_a_second_pay_change_takes_the_place_of_the_first_on_its_day():
     out = do(s, "p16", "set_staff_pay", 1, who="Gail Whiteley", weekly_pay=560)
     assert out.msg == ("Lumb's Grocer pays Gail Whiteley $560.00 a week from Friday 20 March. "
                        "This replaces the change to $500.00 that was to start on Friday 20 March.")
-    assert told(s, "p9")[-1] == ("Lumb's Grocer pays you $560.00 a week from Friday 20 March. "
-                                 "This replaces the change to $500.00 that was to start on Friday 20 March.")
+    assert told(s, "p9")[-1] == ("Lumb's Grocer pays you $560.00 a week from Friday 20 March (ob3). "
+                                 "This replaces the change to $500.00 that was to start on Friday 20 March."
+                                 " It is paid into the household account each Friday, as now.")
     close(s); live(s, 20)
     assert [(d.day, d.cents, d.status) for d in s.where("dues", obligation="ob3") if d.day >= 11][:3] == \
         [(11, 43_400, "paid"), (18, 56_000, "paid"), (25, 56_000, "paid")]
