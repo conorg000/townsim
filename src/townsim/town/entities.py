@@ -465,3 +465,42 @@ class Reminder:
     text: str
     made_on: int
     status: str = "set"
+
+
+@dataclass
+class Product:
+    """What the software firm `org` sells from day `launched` (design 5.1): its weekly prices
+    for a household and a business, the free weeks, and the limits every instance of it has."""
+
+    id: str
+    org: str
+    name: str
+    launched: int
+    household_cents: int = 600
+    business_cents: int = 2500
+    free_weeks: int = 4
+    max_calls: int = 30
+    notes_words: int = 600
+    files: int = 20
+    file_words: int = 1000
+    widest: str = "free"
+    shared: bool = False
+    signed: str = "product"
+
+
+@dataclass
+class Subscription:
+    """A client's subscription to a product, taken out by `by` on `day`, with what they asked
+    in their own words. `fee_ob` is the weekly fee; `instance` the client's own instance.
+    `status` is active or ended."""
+
+    id: str
+    product: str
+    client: str
+    by: str
+    day: int
+    asks: str
+    fee_ob: str
+    instance: str
+    status: str = "active"
+    ended_on: int = -1
