@@ -44,6 +44,11 @@ def active(store: Store, instance: str) -> list[Connection]:
     return [c for c in store.where("connections", instance=instance) if c.status == "active"]
 
 
+def acting(store: Store, instance: str) -> list[Connection]:
+    """The instance's active connections with access to act (a weekly limit or full access), in id order."""
+    return [c for c in active(store, instance) if c.scope != "read"]
+
+
 def connection_on(store: Store, instance: str, system_id: str) -> Connection | None:
     return next((c for c in active(store, instance) if c.system == system_id), None)
 
@@ -424,11 +429,14 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
          tell_instance: bool = True, free_until: int | None = None) -> str:
     """Connect `system_id` to `inst`, granted by `grantor`, in place of any connection it has
     there now; tell the client's other adults and the instance. What the grantor is told. With lane B
-    a client on the free plan moves to the paid plan first (`plans.start_paid`, with the last free day a
-    request stated)."""
+    a client on the free plan moves to the paid plan first when the connection gives access to act
+    (`plans.start_paid`, with the last free day a request stated); one read only keeps the free plan, and one made
+    read only in place of the last with access to act returns the client to the free plan as a disconnection
+    would (`plans.nothing_connected`)."""
     from townsim.town import plans
+    has_sub = store.has("subscriptions", inst.subscription)
     plan = (plans.start_paid(store, store.get("subscriptions", inst.subscription), grantor, cause, free_until)
-            if store.has("subscriptions", inst.subscription) else "")
+            if has_sub and scope != "read" else "")
     old = connection_on(store, inst.id, system_id)
     if old is not None:
         store.set("connections", old.id, cause, status="ended", ended_on=store.day)
@@ -436,6 +444,8 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
     store.add("connections", Connection(store.new_id("cn", cause), inst.id, system_id, grantor, scope, cents,
                                         store.day), cause)
     name, words = long_name(store, system_id), scope_words(scope, cents)
+    if has_sub and scope == "read" and not acting(store, inst.id):
+        plan = plans.nothing_connected(store, store.get("subscriptions", inst.subscription), cause)
     told = f"Connected: {name}, to {inst.name}: {words}." + (f" {plan}" if plan else "")
     for pid in _adults_of(store, inst.client):
         if pid != grantor:
@@ -548,7 +558,7 @@ def _do_disconnect(store: Store, act: Act, cause: str) -> str:
     from townsim.town.systems import INTEGRATION
     obligations.notify(store, inst.id, f"{store.get('people', act.principal).name} disconnected "
                                        f"{INTEGRATION.get(found.kind, found.kind)}.", cause)
-    if not active(store, inst.id) and store.has("subscriptions", inst.subscription):
+    if not acting(store, inst.id) and store.has("subscriptions", inst.subscription):
         from townsim.town import plans
         back = plans.nothing_connected(store, store.get("subscriptions", inst.subscription), cause)
         if back:
@@ -584,7 +594,7 @@ def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int
     summary = (f"Accepting connects {long_name(store, system_id)} to {i.name} {scope_phrase(scope, cents)}.")
     from townsim.town import plans
     sub = store.get("subscriptions", i.subscription) if store.has("subscriptions", i.subscription) else None
-    plan = plans.starts_sentence(store, sub, plans.free_until_now(store, sub)) if sub is not None else ""
+    plan = plans.starts_sentence(store, sub, plans.free_until_now(store, sub), scope) if sub is not None else ""
     summary += f" {plan}" if plan else ""
     rq = Request(store.new_id("rq", cause), store.day, inst, to, text.strip(), 0, store.day + REQUEST_DAYS,
                  kind="connect", summary=summary, org=system_id, payer=scope, pay=cents)

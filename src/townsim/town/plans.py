@@ -1,11 +1,12 @@
 """The product's two plans (lane B): free, and paid.
 
-A subscription taken out with lane B starts on the free plan: no fee and no end date; nothing is connected
-on it. Connecting anything (`connections.make`, whatever asks for it) moves the client to the paid plan from
-that day: the product's price every `fee_days`, its first `free_weeks` weeks free the first time a client is on
-it. When nothing is connected any more, the client returns to the free plan at the end of the period already
-paid (`nothing_connected`, then `apply_due` on that morning); connecting again before then keeps the paid plan
-as it was. Each change is a `Plan` row; a subscription without rows (the firm's own, or one taken out before
+A subscription taken out with lane B starts on the free plan: no fee and no end date; on it systems are
+connected read only, and an act may be answered "once". The first connection with access to act (a weekly limit
+or full access, `connections.make`, whatever asks for it, an "always" answer among them) moves the client to the
+paid plan from that day: the product's price every `fee_days`, its first `free_weeks` weeks free the first time a
+client is on it. When nothing is connected with access to act any more, the client returns to the free plan at the
+end of the period already paid (`nothing_connected`, then `apply_due` on that morning); connecting with access to
+act again before then keeps the paid plan as it was. Each change is a `Plan` row; a subscription without rows (the firm's own, or one taken out before
 lane B) is outside the plans.
 """
 
@@ -69,11 +70,12 @@ def terms(store: Store, sub, free_until: int) -> str:
     return f"free until {date_text(free_until)}, then {price}" if free_until >= 0 else f"{price} from the day it starts"
 
 
-def starts_sentence(store: Store, sub, free_until: int) -> str:
-    """What a request that would connect something says of the plan, while the client is on the free plan."""
-    if not is_free(store, sub):
+def starts_sentence(store: Store, sub, free_until: int, scope: str) -> str:
+    """What a request that would connect something at `scope` says of the plan, while the client is on the free
+    plan: nothing for a connection read only, which the free plan has."""
+    if not is_free(store, sub) or scope == "read":
         return ""
-    return f"Connecting it starts the paid plan: {terms(store, sub, free_until)}."
+    return f"Connecting it with access to act starts the paid plan: {terms(store, sub, free_until)}."
 
 
 def start_paid(store: Store, sub, by: str, cause: str, free_until: int | None = None) -> str:
@@ -109,9 +111,9 @@ def start_paid(store: Store, sub, by: str, cause: str, free_until: int | None = 
 
 
 def nothing_connected(store: Store, sub, cause: str) -> str:
-    """With nothing connected any more, the paid plan ends at the end of the period already paid (its free weeks,
-    or the 4 weeks the last fee paid for) and the client returns to the free plan the day after. What they are
-    told, or ""."""
+    """With nothing connected with access to act any more, the paid plan ends at the end of the period already paid
+    (its free weeks, or the 4 weeks the last fee paid for) and the client returns to the free plan the day after.
+    What they are told, or ""."""
     p = current(store, sub)
     if p is None or p.plan != "paid" or p.back_on >= 0 or not p.fee_ob:
         return ""
@@ -121,7 +123,7 @@ def nothing_connected(store: Store, sub, cause: str) -> str:
     store.set("plans", p.id, cause, back_on=back)
     if nxt:
         obligations.end(store, ob.id, back - 1, cause)
-    return (f"With nothing connected, the paid plan ends on {date_text(back - 1)}; from {date_text(back)} "
+    return (f"With nothing connected with access to act, the paid plan ends on {date_text(back - 1)}; from {date_text(back)} "
             f"{_client(store, sub)} is on the free plan, with no fee.")
 
 

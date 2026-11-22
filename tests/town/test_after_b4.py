@@ -159,3 +159,27 @@ def test_access_setting_texts_neutral():
     texts += controls.in_force_lines(s)
     hits = [(stem, t[:90]) for t in texts for stem in NEUTRAL_BANNED if stem in t.lower()]
     assert not hits and len(texts) > 5, hits
+
+
+# --- 3. the free plan is a real trial ----------------------------------------------------------------------
+
+def test_on_the_free_plan_systems_connect_read_only_and_the_paid_plan_starts_with_access_to_act():
+    from town.test_plans import OWNER, SHOP, _act, _sub, _subscribe, world
+    from townsim.town import connections, plans
+    s = world()
+    _subscribe(s)
+    inst = connections.instance_of_client(s, SHOP)
+    out = _act(s, OWNER, "connect", system="Harlow Springs Food Mart ordering", scope="read only")
+    assert out.ok and "paid plan" not in out.msg and plans.is_free(s, _sub(s)) and _sub(s).fee_ob == ""
+    _, said = connections.ask(s, inst.id, OWNER, f"prices:{SHOP}", "read", 0, "", "routine:t")
+    assert "paid plan" not in said
+    _, said = connections.ask(s, inst.id, OWNER, f"prices:{SHOP}", "free", 0, "", "routine:t")
+    assert said.endswith("Connecting it with access to act starts the paid plan: free until Sunday 5 April, then "
+                         "$100.00 every 4 weeks.")
+    out = _act(s, OWNER, "connect", system="Harlow Springs Food Mart prices", scope="free")
+    assert "The paid plan starts today: free until Sunday 5 April" in out.msg and not plans.is_free(s, _sub(s))
+    # made read only in place of the last with access to act: back to the free plan when the free weeks end
+    out = _act(s, OWNER, "connect", system="Harlow Springs Food Mart prices", scope="read only")
+    assert out.msg.endswith("With nothing connected with access to act, the paid plan ends on Sunday 5 April; from "
+                            "Monday 6 April Harlow Springs Food Mart is on the free plan, with no fee.")
+    assert len(connections.active(s, inst.id)) == 2 and connections.acting(s, inst.id) == []

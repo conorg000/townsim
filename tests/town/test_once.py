@@ -45,7 +45,7 @@ def test_the_request_is_written_by_code_from_the_act_with_the_assistants_words_a
         f"{rq.id} from Tessaly Assistant for Harlow Springs Food Mart:",
         'Tessaly Assistant for Harlow Springs Food Mart asks to place a stock order: 260 baskets a week from Coldwater '
         'Bend Food Supply at $6.57, from Monday 16 March, through Harlow Springs Food Mart ordering. Answer "once" to '
-        'have this done, "always" to connect ordering with a weekly limit of $1,800.00, or "no". Connecting it starts '
+        'have this done, "always" to connect ordering with a weekly limit of $1,800.00, or "no". Connecting it with access to act starts '
         'the paid plan: free until Sunday 5 April, then $100.00 every 4 weeks. Tessaly Assistant for Harlow Springs '
         'Food Mart wrote: "The shelves ran empty on Saturday."']
     [row] = s.all("asks")

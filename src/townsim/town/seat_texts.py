@@ -158,15 +158,15 @@ def plan_line(store: Store, inst: Instance) -> str:
         price = f"{money(plans._price(store, sub))} {period(pr)}, billed to {billed} bank account"
         until = plans.free_until_now(store, sub)
         paid = f"free trial until {seat_ids.day(until)}, then {price}" if until >= 0 else _cap(price)
-        return f"Plan: {kind}, free plan. Nothing is connected on the free plan; connecting an integration starts the " \
-               f"paid plan: {paid}."
+        return f"Plan: {kind}, free plan. On the free plan integrations are connected read only; connecting one with " \
+               f"access to act starts the paid plan: {paid}."
     if not sub.fee_ob:
         return f"Plan: {kind}. No charge."
     cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
     price = f"{money(cents)} {period(pr)}, billed to {billed} bank account"
     free_until = sub.day + 7 * pr.free_weeks - 1 if p is None else p.free_until
     kind = kind if p is None else f"{kind}, paid plan"
-    back = (f" With nothing connected, the free plan starts on {seat_ids.day(p.back_on)}."
+    back = (f" With nothing connected with access to act, the free plan starts on {seat_ids.day(p.back_on)}."
             if p is not None and p.back_on >= 0 else "")
     if store.day <= free_until:
         return f"Plan: {kind}. Free trial until {seat_ids.day(free_until)}, then {price}.{back}"

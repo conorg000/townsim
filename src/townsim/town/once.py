@@ -115,7 +115,7 @@ def ask(store: Store, inst, pid: str, tool: str, op: str, args: dict, system_id:
     shown = what(store, inst, op, args, pid)
     summary = (f"{inst.name} asks to {shown}, through {_short(store, system_id)}. Answer "
                f'"once" to have this done, "always" to connect {integration} {access_words(scope, cents)}, or "no".')
-    plan = plans.starts_sentence(store, sub, free_until)
+    plan = plans.starts_sentence(store, sub, free_until, scope)
     if plan:
         summary += " " + plan
     note = " ".join((acts.clean_text(note) or "").split())
