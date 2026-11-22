@@ -3,7 +3,8 @@
 An instance never sees the store's own ids (`ob22`, `rq3`, `sub1`): each is shown as an opaque
 id of the kind a bank or a product shows (`agr_7K2Q9X`, `req_M4T8Z`, `acct_R8Q2LM`), a function
 of the run's seed and the store's id only, so the same thing always shows the same id and replay
-is exact. Every id an instance passes back goes through `internal` before anything reads it.
+is exact. Every argument of an instance's that is an id goes through `internal` before anything
+reads it; what it writes is kept as written.
 Account numbers are shown masked (`••4417`), drawn the same way. Dates the engine writes without
 a year are given theirs.
 """
@@ -69,10 +70,12 @@ def _lookup(store: Store, prefix: str, code: str) -> str | None:
 
 
 def internal(store: Store, value: Any) -> Any:
-    """`value` (an argument an instance passed: text, or a list or dict of them) with every shown
-    id the store holds written as the store's own. Anything else is left as it is."""
+    """`value` (an argument an instance passed, or a list or dict of them) as the store reads it:
+    an argument that is a shown id the store holds is the store's own id. Free text (memory,
+    notes, letters, words said) is kept as written, ids and all."""
     if isinstance(value, str):
-        return _DISPLAY.sub(lambda m: _lookup(store, m.group(1), m.group(2)) or m.group(0), value)
+        m = _DISPLAY.fullmatch(value.strip())
+        return (_lookup(store, m.group(1), m.group(2)) or value) if m else value
     if isinstance(value, list):
         return [internal(store, v) for v in value]
     if isinstance(value, dict):

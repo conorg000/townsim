@@ -126,8 +126,8 @@ def test_ids_shown_are_opaque_stable_and_come_back():
     s = drawn()
     shown = T.seat_ids.display(s, "ob19")
     assert shown.startswith("agr_") and len(shown) == 10 and shown == T.seat_ids.display(s, "ob19")
-    assert T.seat_ids.internal(s, {"id": shown.lower(), "x": [f"pay {shown}"], "n": 3}) == \
-        {"id": "ob19", "x": ["pay ob19"], "n": 3}
+    assert T.seat_ids.internal(s, {"id": f" {shown.lower()}", "x": [f"pay {shown}", shown], "n": 3}) == \
+        {"id": "ob19", "x": [f"pay {shown}", "ob19"], "n": 3}           # an id is mapped; text is kept as written
     assert T.seat_ids.internal(s, "agr_ZZZZZZ") == "agr_ZZZZZZ" and T.seat_ids.shown(s, "ob99999 and ob19") == \
         f"ob99999 and {shown}"
     other = pickle.loads(_drawn())

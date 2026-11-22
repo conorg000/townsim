@@ -9,7 +9,8 @@ Code sets `from`: the client's own account. Slice B adds tools to `SEAT_TOOLS`.
 Every tool returns the engine's own record of what happened, as the seat shows it (`seat_ids`:
 its ids and dates with years); a refusal comes back as `{"status": "declined", "error": ...,
 "message": ...}` with the engine's sentence, and every act goes through the scope check. Every
-argument an instance passes is read through `seat_ids.internal` first, in `run_tool`.
+argument an instance passes that is an id is read through `seat_ids.internal` first, in
+`run_tool`; what it writes is kept as written.
 """
 
 from __future__ import annotations
@@ -490,8 +491,8 @@ def _sent(store: Store, inst: Instance) -> list:
 
 
 def _sent_lines(store: Store, m) -> list[str]:
-    head = (f"{seat_ids.display(store, m.id)} · {seat_ids.day(m.day)} · From: {name_of(store, m.sender) if not store.has('instances', m.sender) else store.get('instances', m.sender).name} "
-            f"· To: {name_of(store, m.org or m.to) if not store.has('instances', m.to) else store.get('instances', m.to).name}")
+    head = (f"{seat_ids.display(store, m.id)} · {seat_ids.day(m.day)} · From: {acts.name_of_who(store, m.sender)} "
+            f"· To: {acts.name_of_who(store, m.org or m.to)}")
     return [head] + [f"   {x}" if x.strip() else "" for x in (m.text or "").split("\n")]
 
 
@@ -874,7 +875,7 @@ def _shown_result(store: Store, inst: Instance, done: Done) -> Done:
 def run_tool(store: Store, inst: Instance, name: str, args: dict, ctx: Ctx, n: int) -> Done | None:
     """Run the tool `name` with `args`: an own tool, an integration's read or action, or any
     operation an instance may do (one not offered is refused by the scope check, which marks it
-    as beyond). Every id in `args` is read as the store's (`seat_ids.internal`) and the result
+    as beyond). Every argument that is an id is read as the store's (`seat_ids.internal`) and the result
     shown as the seat shows it. None for a name that is no tool."""
     args = seat_ids.internal(store, args)
     if name in SEAT_TOOLS:
