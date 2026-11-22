@@ -473,14 +473,14 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
     return None
 
 
-def _also_reads(store: Store, org: str, to: str) -> list[str]:
+def _also_reads(store: Store, org: str, to: str, writer: str = "") -> list[str]:
     """With lane B, who else reads a letter to the firm that makes the launched product: its people
-    whose work is answering its clients' letters (everyone there but the one it reached)."""
+    whose work is answering its clients' letters (everyone there but the one it reached and the writer)."""
     from townsim.town import lane_b
     pr = _product.launched(store) if org else None
     if pr is None or org != pr.org or not lane_b.installed(store):
         return []
-    return [p for p in _product.company_people(store, org) if p != to]
+    return [p for p in _product.company_people(store, org) if p not in (to, writer)]
 
 
 def _desk(store: Store, org_id: str) -> bool:
@@ -516,7 +516,7 @@ def _do_message(store: Store, act: Act, cause: str) -> str:
     unknown = [] if is_instance(store, to) else unknown_names(store, to, act.actor, text)
     message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org, unknown=unknown)
     store.add("messages", message, cause)
-    for other in _also_reads(store, org, to):
+    for other in _also_reads(store, org, to, act.actor):
         store.add("messages", Message(store.new_id("msg", cause), store.day, act.actor, other, text, org=org,
                                       unknown=unknown_names(store, other, act.actor, text)), cause)
     return f"Sent to {name_of_who(store, org or to)}." + tell_writer(store, act.actor, to, text, cause)

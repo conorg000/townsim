@@ -25,6 +25,8 @@ a heading, `From `, `With `, `<id> from `, `<name> said:` or `(` and a digit was
 
 from __future__ import annotations
 
+import re
+
 from typing import Any, Callable, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
@@ -99,12 +101,33 @@ def first_shown(store: Store, pid: str, row: Any) -> int:
     (one from someone they wrote to before it came), else 0: these come first, and in full."""
     sender = getattr(row, "sender", None)
     if not isinstance(row, Message) or sender is None:
-        return 0
+        return 1 if _own_outcome(store, row) else 0
     if _own_instance(store, pid, sender):
         return 2
+    if _to_the_firm(store, pid, row):
+        return 1
     wrote = any(m.to == sender and id_key(m.id) < id_key(row.id) for m in store.where("messages", sender=pid)) \
         if store.has("people", pid) else False
     return 1 if wrote else 0
+
+
+_OUTCOME = re.compile(r"\(ts\d+\)|your undertaking ts\d+")
+
+
+def _own_outcome(store: Store, row: Any) -> bool:
+    """With lane B, whether a notice tells its reader what came of their own undertaking (it comes first,
+    so it is read the morning it is told)."""
+    from townsim.town import lane_b
+    return bool(getattr(row, "text", None)) and bool(_OUTCOME.search(row.text)) and lane_b.installed(store)
+
+
+def _to_the_firm(store: Store, pid: str, row: Any) -> bool:
+    """With lane B, whether a letter is addressed to the firm that makes the launched product and the reader
+    is one of its people (it comes first, so its owner and whoever answers its clients read it)."""
+    from townsim.town import lane_b, product
+    pr = product.launched(store)
+    return (pr is not None and getattr(row, "org", "") == pr.org and lane_b.installed(store)
+            and pid in product.company_people(store, pr.org))
 
 
 def _own_instance(store: Store, pid: str, sender: str) -> bool:
@@ -773,7 +796,9 @@ def also_here(store: Store, pid: str, listed: set[str]) -> list[str]:
         work += [f"works at {store.get('orgs', j.org).name}" for j in jobs.held(store, person=p.id)
                  if store.has("orgs", j.org) and store.get("orgs", j.org).owner != p.id]
         out.append(", ".join([p.name] + ([h.street] if h.street else []) + ([" and ".join(work)] if work else [])))
-    return out
+    from townsim.town import product
+    line = product.firm_line(store)
+    return out + ([line] if line else [])
 
 
 def _dealt_with(store: Store, pid: str) -> set[str]:

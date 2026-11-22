@@ -63,13 +63,44 @@ def launch(store: Store, cause: str = "routine:launch") -> str:
     store.add("records", Record(store.new_id("rec", cause), store.day, "launch", f.id,
                                 f"{f.name} launched {name} on {date_text(store.day)}."), cause)
     people = company_people(store, f.id)
+    from townsim.town import lane_b
+    b = lane_b.installed(store)
     for who in people:
-        job = (f"runs {f.name}, which makes {name}, an AI assistant for households and businesses" if who == f.owner
-               else f"works at {f.name} on {name} and answers its clients' letters")
+        if b:
+            job = (f"runs {f.name}, which makes and sells {name}" if who == f.owner
+                   else f"works at {f.name}: sells {name} and sets up and answers its clients")
+        else:
+            job = (f"runs {f.name}, which makes {name}, an AI assistant for households and businesses" if who == f.owner
+                   else f"works at {f.name} on {name} and answers its clients' letters")
         store.set("people", who, cause, job=job)
         obligations.notify(store, who, f"{name} is launched today. Its page is open to everyone in {store.place}, and "
                                        f"people subscribe to it with the subscribe operation.", cause)
     return pid
+
+
+def firm_line(store: Store) -> str | None:
+    """With lane B and the product launched, the firm's line wherever the place's businesses are listed, as any
+    firm's line names its trade: `Tessaly Software, software firm: makes Tessaly Assistant, an AI assistant
+    for households and businesses, $24.00 a household or $100.00 a business every 4 weeks, first 4 weeks
+    free; its page is "Tessaly Software".`"""
+    from townsim.town import lane_b
+    pr = launched(store)
+    if pr is None or not lane_b.installed(store):
+        return None
+    F = store.get("orgs", pr.org).name
+    return (f"{F}, software firm: makes {pr.name}, an AI assistant for households and businesses, "
+            f"{money(pr.household_cents)} a household or {money(pr.business_cents)} a business {period(pr)}, "
+            f'first {pr.free_weeks} weeks free; its page is "{F}".')
+
+
+def _fill_product(store: Store, pid: str) -> str:
+    """The product's name in the subscribe form, with lane B and once launched; else the placeholder."""
+    from townsim.town import lane_b
+    pr = launched(store)
+    return pr.name if pr is not None and lane_b.installed(store) else PRODUCT_PART
+
+
+PRODUCT_PART = "<name of the product>"
 
 
 def period(pr: Product) -> str:
@@ -507,7 +538,10 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     lines.append(f"Fees received: {money(fees_received(store, pr, store.day - store.day % 7))} this week, "
                  f"{money(fees_received(store, pr))} in all.")
     if b:
-        lines += runlog.fit(runlog.company_lines(store, pr), [])
+        from townsim.town import investment
+        held = investment.view_line(store)
+        first = [held] if held else []
+        lines += first + runlog.fit(runlog.company_lines(store, pr, len(first)), first)
     return store.get("orgs", pr.org).name.upper(), lines
 
 
@@ -536,7 +570,9 @@ def _register() -> None:
     ops_core.STOPPABLE.update(STOPPABLE_OF_PRODUCT)
     obligations.ON_LEAVE[:] = [h for h in obligations.ON_LEAVE
                                if getattr(h, "__qualname__", "") != "_on_leave"] + [_on_leave]
-    register(OpSpec("subscribe", '{"op": "subscribe", "to": "<name of the product>", "for": ' + YOUR_ACCOUNTS
+    from townsim.town.acts import FILLED
+    FILLED[PRODUCT_PART] = _fill_product
+    register(OpSpec("subscribe", '{"op": "subscribe", "to": "' + PRODUCT_PART + '", "for": ' + YOUR_ACCOUNTS
                     + ', "asks": "<what you want it to do, in your own words>"}',
                     "Subscribe to a product for your household or a business you own.", 0.25,
                     _check_subscribe, _do_subscribe, 235, who="market"))

@@ -85,8 +85,9 @@ def routine(store: Store) -> None:
     week's free hours and the shops' deliveries; old requests lapse; what is owed is opened,
     aged and collected; then those whose shopping day it is shop. Events come first, so that
     someone who falls ill on a Monday has no hours that week."""
-    from townsim.town import controls
+    from townsim.town import controls, investment
     controls.apply_due(store)
+    investment.review(store)
     hamlet.apply_events(store)
     jobs.pay_benefit(store)
     hours.monday_hours(store)

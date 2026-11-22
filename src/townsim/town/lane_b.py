@@ -35,4 +35,6 @@ def install(store: Store, cause: str = "routine:lane-b") -> str:
     from townsim.town import desks, web
     web.install(store, cause)
     desks.install(store, cause)
+    from townsim.town import investment
+    investment.term(store, cause)
     return oid

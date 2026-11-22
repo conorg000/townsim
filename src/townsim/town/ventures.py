@@ -66,6 +66,10 @@ def name_problem(store: Store, name: Any) -> str | None:
     if text is None or "\n" in text.strip() or not NAME_MIN <= len(text.strip()) <= NAME_MAX:
         return f"a name is one line of {NAME_MIN} to {NAME_MAX} characters."
     wanted = text.strip().casefold()
+    from townsim.town import product
+    pr = product.launched(store)
+    if pr is not None and wanted == pr.name.casefold():
+        return f"{pr.name} is already the product of {store.get('orgs', pr.org).name}."
     for table in ("people", "households", "orgs"):
         if any(r.name.casefold() == wanted for r in store.all(table)):
             return f"there is already someone in {store.place or 'the town'} called '{shown(text.strip())}'."
@@ -143,7 +147,10 @@ def _check_register(store: Store, act: Act) -> str | None:
     if why is not None:
         return why
     if _offering(act.args.get("offering")) is None:
-        return f"what it offers is written in 1 to {OFFERING_WORDS} words."
+        written = clean_text(act.args.get("offering"))
+        n = len(written.split()) if isinstance(written, str) else 0
+        return (f"what it offers is written in 1 to {OFFERING_WORDS} words; this is {n}." if n
+                else f"what it offers is written in 1 to {OFFERING_WORDS} words.")
     if _fee(act.args.get("weekly_fee")) is None:
         return f"'{shown(act.args.get('weekly_fee'))}' is not a weekly fee from $0.00 to {money(MAX_FEE_CENTS)}."
     if store.get("people", act.principal).age < 18:
@@ -215,7 +222,7 @@ def _check_invite(store: Store, act: Act) -> str | None:
     from townsim.town.connections import client_name
     v = named(store, act.principal, act.args.get("of"))
     if v is None:
-        return f"'{shown(act.args.get('of'))}' is not a service or club of yours."
+        return _not_a_club(store, act)
     who, account, why = _joiner(store, act)
     if who is None:
         return why
@@ -227,6 +234,25 @@ def _check_invite(store: Store, act: Act) -> str | None:
     if any(m.account == account for m in members(store, v.id)):
         return f"{client_name(store, account)} is already a member of {name}."
     return None
+
+
+def _not_a_club(store: Store, act: Act) -> str:
+    """Why `of` is no service or club of the inviter's: a business of theirs is a business (and the firm's
+    clients come by subscribing to its product); anything else is not theirs."""
+    from townsim.town import product
+    written = act.args.get("of")
+    wanted = written.strip().casefold() if isinstance(written, str) else None
+    pr = product.launched(store)
+    for o in store.all("orgs"):
+        if o.owner == act.principal and not o.outside and o.name.casefold() == wanted:
+            if pr is not None and o.id == pr.org:
+                return (f"{o.name} is a business, not a club or service; people become its clients by subscribing to "
+                        f"{pr.name}, and anyone can be written to about it.")
+            return f"{o.name} is a business, not a club or service."
+    if pr is not None and wanted == pr.name.casefold():
+        return (f"{pr.name} is the product of {store.get('orgs', pr.org).name}, not a club or service; people become "
+                f"its clients by subscribing to it, and anyone can be written to about it.")
+    return f"'{shown(written)}' is not a service or club of yours."
 
 
 def _do_invite(store: Store, act: Act, cause: str) -> str:

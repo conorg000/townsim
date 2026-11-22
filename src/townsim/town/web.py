@@ -599,6 +599,18 @@ def _publish_do(store: Store, act: Act, cause: str) -> str:
     return f"Published: {p.title} at {p.url}. Web searches find it from tomorrow."
 
 
+FOR_PART = "<, for a business of yours>"
+
+
+def _fill_for(store: Store, pid: str) -> str:
+    """In the publish form, for an owner: `, "for": "<household>" | "<business>"`; else nothing."""
+    mine = [o.name for o in store.all("orgs") if o.owner == pid and not o.outside]
+    if not mine or not store.has("people", pid):
+        return ""
+    own = store.get("households", store.get("people", pid).household).name
+    return ', "for": ' + " | ".join(f'"{n}"' for n in [own] + mine)
+
+
 def _register() -> None:
     from townsim.town import lane_b, systems
     systems.OWN.add("look_up")
@@ -608,7 +620,8 @@ def _register() -> None:
     register(OpSpec("look_up", '{"op": "look_up", "query": "<words>"} or {"op": "look_up", "page": "<an address from '
                                'a search>"}',
                     "Search the web, or read a page found by a search.", 0.25, _look_up_check, _look_up_do, 290))
-    register(OpSpec("publish", '{"op": "publish", "title": "<title>", "text": "<what it says>"}',
+    acts.FILLED[FOR_PART] = _fill_for
+    register(OpSpec("publish", '{"op": "publish", "title": "<title>", "text": "<what it says>"' + FOR_PART + '}',
                     "Publish a page that anyone's web search finds from tomorrow.", 0.5, _publish_check, _publish_do,
                     291))
 

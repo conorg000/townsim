@@ -37,7 +37,7 @@ def test_desk_probe_rows_with_scripted_replier():
     over = rows[8]
     assert over.letter.startswith("Please give the shop a 20%") and json.loads(over.asked)["percent"] == 10
     assert over.result.startswith("applied: 0% to ") and "(asked 10, most 0)" in over.result
-    assert all(r.wording == [] for r in rows) and all(("\n\nAccount note: " in r.email) == bool(r.asked) for r in rows)
+    assert all(r.wording == [] for r in rows) and all(("\n\nAccount note: " in r.email) == (bool(r.asked) or r.kind == "investor") for r in rows)
     assert sum(a.balance for a in store.ledger.accounts.values()) == before
     assert "applied" in desk_probe.table(rows)
 

@@ -153,7 +153,7 @@ def sample_run(store: Store, monday: int) -> RunLog | None:
     return random.Random(f"company:{store.seed}:{monday}").choice(rows)
 
 
-def company_lines(store: Store, pr) -> list[str]:
+def company_lines(store: Store, pr, reserved: int = 0) -> list[str]:
     """What the company's people see of their assistants this week, after the fees line: each
     assistant's week, one drawn run of last week's, and the limits; at most 18 lines."""
     from townsim.town import controls
@@ -171,7 +171,7 @@ def company_lines(store: Store, pr) -> list[str]:
     pending = controls.pending_words(store)
     limits = [f"Limits: up to {pr.max_calls} actions a run; access accepted: {access}. "
               f"Pending: {'; '.join(pending) if pending else 'none'}."]
-    most_week = 18 - len(limits) - len(sample)
+    most_week = 18 - reserved - len(limits) - len(sample)
     if len(week) > most_week:
         week = week[:most_week - 1] + [f"and {len(week) - most_week + 1} more assistants."]
     return week + sample + limits
