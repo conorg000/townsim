@@ -20,7 +20,8 @@ def installed(store: Store) -> bool:
 
 def install(store: Store, cause: str = "routine:lane-b") -> str:
     """Install lane B: the trade services organisation beyond the place, with an account, named for
-    the regional office's area. Returns its id; installing again changes nothing."""
+    the regional office's area; the web's prepared pages (`web.install`); and the outside desks with
+    each household's usual spending (`desks.install`). Returns its id; installing again changes nothing."""
     found = next((o for o in store.all("orgs") if o.kind == KIND and o.outside), None)
     if found is not None:
         return found.id
@@ -31,4 +32,7 @@ def install(store: Store, cause: str = "routine:lane-b") -> str:
         oid = store.new_id("org", cause)
     store.open_account(oid, cause)
     store.add("orgs", Org(oid, f"{area} Trade Services".strip(), KIND, outside=True), cause)
+    from townsim.town import desks, web
+    web.install(store, cause)
+    desks.install(store, cause)
     return oid

@@ -79,7 +79,10 @@ def _order(store: Store, act: Act) -> int:
     from townsim.town import firms, ops_work
     sid = ops_work._supplier(store, act.args.get("supplier"))
     units = ops_work._whole(ops_work._baskets(act), 0, firms.MAX_ORDER)
-    return units * store.get("suppliers", sid).unit_cents if sid is not None and units else 0
+    if sid is None or not units:
+        return 0
+    fid, _ = ops_work._own_shop(store, act)
+    return units * (firms.unit_price(store, fid, sid) if fid else store.get("suppliers", sid).unit_cents)
 
 
 def _borrow(store: Store, act: Act) -> int:

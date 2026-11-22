@@ -99,7 +99,10 @@ def routine(store: Store) -> None:
 
 
 def close(store: Store) -> None:
-    """The evening: on a Sunday the shops' week closes; then the day ends."""
+    """The evening: on a Sunday the shops' week closes (and every fourth Sunday the suppliers review their
+    trade discounts); then the day ends."""
+    from townsim.town import desks
+    desks.review_discounts(store)
     firms.close_week(store)
     store.advance_day()
 
@@ -204,6 +207,8 @@ def run_day(store: Store, replier: Replier, keys: Keys) -> DayReport:
     its acts. Acts past the eighth are not carried out, and the person is told how many. A
 person whose view cannot be built is not asked that day (`guarded_view`)."""
     routine(store)
+    from townsim.town import desks
+    desks.answer_day(store, replier, keys)
     day = store.day
     shown = []
     for pid in who_acts(store):

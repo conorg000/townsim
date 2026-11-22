@@ -655,3 +655,63 @@ class Page:
     day: int
     by: str
     kind: str
+
+
+@dataclass
+class Desk:
+    """The desk that answers the email of an organisation outside the place (`kind` agency, supplier,
+    spending or investor), signed by `signer`, `title`; it answers what reached it from day `since`."""
+
+    id: str
+    org: str
+    kind: str
+    signer: str
+    title: str
+    since: int = 0
+
+
+@dataclass
+class DeskAnswer:
+    """What a desk did with one letter, request or (`w<week>`) letter of its own: the reply as it came,
+    the action it asked for (JSON, or empty) and what code made of it."""
+
+    id: str
+    desk: str
+    item: str
+    day: int
+    reply: str
+    action: str
+    result: str
+
+
+@dataclass
+class Hold:
+    """Time to pay given on an obligation's arrears: until `until`, no late fee, notice or default."""
+
+    id: str
+    obligation: str
+    until: int
+
+
+@dataclass
+class Discount:
+    """A trade discount of `percent` from the supplier organisation `supplier` to `buyer` (a shop's
+    organisation, or a buying group's), from day `since`. `status` is active or ended."""
+
+    id: str
+    supplier: str
+    buyer: str
+    percent: int
+    since: int
+    status: str = "active"
+
+
+@dataclass
+class SpendingLevel:
+    """A household's usual weekly everyday spending when the outside world was installed, and the day it
+    was last changed by the everyday-spending desk (-1: never)."""
+
+    id: str
+    household: str
+    base_cents: int
+    changed_on: int = -1

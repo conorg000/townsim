@@ -466,9 +466,16 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
         org = store.get("orgs", who)
         if (org.owner or org.contact) and not org.outside:
             return org.owner or org.contact, org.id
+        if org.outside and _desk(store, org.id):     # an outside organisation that answers its email
+            return org.id, org.id
         if store.has("people", act.actor) and org.name in record_orgs(store, act.actor):
             return org.id, org.id
     return None
+
+
+def _desk(store: Store, org_id: str) -> bool:
+    from townsim.town.narrator import has_desk
+    return has_desk(store, org_id)
 
 
 def _check_message(store: Store, act: Act) -> str | None:

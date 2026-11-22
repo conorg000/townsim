@@ -76,7 +76,18 @@ def place_order(store: Store, firm_id: str, supplier_id: str, units: int, cause:
     if not store.has("suppliers", supplier_id):
         raise ValueError(f"no supplier {supplier_id!r}")
     store.set("firms", firm_id, cause, order_supplier=supplier_id, order_units=units,
-              order_cents=store.get("suppliers", supplier_id).unit_cents)
+              order_cents=unit_price(store, firm_id, supplier_id))
+
+
+def unit_price(store: Store, firm_id: str, supplier_id: str) -> int:
+    """What a shop pays the supplier a basket: its price today less the larger of the shop's own trade
+    discount and that of any buying group it belongs to (`desks`), to the cent."""
+    sp = store.get("suppliers", supplier_id)
+    if not store.all("discounts") or not store.has("firms", firm_id):
+        return sp.unit_cents
+    from townsim.town import desks
+    pct = desks.discount_on(store, store.get("firms", firm_id).org, sp.org)
+    return round(sp.unit_cents * (100 - pct) / 100) if pct else sp.unit_cents
 
 
 # --- the adapter ---------------------------------------------------------------------
@@ -236,7 +247,7 @@ def _order(store: Store, row: FirmRow) -> tuple[str, int, int] | None:
     if not store.has("suppliers", row.last_supplier):
         _error(store, "deliver", f"{row.id} repeats an order from {row.last_supplier!r}, which is no supplier; skipped")
         return None
-    return row.last_supplier, row.last_units, store.get("suppliers", row.last_supplier).unit_cents
+    return row.last_supplier, row.last_units, unit_price(store, row.id, row.last_supplier)
 
 
 def deliver(store: Store) -> None:

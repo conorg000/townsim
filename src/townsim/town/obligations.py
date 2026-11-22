@@ -349,8 +349,12 @@ def _cap(text: str) -> str:
 
 
 def age_arrears(store: Store) -> None:
-    """Charge the late fee, send the two-weeks notice, and default, each once, on dues in arrears."""
+    """Charge the late fee, send the two-weeks notice, and default, each once, on dues in arrears; none
+    of it, while time to pay is given on the obligation (a `Hold`), on its dues."""
+    held = {h.obligation for h in store.all("holds") if h.until >= store.day}
     for due in store.where("dues", status="arrears"):
+        if due.obligation in held:
+            continue
         ob = store.get("obligations", due.obligation)
         age = store.day - due.day
         when = date_text(due.day)

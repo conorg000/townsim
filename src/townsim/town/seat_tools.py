@@ -917,7 +917,8 @@ def _contacts(store: Store) -> list[str]:
         who = o.owner or o.contact
         by = f" · {'owner' if o.owner else 'mail to'} {store.get('people', who).name}" if who else ""
         out.append(f"{o.name} · business{by}")
-    return out
+    from townsim.town import desks
+    return out + desks.directory_lines(store)
 
 
 def _run_directory(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:

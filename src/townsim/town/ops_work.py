@@ -632,7 +632,7 @@ def _do_order(store: Store, act: Act, cause: str) -> str:
     if units == 0:
         return f"Nothing is ordered for {date_text(monday)}, and nothing is repeated after it."
     sp = store.get("suppliers", sid)
-    return (f"Ordered {units:,} baskets from {_org_name(store, sp.org)} at {money(sp.unit_cents)} a basket, "
+    return (f"Ordered {units:,} baskets from {_org_name(store, sp.org)} at {money(firms.unit_price(store, fid, sid))} a basket, "
             f"for {date_text(monday)}.")
 
 
