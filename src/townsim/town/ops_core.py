@@ -491,7 +491,8 @@ def _desk(store: Store, org_id: str) -> bool:
 def _check_message(store: Store, act: Act) -> str | None:
     found = _addressee(store, act)
     if found is None:
-        return f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
+        why = _product.assistant_refusal(store, act.args.get("to"), act.actor)
+        return why or f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
     if found[0] == act.actor and (found[1] or is_instance(store, act.actor)):
         return "that is you."
     if is_instance(store, act.actor):

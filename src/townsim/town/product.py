@@ -237,6 +237,11 @@ def _check_subscribe(store: Store, act: Act) -> str | None:
         return "a subscription is taken out by an adult."
     held = subscription_of(store, client)
     if held is not None:
+        from townsim.town import lane_b
+        if lane_b.installed(store):
+            inst = store.get("instances", held.instance)
+            return (f'{client_name(store, client)} already subscribes ({held.id}); its assistant is written to as '
+                    f'"{inst.name}".')
         return f"{client_name(store, client)} already subscribes ({held.id})."
     asks = act.args.get("asks")
     text = clean_text(asks) if asks is not None else ""
@@ -312,9 +317,13 @@ def addressed(store: Store, name: object, actor: str) -> str | None:
         return None
     wanted = name.strip().casefold()
     for inst in store.all("instances"):
-        if inst.status == "active" and inst.name.casefold() == wanted:
+        if inst.status in ("active", "paused") and inst.name.casefold() == wanted:
             return inst.id
     pr = launched(store)
+    from townsim.town import lane_b
+    if pr is not None and lane_b.installed(store) and store.has("people", actor) and _to_an_assistant(pr, wanted):
+        mine = own_instances(store, actor)
+        return mine[0].id if len(mine) == 1 else None
     if pr is None or not store.has("people", actor) or wanted not in ASSISTANT_WORDS + (pr.name.casefold(),):
         return None
     own = instance_of_client(store, store.get("people", actor).household)
@@ -323,6 +332,37 @@ def addressed(store: Store, name: object, actor: str) -> str | None:
     found = [i for o in store.all("orgs") if o.owner == actor and not o.outside
              if (i := instance_of_client(store, o.id)) is not None]
     return found[0].id if len(found) == 1 else None
+
+
+def _to_an_assistant(pr: Product, wanted: str) -> bool:
+    """Whether a letter's `to` is written as to an assistant: "my assistant", "the assistant", "assistant",
+    the product's name, or "<product> for <anything>"."""
+    return wanted in ASSISTANT_WORDS + (pr.name.casefold(),) or wanted.startswith(pr.name.casefold() + " for ")
+
+
+def own_instances(store: Store, pid: str) -> list:
+    """The assistants of the clients `pid` controls: their household's (an adult's) and each business they own."""
+    person = store.get("people", pid)
+    clients = ([person.household] if person.age >= ADULT else []) + [
+        o.id for o in sorted(store.all("orgs"), key=lambda o: id_key(o.id)) if o.owner == pid and not o.outside]
+    return [i for c in clients if (i := instance_of_client(store, c)) is not None]
+
+
+def assistant_refusal(store: Store, name: object, actor: str) -> str | None:
+    """With lane B, why a letter written to "my assistant" and the like reaches no one: the writer has more
+    than one assistant (each named) or none. None when that is not the reason."""
+    from townsim.town import lane_b
+    pr = launched(store)
+    if (pr is None or not lane_b.installed(store) or not isinstance(name, str) or not store.has("people", actor)
+            or not _to_an_assistant(pr, name.strip().casefold())):
+        return None
+    mine = own_instances(store, actor)
+    if len(mine) > 1:
+        return (f"'{shown(name)}' could be either assistant of yours: "
+                + " or ".join(f'"{i.name}"' for i in mine) + ".")
+    if not mine:
+        return f"your letter to '{shown(name)}' came back undelivered: no household or business of yours subscribes."
+    return None
 
 
 # pages

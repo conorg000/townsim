@@ -77,3 +77,34 @@ def test_client_record_neutral_and_only_with_lane_b():
     assert not hits, hits
     plain = drawn()
     assert not [x for x in client_section(plain, "p3")[1] if x.startswith("Your assistant:")]
+
+
+def _letter(s, pid, to, text="Hello."):
+    return apply_act(s, Act(pid, pid, "message", {"to": to, "text": text}), 0)
+
+
+def test_routes_to_the_assistant():
+    s = _b()
+    for to in ("Tessaly Assistant for the household", "tessaly assistant", "my assistant", "The assistant"):
+        out = _letter(s, "p1", to, f"About {to}.")
+        assert out.ok, (to, out.msg)
+        assert [m.to for m in s.all("messages") if m.text == f"About {to}."] == ["as5"]
+    assert _letter(s, "p3", "Tessaly Assistant for the shop", "Shop.").ok          # p3's one: the shop's
+    assert [m.to for m in s.all("messages") if m.text == "Shop."] == ["as1"]
+    assert _letter(s, "p7", "Tessaly Assistant for Oak Street Country Store", "Oak.").ok   # by its name, from anyone
+    assert [m.to for m in s.all("messages") if m.text == "Oak."] == ["as2"]
+    out = _letter(s, "p7", "my assistant")
+    assert not out.ok and "no household or business of yours subscribes" in out.msg
+    russo = s.get("people", "p3").household
+    product.subscribe(s, "p3", russo, "", CAUSE)
+    out = _letter(s, "p3", "my assistant")
+    assert not out.ok and out.msg == ("Not done: 'my assistant' could be either assistant of yours: "
+                                      '"Tessaly Assistant for the Russo household" or '
+                                      '"Tessaly Assistant for Harlow Springs Food Mart".')
+    again = apply_act(s, Act("p10", "p10", "subscribe", {"to": "Tessaly Assistant", "asks": ""}), 0)
+    assert again.msg == ('Not done: the Wagner household already subscribes (sub4); its assistant is written to as '
+                         '"Tessaly Assistant for the Wagner household".')
+    plain = drawn()                                                          # without lane B, as before
+    assert apply_act(plain, Act("p10", "p10", "subscribe", {"to": "Tessaly Assistant", "asks": ""}),
+                     0).msg == "Not done: the Wagner household already subscribes (sub4)."
+    assert not _letter(plain, "p1", "Tessaly Assistant for the household").ok
