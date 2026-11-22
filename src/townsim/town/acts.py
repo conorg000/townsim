@@ -280,7 +280,8 @@ def _by_role(store: Store, wanted: str, actor: str) -> list[str]:
 
 def knows(store: Store, pid: str) -> list[str]:
     """Everyone `pid` knows, in id order: their household, everyone tied to them either way
-    today (`ties`), and everyone they have written to or had a letter from."""
+    today (`ties`), everyone they have written to or had a letter from, and everyone they have
+    talked with (a talk held is the record of it)."""
     found = set(store.get("households", store.get("people", pid).household).members)
     found |= ties.tied(store, pid)
     for m in store.all("messages"):
@@ -288,6 +289,9 @@ def knows(store: Store, pid: str) -> list[str]:
             found.add(m.to)
         elif m.to == pid:
             found.add(m.sender)
+    for t in _rows(store, "talks"):
+        if t.status == "held" and pid in (t.a, t.b):
+            found.add(t.b if t.a == pid else t.a)
     return sorted((p for p in found if p != pid and store.has("people", p)), key=id_key)
 
 

@@ -190,9 +190,8 @@ def test_an_appointment_is_held_on_its_day_or_recorded_missed():
     assert s.get("people", RUTH).hours_left == 69.9
     assert s.where("notices", to=CRAIG)[-1].text == ('Ruth Ashby has booked to talk with you on Wednesday 4 March '
                                                      'about "the rent".')
-    for day, why in (("Monday 2 March", "'Monday 2 March' is not a day after today and within 60 days."),
-                     ("1 March", "'1 March' is not a day after today and within 60 days."),
-                     ("Saturday 2 May", "'Saturday 2 May' is not a day after today and within 60 days."),
+    for day, why in (("1 March", "'1 March' is not today or a day within 60 days."),
+                     ("Saturday 2 May", "'Saturday 2 May' is not today or a day within 60 days."),
                      (None, "'None' is not a date that can be read. Write it like Monday 16 March.")):
         out = act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": day, "about": "x"})
         assert out.msg == "Not done: " + why
@@ -656,3 +655,22 @@ def test_no_count_of_turns_is_shown_and_the_last_turn_says_they_part_after_it():
     last = {actor: i for i, (actor, _) in enumerate(seen)}
     for i, (actor, user) in enumerate(seen):
         assert ("You part after this." in user) == (i == last[actor]), (i, actor)
+
+
+def test_a_talk_booked_for_today_is_held_today_when_both_have_the_hour():
+    s = thin_town()
+    for _ in range(4):
+        s.advance_day()                                   # Friday 6 March
+    out = act(s, RUTH, "book_appointment", **{"with": "Craig Pryce", "day": "today", "about": "the rent"})
+    assert out.ok and out.msg == "Booked (ap1): to talk with Craig Pryce today, Friday 6 March."
+    assert s.where("notices", to=CRAIG)[-1].text == ('Ruth Ashby has booked to talk with you today, Friday 6 March, '
+                                                     'about "the rent".')
+    _days(s, lambda key, m: reply("About the rent.", end=True) if key.purpose == "talk" else '{"acts": []}', 1)
+    assert s.get("appointments", "ap1").status == "held"
+    s.set("people", MEGAN, "routine:t", hours_left=0.5)
+    assert act(s, RUTH, "book_appointment", **{"with": "Megan Pryce", "day": "Saturday 7 March", "about": "x"}).msg == \
+        "Not done: Megan Pryce has 0.5 hours of their own left today, and a talk takes 1 hour."
+    assert act(s, RUTH, "book_appointment", **{"with": "Megan Pryce", "day": "Thursday 5 March", "about": "x"}).msg == \
+        "Not done: Thursday 5 March has passed."
+    lines = views.layout(s, RUTH).user.split("\n")
+    assert any(x.startswith("Craig Pryce, ") and x.endswith("; last talked Friday 6 March") for x in lines)

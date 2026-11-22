@@ -607,7 +607,9 @@ def layout(store: Store, pid: str) -> Layout:
             c = shorter
             steps.append("coming")
             left = over(c)
-    if left > 0 and _owed(store, pid, facts.OWED_KEPT) != _owed(store, pid, c.owed):
+    def owed(most: int) -> tuple:
+        return _once(parts, ("owed", most), lambda: _owed(store, pid, most))
+    if left > 0 and owed(facts.OWED_KEPT) != owed(c.owed):
         c = c._replace(owed=facts.OWED_KEPT)
         steps.append("owed")
         left = over(c)
@@ -638,7 +640,7 @@ def layout(store: Store, pid: str) -> Layout:
         c = c._replace(read_words=READ_CUT)
         steps.append("read")
         left = over(c)
-    if left > 0 and _owed(store, pid, facts.OWED_LEAST) != _owed(store, pid, c.owed):
+    if left > 0 and owed(facts.OWED_LEAST) != owed(c.owed):
         c = c._replace(owed=facts.OWED_LEAST)
         steps.append("owed_least")
         left = over(c)

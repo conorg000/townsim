@@ -161,6 +161,7 @@ def _people_known(store: Store, pid: str) -> list[tuple[str, int, str]]:
     mine, theirs = _tie_kinds(store, pid)
     rank = ranks(store, pid)
     wrote = {m.sender for m in store.all("messages") if m.to == pid}
+    written = {m.to for m in store.all("messages") if m.sender == pid}
     rows = []
     for other, r in sorted(rank.items(), key=lambda kv: (kv[1], id_key(kv[0]))):
         kinds = sorted(set(mine.get(other, [])), key=lambda k: (_RANK.get(ties.base(k), 5), k))
@@ -173,7 +174,8 @@ def _people_known(store: Store, pid: str) -> list[tuple[str, int, str]]:
             if store.get("people", other).household == household:
                 said = ["lives with you"]
             else:
-                said = ["has written to you" if other in wrote else "you have written to them"]
+                said = ["has written to you" if other in wrote else "you have written to them" if other in written
+                        else "you have talked with them"]
         rows.append((other, r, ", ".join(dict.fromkeys(said))))
     return rows
 

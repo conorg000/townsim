@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from townsim.town import hours
 from townsim.town import ops_core as core
 from townsim.town import talk
 from townsim.town.acts import Act, OpSpec, clean_text, fits, register, shown
@@ -19,6 +20,7 @@ from townsim.town.store import Store
 from townsim.town.unknown import reader_lines, tell_writer, unknown_names
 
 OPENING_WORDS = 120          # as much as a turn in a talk (`talk.SAY_WORDS`)
+REGISTRY_HOURS = 0.1         # what booking takes (the form's own hours, below)
 ABOUT_WORDS = 12
 AHEAD_DAYS = 60
 
@@ -73,13 +75,37 @@ def _do_converse(store: Store, act: Act, cause: str) -> str:
 # book_appointment
 
 def _when(store: Store, act: Act) -> tuple[int | None, str]:
+    """The day a talk is booked for: today or a day within 60 days; or None and why not."""
     value = act.args.get("day")
     day = parse_date(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
-    if day is None and (not isinstance(value, str) or parse_date(value, -10 ** 6) is None):
-        return None, unreadable(value)
-    if day is None or not store.day < day <= store.day + AHEAD_DAYS:
-        return None, f"'{shown(value)}' is not a day after today and within 60 days."
+    if day is None:
+        gone = parse_date(value, -10 ** 6) if isinstance(value, str) and len(value) <= 100 else None
+        if gone is None:
+            return None, unreadable(value)
+        if gone < store.day:
+            return None, f"{date_text(gone)} has passed."
+        day = gone
+    if not store.day <= day <= store.day + AHEAD_DAYS:
+        return None, f"'{shown(value)}' is not today or a day within 60 days."
     return day, ""
+
+
+def _today_short(store: Store, act: Act, who: str) -> str | None:
+    """Why a talk booked for today cannot be held today: whose time is short, or who has two
+    talks today already; None if both can talk."""
+    mine = store.get("people", act.actor).hours_left - REGISTRY_HOURS
+    for pid, left in ((act.actor, mine), (who, store.get("people", who).hours_left)):
+        if left < talk.TALK_HOURS:
+            whose = "you have" if pid == act.actor else f"{store.get('people', pid).name} has"
+            return (f"{whose} {round(max(left, 0.0), 2):g} hours of {'your' if pid == act.actor else 'their'} own "
+                    f"left today, and a talk takes {hours.length(talk.TALK_HOURS)}.")
+    for pid in (act.actor, who):
+        today = [t for t in store.where("talks", day=store.day) if pid in (t.a, t.b) and t.status in ("waiting", "held")]
+        today += [ap for ap in store.where("appointments", day=store.day) if ap.status == "booked" and pid in (ap.a, ap.b)]
+        if len(today) >= talk.TALKS_A_DAY:
+            return ("you already have two talks today." if pid == act.actor
+                    else f"{store.get('people', pid).name} already has two talks today.")
+    return None
 
 
 def _check_book(store: Store, act: Act) -> str | None:
@@ -89,6 +115,10 @@ def _check_book(store: Store, act: Act) -> str | None:
     day, why = _when(store, act)
     if day is None:
         return why
+    if day == store.day:
+        why = _today_short(store, act, who)
+        if why is not None:
+            return why
     pair = {act.actor, who}
     for ap in store.where("appointments", day=day):
         if ap.status == "booked" and {ap.a, ap.b} == pair:
@@ -105,10 +135,12 @@ def _do_book(store: Store, act: Act, cause: str) -> str:
     ap = store.new_id("ap", cause)
     store.add("appointments", Appointment(ap, day, act.actor, who, about, store.day), cause)
     me, other = store.get("people", act.actor).name, store.get("people", who).name
-    text = f"{me} has booked to talk with you on {date_text(day)} about {about}."
+    when = f"today, {date_text(day)}," if day == store.day else f"on {date_text(day)}"
+    text = f"{me} has booked to talk with you {when} about {about}."
     text = " ".join([text, *reader_lines(unknown_names(store, who, act.actor, about))])
     obligations.notify(store, who, text, cause)
-    return f"Booked ({ap}): to talk with {other} on {date_text(day)}." + tell_writer(store, act.actor, who, about, cause)
+    when = f"today, {date_text(day)}" if day == store.day else f"on {date_text(day)}"
+    return f"Booked ({ap}): to talk with {other} {when}." + tell_writer(store, act.actor, who, about, cause)
 
 
 # stop, naming an appointment
@@ -137,6 +169,6 @@ for _spec in (
            "Talk with someone today.", 1.0, _check_converse, _do_converse, 240),
     OpSpec("book_appointment", '{"op": "book_appointment", "with": "<name>", "day": "<e.g. Thursday 12 March>", '
                                '"about": "<what for>"}',
-           "Book a talk with someone on a later day.", 0.1, _check_book, _do_book, 250),
+           "Book a talk with someone, today or on a later day.", REGISTRY_HOURS, _check_book, _do_book, 250),
 ):
     register(_spec)
