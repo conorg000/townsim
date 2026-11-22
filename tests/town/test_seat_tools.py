@@ -93,7 +93,7 @@ def test_what_the_instance_reads_is_the_products():
     s.add("records", Record("rec99", s.day, "default", "h1", "A default."), "routine:t")
     assert "register" in ST.read_choices(s, shop)
     # letters and prices move no money: never a weekly limit
-    assert "Letters move no money" in product.page(s, "pr1") and "Prices move no money" in product.page(s, "pr1")
+    assert "Email and point of sale move no money, so they are connected read only or free." in product.page(s, "pr1")
     asked = ST.run_tool(s, s.get("instances", "as3"), "ask_connection",
                         {"system": "household letters", "scope": "weekly limit", "weekly_limit": 20}, ST.Ctx(), 2)
     assert asked.text == ("Not done: letters to the Whitaker household moves no money: it is connected read only or "

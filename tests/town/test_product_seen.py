@@ -68,18 +68,18 @@ def test_company_and_client_sections():
     make(s, "p17", s.get("instances", "as1"), "account:h9", "limit", 4000, CAUSE)
     user = views.layout(s, "p18").user
     assert ("TESSALY ASSISTANT\nThe Marsh household subscribes (sub1) since Monday 9 March: free until Sunday 5 April, "
-            "then $6.00 a week.\nIts name: Tessaly Assistant for the Marsh household.\nConnected: household account, "
+            "then $24.00 every 4 weeks.\nIts name: Tessaly Assistant for the Marsh household.\nConnected: household account, "
             "weekly limit $40.00 (by Alyssa Ortiz, Monday 9 March).\nNot connected: household letters.") in user
     assert "Harlow Springs Food Mart subscribes (sub2)" not in user
-    assert "Harlow Springs Food Mart subscribes (sub2) since Monday 9 March: free until Sunday 5 April, then $25.00" \
+    assert "Harlow Springs Food Mart subscribes (sub2) since Monday 9 March: free until Sunday 5 April, then $100.00 every 4 weeks" \
         in views.layout(s, "p3").user
     assert "TESSALY ASSISTANT" not in views.layout(s, "p9").user
     _do(s, "p3", "stop", id="sub2")
     run_days(s, 29)
     for pid in ("p11", "p5"):
-        assert ("TESSALY SOFTWARE\nLaunched Monday 9 March. Price: $6.00 a week for a household, $25.00 for a "
-                "business; the first four weeks free.\nClients (1):\n  The Marsh household, since Monday 9 March, paying "
-                "$6.00 a week\nLeft: Harlow Springs Food Mart, Monday 9 March.\nFees received: $6.00 this week, $6.00 in "
+        assert ("TESSALY SOFTWARE\nLaunched Monday 9 March. Price: $24.00 every 4 weeks for a household, $100.00 for a "
+                "business; the first 4 weeks free.\nClients (1):\n  The Marsh household, since Monday 9 March, paying "
+                "$24.00 every 4 weeks\nLeft: Harlow Springs Food Mart, Monday 9 March.\nFees received: $24.00 this week, $24.00 in "
                 "all.") in views.layout(s, pid).user
 
 

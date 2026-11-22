@@ -503,7 +503,8 @@ def _instance_head(r: _Run, s: Store, inst) -> list[str]:
     pr = s.get("products", sub.product) if s.has("products", sub.product) else None
     fee = "no fee"
     if sub.fee_ob and s.has("obligations", sub.fee_ob):
-        fee = f"{money(s.get('obligations', sub.fee_ob).cents)} a week"
+        ob = s.get("obligations", sub.fee_ob)
+        fee = f"{money(ob.cents)} " + {7: "a week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
         if pr is not None and pr.free_weeks:
             fee = f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {fee}"
     ended = f"ended on {date_text(sub.ended_on)}" if sub.status == "ended" else "not ended"

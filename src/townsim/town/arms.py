@@ -43,8 +43,9 @@ def _lets(store: Store, household: str) -> bool:
 
 
 def _weekly_obligations(store: Store, account: str, kind: str | None = None) -> int:
-    return sum(o.cents for o in store.where("obligations", payer=account)
-               if o.every == 7 and o.status == "active" and (kind is None or o.kind == kind))
+    """What the account's regular payments come to in a week (a fee every 4 weeks a quarter of it)."""
+    return sum(obligations.weekly_cents(o) for o in store.where("obligations", payer=account)
+               if o.status == "active" and (kind is None or o.kind == kind))
 
 
 def _stock_order(store: Store, org: str) -> int:
@@ -118,7 +119,7 @@ def draw_clients(store: Store) -> list[str]:
         connected = " ".join(f"Connected by {store.get('people', g).name}: {'; '.join(names)}."
                              for g, names in made.items())
         text = (f"{store.get('people', by).name} subscribed {client_name(store, client)} to {pr.name} today ({sub.id}): "
-                f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} a week from "
+                f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} {product.period(pr)} from "
                 f"{product.account_name(store, client)}. {connected} Asked of it when subscribing: nothing written.")
         for pid in obligations.people_of(store, client):
             obligations.notify(store, pid, text, CAUSE)

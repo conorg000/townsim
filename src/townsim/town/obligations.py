@@ -273,6 +273,14 @@ def name_of(store: Store, account: str) -> str:
 ADULT = 18                           # a child, under this age, is told nothing: their household's adults are
 
 
+def weekly_cents(ob: Obligation) -> int:
+    """What `ob` comes to in a week: its instalment, for one paid each week; a share of it for one
+    paid every so many weeks (a fee every 4 weeks); 0 for one paid once or on other days."""
+    if ob.every == 0 or ob.every % 7:
+        return 0
+    return ob.cents * 7 // ob.every
+
+
 def how_paid(store: Store, ob: Obligation, out: bool) -> str:
     """How `ob` is paid, for a notice of a change to it, said to its payer (`out`) or payee: `It is
     taken from the household account each Monday, as now.` (`paid into`, for the payee)."""

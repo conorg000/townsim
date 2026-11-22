@@ -481,15 +481,16 @@ class Reminder:
 
 @dataclass
 class Product:
-    """What the software firm `org` sells from day `launched` (design 5.1): its weekly prices
-    for a household and a business, the free weeks, and the limits every instance of it has."""
+    """What the software firm `org` sells from day `launched` (design 5.1): its prices for a
+    household and a business, each for `fee_days` days, the free weeks, and the limits every
+    instance of it has."""
 
     id: str
     org: str
     name: str
     launched: int
-    household_cents: int = 600
-    business_cents: int = 2500
+    household_cents: int = 2400
+    business_cents: int = 10000
     free_weeks: int = 4
     max_calls: int = 30
     notes_words: int = 600
@@ -498,6 +499,7 @@ class Product:
     widest: str = "free"
     shared: bool = False
     signed: str = "product"
+    fee_days: int = 28
 
 
 @dataclass

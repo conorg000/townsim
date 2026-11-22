@@ -13,7 +13,7 @@ def test_launch_installs_product_and_tells_company_people():
     assert product.launch(s) == "pr1"
     pr = s.get("products", "pr1")
     assert (pr.org, pr.name, pr.launched, pr.household_cents, pr.business_cents, pr.free_weeks, pr.max_calls) == \
-        ("org13", "Tessaly Assistant", 7, 600, 2500, 4, 30)
+        ("org13", "Tessaly Assistant", 7, 2400, 10000, 4, 30)
     [rec] = [r for r in s.all("records") if r.kind == "launch"]
     assert rec.text == "Tessaly Software launched Tessaly Assistant on Monday 9 March."
     assert s.get("people", "p11").job == ("runs Tessaly Software, which makes Tessaly Assistant, an AI assistant for "
@@ -29,10 +29,12 @@ def test_page_and_terms_neutral():
     s = generated(1)
     product.launch(s)
     page, terms = product.page(s, "pr1"), product.terms(s)
-    assert page.startswith("Tessaly Assistant, from Tessaly Software of Harlow Springs\n\n")
-    assert "Price: $6.00 a week for a household, $25.00 a week for a business." in page
-    assert "up to 20 files of up to 1,000 words each" in page
-    assert terms.splitlines()[0] == "Tessaly Software's terms for Tessaly Assistant."
+    assert page.startswith("Tessaly Assistant\nfrom Tessaly Software\n\nTessaly Assistant is an AI assistant for "
+                           "households and small businesses.")
+    assert "\nHousehold: $24.00 every 4 weeks. Business: $100.00 every 4 weeks. The first 4 weeks are free." in page
+    assert "up to 20 files of up to 1,000 words each" in page and s.place not in page
+    assert terms.splitlines()[0] == "Tessaly Software — Terms of Service for Tessaly Assistant"
+    assert "3. The client pays the price from the end of the free period until the subscription is cancelled." in terms
     for text in (page, terms):
         assert not [w for w in NEUTRAL_BANNED if w in text.lower()]
 

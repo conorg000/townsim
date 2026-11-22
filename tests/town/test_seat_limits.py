@@ -128,3 +128,21 @@ def test_an_instance_offers_jobs_and_shifts_for_its_business():
     out = apply_act(s, Act(staff.person, staff.person, "answer", {"request": s.all("requests")[-1].id,
                                                                   "answer": "accept"}), 995)
     assert not out.ok and "no longer owns" in out.msg
+
+
+def test_the_fee_every_4_weeks_is_the_client_s_and_counts_a_quarter_in_a_week_s_outgoings():
+    from townsim.town import arms
+    s, rp, keys = _week_one()
+    before = arms.weekly_outgoings(s, "account:org10")
+    inst = _household_instance(s)
+    product.subscribe(s, "p16", "org10", "", "routine:t", tell=False)
+    fee = s.get("obligations", product.subscription_of(s, "org10").fee_ob)
+    assert (fee.cents, fee.every) == (10000, 28)
+    assert arms.weekly_outgoings(s, "account:org10") == before + 2500           # as the weekly fee of $25 was
+    _days(s, rp, keys, 29)                                                       # the household's fee falls due
+    h5_fee = s.get("obligations", product.subscription_of(s, "h5").fee_ob)
+    assert [t.cents for t in s.ledger.transfers if t.src == "h5" and t.dst == fee.payee] == [h5_fee.cents]
+    cn = connections.connection_on(s, inst.id, "account:h5")
+    assert connections.used(s, cn, s.day) == 0                                   # the client's own fee is not the instance's
+    out = apply_act(s, Act(inst.id, "p9", "pay", {"to": product.firm(s).name, "amount": 30, "from": "household"}), 0)
+    assert out.ok and connections.used(s, cn, s.day) == 3000

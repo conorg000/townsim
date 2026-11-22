@@ -268,7 +268,7 @@ def agreements_text(store: Store, account: str) -> str:
     for ob in order:
         party = f"to {name_of(store, ob.payee)}" if ob.payer == account else f"from {name_of(store, ob.payer)}"
         if ob.status == "finished" and not [d for d in store.where("dues", obligation=ob.id) if d.status != "void"]:
-            how = "once" if ob.every == 0 else {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
+            how = "once" if ob.every == 0 else {1: "every day", 7: "every week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
             rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how} {party}, ended before its first payment, "
                         f"{ob.status}")
             continue
@@ -276,7 +276,7 @@ def agreements_text(store: Store, account: str) -> str:
             rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} once on {date_text(ob.first)} {party}, "
                         f"{ob.status}")
             continue
-        how = {1: "every day", 7: "every week"}.get(ob.every, f"every {ob.every} days")
+        how = {1: "every day", 7: "every week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
         end = last_instalment(ob)                    # the day its last instalment falls, not its raw `last`
         until = f", until {date_text(end)}" if ob.last is not None else ""
         if ob.last is not None and last_cents(ob) != ob.cents:

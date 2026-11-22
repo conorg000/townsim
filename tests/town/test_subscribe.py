@@ -24,7 +24,7 @@ def test_subscribe_makes_instance_and_four_free_weeks():
     s = _launched()
     out = _do(s, "p16", "subscribe", to="Tessaly Assistant", **{"for": "household"}, asks="Keep the bills in order.")
     assert out.msg == ("Subscribed: Tessaly Assistant for the Marsh household (sub1). Free until Sunday 5 April; then "
-                       "$6.00 a week from the Marsh household's account, until the subscription is stopped. Nothing is "
+                       "$24.00 every 4 weeks from the Marsh household's account, until the subscription is stopped. Nothing is "
                        "connected to it yet.")
     sub = s.get("subscriptions", "sub1")
     inst = s.get("instances", sub.instance)
@@ -33,13 +33,13 @@ def test_subscribe_makes_instance_and_four_free_weeks():
     assert (inst.id, inst.client, inst.subscription, inst.name, inst.made_on) == \
         ("as1", "h9", "sub1", "Tessaly Assistant for the Marsh household", 7)
     assert (fee.kind, fee.payer, fee.payee, fee.cents, fee.first, fee.every, fee.ends, fee.made_by, fee.memo) == \
-        ("fee", "h9", "org13", 600, 35, 7, "service", "p16", "Tessaly Assistant subscription")
+        ("fee", "h9", "org13", 2400, 35, 28, "service", "p16", "Tessaly Assistant subscription")
     told = [n for n in s.all("notices") if n.text == out.msg]
     assert [n.to for n in told] == ["p17", "p18"]
     assert [n.text for n in s.all("notices") if n.to == "as1"] == ["Joshua Marsh subscribed the Marsh household today."]
     assert "client" in positions(s, "p17") and "client" not in positions(s, "p1")
     biz = _do(s, "p16", "subscribe", to="tessaly assistant", **{"for": "Marsh's Grocery"})
-    assert biz.ok and "$25.00 a week from Marsh's Grocery's account" in biz.msg
+    assert biz.ok and "$100.00 every 4 weeks from Marsh's Grocery's account" in biz.msg
     assert s.get("subscriptions", "sub2").asks == ""
     assert _do(s, "p16", "subscribe", to="Wrenfold Assistant").msg == \
         "Not done: there is no product called 'Wrenfold Assistant'. Sold in Harlow Springs: Tessaly Assistant (Tessaly Software)."
@@ -64,9 +64,11 @@ def test_fee_first_collected_on_day_28_into_firm():
     run_days(s, 28)
     assert s.day == 35 and fees() == []
     run_days(s, 1)
-    assert fees() == [(600, "Tessaly Assistant subscription, due Monday 6 April")]
-    run_days(s, 7)
-    assert len(fees()) == 2
+    assert fees() == [(2400, "Tessaly Assistant subscription, due Monday 6 April")]
+    run_days(s, 27)
+    assert len(fees()) == 1                     # every 4 weeks, not every week
+    run_days(s, 1)
+    assert fees()[1:] == [(2400, "Tessaly Assistant subscription, due Monday 4 May")]
 
 
 def test_one_subscription_per_client_any_adult():

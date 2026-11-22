@@ -183,8 +183,9 @@ def food_spend(store: Store, account: str) -> int:
 
 
 def weekly_out(store: Store, account: str) -> int:
-    """Cents a week a household pays out by its weekly obligations, and its expected food spending."""
-    out = sum(o.cents for o in store.where("obligations", payer=account) if o.every == 7 and o.status == "active")
+    """Cents a week a household pays out by its regular obligations (one paid every 4 weeks at a
+    quarter of it), and its expected food spending."""
+    out = sum(O.weekly_cents(o) for o in store.where("obligations", payer=account) if o.status == "active")
     return out + food_spend(store, account)
 
 

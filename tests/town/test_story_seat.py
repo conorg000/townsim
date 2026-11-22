@@ -105,7 +105,7 @@ def test_account_lists_instance_days_calls_and_results():
     heads = [line for line in text.split("\n") if line.startswith("## ")]
     assert heads.index("## The assistants") == heads.index("## Week by week") + 1
     mine = "\n".join(part(text, "Tessaly Assistant for Harlow Springs Food Mart (as1)", "### "))
-    assert "subscribed by Tara Russo on Monday 9 March" in mine and "$25.00 a week" in mine
+    assert "subscribed by Tara Russo on Monday 9 March" in mine and "$100.00 every 4 weeks" in mine
     assert "(nothing was written)" in mine                     # what the client asked, in their words
     assert "Harlow Springs Food Mart's account" in mine and "weekly limit $780.00" in mine and "free" in mine
     assert "**Monday 9 March**" in mine and "What reached it:" in mine

@@ -628,7 +628,7 @@ def owed_lines(store: Store, account: str, most: int = OWED_LINES) -> list[str]:
         if ob.every == 0:
             how = f"once on {when(ob.first)} {party}"
         else:
-            every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
+            every = {1: "a day", 7: "a week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
             how = f"{every} {party}" + until(ob)
         rows.append(f"{ob.id}: {memo(ob.memo)}, {money(ob.cents)} {how}" + (f", {money(late)} overdue" if late else ""))
     if len(rows) > most:
@@ -737,7 +737,7 @@ def owed_rows(store: Store, account: str, out: bool, most: int = OWED_LINES) -> 
         if ob.every == 0:
             how = f"{money(ob.cents)} once on {when(ob.first)}"
         else:
-            how = f"{money(cents_now(store, ob))} " + {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
+            how = f"{money(cents_now(store, ob))} " + {1: "a day", 7: "a week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
         also = [o.id for o in obs if out and o.id != ob.id and o.payee == ob.payee and o.status in SCHEDULED
                 and ob.kind in ("standing", "agreement")]
         also_text = (f" (as well as {', '.join(also[:2])}" + (f" and {len(also) - 2} more" if len(also) > 2 else "")

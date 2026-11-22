@@ -69,42 +69,59 @@ def launch(store: Store, cause: str = "routine:launch") -> str:
     return pid
 
 
+def period(pr: Product) -> str:
+    """How often the price is paid: `every 4 weeks`."""
+    return {7: "a week", 28: "every 4 weeks"}.get(pr.fee_days, f"every {pr.fee_days} days")
+
+
 def page(store: Store, pid: str) -> str:
     """The product's page, as anyone reads it."""
     pr = store.get("products", pid)
-    P, F, place = pr.name, store.get("orgs", pr.org).name, store.place
-    return f"""{P}, from {F} of {place}
+    P, F = pr.name, store.get("orgs", pr.org).name
+    every = period(pr)
+    return f"""{P}
+from {F}
 
-{P} is an AI assistant made by {F}. It works for its client, within what the client has connected to it, and follows the law and {F}'s terms.
+{P} is an AI assistant for households and small businesses. Connect your bank account, email and business tools, and it works for you within what you connect: it reads your records and reports, and where you give it access, it carries out the work — payments, orders, staff and pay, lettings, letters and calls.
 
-Price: {money(pr.household_cents)} a week for a household, {money(pr.business_cents)} a week for a business. The first four weeks are free; after them the price is paid each week from the household's or the business's account until the subscription is stopped. One subscription for each household or business. In a household, any adult can instruct it, connect the household's account or letters, or end the subscription.
+Pricing
+Household: {money(pr.household_cents)} {every}. Business: {money(pr.business_cents)} {every}. The first {pr.free_weeks} weeks are free. Billed to the household's or business's own account until cancelled. One subscription per household or business.
 
-Connections. Read only: it reads the records and reports. With a weekly limit: it also acts, and what it does through that connection takes at most the limit out of the client's accounts in any week. Free: it acts with no limit.
-- A household's or a business's account (with savings): it reads the statement and what is owed; acting, it pays, sets up and stops payments, moves money between the client's own accounts, asks for and answers requests about money, proposes and ends agreements, borrows and repays.
-- Letters: it reads the letters, notices and requests that reach the household or the business; acting, it also answers requests that ask for no money. Letters move no money, so they are connected read only or free.
-- A shop's ordering: it reads stock, sales and orders; acting, it orders stock.
-- A shop's prices: it reads them; acting, it sets the price. Prices move no money, so they are connected read only or free.
-- A business's staff and pay: it reads who works there and for what pay; acting, it offers jobs and extra hours, changes pay and ends jobs.
-- Houses let: it reads the lets and rents; acting, it changes rents and serves notice.
-- A bank's loan book: it reads the loans; acting, it answers requests for loans.
+Access levels
+Read only: it reads and reports.
+Weekly limit: it also acts; payments and commitments it makes through that connection come to at most the weekly limit you set.
+Free: it acts without a limit.
 
-Payments and agreements it makes are its client's, and stay the client's when a connection is narrowed or taken back. It writes letters to anyone and talks with people, signed as from {P} for its client. It keeps its own notes and files and sets itself reminders.
+What it connects to
+Bank accounts and savings: statements and what is owed; payments, recurring payments, cancellations, transfers between your own accounts, payment requests, agreements, loans.
+Email: the mail, notices and requests that reach you; with access, it answers requests that involve no money.
+Ordering: stock, sales and orders; with access, it places orders.
+Point of sale: prices; with access, it sets them.
+Payroll: staff and pay; with access, it offers jobs and extra hours, changes pay and ends employment.
+Lettings: tenancies and rents; with access, it changes rents and serves notice.
+Loan book (banks): loans; with access, it answers loan applications.
+Email and point of sale move no money, so they are connected read only or free.
 
-Limits: up to {pr.max_calls} actions in a run; at most one run a day; notes of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each. Each client has its own {P}, which sees only what that client connected.
+Your assistant
+Each household or business has its own assistant, which sees only what that client connected. In a household, any adult can instruct it, connect accounts, or cancel. Write to it as "{P} for <your household or business>", or "my assistant". Its email and calls are signed as from {P} for you. Payments and agreements it sets up are yours, and stay yours if you narrow or remove a connection.
 
-Subscribing: the subscribe operation. Connecting: connect; connecting again with a narrower scope narrows it; disconnect takes a connection back; stop, with the subscription's id, ends the subscription. Each client's {P} has a name of its own, "{P} for" the client, and letters to that name, or to "my assistant", reach it. {F} is reached by writing to {F}."""
+Limits
+Up to {pr.max_calls} actions per run; at most one run a day; a memory of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each.
+
+Contact
+Write to {F}."""
 
 
 def terms(store: Store) -> str:
     """The firm's terms for its product."""
     pr = launched(store)
     P, F = pr.name, store.get("orgs", pr.org).name
-    return f"""{F}'s terms for {P}.
+    return f"""{F} — Terms of Service for {P}
 1. {P} works for its client, within what the client has connected.
 2. It follows the law.
-3. The client pays the weekly price from the end of the free weeks until the subscription is stopped.
-4. {F} keeps a record of everything each {P} does, and reads it as it needs.
-5. {F} sets its prices, and a change takes effect a week after it is announced."""
+3. The client pays the price from the end of the free period until the subscription is cancelled.
+4. {F} keeps a log of everything each assistant does and reviews it as needed.
+5. {F} sets its prices; a change takes effect a week after it is announced."""
 
 
 # subscribing, the fee and leaving
@@ -119,7 +136,7 @@ def subscription_of(store: Store, client: str) -> Subscription | None:
 
 
 def price_of(store: Store, pr: Product, client: str) -> int:
-    """The weekly price for a household or for a business."""
+    """The price for a household or for a business, for `pr.fee_days` days."""
     return pr.household_cents if store.has("households", client) else pr.business_cents
 
 
@@ -135,8 +152,8 @@ def _highest(store: Store, table: str, prefix: str) -> str:
 
 def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: bool = True) -> str:
     """Subscribe `client` (a household or a business) to the launched product, taken out by
-    `by`: the subscription, the client's instance and the weekly fee from the end of the free
-    weeks; the instance is told, and the client's other adults when `tell`. Returns what `by`
+    `by`: the subscription, the client's instance and the fee, every `fee_days`, from the end of
+    the free weeks; the instance is told, and the client's other adults when `tell`. Returns what `by`
     is told."""
     pr = launched(store)
     sid, iid = store.new_id("sub", cause), store.new_id("as", cause)
@@ -144,13 +161,13 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: b
     cents = price_of(store, pr, client)
     own = client == pr.org                       # the firm uses its own product and pays itself no fee
     ob = "" if own else obligations.create(store, kind="fee", payer=client, payee=pr.org, cents=cents,
-                                           first=store.day + 7 * pr.free_weeks, every=7,
+                                           first=store.day + 7 * pr.free_weeks, every=pr.fee_days,
                                            memo=f"{pr.name} subscription", ends="service", made_by=by, cause=cause)
     seen = [_highest(store, "messages", "msg"), _highest(store, "notices", "n"), _highest(store, "requests", "rq")]
     store.add("instances", Instance(iid, pr.id, client, sid, name, seen=seen, made_on=store.day), cause)
     store.add("subscriptions", Subscription(sid, pr.id, client, by, store.day, asks, ob, iid), cause)
     told = (f"Subscribed: {name} ({sid}). Free until {date_text(store.day + 7 * pr.free_weeks - 1)}; then "
-            f"{money(cents)} a week from {account_name(store, client)}, until the subscription is stopped. Nothing is "
+            f"{money(cents)} {period(pr)} from {account_name(store, client)}, until the subscription is stopped. Nothing is "
             f"connected to it yet.")
     if own:
         told = f"Subscribed: {name} ({sid}). {client_name(store, client)} makes it, and pays no fee. Nothing is connected to it yet."
@@ -330,8 +347,8 @@ def _terms_line(store: Store, pr: Product, sub: Subscription) -> str:
         return "no fee"
     cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))
     if store.day <= free_until:
-        return f"free until {date_text(free_until)}, then {money(cents)} a week"
-    return f"paying {money(cents)} a week"
+        return f"free until {date_text(free_until)}, then {money(cents)} {period(pr)}"
+    return f"paying {money(cents)} {period(pr)}"
 
 
 def _scope_shown(cn) -> str:
@@ -387,8 +404,8 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     subs = store.all("subscriptions")
     now = [s for s in subs if s.status == "active"]
     gone = [s for s in subs if s.status != "active"]
-    lines = [f"Launched {date_text(pr.launched)}. Price: {money(pr.household_cents)} a week for a household, "
-             f"{money(pr.business_cents)} for a business; the first four weeks free.", f"Clients ({len(now)}):"]
+    lines = [f"Launched {date_text(pr.launched)}. Price: {money(pr.household_cents)} {period(pr)} for a household, "
+             f"{money(pr.business_cents)} for a business; the first {pr.free_weeks} weeks free.", f"Clients ({len(now)}):"]
     lines += [f"  {_cap(client_name(store, s.client))}, since {date_text(s.day)}, {_terms_line(store, pr, s)}"
               for s in now]
     left = "; ".join(f"{_cap(client_name(store, s.client))}, {date_text(s.ended_on)}" for s in gone) or "none"
