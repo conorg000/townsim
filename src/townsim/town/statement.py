@@ -103,12 +103,35 @@ AGREEMENT_LINES = 40
 
 
 class Line(NamedTuple):
-    """One transfer. `cents` is negative when money left the account."""
+    """One transfer. `cents` is negative when money left the account; `cause` is the
+    transfer's own."""
 
     day: int
     other: str
     cents: int
     memo: str
+    cause: str = ""
+
+
+MOVED = "moved between your own accounts"
+
+
+def mover(line: Line) -> str:
+    """Who moved money between their own accounts on `line`: the actor its cause names, or ""."""
+    if line.memo != MOVED or not line.cause.startswith("op:"):
+        return ""
+    return line.cause.split(":")[1].split("/")[0]
+
+
+def other_and_memo(store: Store, line: Line, reader: str = "") -> str:
+    """What a statement line says after its date and sum: the other account's name and the memo;
+    for money someone else of the household moved between their own accounts, `<Name> moved
+    <$x> from <account>` (or `to`) in their place."""
+    who = mover(line)
+    if who and reader and who != reader and store.has("people", who):
+        way = "from" if line.cents > 0 else "to"
+        return f"{store.get('people', who).name} moved {money(abs(line.cents))} {way} {name_of(store, line.other)}"
+    return f"{name_of(store, line.other)}  {same_day(memo(line.memo), line.day)}"
 
 
 class Statement(NamedTuple):
@@ -133,9 +156,9 @@ def statement(store: Store, account: str, back: int = 14, ahead: int = 7, max_li
     for t in transfers[bisect_left(transfers, store.day - back, key=lambda t: t.t):]:
         if t.t <= store.day and account in (t.src, t.dst):
             if t.src == account:
-                lines.append(Line(t.t, t.dst, -t.cents, t.memo))
+                lines.append(Line(t.t, t.dst, -t.cents, t.memo, t.cause))
             else:
-                lines.append(Line(t.t, t.src, t.cents, t.memo))
+                lines.append(Line(t.t, t.src, t.cents, t.memo, t.cause))
     earlier = max(0, len(lines) - max_lines)
     ups = upcoming(store, account, ahead)
     out = [u for u in ups if u.out]
@@ -162,17 +185,22 @@ def same_day(text: str, day: int) -> str:
     return text[:-len(tail)] if text.endswith(tail) else text
 
 
-def line_rows(store: Store, lines: list[Line]) -> list[str]:
+def line_rows(store: Store, lines: list[Line], reader: str = "") -> list[str]:
     """The rows `statement_text` shows for `lines`, oldest first, as a view shows them."""
-    return [f"  {date_text(l.day)}  {money(l.cents)}  {name_of(store, l.other)}  {same_day(memo(l.memo), l.day)}"
-            for l in lines]
+    return [f"  {date_text(l.day)}  {money(l.cents)}  {other_and_memo(store, l, reader)}" for l in lines]
 
 
-def statement_text(store: Store, st: Statement) -> str:
-    rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
+def savings_line(store: Store, account: str) -> list[str]:
+    """`Savings: <$x>` for a household with savings; nothing for any other account."""
+    savings = f"savings:{account}"
+    return [f"Savings: {money(store.balance(savings))}"] if store.ledger.has(savings) else []
+
+
+def statement_text(store: Store, st: Statement, reader: str = "") -> str:
+    rows = [f"Balance: {money(st.balance)}", *savings_line(store, st.account), f"In and out since {date_text(st.since)}:"]
     if st.earlier:
         rows.append(f"  ({st.earlier} earlier lines not shown)")
-    rows += line_rows(store, st.lines)
+    rows += line_rows(store, st.lines, reader)
     if not st.lines and not st.earlier:
         rows.append("  nothing")
     rows.append(f"Going out by {date_text(st.until)}:")

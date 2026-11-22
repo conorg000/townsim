@@ -229,7 +229,9 @@ def _borrower(store: Store, rq) -> list[str]:
             inn += x.cents
         elif x.src == rq.payer:
             out += x.cents
-    return [f"The {name_of_who(store, rq.payer)} account holds {money(store.balance(rq.payer))}. Since "
+    savings = acts.savings_of(rq.payer)
+    held = f", and its savings {money(store.balance(savings))}" if store.ledger.has(savings) else ""
+    return [f"The {name_of_who(store, rq.payer)} account holds {money(store.balance(rq.payer))}{held}. Since "
             f"{date_text(max(0, since))}, {money(inn)} has come into it and {money(out)} has gone out."]
 
 
@@ -421,7 +423,8 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     out.append(_Sec("YOUR HOUSEHOLD'S ACCOUNT", _once(parts, ("statement", st.earlier, len(st.lines), c.going_out,
                                                               c.coming_in, c.toward),
                                                      lambda: _rows(facts.statement_rows(store, st, c.going_out,
-                                                                                        c.coming_in, c.toward)))))
+                                                                                        c.coming_in, c.toward,
+                                                                                        parts.pid)))))
     if parts.book:
         out.append(_Sec("THE BANK'S BOOK", _rows(parts.book)))
     business = parts.business[0](*c.business)
@@ -576,7 +579,7 @@ def layout(store: Store, pid: str) -> Layout:
     old = [x for x in st.lines if x.day < store.day - RECENT_DAYS + 1]
     if left > 0 and old:
         steps.append("statement")
-        sizes = [_words(row) for row in facts.transfer_rows(store, old)]
+        sizes = [_words(row) for row in facts.transfer_rows(store, old, reader=pid)]
         drop, saved = 0, 0 if st.earlier else -_words("(1 earlier lines not shown)")
         while drop < len(sizes) and saved < left:
             saved += sizes[drop]

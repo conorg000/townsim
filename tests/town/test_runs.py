@@ -258,7 +258,7 @@ def test_a_view_that_raises_skips_that_person_that_day_and_the_run_goes_on(tmp_p
 
 from townsim.town import families as _families, gen as _gen, hamlet_script as _hamlet_script  # noqa: E402
 
-SCRIPTED_HASH = "f14fc6650a783e0f34509362d1bd6e8f97078ca7b335ba5d1788906bc87462b7"   # at 9010568, before batching
+SCRIPTED_HASH = "ac65eb6d01dbe119e9f2bb83fa39b77c27e757c9a58e658ecc418f00f17ea1ca"   # changed only on purpose
 
 
 def _hamlet():

@@ -149,6 +149,13 @@ def _work(me: _Seen, day: int, num: int) -> list[dict]:
     if not me.business:
         if week == 5 and num % 9 == 6 and me.my_pay is not None:
             acts.append({"op": "quit"})
+        if week == 6 and num % 3 == 1 and me.balance > 50_000:        # a little put by, and a slip naming it
+            acts.append({"op": "move_money", "from": "household", "to": "savings", "amount": 50})
+            if num % 2 == 0:
+                acts.append({"op": "move_money", "from": "household", "to": f"{me.name.split()[-1]} household savings",
+                             "amount": 50})
+        if week == 7 and num % 3 == 1:
+            acts.append({"op": "move_money", "from": "savings", "to": "household", "amount": 20})
         return acts
     staff = [(name, pay) for name, pay in me.staff if name != me.name]
     friends = [f for f in me.known("friend") if f not in dict(staff)]

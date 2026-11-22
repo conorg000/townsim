@@ -63,7 +63,8 @@ def test_pay_to_no_one_too_much_or_yourself_is_refused():
     assert refused(s, "p01", "pay", to="Sanjay", amount=5) == "Not done: no one you know is called 'Sanjay'. Names are written in full, as they appear in your records."
     assert refused(s, "p01", "pay", to="Megan Pryce", amount=700) == \
         "Not done: the account holds $600.00 and this needs $700.00."
-    assert refused(s, "p01", "pay", to="Tom Ashby", amount=5) == "Not done: that is your own household."
+    assert refused(s, "p01", "pay", to="Tom Ashby", amount=5) == \
+        "Not done: Tom Ashby is in your own household; the household has one account."
     assert refused(s, "p01", "pay", to="ashby", amount=5) == "Not done: that is your own household."
     assert refused(s, "p01", "pay", to="Megan Pryce", amount="lots").startswith("Not done:")
 
@@ -125,7 +126,7 @@ def test_standing_payment_refusals():
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Sanjay"}) == \
         "Not done: no one you know is called 'Sanjay'. Names are written in full, as they appear in your records."
     assert refused(s, "p01", "standing_payment", **{**base, "to": "Tom Ashby"}) == \
-        "Not done: that is your own household."
+        "Not done: Tom Ashby is in your own household; the household has one account."
     assert refused(s, "p01", "standing_payment", **{**base, "amount": 0}).startswith("Not done:")
 
 

@@ -28,7 +28,7 @@ def test_an_owner_pays_from_the_shop():
 def test_from_an_account_that_is_not_theirs_is_refused():
     s = town_with_shop(); before = s.hash()
     out = apply_act(s, Act("p02", "p02", "pay", {"to": "Wenlow Lettings", "amount": 50, "from": "Marsh's Stores"}), 0)
-    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours. Yours are: household." and s.hash() == before
+    assert out.msg == "Not done: there is no account called 'Marsh's Stores'. Yours are: household." and s.hash() == before
 
 
 def test_the_household_is_the_account_when_none_or_household_is_named():
@@ -41,7 +41,7 @@ def test_the_household_is_the_account_when_none_or_household_is_named():
         assert _act(s, "p01", "pay", **args).ok and s.balance("h1") == before - 100
     for source in ("Pryce", "Northgrid Energy", 7, ["household"]):
         out = _act(s, "p01", "pay", to="Wenlow Lettings", amount=1, **{"from": source})
-        assert out.msg.startswith("Not done: '") and "' is not an account of yours. Yours are: household" in out.msg
+        assert out.msg.startswith("Not done: there is no account called '") and "'. Yours are: household" in out.msg
 
 
 def test_an_owner_stops_and_reads_what_the_shop_pays():
@@ -68,10 +68,13 @@ def test_a_firm_in_arrears_tells_its_owner():
 
 # positions and forms
 
-def test_forms_depend_on_position_only():
+def test_forms_depend_on_position_only_but_name_the_readers_own_accounts():
     s = town_with_two_shops()
-    assert forms(s, "p01") == forms(s, "p05") != forms(s, "p02")       # two owners alike, an employee different
-    assert any('"from": "household" | "<your business>"' in f for f in forms(s, "p01"))
+    ruth = [f.replace("Marsh's Stores", "<theirs>") for f in forms(s, "p01")]
+    ann = [f.replace("Lowe's Grocer", "<theirs>") for f in forms(s, "p05")]
+    assert ruth == ann != forms(s, "p02")       # two owners alike but for their own shops, an employee different
+    assert any('"from": "household" | "Marsh\'s Stores"' in f for f in forms(s, "p01"))
+    assert not any("<your business>" in f or "<your accounts>" in f for p in ("p01", "p02", "p05") for f in forms(s, p))
 
 
 def test_only_paying_reading_agreeing_and_borrowing_take_a_from():
@@ -79,9 +82,9 @@ def test_only_paying_reading_agreeing_and_borrowing_take_a_from():
     own = ("move_money", "quit")                    # operations whose own form names a from
     taking = [f.split('"')[3] for f in forms(s, "p01") if '"from"' in f and f.split('"')[3] not in own]
     assert taking == ["pay", "standing_payment", "read", "propose_agreement", "borrow", "repay"]
-    assert all(f.endswith('"from": "household" | "<your business>"}') for f in forms(s, "p01")
+    assert all(f.endswith('"from": "household" | "Marsh\'s Stores"}') for f in forms(s, "p01")
                if '"from"' in f and f.split('"')[3] not in own)
-    assert not any('"from"' in f for f in forms(s, "p02"))
+    assert not any('"from"' in f for f in forms(s, "p02") if f.split('"')[3] not in own)
 
 
 def test_positions_come_in_a_fixed_order():
@@ -296,7 +299,7 @@ def test_an_outside_organisation_is_not_an_account_of_its_owner():
     s = town_with_shop(); s.set("orgs", "org3", T, outside=True)
     assert accounts_of(s, "p01") == ["h1"] and not controls(s, "p01", "org3")
     out = _act(s, "p01", "pay", to="Wenlow Lettings", amount=1, **{"from": "Marsh's Stores"})
-    assert out.msg == "Not done: 'Marsh's Stores' is not an account of yours. Yours are: household."
+    assert out.msg == "Not done: there is no account called 'Marsh's Stores'. Yours are: household."
 
 
 def test_an_operation_out_of_position_is_the_same_as_an_unknown_one():

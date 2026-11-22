@@ -76,8 +76,9 @@ def test_the_business_by_any_plain_name(word):
 def test_an_account_that_is_not_theirs_is_refused_with_those_that_are():
     s = place()
     pid, org = _owner(s)
-    out = do(s, pid, "move_money", **{"from": "savings", "to": "household", "amount": 1})
-    assert out.msg == f"Not done: 'savings' is not an account of yours. Yours are: household, {org.name}."
+    named = f"{s.get('people', pid).name.split()[-1]} household savings"
+    out = do(s, pid, "move_money", **{"from": "household", "to": named, "amount": 1})
+    assert out.msg == f"Not done: there is no account called '{named}'. Yours are: household, savings, {org.name}."
 
 
 def test_quit_names_the_employer_and_from_still_reads():
@@ -85,7 +86,7 @@ def test_quit_names_the_employer_and_from_still_reads():
     worker = next(p for p in s.all("people") if p.kind == "staff")
     job = jobs.held(s, person=worker.id)[0]
     form = next(f for f in forms(s, worker.id) if '"op": "quit"' in f)
-    assert '"employer": ' in form and '"from"' not in form
+    assert form == '{"op": "quit"}'                      # one job: nothing to name
     out = do(s, worker.id, "quit", employer=s.get("orgs", job.org).name)
     assert out.ok, out.msg
     s2 = place()

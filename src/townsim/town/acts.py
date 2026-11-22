@@ -346,42 +346,84 @@ def controls(store: Store, pid: str, account: str) -> bool:
     return account in accounts_of(store, pid)
 
 
+SAVINGS = "savings"
+
+
+def savings_of(household: str) -> str:
+    """The id of a household's savings account at the town's bank (`savings:<household>`),
+    which nothing owed is ever taken from."""
+    return f"{SAVINGS}:{household}"
+
+
+def has_savings(store: Store, household: str) -> bool:
+    return store.ledger.has(savings_of(household))
+
+
+def is_savings(account: str) -> bool:
+    return account.startswith(SAVINGS + ":")
+
+
+def household_of_savings(account: str) -> str:
+    return account.removeprefix(SAVINGS + ":")
+
+
 HOUSEHOLD_WORDS = ("household", "my household", "the household", "home")
+SAVINGS_WORDS = ("savings", "my savings", "the savings", "our savings", "household savings", "savings account")
 BUSINESS_WORDS = ("business", "shop", "my shop", "the shop", "my business", "the business")
 
 
-def account_named(store: Store, principal: str, value: Any) -> tuple[str | None, str]:
+def account_names(store: Store, principal: str) -> list[str]:
+    """What `principal`'s own accounts are called: `household`, `savings` when the household has
+    savings, and each business they own in the town by its name."""
+    household = store.get("people", principal).household
+    return (["household"] + ([SAVINGS] if has_savings(store, household) else [])
+            + [o.name for o in store.all("orgs") if o.owner == principal and not o.outside])
+
+
+def account_named(store: Store, principal: str, value: Any, savings: bool = True) -> tuple[str | None, str]:
     """The account of `principal`'s that `value` names, and how it is called; or None and why
-    not. `household` (or the household's name) is their household; a business they own in the
-    town by its name, or by `business`, `shop` and the like when they own exactly one."""
+    not. `household` (or the household's name) is their household; `savings` the household's
+    savings (unless `savings` is false); a business they own in the town by its name, or by
+    `business`, `shop` and the like when they own exactly one."""
     household = store.get("people", principal).household
     owned = [o for o in store.all("orgs") if o.owner == principal and not o.outside]
     if isinstance(value, str) and len(value) <= LONGEST_NAME:
         wanted = value.strip().casefold()
         if wanted in HOUSEHOLD_WORDS or wanted == store.get("households", household).name.casefold():
             return household, "your household"
+        if wanted in SAVINGS_WORDS and has_savings(store, household):
+            if not savings:
+                return None, "money leaves savings only by a move to another of your own accounts."
+            return savings_of(household), "your savings"
         for org in owned:
             if org.name.casefold() == wanted:
                 return org.id, org.name
         if wanted in BUSINESS_WORDS and len(owned) == 1:
             return owned[0].id, owned[0].name
-    yours = ", ".join(["household"] + [o.name for o in owned])
-    return None, f"'{shown(value)}' is not an account of yours. Yours are: {yours}."
+    yours = ", ".join(account_names(store, principal))
+    return None, f"there is no account called '{shown(value)}'. Yours are: {yours}."
 
 
 def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
     """The account the act draws on, or None and why not: no `from` is the principal's
-    household; otherwise the account it names (`account_named`)."""
+    household; otherwise the account it names (`account_named`). Only reading may name the
+    household's savings: nothing is paid from them."""
     value = act.args.get("from") if isinstance(act.args, dict) else None
     household = store.get("people", act.principal).household
     if value is None or (isinstance(value, str) and not value.strip()):
         return household, None
-    account, why = account_named(store, act.principal, value)
+    reading = isinstance(act.op, str) and act.op.strip().lower() == "read"
+    account, why = account_named(store, act.principal, value, savings=reading)
     return (account, None) if account is not None else (None, why)
 
 
 POSITIONS = ("all", "owner", "employed", "landlord", "banker")
-_FROM = ', "from": "household" | "<your business>"'
+YOUR_ACCOUNTS = "<your accounts>"          # in a form: the reader's own accounts, by name (`forms`)
+
+
+def _alternatives(names: list[str]) -> str:
+    """`"a" | "b"`: names as a form offers them, each in double quotation marks."""
+    return " | ".join('"' + n.replace('"', "'") + '"' for n in names)
 
 
 def positions(store: Store, pid: str) -> list[str]:
@@ -401,17 +443,34 @@ def positions(store: Store, pid: str) -> list[str]:
     return found
 
 
+# Parts of forms that are filled with the reader's own few things: each part, and what gives
+# the text in its place for a reader (`forms`). Registered with the operations they belong to.
+FILLED: dict[str, Callable[[Store, str], str]] = {}
+
+
 def forms(store: Store, actor: str) -> list[str]:
     """The written form of every operation open to the actor's positions, by `order` and
-    then name. For an owner, an operation that takes a `from` shows it."""
+    then name, with the reader's own things in place of a placeholder that has a few known
+    values for them: `<your accounts>` is their accounts by name (`"household" | "savings" |
+    "Lumb's Grocer"`), and each placeholder in `FILLED` its values. For an owner, an
+    operation that takes a `from` shows it, naming their accounts it may draw on; reading
+    shows it to everyone with savings, which it may name too."""
     held = positions(store, actor)
     owner = "owner" in held
+    names = account_names(store, actor)
+    drawn = [n for n in names if n != SAVINGS]
     shown_forms = []
     for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name)):
         if spec.who not in held:
             continue
-        form = spec.form
-        if owner and spec.takes_from and form.endswith("}"):
-            form = form[:-1] + _FROM + "}"
+        form = spec.form.replace(YOUR_ACCOUNTS, _alternatives(names))
+        for holder, fill in FILLED.items():
+            if holder in form:
+                form = form.replace(holder, fill(store, actor))
+        if spec.takes_from and form.endswith("}"):
+            reads = spec.name == "read"
+            some = names if reads else drawn
+            if owner or (reads and len(some) > 1):
+                form = form[:-1] + ', "from": ' + _alternatives(some) + "}"
         shown_forms.append(form)
     return shown_forms

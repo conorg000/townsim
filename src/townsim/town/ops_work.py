@@ -21,9 +21,10 @@ import math
 import re
 from typing import Any
 
-from townsim.town import firms, hours, jobs, obligations
+from townsim.town import firms, hours, jobs, obligations, statement
 from townsim.town import ops_core as core
-from townsim.town.acts import REGISTRY, Act, OpSpec, account_named, dollars, fits, name_of_who, register, shown, to_cents
+from townsim.town.acts import (FILLED, REGISTRY, YOUR_ACCOUNTS, Act, OpSpec, _alternatives, account_named, dollars, fits,
+                               is_savings, name_of_who, register, shown, to_cents)
 from townsim.town.clock import date_in, date_text
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
@@ -36,10 +37,12 @@ MIN_SHIFT_HOURS, MAX_SHIFT_HOURS = 1, 20
 MIN_EXTRA_HOURS, MAX_EXTRA_HOURS = 1, 30
 MIN_PRICE, MAX_PRICE = 100, 10_000
 WORKING_AGE = 16
-MOVED = "moved between your own accounts"
+MOVED = statement.MOVED
 JOB_TEXT = "A job offer"
 SHIFTS_TEXT = "An offer of extra hours"
 SUMMARY_WORDS, SUMMARY_CHARS, SUMMARY_NAME = 60, 480, 40
+_SUPPLIER_PART = '"supplier": "<name>"'
+_EMPLOYER_PART = ', "employer": "<employer, if you have more than one job>"'
 _NUMBER = re.compile(r"\d{1,6}(\.\d{1,6})?", re.ASCII)
 
 
@@ -640,8 +643,6 @@ def _own_account(store: Store, act: Act, key: str) -> tuple[str | None, str]:
 
 
 def _check_move(store: Store, act: Act) -> str | None:
-    if _business(store, act.principal) is None:
-        return "you own no business in the town."
     source, why = _own_account(store, act, "from")
     if source is None:
         return why
@@ -661,7 +662,28 @@ def _do_move(store: Store, act: Act, cause: str) -> str:
     dest, dst_name = _own_account(store, act, "to")
     cents = to_cents(act.args.get("amount"))
     obligations.pay(store, source, dest, cents, MOVED, cause, match=False)
-    return f"Moved {money(cents)} from {src_name} to {dst_name}."
+    told = f"Moved {money(cents)} from {src_name} to {dst_name}."
+    savings = [a for a in (source, dest) if is_savings(a)]
+    if savings:
+        told += f" Your savings hold {money(store.balance(savings[0]))}."
+    return told
+
+
+def _suppliers(store: Store, pid: str) -> str:
+    names = sorted(_org_name(store, sp.org) for sp in store.all("suppliers") if store.has("orgs", sp.org))
+    return '"supplier": ' + (_alternatives(names) if names else '"<name>"')
+
+
+def _employers(store: Store, pid: str) -> str:
+    """A job's employer as `quit` names it: only when there is more than one job it could leave."""
+    names = [_org_name(store, j.org) for j in jobs.held(store, person=pid)
+             if store.has("orgs", j.org) and store.get("orgs", j.org).owner != pid and j.ended == -1]
+    names = list(dict.fromkeys(names))
+    return ', "employer": ' + _alternatives(names) if len(names) > 1 else ""
+
+
+FILLED[_SUPPLIER_PART] = _suppliers
+FILLED[_EMPLOYER_PART] = _employers
 
 
 ANSWERERS_OF_WORK: dict[str, core.Answerer] = {"job": (_check_job, _do_job), "shifts": (_check_shifts, _do_shifts)}
@@ -681,15 +703,15 @@ for _spec in (
            _do_staff_pay, 120, who="owner"),
     OpSpec("set_price", '{"op": "set_price", "price": <dollars>}',
            "Change your shop's price.", 0.1, _check_price, _do_price, 130, who="owner"),
-    OpSpec("order_stock", '{"op": "order_stock", "supplier": "<name>", "baskets": <baskets a week; 0 to end the order>}',
+    OpSpec("order_stock", '{"op": "order_stock", ' + _SUPPLIER_PART + ', "baskets": <baskets a week; 0 to end the order>}',
            "Order stock for Monday.", 0.5, _check_order, _do_order, 140, who="owner"),
     OpSpec("work_extra_hours", '{"op": "work_extra_hours", "hours": <number>}',
            "Work extra hours in your shop this week.", 0.0, _check_extra, _do_extra, 150, who="owner",
            hours_of=_extra_hours_of),
-    OpSpec("move_money", '{"op": "move_money", "from": "household" | "<your business>", '
-                         '"to": "household" | "<your business>", "amount": <dollars>}',
-           "Move money between your own accounts.", 0.1, _check_move, _do_move, 160, who="owner"),
-    OpSpec("quit", '{"op": "quit", "employer": "<employer, if you have more than one job>"}',
+    OpSpec("move_money", '{"op": "move_money", "from": ' + YOUR_ACCOUNTS + ', "to": ' + YOUR_ACCOUNTS
+           + ', "amount": <dollars>}',
+           "Move money between your own accounts.", 0.1, _check_move, _do_move, 160),
+    OpSpec("quit", '{"op": "quit"' + _EMPLOYER_PART + '}',
            "Leave a job.", 0.1, _check_quit, _do_quit, 170, who="employed"),
 ):
     register(_spec)

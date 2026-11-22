@@ -257,10 +257,13 @@ def people_of(store: Store, account: str) -> list[str]:
 
 
 def name_of(store: Store, account: str) -> str:
-    """A household's or org's name; `outside:lettings` gives `Lettings`; anything else, its id."""
+    """A household's or org's name; a household's savings `savings`; `outside:lettings` gives
+    `Lettings`; anything else, its id."""
     for table in ("households", "orgs"):
         if store.has(table, account):
             return store.get(table, account).name
+    if account.startswith("savings:"):
+        return "savings"
     if account.startswith("outside:"):
         rest = account.removeprefix("outside:")
         return rest[:1].upper() + rest[1:]
@@ -349,6 +352,9 @@ def _tell_not_taken(store: Store, ob: Obligation, due: Due, remainder: int, caus
         text = f"{_cap(_payment(ob, due.day, remainder))} could not be taken."
         if ob.status != "breached":
             text += f" The {name_of(store, ob.payer)} account held {money(store.balance(ob.payer))}."
+            savings = f"savings:{ob.payer}"
+            if store.ledger.has(savings):
+                text += f" Its savings held {money(store.balance(savings))}."
     _tell(store, ob.payer, text, cause)
 
 

@@ -589,7 +589,8 @@ OWED_KEPT = 4                      # what is owed when it gives way
 BOOK_LINES = 12
 GOING_OUT = 10
 COMING_IN = 6
-from townsim.town.statement import MEMO_CHARS, MEMO_WORDS, Counted, cut_words, label, lowest_line, memo  # noqa: E402,F401
+from townsim.town.statement import (MEMO_CHARS, MEMO_WORDS, Counted, cut_words, label, lowest_line, memo,  # noqa: E402,F401
+                                    other_and_memo, savings_line)
 _OWED_KINDS = ("loan", "agreement", "standing")
 
 
@@ -692,11 +693,12 @@ def _coming(store: Store, account: str, most: int = GOING_OUT) -> list[str]:
     return coming(store, [u for u in upcoming(store, account, AHEAD) if u.out], most)
 
 
-def transfer_rows(store: Store, lines: list, toward: bool = True) -> list[str]:
+def transfer_rows(store: Store, lines: list, toward: bool = True, reader: str = "") -> list[str]:
     """The rows `statement_lines` shows for a statement's in-and-out `lines`, oldest first; without
-    what each was counted toward when `toward` is false."""
-    return [f"  {date_text(x.day)}  {money(x.cents)}  {name_of(store, x.other)}  "
-            f"{_same_day(memo(x.memo if toward else _untoward(x.memo)), x.day)}" for x in lines]
+    what each was counted toward when `toward` is false. Money someone else moved between their
+    own accounts is told as theirs (`statement.other_and_memo`)."""
+    return [f"  {date_text(x.day)}  {money(x.cents)}  "
+            f"{other_and_memo(store, x if toward else x._replace(memo=_untoward(x.memo)), reader)}" for x in lines]
 
 
 def _untoward(text: str) -> str:
@@ -714,16 +716,16 @@ def statement_lines(store: Store, st) -> str:
 
 
 def statement_rows(store: Store, st, out_most: int = GOING_OUT, in_most: int = COMING_IN,
-                   toward: bool = True) -> list[str]:
+                   toward: bool = True, reader: str = "") -> list[str]:
     """A statement as `statement.statement_text` lays it out, with every memo cut to a label
     and at most ten payments going out and six coming in."""
-    rows = [f"Balance: {money(st.balance)}", f"In and out since {date_text(st.since)}:"]
+    rows = [f"Balance: {money(st.balance)}", *savings_line(store, st.account), f"In and out since {date_text(st.since)}:"]
     if st.earlier and st.lines:
         rows.append(Counted(f"  ({st.earlier} earlier lines not shown)"))
     elif st.earlier:                                  # a count with nothing beneath it would say nothing
         week = max(st.since, st.day - 6)
         rows += [Counted(f"  ({st.earlier} lines before {date_text(week)} not shown)"), "  nothing since"]
-    rows += transfer_rows(store, st.lines, toward)
+    rows += transfer_rows(store, st.lines, toward, reader)
     if not st.lines and not st.earlier:
         rows.append("  nothing")
     rows.append(f"Going out by {date_text(st.until)}:")

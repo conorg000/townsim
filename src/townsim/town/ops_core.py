@@ -17,8 +17,9 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from townsim.town import jobs, obligations
-from townsim.town.acts import (LONGEST_NAME, Act, OpSpec, account_of, clean_text, controls, cut, dollars, fits,
-                               from_account, knows, name_of_who, register, resolve, shown, to_cents)
+from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account_names, account_of, clean_text, controls,
+                               cut, dollars, fits, from_account, has_savings, knows, name_of_who, register, resolve,
+                               shown, to_cents)
 from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
 from townsim.town.entities import Message, Request
 from townsim.town.obligations import money, name_of
@@ -75,12 +76,25 @@ def _payee(store: Store, act: Act) -> tuple[str | None, str]:
     to = act.args.get("to")
     who = _resolve(store, to, act.actor)
     if who is None:
+        if isinstance(to, str) and len(to) <= LONGEST_NAME and "savings" in to.casefold():
+            if to.strip().casefold() in SAVINGS_WORDS and has_savings(store, _own(store, act)):
+                return None, "that is your own household's savings."
+            return None, f"there is no account called '{shown(to)}'. Yours are: {', '.join(account_names(store, act.principal))}."
         return None, f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
     if account_of(store, who) == _source(store, act):
         if _source(store, act) == _own(store, act):
-            return None, "that is your own household."
+            return None, _own_household(store, act, who)
         return None, "that is the account it would be paid from."
     return account_of(store, who), name_of_who(store, who)
+
+
+def _own_household(store: Store, act: Act, who: str) -> str:
+    """Why money cannot go to `who`, of the principal's own household: `<Name> is in your own
+    household; the household has one account and its savings.`"""
+    if who == act.principal or not store.has("people", who):
+        return "that is your own household."
+    savings = " and its savings" if has_savings(store, _own(store, act)) else ""
+    return f"{store.get('people', who).name} is in your own household; the household has one account{savings}."
 
 
 def _amount(value: Any) -> tuple[int | None, str]:
@@ -556,8 +570,8 @@ def _do_read(store: Store, act: Act, cause: str) -> str:
     if what == "agreements":
         return agreements_text(store, own)
     if what == "account in full":
-        return statement_text(store, statement(store, own, back=28, max_lines=60))
-    return statement_text(store, statement(store, own))
+        return statement_text(store, statement(store, own, back=28, max_lines=60), act.actor)
+    return statement_text(store, statement(store, own), act.actor)
 
 
 # write_notes

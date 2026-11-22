@@ -66,6 +66,8 @@ MARGIN = (-0.08, 0.12)           # what a household's regular outgoings leave of
 PERSONAL_LOAN_CHANCE = 0.3
 PERSONAL_LOAN_SHARE = (0.03, 0.07)
 OPENING_WEEKS = (1.0, 4.0)
+SAVINGS_SHARE = 0.4              # about two households in five have some money put by in the bank to start with
+SAVINGS_WEEKS = (2.0, 12.0)      # what they hold: two to twelve weeks of the household's outgoings
 PRICE = (0.99, 1.11)             # times econ's reference price
 QUALITY = (0.52, 0.68)
 VISIBILITY = {"large": (0.6, 0.85), "small": (0.3, 0.55)}
@@ -746,6 +748,12 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
     s.transfer(OPENING, bank, rng.randrange(8_000_000, 20_000_001, 10_000), "opening balance", SETUP)
     for h in hs:
         s.transfer(OPENING, h.id, _r100(weekly_out(s, h.id) * _u(rng, OPENING_WEEKS)), "opening balance", SETUP)
+    saved = random.Random(f"gen:{seed}:{attempt}:savings")      # its own stream: the rest of the place is as drawn
+    for h in hs:
+        account = acts.savings_of(h.id)
+        s.open_account(account, SETUP)
+        if saved.random() < SAVINGS_SHARE:
+            s.transfer(OPENING, account, _r100(weekly_out(s, h.id) * _u(saved, SAVINGS_WEEKS)), "opening balance", SETUP)
 
     _describe_people(s, rng, hs, people, home_of, dict(shops=shops, fids=fids, owners=owners, crews=crews,
                      bank=bank, firm=firm, employer=employer, emp_lines=emp_lines, investor=investor,
@@ -949,6 +957,9 @@ def check(s: Store, weeks: int = hamlet.RUN_WEEKS) -> list[str]:
     for kind, fs in sorted(by_kind.items()):
         if len(fs) >= 4 and len(set(fs)) < 2:
             bad.append(f"every {kind} is played by one family")
+    for h in households:
+        if not acts.has_savings(s, h.id):
+            bad.append(f"{h.name} has no savings account")
     if s.ledger.total() != 0:
         bad.append(f"the ledger totals {s.ledger.total()}")
     return bad

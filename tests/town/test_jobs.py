@@ -497,7 +497,7 @@ def test_moving_money_between_ones_own_accounts():
     assert refused(s, "p01", "move_money", **{"from": "household", "to": "Marsh's Stores", "amount": 5000}) == \
         "Not done: the account holds $100.00 and this needs $5,000.00."
     assert refused(s, "p01", "move_money", **{"from": "household", "to": "Lowe's Grocer", "amount": 5}) == \
-        "Not done: 'Lowe's Grocer' is not an account of yours. Yours are: household, Marsh's Stores."
+        "Not done: there is no account called 'Lowe's Grocer'. Yours are: household, Marsh's Stores."
     assert s.ledger.total() == 0
 
 
