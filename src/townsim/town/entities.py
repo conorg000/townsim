@@ -746,3 +746,15 @@ class RunLog:
     day: int
     calls: list = field(default_factory=list)
 
+
+@dataclass
+class Returned:
+    """Recurring work (`work`, a `Work` row) whose acts someone else (`by`) carried out in the week
+    beginning `monday`, so its hours were not taken from its holder that week."""
+
+    id: str
+    work: str
+    monday: int
+    by: str
+    day: int
+    hours: float

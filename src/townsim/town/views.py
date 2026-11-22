@@ -302,6 +302,8 @@ def own_time(store: Store, pid: str) -> list[str]:
     costs = [(what, hours.length(acts.REGISTRY[op].hours)) for op, what in COSTS
              if op in acts.REGISTRY and acts.REGISTRY[op].who in held][:6]
     lines = [f"Time of your own left this week, outside your work: {left} hour{'' if left == '1' else 's'}."]
+    from townsim.town import recurring
+    lines += recurring.lines(store, pid)
     if costs:
         (what, took), rest = costs[0], costs[1:]
         lines.append(f"{what[:1].upper()}{what[1:]} takes {took}" + "".join(f", {w} {t}" for w, t in rest) + ".")

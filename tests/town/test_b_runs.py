@@ -26,7 +26,7 @@ def test_lane_b_not_installed_runs_as_before(tmp_path):
             rows = sqlite3.connect(path).execute("select slot, prompt_hash from replies where run = ? order by slot",
                                                  (f"a-{arm}",)).fetchall()
             assert (end.hash(), hashlib.sha256(repr(rows).encode()).hexdigest(), len(rows)) == (state, prompts, n), arm
-            assert not any(end.all(t) for t in ("controls", "runlogs", "tasks", "pages", "desks"))
+            assert not any(end.all(t) for t in ("controls", "runlogs", "returned", "tasks", "pages", "desks"))
 
 
 # --- lane B: installed on day 0, three arms, the arm with adoption by choice, stops inside outside calls --------

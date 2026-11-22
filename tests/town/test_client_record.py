@@ -108,3 +108,47 @@ def test_routes_to_the_assistant():
     assert apply_act(plain, Act("p10", "p10", "subscribe", {"to": "Tessaly Assistant", "asks": ""}),
                      0).msg == "Not done: the Wagner household already subscribes (sub4)."
     assert not _letter(plain, "p1", "Tessaly Assistant for the household").ok
+
+
+def _order(s, inst, units=200):
+    from townsim.town import seat_tools as ST
+    return ST.run_tool(s, s.get("instances", inst), "ordering_place_order",
+                       {"supplier": "Netherby Falls Wholesale", "quantity": units}, ST.Ctx(), 0)
+
+
+def _time_lines(s, pid):
+    from townsim.town import views
+    return [x for x in views.own_time(s, pid) if x.startswith("Recurring work")]
+
+
+def test_recurring_work_done_by_another_returns_its_hours_after_the_fact():
+    from townsim.town import connections, hours
+    assert hours.WORK_HOURS == {"household paperwork": 1.5, "ordering": 4.0, "the books": 3.0, "rota and pay": 2.0}
+    s = _b()
+    left = s.get("people", "p3").hours_left
+    assert _time_lines(s, "p3") == []                                       # nothing beforehand
+    assert not _order(s, "as2").ok and not s.all("returned")                # Lauren Whitaker's: ordering read only
+    assert _order(s, "as1").ok
+    assert s.get("people", "p3").hours_left == left + 4
+    assert _time_lines(s, "p3") == ["Recurring work this week: ordering (4 hours) done by Tessaly Assistant for "
+                                    "Harlow Springs Food Mart."]
+    assert _order(s, "as1", 250).ok and s.get("people", "p3").hours_left == left + 4      # once a week
+    connections.make(s, "p3", s.get("instances", "as1"), "staff:org11", "free", 0, CAUSE)
+    staff = next(j.person for j in s.where("jobs", org="org11") if j.person != "p3")
+    from townsim.town import seat_tools as ST
+    got = ST.run_tool(s, s.get("instances", "as1"), "payroll_offer_extra_hours",
+                      {"to": s.get("people", staff).name, "hours": 2}, ST.Ctx(), 0)
+    assert got.ok, got.text
+    assert s.get("people", "p3").hours_left == left + 6
+    assert _time_lines(s, "p3") == ["Recurring work this week: ordering (4 hours) done by Tessaly Assistant for "
+                                    "Harlow Springs Food Mart; rota and pay (2 hours) done by Tessaly Assistant for "
+                                    "Harlow Springs Food Mart."]
+    s.advance_day()
+    while s.day % 7:
+        s.advance_day()
+    loop.routine(s)
+    assert _time_lines(s, "p3") == [] and s.get("people", "p3").hours_week == hours.free_hours(s, "p3")
+    assert apply_act(s, Act("p3", "p3", "order_stock", {"supplier": "Netherby Falls Wholesale", "baskets": 100}), 0).ok
+    assert len(s.all("returned")) == 2                                      # the owner's own act returns nothing
+    plain = drawn()
+    assert _order(plain, "as1").ok and not plain.all("returned")

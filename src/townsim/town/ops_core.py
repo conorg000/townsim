@@ -858,3 +858,6 @@ from townsim.town import web as _web  # noqa: E402, F401
 
 # and the company's controls over its product, from `controls`
 from townsim.town import controls as _controls  # noqa: E402, F401
+
+# and recurring work an assistant carries out for a business, whose hours go back to its holder, from `recurring`
+from townsim.town import recurring as _recurring  # noqa: E402, F401
