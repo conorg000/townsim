@@ -106,3 +106,20 @@ def test_converse_with_instance_refused():
             "Not done: Tessaly Assistant for the Marsh household answers letters."
     assert _do(s, "p9", "book_appointment", **{"with": "Tessaly Assistant for the Marsh household"}, day="Friday",
                about="the shop").msg == "Not done: Tessaly Assistant for the Marsh household answers letters."
+
+
+def test_letters_from_ones_own_assistant_and_replies_come_first_and_in_full():
+    from town.test_seat_texts import drawn
+    from townsim.town.entities import Message, Notice
+    s = drawn()
+    for k in range(4):
+        s.add("notices", Notice(s.new_id("n", CAUSE), s.day, "p9", f"A notice {k}."), CAUSE)
+    s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "p9", "p10", "Are you about?"), CAUSE)
+    s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "p10", "p9", "Yes, Saturday."), CAUSE)
+    for k in range(4):
+        s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "as3", "p9", f"From your assistant, number {k}."), CAUSE)
+    user = views.layout(s, "p9").user
+    for k in range(4):
+        assert f"From your assistant, number {k}." in user
+    assert "Yes, Saturday." in user
+    assert user.index("number 0") < user.index("Yes, Saturday.") < user.index("A notice")

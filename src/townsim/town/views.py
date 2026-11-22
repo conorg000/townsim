@@ -88,9 +88,23 @@ def _ranked(store: Store, pid: str, rows: list, rank: dict[str, int] | None = No
 
     def key(row: Any) -> tuple:
         sender = getattr(row, "sender", None)
-        r = 0 if sender is None or _own_instance(store, pid, sender) else rank.get(sender, acts.UNKNOWN)
-        return r, row.day, id_key(row.id)
+        first = first_shown(store, pid, row)
+        r = 0 if sender is None or first else rank.get(sender, acts.UNKNOWN)
+        return -first, r, row.day, id_key(row.id)
     return sorted(rows, key=key)
+
+
+def first_shown(store: Store, pid: str, row: Any) -> int:
+    """2 for a letter from the reader's own assistant, 1 for a reply to a letter the reader sent
+    (one from someone they wrote to before it came), else 0: these come first, and in full."""
+    sender = getattr(row, "sender", None)
+    if not isinstance(row, Message) or sender is None:
+        return 0
+    if _own_instance(store, pid, sender):
+        return 2
+    wrote = any(m.to == sender and id_key(m.id) < id_key(row.id) for m in store.where("messages", sender=pid)) \
+        if store.has("people", pid) else False
+    return 1 if wrote else 0
 
 
 def _own_instance(store: Store, pid: str, sender: str) -> bool:
@@ -121,7 +135,14 @@ def inbox(store: Store, pid: str) -> tuple[list, int, str]:
     """The unseen letters and notices to `pid` shown in full (at most three, most pressing
     first), how many more wait, and the line that counts them ("" when none do)."""
     rows = _unseen(store, pid)
-    return rows[:IN_FULL], len(rows[IN_FULL:]), _counted(rows[IN_FULL:])
+    n = in_full(store, pid, rows)
+    return rows[:n], len(rows[n:]), _counted(rows[n:])
+
+
+def in_full(store: Store, pid: str, rows: list) -> int:
+    """How many of the ranked unseen `rows` are shown in full: every letter from the reader's own
+    assistant and every reply to a letter they sent, then up to `IN_FULL` more."""
+    return min(len(rows), sum(1 for r in rows if first_shown(store, pid, r)) + IN_FULL)
 
 
 def _quoted(text: str) -> list[str]:
@@ -581,7 +602,8 @@ def layout(store: Store, pid: str) -> Layout:
     st = statement(store, store.get("people", pid).household, ahead=facts.AHEAD, max_lines=STATEMENT_LINES)
     till = parts.business[1]
     c = _Choice(st, tuple(who for who, _ in parts.people), (till, facts.GOING_OUT, True), facts.OWED_LINES,
-                min(IN_FULL, len(parts.items)), min(IN_FULL, len(parts.waiting)))
+                in_full(store, pid, parts.items), min(IN_FULL, len(parts.waiting)))
+    least = {"in_full": max(1, sum(1 for r in parts.items if first_shown(store, pid, r))), "requests": 1}
     base = _words(system)
     steps: list[str] = []
 
@@ -654,9 +676,9 @@ def layout(store: Store, pid: str) -> Layout:
             steps.append("talks")
         left = over(c)
     for field, step in (("in_full", "inbox"), ("requests", "requests")):
-        if left > 0 and getattr(c, field) > 1:
+        if left > 0 and getattr(c, field) > least[field]:
             steps.append(step)
-            while left > 0 and getattr(c, field) > 1:
+            while left > 0 and getattr(c, field) > least[field]:
                 c = c._replace(**{field: getattr(c, field) - 1})
                 left = over(c)
     if left > 0 and parts.results.latest_read is not None:
