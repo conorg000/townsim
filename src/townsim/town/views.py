@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Any, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import acts, aims, facts, hours, talk, ties, unknown
+from townsim.town import acts, aims, facts, hours, jobs, talk, ties, unknown
 from townsim.town.acts import CHARS_A_WORD, accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
@@ -49,6 +49,7 @@ TALK_WORDS = 40
 TALK_CUT = 20
 APPOINTMENTS_SHOWN = 5
 PEOPLE_KEPT = 6
+PEOPLE_LEAST = 3                   # the people known kept when everything else has given way
 RESULTS_SHOWN = 9                  # a turn's eight acts and the line about any more
 RESULT_WORDS = 80                  # room for a proposal's result, which repeats what the other reads
 NOT_ALL = "(not everything is shown today)"
@@ -305,6 +306,7 @@ class _Parts(NamedTuple):
     waiting: list                 # open requests, in the order they are shown
     appointments: list[str]
     people: list[tuple[str, str]]      # (id, line), closest first
+    also: list[str]                    # the other residents, one line each
     knowhow: list[str]
     mind: list[str]
     notes: str
@@ -327,6 +329,7 @@ class _Choice(NamedTuple):
     talks: int = TALKS_SHOWN
     talk_words: int = TALK_WORDS
     knowhow: bool = True
+    also: bool = True
     going_out: int = facts.GOING_OUT
     coming_in: int = facts.COMING_IN
     toward: bool = True
@@ -366,6 +369,7 @@ def _owed(store: Store, pid: str, most: int) -> tuple[list[str], list[str]]:
 
 def _parts(store: Store, pid: str) -> _Parts:
     person = store.get("people", pid)
+    people = _people(store, pid)
     rank = facts.ranks(store, pid)
     weeks = facts.till_weeks(store, pid)
     built: dict[tuple, list[str]] = {}
@@ -377,7 +381,7 @@ def _parts(store: Store, pid: str) -> _Parts:
     return _Parts(_results(store, pid), (business, weeks), facts.bank_book_rows(store, pid), accounts_of(store, pid),
                   _unseen(store, pid, rank), talk.unseen_talks(store, pid), _waiting(store, pid, rank),
                   _appointments(store, pid),
-                  _people(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
+                  people, also_here(store, pid, {who for who, _ in people}), facts.knowhow(store, pid), aims.lines(store, pid),
                   person.notes if person.notes.strip() else "", own_time(store, pid), acts.forms(store, pid), pid,
                   {})
 
@@ -455,6 +459,8 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
     people = [line for who, line in parts.people if who in c.people]
     if people:
         out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(people))))
+    if parts.also and c.also:
+        out.append(_Sec(f"ALSO IN {(store.place or 'the place').upper()}", _plain("\n".join(parts.also))))
     if parts.knowhow and c.knowhow:
         out.append(_Sec("HOW THINGS WORK", _plain("\n".join(parts.knowhow))))
     if parts.mind:
@@ -563,6 +569,10 @@ def layout(store: Store, pid: str) -> Layout:
         return trail[-1] - MAX_WORDS
 
     left = over(c)
+    if left > 0 and parts.also:
+        c = c._replace(also=False)
+        steps.append("also")
+        left = over(c)
     if left > 0 and parts.knowhow:
         c = c._replace(knowhow=False)
         steps.append("knowhow")
@@ -643,6 +653,11 @@ def layout(store: Store, pid: str) -> Layout:
         c = c._replace(costs=False)
         steps.append("costs")
         left = over(c)
+    if left > 0 and len(c.people) > PEOPLE_LEAST:
+        steps.append("people_least")
+        while left > 0 and len(c.people) > PEOPLE_LEAST:
+            c = c._replace(people=c.people[:-1])
+            left = over(c)
     if left > 0 and parts.business[0](*c.business) != parts.business[0](*c.business[:2], False):
         c = c._replace(business=c.business[:2] + (False,))       # only ever less: what was cut stays cut
         steps.append("business")
@@ -670,9 +685,46 @@ def _needed(sizes: list[int], over: int) -> int:
 
 
 def _people(store: Store, pid: str) -> list[tuple[str, str]]:
-    """The people `pid` knows, closest first, each with their line."""
-    return [(o, f"{store.get('people', o).name}, {words}") for o, _, words in
-            facts.people_known(store, pid)[:facts.PEOPLE_SHOWN]]
+    """The people `pid` knows, closest first, each with their line: who they are to them, and the
+    record of their dealings: when they last talked (or that they have not), and the letters
+    between them this week, when there were any."""
+    talked: dict[str, int] = {}
+    for t in store.all("talks"):
+        if t.status == "held" and pid in (t.a, t.b):
+            other = t.b if t.a == pid else t.a
+            talked[other] = max(talked.get(other, -1), t.day)
+    monday = store.day - store.day % 7
+    sent: dict[str, int] = {}
+    got: dict[str, int] = {}
+    for m in store.all("messages"):
+        if m.day >= monday:
+            if m.sender == pid:
+                sent[m.to] = sent.get(m.to, 0) + 1
+            elif m.to == pid:
+                got[m.sender] = got.get(m.sender, 0) + 1
+    out = []
+    for o, _, words in facts.people_known(store, pid)[:facts.PEOPLE_SHOWN]:
+        line = f"{store.get('people', o).name}, {words}; "
+        line += f"last talked {date_text(talked[o])}" if o in talked else "not yet talked"
+        if sent.get(o) or got.get(o):
+            line += f"; letters this week: {sent.get(o, 0)} from you, {got.get(o, 0)} to you"
+        out.append((o, line))
+    return out
+
+
+def also_here(store: Store, pid: str, listed: set[str]) -> list[str]:
+    """Every other resident not among those `listed`, one line each: their name, their street,
+    and what they run or where they work."""
+    out = []
+    for p in store.all("people"):
+        if p.id == pid or p.id in listed:
+            continue
+        h = store.get("households", p.household)
+        work = [f"runs {o.name}" for o in store.all("orgs") if o.owner == p.id and not o.outside]
+        work += [f"works at {store.get('orgs', j.org).name}" for j in jobs.held(store, person=p.id)
+                 if store.has("orgs", j.org) and store.get("orgs", j.org).owner != p.id]
+        out.append(", ".join([p.name] + ([h.street] if h.street else []) + ([" and ".join(work)] if work else [])))
+    return out
 
 
 def _dealt_with(store: Store, pid: str) -> set[str]:

@@ -132,9 +132,11 @@ def test_a_first_name_resolves_only_when_one_person_known_bears_it():
     assert resolve(s, "Megan", actor="p01") is None
 
 
-def test_a_first_name_needs_acquaintance_and_an_actor():
+def test_a_first_name_borne_by_one_resident_resolves_for_an_actor():
     s = thin()
-    assert resolve(s, "Megan", actor="p01") is None and resolve(s, "Megan") is None
+    assert resolve(s, "Megan", actor="p01") == "p04" and resolve(s, "Megan") is None
+    s.set("people", "p03", "routine:t", name="Megan Holt")              # two residents bear it: no one
+    assert resolve(s, "Megan", actor="p01") is None
     assert resolve(s, " tom ", actor="p01") == "p02"                    # her own household
     assert resolve(s, "Tom") is None and resolve(s, "", actor="p01") is None and resolve(s, 3, actor="p01") is None
 

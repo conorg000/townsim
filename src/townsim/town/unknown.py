@@ -1,10 +1,9 @@
 """Names in what a person wrote that are no one its reader knows (design 3.4, 11).
 
-A reader knows the people of their household, everyone tied to them, everyone they have
-written to or had a letter from, and anyone whose request they have been shown; and the
-organisations in their own records: those of the place, their employers, their landlord,
-the bank, the suppliers of a shop they own, and anyone they pay or are paid by on a
-schedule. What is flagged, once each, in the order it first appears:
+In a place of this size every resident knows every other resident by name. A reader knows
+every person in the place, and the organisations in their own records: those of the place,
+their employers, their landlord, the bank, the suppliers of a shop they own, and anyone they
+pay or are paid by on a schedule. What is flagged, once each, in the order it first appears:
 
 - a title (`Mr`, `Mrs`, `Ms`, `Miss`, `Dr`, with or without a full stop) and a capitalised
   word, unless someone the reader knows bears that surname (or a title and a full name the
@@ -27,7 +26,6 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
-from townsim.town.acts import knows
 from townsim.town.clock import DAYS, MONTHS
 from townsim.town.store import Store
 from townsim.town.ties import kept
@@ -106,10 +104,9 @@ def record_orgs(store: Store, reader: str) -> list[str]:
 
 
 def known(store: Store, reader: str, also: tuple[str, ...] = ()) -> Known:
-    """What `reader` knows, with the people `also` names (the writer, say) counted as known."""
-    shown = [rq.sender for rq in store.all("requests") if rq.to == reader and rq.seen]
-    people = [store.get("people", q).name for q in dict.fromkeys([reader, *also, *knows(store, reader), *shown])
-              if store.has("people", q)]
+    """What `reader` knows: every resident of the place (and the people `also` names) and the
+    organisations in their records."""
+    people = [p.name for p in store.all("people")] + [store.get("people", q).name for q in also if store.has("people", q)]
     full = frozenset(n.casefold() for n in people)
     firsts = frozenset(n.split()[0].casefold() for n in people if n.split())
     surnames = frozenset(n.split()[-1].casefold() for n in people if len(n.split()) > 1)
@@ -259,6 +256,21 @@ def reader_lines(names: list[str]) -> list[str]:
     if len(names) > MOST:
         lines.append(f"({len(names) - MOST} more names in it are not people you know.)")
     return lines
+
+
+def tell_writer(store: Store, writer: str, to: str, text: str, cause: str) -> str:
+    """`writer_text` for the names in what `writer` wrote to `to` that no one bears, leaving out
+    those the writer has been told of already this week; those told now are kept on their row."""
+    from townsim.town.clock import week
+    names = unknown_names(store, writer, to, text)
+    if not names or not store.has("people", writer):
+        return ""
+    now = f"{week(store.day)}:"
+    told = [t for t in getattr(store.get("people", writer), "told_unknown", []) if t.startswith(now)]
+    new = [n for n in names if now + n not in told]
+    if new:
+        store.set("people", writer, cause, told_unknown=told + [now + n for n in new])
+    return writer_text(new)
 
 
 def writer_text(names: list[str]) -> str:

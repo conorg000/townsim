@@ -125,7 +125,7 @@ def test_the_writer_is_told_and_the_reader_sees_it_under_a_letter_request_and_ap
     out = _do(s, writer, "request", to=reader.name, text="Could Sarah Kemp and Mr Grant help?", amount=0)
     assert out.ok and out.msg.endswith("Sarah Kemp and Mr Grant are not anyone you know.")
     out = _do(s, writer, "book_appointment", **{"with": reader.name, "day": "Friday", "about": "what Edith Marsh said"})
-    assert out.ok and out.msg.endswith("Edith Marsh is not anyone you know.")
+    assert out.ok and out.msg.endswith("on Friday 6 March.")           # told of Edith once this week already
     user = person_view(s, pid)[1]["content"]
     assert user.count("(Edith Marsh is not someone you know.)") >= 2
     assert "(Sarah Kemp is not someone you know.)" in user and "(Mr Grant is not someone you know.)" in user
@@ -148,3 +148,23 @@ def test_odd_text_never_raises(text):
     s = place()
     pid, writer = _reader(s)
     _flags(s, pid, writer, text)
+
+
+def test_every_resident_is_known_by_name_and_a_writer_is_told_of_a_name_once_a_week():
+    s = place()
+    pid, writer = _reader(s)
+    reader = s.get("people", pid)
+    strangers = [p for p in s.all("people") if p.id not in (pid, writer)
+                 and p.id not in __import__("townsim.town.acts", fromlist=["knows"]).knows(s, writer)]
+    assert strangers                                   # someone the writer has no tie with
+    other = strangers[0]
+    out = _do(s, writer, "message", to=reader.name, text=f"{other.name} and {other.name.split()[0]} send their love.")
+    assert out.ok and out.msg == f"Sent to {reader.name}."
+    assert _do(s, writer, "message", to=other.name.split()[0], text="Hello there.").ok      # one resident bears it
+    for k in range(2):
+        out = _do(s, writer, "message", to=reader.name, text=f"Sarah Kemp says hello, {k}.")
+        assert out.msg == f"Sent to {reader.name}." + (" Sarah Kemp is not anyone you know." if k == 0 else "")
+    for _ in range(7):
+        s.advance_day()
+    out = _do(s, writer, "message", to=reader.name, text="Sarah Kemp says hello again.")
+    assert out.msg.endswith("Sarah Kemp is not anyone you know.")

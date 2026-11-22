@@ -29,6 +29,7 @@ class Person:
     worries: list[str] = field(default_factory=list)
     ill_until: int = -1
     benefit: str = ""
+    told_unknown: list[str] = field(default_factory=list)    # `<week>:<name>`: names they were told no one bears, this week
 
 
 @dataclass

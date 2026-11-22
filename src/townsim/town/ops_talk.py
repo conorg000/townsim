@@ -16,7 +16,7 @@ from townsim.town.entities import Appointment, Talk
 from townsim.town.statement import quoted
 from townsim.town import obligations
 from townsim.town.store import Store
-from townsim.town.unknown import reader_lines, unknown_names, writer_text
+from townsim.town.unknown import reader_lines, tell_writer, unknown_names
 
 OPENING_WORDS = 120          # as much as a turn in a talk (`talk.SAY_WORDS`)
 ABOUT_WORDS = 12
@@ -67,7 +67,7 @@ def _do_converse(store: Store, act: Act, cause: str) -> str:
     tk = store.new_id("tk", cause)
     opening = talk.said(act.args["opening"], name)
     store.add("talks", Talk(tk, store.day, act.actor, who, "asked", opening, "waiting"), cause)
-    return f"You will talk with {name} today ({tk})." + writer_text(unknown_names(store, act.actor, who, opening))
+    return f"You will talk with {name} today ({tk})." + tell_writer(store, act.actor, who, opening, cause)
 
 
 # book_appointment
@@ -108,8 +108,7 @@ def _do_book(store: Store, act: Act, cause: str) -> str:
     text = f"{me} has booked to talk with you on {date_text(day)} about {about}."
     text = " ".join([text, *reader_lines(unknown_names(store, who, act.actor, about))])
     obligations.notify(store, who, text, cause)
-    return f"Booked ({ap}): to talk with {other} on {date_text(day)}." + writer_text(
-        unknown_names(store, act.actor, who, about))
+    return f"Booked ({ap}): to talk with {other} on {date_text(day)}." + tell_writer(store, act.actor, who, about, cause)
 
 
 # stop, naming an appointment

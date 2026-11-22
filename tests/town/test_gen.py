@@ -11,7 +11,7 @@ from townsim.town.loop import routine
 from townsim.town.obligations import money
 
 FAMILIES = ["a", "b", "c", "d"]
-SEED_1_HASH = "a5bfa4dd3052f008df27ba17cb370591acb7ad5aaf8d08ddc2865c7a48f202f6"
+SEED_1_HASH = "db818179355a873ff921f0a2e4b59f2afaf391ac0a2b09a42e38d6b8d452fd00"
 
 
 @functools.lru_cache(maxsize=None)

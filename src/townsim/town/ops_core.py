@@ -25,7 +25,7 @@ from townsim.town.entities import Message, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
 from townsim.town.store import Store
-from townsim.town.unknown import record_orgs, unknown_names, writer_text
+from townsim.town.unknown import record_orgs, tell_writer, unknown_names
 
 MAX_WORDS = 80            # a note on an answer
 NOTE_WORDS = 12           # a note on a payment, which becomes its memo: a label
@@ -467,11 +467,11 @@ def _do_message(store: Store, act: Act, cause: str) -> str:
     if to == org:                       # no one in the town reads it: kept as sent, and never shown as news
         store.add("messages", Message(store.new_id("msg", cause), store.day, act.actor, to, text, seen=True, org=org),
                   cause)
-        return f"Sent to {name_of_who(store, org)}." + writer_text(unknown_names(store, act.actor, "", text))
+        return f"Sent to {name_of_who(store, org)}." + tell_writer(store, act.actor, "", text, cause)
     message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org,
                       unknown=unknown_names(store, to, act.actor, text))
     store.add("messages", message, cause)
-    return f"Sent to {name_of_who(store, org or to)}." + writer_text(unknown_names(store, act.actor, to, text))
+    return f"Sent to {name_of_who(store, org or to)}." + tell_writer(store, act.actor, to, text, cause)
 
 
 # request
@@ -580,7 +580,7 @@ def _do_request(store: Store, act: Act, cause: str) -> str:
         said += f" toward {memo_shown(store.get('obligations', ob).memo)} ({ob})"
     said += "."
     return (f"Sent to {name_of_who(store, to)} ({rq.id}): {said} It stays open until {date_in(rq.expires, store.day)}."
-            + writer_text(unknown_names(store, act.actor, to, rq.text)))
+            + tell_writer(store, act.actor, to, rq.text, cause))
 
 
 # answer

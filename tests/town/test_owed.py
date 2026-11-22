@@ -240,3 +240,36 @@ def test_an_agreement_about_hours_says_it_moves_money_only():
     plain = apply_act(s, Act(shop.owner, shop.owner, "propose_agreement", {
         "to": name, "amount": 30, "per": "once", "payer": "me", "what": "a share of the coal"}), 1)
     assert plain.ok and "moves money only" not in plain.msg
+
+
+# a hamlet knows itself
+
+def test_the_view_lists_every_other_resident_and_the_dealings_with_those_known():
+    from townsim.town import jobs
+    from townsim.town.acts import knows
+    from townsim.town.entities import Message, Talk
+    s = place()
+    pid = next(p.id for p in s.all("people") if any(o.owner == p.id and o.kind == "shop" for o in s.all("orgs")))
+    known = knows(s, pid)
+    friend = known[-1]
+    s.add("talks", Talk("tk90", 0, pid, friend, "asked", "Hello.", "held"), "routine:t")
+    for i, (a, b) in enumerate([(pid, friend), (pid, friend), (friend, pid)]):
+        s.add("messages", Message(f"msg9{i}", 0, a, b, "A word.", seen=True), "routine:t")
+    s.advance_day()
+    routine(s)
+    user = person_view(s, pid)[1]["content"]
+    people = section(user, "PEOPLE YOU KNOW")
+    name = s.get("people", friend).name
+    line = next(x for x in people if x.startswith(name + ", "))
+    assert line.endswith("; last talked Monday 2 March; letters this week: 2 from you, 1 to you")
+    assert all(x.endswith("; not yet talked") for x in people if not x.startswith(name + ", "))
+    also = section(user, f"ALSO IN {s.place.upper()}")
+    listed = {x.split(", ")[0] for x in people}
+    others = [p for p in s.all("people") if p.id != pid and p.name not in listed]
+    assert [x.split(", ")[0] for x in also] == [p.name for p in others]
+    for p, x in zip(others, also):
+        h = s.get("households", p.household)
+        work = [o.name for o in s.all("orgs") if o.owner == p.id] + [s.get("orgs", j.org).name
+                                                                   for j in jobs.held(s, person=p.id)]
+        assert x.startswith(f"{p.name}, {h.street}") and all(w in x for w in work)
+        assert "benefit" not in x and "out of work" not in x and "$" not in x

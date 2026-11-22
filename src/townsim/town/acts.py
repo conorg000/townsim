@@ -215,7 +215,8 @@ def fits(text: str, words: int) -> bool:
 
 def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
     """The id of the person, household or org called `name`, ignoring case and surrounding
-    spaces; or, given an `actor`, of the one person they know whose first name it is."""
+    spaces; or, given an `actor`, of the one resident whose first name it is (or failing that,
+    the one person they know whose first name it is)."""
     if not isinstance(name, str):
         return None
     wanted = name.strip().casefold()
@@ -225,6 +226,9 @@ def resolve(store: Store, name: Any, actor: str | None = None) -> str | None:
                 return row.id
     if actor is None or not wanted or not store.has("people", actor):
         return None
+    residents = [p.id for p in store.all("people") if p.id != actor and p.name.casefold().split()[:1] == [wanted]]
+    if len(residents) == 1:
+        return residents[0]
     bearers = [p for p in knows(store, actor) if store.get("people", p).name.casefold().split()[:1] == [wanted]]
     if len(bearers) == 1:
         return bearers[0]

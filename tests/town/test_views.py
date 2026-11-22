@@ -265,7 +265,7 @@ def test_a_name_the_reader_does_not_know_is_noted_under_the_letter():
     text = (f"Dear {reader.name}, {invented} says {s.get('people', partner).name} and {stranger_name} "
             f"owe money. Ask {invented} yourself. Yours, {sender.name}")
     mid = send(s, friend, pid, text)
-    expected = [invented] + ([stranger_name] if stranger_name.split()[0] in names.FIRST_NAMES else [])
+    expected = [invented]                     # a resident with no tie to the reader is known by name
     assert s.get("messages", mid).unknown == expected
     letters = section(person_view(s, pid)[1]["content"], "LETTERS AND NOTICES")
     assert letters[:2] == [f"From {sender.name}:", f"  > {text}"]
@@ -277,7 +277,7 @@ def test_a_name_known_to_the_reader_or_not_a_first_name_is_not_noted():
     send(s, "p01", "p03", "Megan Pryce sends her love. Wenlow Lettings wrote. Good Morning, Thursday.")
     assert s.all("messages")[-1].unknown == []                 # his household, his landlord, ordinary words
     send(s, "p01", "p03", "Tom Ashby and Edith Marsh send their love.")
-    assert s.all("messages")[-1].unknown == ["Tom Ashby", "Edith Marsh"]     # no one he knows
+    assert s.all("messages")[-1].unknown == ["Edith Marsh"]          # Tom lives here; Edith is no one here
     send(s, "p01", "p03", "Ask Ada Lovell about Ruth Ashby.")
     assert s.all("messages")[-1].unknown == ["Ada Lovell"]
 
@@ -462,9 +462,10 @@ def test_people_you_know_are_closest_first_at_most_twelve():
         for r, o in zip(rows, order):
             if tie_rank(s, p.id, o) == 0 and not tied(s, p.id, "partner") + tied(s, p.id, "child") \
                     + tied(s, p.id, "parent") + tied(s, p.id, "sibling"):
-                assert r.endswith("lives with you")
+                assert r.split("; ")[0].endswith("lives with you")
+            assert r.endswith("; not yet talked")                         # day 0: no talk, no letter
     clara = next(p for p in s.all("people") if tied(s, p.id, "partner") and tied(s, p.id, "child"))
-    rows = section(person_view(s, clara.id)[1]["content"], "PEOPLE YOU KNOW")
+    rows = [r.split("; ")[0] for r in section(person_view(s, clara.id)[1]["content"], "PEOPLE YOU KNOW")]
     assert f"{s.get('people', tied(s, clara.id, 'partner')[0]).name}, your partner" in rows
     assert f"{s.get('people', tied(s, clara.id, 'child')[0]).name}, your child" in rows
 
@@ -519,8 +520,8 @@ def test_the_view_holds_its_length_with_the_worst_the_operations_allow():
     v = views.layout(s, owner)
     total = len(v.system.split()) + len(v.user.split())
     assert views.MAX_WORDS < total < 2000
-    order = ["knowhow", "people", "statement", "closest", "coming", "owed", "till", "toward", "talks",
-             "inbox", "requests", "read", "owed_least", "coming_least", "costs", "business", "guard"]
+    order = ["also", "knowhow", "people", "statement", "closest", "coming", "owed", "till", "toward", "talks",
+             "inbox", "requests", "read", "owed_least", "coming_least", "costs", "people_least", "business", "guard"]
     assert v.steps == [x for x in order if x in v.steps] and {"inbox", "requests"} <= set(v.steps)
     shown = section(v.user, "LETTERS AND NOTICES")
     assert shown[1].count("word") == 148 and shown[-1].startswith("(4 more:")   # never cut
@@ -1416,7 +1417,7 @@ def test_know_how_and_far_people_give_way_before_the_statement_s_last_week():
         s.transfer("outside:households", s.get("people", owner).household, 100, f"recent {i} " + "word " * 8,
                    "routine:t")
     v = views.layout(s, owner)
-    assert v.steps[:1] == ["knowhow"] and "HOW THINGS WORK" not in v.user
+    assert v.steps[:2] == ["also", "knowhow"] and "HOW THINGS WORK" not in v.user and "ALSO IN " not in v.user
     shown = [x for x in section(v.user, "YOUR HOUSEHOLD'S ACCOUNT") if "recent " in x]
     assert len(shown) >= 24
 

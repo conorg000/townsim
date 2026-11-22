@@ -37,7 +37,7 @@ from townsim.town.entities import Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
 from townsim.town.store import Store, id_key
-from townsim.town.unknown import unknown_names, writer_text
+from townsim.town.unknown import tell_writer
 
 WHAT_WORDS = 12
 MAX_WEEKS = 520
@@ -250,7 +250,7 @@ def _do_propose(store: Store, act: Act, cause: str) -> str:
     if about_work(t.what):
         said = f"{said} {MONEY_ONLY}"
     return (work.sent(store, rq, said) + core.also_paid(store, t.payer, t.payee, terms=(t.cents, t.every, t.first))
-            + writer_text(unknown_names(store, act.actor, t.who, t.what)))
+            + tell_writer(store, act.actor, t.who, t.what, cause))
 
 
 def _check_agreement(store: Store, act: Act, rq: Request) -> str | None:
