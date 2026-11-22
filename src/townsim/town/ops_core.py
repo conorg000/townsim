@@ -674,7 +674,8 @@ def _request_accounts(store: Store, rq: Request) -> tuple[str, str]:
 def _do_answer(store: Store, act: Act, cause: str) -> str:
     rq = _open_request(store, act)
     accepted = _answer(act) == "accept"
-    store.set("requests", rq.id, cause, status="accepted" if accepted else "declined")
+    store.set("requests", rq.id, cause, status="accepted" if accepted else "declined", closed_on=store.day,
+              closed_by=act.actor)
     told = "Accepted." if accepted else f"Declined: {rq.id} from {name_of_who(store, rq.sender)}."
     done = ANSWERERS[rq.kind][1](store, act, rq, cause) if accepted and rq.kind in ANSWERERS else ""
     if done:
@@ -710,6 +711,8 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     if note:
         text += f" They wrote: {quoted(note)}"
     obligations.notify(store, rq.sender, text, cause)
+    from townsim.town.seat_texts import tell_closed
+    tell_closed(store, store.get("requests", rq.id), cause)
     return told
 
 

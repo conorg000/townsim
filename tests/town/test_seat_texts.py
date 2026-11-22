@@ -198,3 +198,34 @@ def test_dates_the_engine_writes_get_their_years():
         "until Monday 28 May 2029, from Friday 13 March 2026"
     assert T.seat_ids.dated("Monday 9 March 2026 and Monday 30 February", s.day) == \
         "Monday 9 March 2026 and Monday 30 February"
+
+
+def test_a_request_the_instance_saw_keeps_its_outcome_and_it_is_told():
+    from townsim.town import seat_tools as ST
+    from townsim.town.acts import Act, apply_act
+    s = drawn()
+    inst = s.get("instances", "as3")
+    s.set("instances", "as3", CAUSE, seen=T.highest(s))
+    assert apply_act(s, Act("p10", "p10", "request", {"to": "Jessica Whitaker", "text": "For the paint.",
+                                                       "amount": 5}), 0).ok
+    rq = s.all("requests")[-1]
+    shown = T.seat_ids.display(s, rq.id)
+    assert f"[request] {shown} · Mon 2026-03-09 · From: Brittany Wagner · To: Jessica Whitaker · $5.00 · open until" \
+        in T.morning(s, s.get("instances", "as3"))[0]
+    assert apply_act(s, Act("p9", "p9", "answer", {"request": rq.id, "answer": "accept"}), 1).ok
+    told = [n.text for n in s.where("notices", to="as3")][-1]
+    assert told == (f"Request {rq.id} from Brittany Wagner to Jessica Whitaker: accepted by Jessica Whitaker on "
+                    "Mon 2026-03-09, paid from the Whitaker household's account.")
+    news = T.morning(s, s.get("instances", "as3"))[0]
+    assert f"Request {shown} from Brittany Wagner to Jessica Whitaker: accepted by Jessica Whitaker" in news
+    found = ST.run_tool(s, inst, "search_email", {"query": "paint"}, ST.Ctx(), 2).text
+    assert f"[request] {shown} · Mon 2026-03-09 · From: Brittany Wagner · To: Jessica Whitaker · $5.00 · accepted by " \
+           "Jessica Whitaker on Mon 2026-03-09, paid from the Whitaker household's account" in found
+    assert not [n for n in s.where("notices", to="as4") if rq.id in n.text]          # not the sender's instance's
+    assert apply_act(s, Act("p10", "p10", "request", {"to": "Jessica Whitaker", "text": "Ladder?", "amount": 0}), 3).ok
+    late = s.all("requests")[-1]
+    from townsim.town import loop
+    s.day = s.ledger.t = late.expires + 1
+    loop._lapse(s)
+    assert [n.text for n in s.where("notices", to="as3")][-1].endswith(
+        f": lapsed unanswered on {T.seat_ids.day(s.day)}.")

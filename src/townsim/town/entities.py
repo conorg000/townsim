@@ -103,6 +103,8 @@ class Request:
     pay: int = 0
     payer: str = ""            # an agreement or loan asked for: the account that would pay
     payee: str = ""            # and the account that would be paid
+    closed_on: int = -1        # the day it was answered or lapsed
+    closed_by: str = ""        # who answered it (a person, or an instance for its client)
 
 
 @dataclass

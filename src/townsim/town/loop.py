@@ -57,9 +57,11 @@ def _lapse(store: Store) -> None:
         if rq.expires >= store.day:
             continue
         cause = f"routine:lapse:{rq.id}"
-        store.set("requests", rq.id, cause, status="lapsed")
+        store.set("requests", rq.id, cause, status="lapsed", closed_on=store.day)
         text = _lapsed(store, rq)
         obligations.notify(store, rq.sender, text, cause)
+        from townsim.town.seat_texts import tell_closed
+        tell_closed(store, store.get("requests", rq.id), cause)
 
 
 def _lapsed(store: Store, rq) -> str:

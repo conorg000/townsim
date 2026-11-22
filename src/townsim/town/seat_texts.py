@@ -245,10 +245,10 @@ def _notice_reaches(store: Store, inst: Instance, n: Notice) -> bool:
     return bool(active(store, inst.id)) and store.get("orgs", inst.client).name in n.text
 
 
-def _request_reaches(store: Store, inst: Instance, rq: Request) -> bool:
+def _request_reaches(store: Store, inst: Instance, rq: Request, open_only: bool = True) -> bool:
     """A request to one who instructs the instance reaches it when the system answering it is
-    the client's and is connected, at any scope."""
-    if rq.sender == inst.id or rq.status != "open":
+    the client's and is connected, at any scope (and, with `open_only`, while it is open)."""
+    if rq.sender == inst.id or (open_only and rq.status != "open"):
         return False
     system = SYSTEM_OF["answer"](store, Act(inst.id, rq.to, "answer", {"request": rq.id}))
     if system is None or client_of(store, system) != inst.client:
@@ -341,11 +341,14 @@ def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None
             head = f"[notification] {seat_ids.display(store, n.id)} · {seat_ids.day(n.day)} · To: {_who(store, n.to)} · {text}"
             out.append(Item(n.day, 1, n.id, "notification", head))
     for r in store.all("requests"):
-        if not _after(r.id, rq) or r.day < since or r.to not in people or not _request_reaches(store, inst, r):
+        if not _after(r.id, rq) or r.day < since or r.to not in people:
+            continue
+        if not _request_reaches(store, inst, r, open_only=seen is None):     # mail keeps those answered, with how
             continue
         asked = f" · {money(r.cents)}" if r.cents > 0 else ""
+        state = f"open until {seat_ids.day(r.expires)}" if r.status == "open" else request_outcome(store, r)
         head = (f"[request] {seat_ids.display(store, r.id)} · {seat_ids.day(r.day)} · From: {_who(store, r.sender)} "
-                f"· To: {_who(store, r.to)}{asked} · open until {seat_ids.day(r.expires)}")
+                f"· To: {_who(store, r.to)}{asked} · {state}")
         tail = v(" ".join(r.summary.split())) if r.summary.strip() else ""
         out.append(Item(r.day, 2, r.id, "request", head, r.text or "", tail, sender=r.sender))
     out.sort(key=lambda x: (x.day, x.order, id_key(x.id)))
@@ -356,6 +359,37 @@ def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None
         out.append(Item(store.day, 3, r.id, "follow-up",
                         f"[follow-up] {seat_ids.display(store, r.id)} · {seat_ids.day(store.day)}{every} · {r.text}"))
     return out
+
+
+def request_outcome(store: Store, rq: Request) -> str:
+    """How a closed request ended: `accepted by Tara Russo on Mon 2026-12-07, paid from Harlow Springs
+    Food Mart's account`, `declined by ...`, `lapsed unanswered on ...`."""
+    when = seat_ids.day(rq.closed_on) if rq.closed_on >= 0 else "an earlier day"
+    if rq.status == "lapsed":
+        return f"lapsed unanswered on {when}"
+    who = _who(store, rq.closed_by) if rq.closed_by else _who(store, rq.to)
+    if rq.closed_by and store.has("instances", rq.closed_by):
+        who += f" for {_who(store, rq.to)}"
+    out = f"{rq.status} by {who} on {when}"
+    if rq.status == "accepted" and rq.cents > 0:
+        from townsim.town import ops_core
+        if rq.kind not in ops_core.ANSWERERS:
+            payer, _ = ops_core._request_accounts(store, rq)
+            out += f", paid from {client_name(store, payer) if store.has('households', payer) else _who(store, payer)}'s account"
+    return out
+
+
+def tell_closed(store: Store, rq: Request, cause: str) -> None:
+    """Tell each instance that was shown `rq` (its client was asked, through a connected system) that
+    it has been answered or has lapsed; the instance that sent it is told as anyone who asks is, and
+    one that answered it has its own result."""
+    from townsim.town import obligations
+    for inst in store.all("instances"):
+        if inst.status != "active" or inst.id in (rq.sender, rq.closed_by) or inst.made_on > rq.day:
+            continue
+        if rq.to in client_people(store, inst) and _request_reaches(store, inst, rq, open_only=False):
+            obligations.notify(store, inst.id, f"Request {rq.id} from {_who(store, rq.sender)} to {_who(store, rq.to)}: "
+                                               f"{request_outcome(store, rq)}.", cause)
 
 
 def mail(store: Store, inst: Instance, days: int) -> list[Item]:
