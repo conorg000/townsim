@@ -1,8 +1,7 @@
 # Model families that play the people of a generated place; each person is dealt one when
 # the place is made. `model` is the OpenRouter id, which must be priced in prices.yaml at no
 # more than $0.20 per million tokens in and $1.00 out; `params` are passed to every call as
-# given. reasoning_effort is what the step 1 trials used: none, except minimax, which
-# answers poorly without some reasoning.
+# given. reasoning_effort is none for every family.
 haiku:
   model: anthropic/claude-haiku-5.5
   params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
@@ -15,11 +14,8 @@ hunyuan:
   model: tencent/hy4-flash
   params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false
-# minimax reasons before it answers and the reasoning counts against max_tokens: at 1200 a
-# third of its probe replies were cut off before any answer (probe of 2026-11-23), and at
-# 2400 three of its 49 replies in the first two-week run were, so it has the most the loader
-# allows.
-minimax:
-  model: minimax/minimax-m3.1-flash
-  params: {max_tokens: 4000, temperature: 0.8, reasoning_effort: "low"}
+# ling replaces minimax, whose hidden reasoning said it was in a simulation in about 4% of its replies.
+ling:
+  model: inclusionai/ling-3.1-flash
+  params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false

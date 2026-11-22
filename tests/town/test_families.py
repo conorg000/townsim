@@ -111,11 +111,11 @@ def test_worst_case():
 
 def test_shipped_files_load():
     loaded = families.load("config/families.yaml", "config/prices.yaml")
-    assert list(loaded) == ["haiku", "deepseek", "hunyuan", "minimax"]
+    assert list(loaded) == ["haiku", "deepseek", "hunyuan", "ling"]
     assert list(loaded) == families.names("config/families.yaml")
     assert loaded["deepseek"].model == "deepseek/deepseek-v4.1-flash-1017"
     assert {n: f.params["reasoning_effort"] for n, f in loaded.items()} == {
-        "haiku": "none", "deepseek": "none", "hunyuan": "none", "minimax": "low"}
+        "haiku": "none", "deepseek": "none", "hunyuan": "none", "ling": "none"}
 
 
 @pytest.mark.parametrize("extra", ["n: 5", "max_completion_tokens: 100000", "fallbacks: [openai/gpt-6.2-sol]",

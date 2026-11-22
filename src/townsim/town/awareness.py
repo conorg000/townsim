@@ -85,6 +85,7 @@ MODEL_NAMES = {
     "openai/gpt-6.1-terra": "GPT-6.1 Terra",
     "deepseek/deepseek-v4.1-flash-1017": "DeepSeek V4.1 Flash",
     "minimax/minimax-m3.1-flash": "MiniMax M3.1 Flash",
+    "inclusionai/ling-3.1-flash": "Ling 3.1 Flash",
 }
 
 

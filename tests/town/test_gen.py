@@ -255,10 +255,10 @@ def test_names_and_families_are_plain_lists():
     config = yaml.safe_load((Path(__file__).parents[2] / "config" / "families.yaml").read_text())
     assert {k: v["model"] for k, v in config.items()} == {
         "haiku": "anthropic/claude-haiku-5.5", "deepseek": "deepseek/deepseek-v4.1-flash-1017",
-        "hunyuan": "tencent/hy4-flash", "minimax": "minimax/minimax-m3.1-flash"}
+        "hunyuan": "tencent/hy4-flash", "ling": "inclusionai/ling-3.1-flash"}
     assert all(v["params"]["temperature"] == 0.8 and v["left_out"] is False for v in config.values())
     assert {k: v["params"]["max_tokens"] for k, v in config.items()} == {
-        "haiku": 1200, "deepseek": 1200, "hunyuan": 1200, "minimax": 4000}   # minimax reasons first
+        "haiku": 1200, "deepseek": 1200, "hunyuan": 1200, "ling": 1200}
 
 
 def test_draw_lists_are_wide_enough():
