@@ -22,9 +22,10 @@ from townsim.town.clock import date_text
 from townsim.town.loop import op_written, parse_reply
 from townsim.town.obligations import SCHEDULED, money
 from townsim.town.ops_core import NOT_COUNTED  # noqa: F401  (what the payer is told; the list reads the change log)
-from townsim.town.replies import Reply, refused
+from townsim.town.replies import Reply, is_instance_id, refused
 from townsim.town.rundb import RunDB
 from townsim.town.store import Store, id_key
+from townsim.town.systems import long_name
 from townsim.town.unknown import NOT_KNOWN
 
 THOUGHT_WORDS = 60      # what someone wrote to themselves, at most
@@ -36,6 +37,10 @@ TOLD_CHARS = 160        # what the engine told them of an act carried out
 ARGS_CHARS = 120        # the rest of an act, as written
 TEXT_CHARS = 120        # a memo, an aim or a name, inside code
 TOP_REFUSALS = 5
+INSTANCE_WORDS = 1000   # whatever an instance wrote: a letter, a note, a file, its words in a talk or a closing
+REACHED_WORDS = 1500    # what reached an instance on a day, as the engine showed it
+REASONING_CHARS = 300   # a passage of stored reasoning
+RESULT_CHARS = 300      # what the engine sent back for a tool call
 ERRORS_SHOWN = 10
 
 UNREADABLE = "Their reply could not be read, so nothing in it was done."
@@ -145,9 +150,15 @@ class _Run:
         self.models: dict[str, str] = {}
         for name, value in noted.items() if isinstance(noted, dict) else ():
             self.models[str(name)] = str(value.get("model", "")) if isinstance(value, dict) else str(value)
+        try:
+            seat = json.loads(self.db.note(run_id, "seat") or "null")
+        except ValueError:
+            seat = None
+        if isinstance(seat, dict) and seat.get("model"):
+            self.models["seat"] = str(seat["model"])
         for key in self.replies:
             model, _, actor, _ = _key_parts(key)
-            self.models.setdefault(self.family.get(actor, "") or "?", model)
+            self.models.setdefault(self.fam(actor), model)
         self.families = sorted(set(self.models) | {f or "?" for f in self.family.values()})
 
     def snap(self, day: int) -> Store:
@@ -164,7 +175,11 @@ class _Run:
         return self.snap(later[0] if later else self.snap_days[-1])
 
     def fam(self, pid: str) -> str:
-        return self.family.get(pid, "") or "?"
+        """The family that plays `pid`; "seat" for an instance."""
+        return "seat" if is_instance_id(pid) else self.family.get(pid, "") or "?"
+
+    def last(self) -> Store:
+        return self.snap(self.snap_days[-1]) if self.snap_days else Store()
 
 
 def name(s: Store, who: str) -> str:
@@ -200,8 +215,10 @@ def _the_run(r: _Run) -> list[str]:
         spend[f][0] += 1
         spend[f][1] += reply.cost
     out.append("- Families:")
+    plays = {"seat": f"{len(r.last().all('instances'))} instances"}
     for f in r.families:
-        out.append(f"  - {f}: {code(r.models.get(f, '') or 'unknown', 80)}, plays {counts.get(f, 0)} people; "
+        out.append(f"  - {f}: {code(r.models.get(f, '') or 'unknown', 80)}, "
+                   f"plays {plays.get(f, f'{counts.get(f, 0)} people')}; "
                    f"{spend[f][0]} replies, ${spend[f][1]:.4f}")
     stored = r.db.spent(r.id)
     try:
@@ -376,6 +393,162 @@ def _week_by_week(r: _Run) -> list[str]:
                     out += [""] + block
     if not r.turn_days:
         out += ["", "No days were kept."]
+    return out
+
+
+# --- 2a. the assistants ------------------------------------------------------------------------
+#
+# Everything an instance wrote (its letters, notes, files, words in a talk, its closing words and
+# any reasoning the provider returned) is untrusted like a townsperson's words: `>` lines only.
+
+
+def _quote_chars(text: Any, n: int, indent: str = "") -> list[str]:
+    """`text` as `>` lines, cut to `n` characters with a note saying so."""
+    text = clean_text(text if isinstance(text, str) else shown(text)) or ""
+    if len(text) <= n:
+        return quote(text, INSTANCE_WORDS, indent)
+    out = quote(text[:n], INSTANCE_WORDS, indent)
+    if out:
+        out[-1] += f" … (cut at {n} characters)"
+    return out
+
+
+CALL_WORDS = {"beyond": "beyond what was connected", "unknown": "no such tool",
+              "unreadable": "its arguments could not be read"}
+WRITTEN = ("text", "words")
+
+
+def call_lines(c) -> list[str]:
+    """`- ✓` (carried out) or `- ✗` (refused, beyond what was connected, ...), the call as
+    `tool(args)` → `result`; then whatever it wrote, quoted beneath."""
+    mark, said = ("✓", "carried out") if c.ok else ("✗", CALL_WORDS.get(c.kind, "refused"))
+    try:
+        args = json.loads(c.args)
+    except (TypeError, ValueError):
+        args = c.args
+    quoted: list[tuple[str, str]] = []
+    if isinstance(args, dict):
+        inline = []
+        for k, v in args.items():
+            if isinstance(v, str) and (k in WRITTEN or len(v.split()) > QUOTED_PAST):
+                quoted.append((k, v))
+            else:
+                inline.append(f"{shown(k)}: {v if isinstance(v, str) else shown(v)}")
+        written = ", ".join(inline)
+    else:
+        written = args if isinstance(args, str) else shown(args)
+    lines = [f"- {mark} {code(f'{c.tool}({written})', ARGS_CHARS)} → {code(c.result, RESULT_CHARS)} ({said})"]
+    for k, v in quoted:
+        lines.append(f"  Its {code(k, 20)}:")
+        lines += quote(v, INSTANCE_WORDS, "  ") or ["  (nothing)"]
+    return lines
+
+
+def _reached(morning: str) -> str:
+    """What reached an instance, as its first message of the day showed it: everything after
+    the date and before its own notes."""
+    head = morning.split("\nYOUR NOTES", 1)[0]
+    return head.split("\n", 1)[1] if head.startswith("TODAY:") and "\n" in head else head
+
+
+def _seat_keys(r: _Run) -> dict[tuple[int, str], list[str]]:
+    """The stored seat replies of each (day, instance), in the order they were asked for."""
+    out: dict[tuple[int, str], list[str]] = defaultdict(list)
+    for key in r.replies:
+        _, day, actor, purpose = _key_parts(key)
+        if purpose == "seat":
+            out[(day, actor)].append(key)
+    for keys in out.values():
+        keys.sort(key=lambda k: int(k.rsplit("|", 1)[1]))
+    return out
+
+
+def _seat_turns(r: _Run) -> list:
+    return [t for d in r.db.seat_days(r.id) for t in r.db.seat_turns(r.id, d)]
+
+
+def _reasoning(r: _Run, key: str | None, label: str = "Its reasoning:") -> list[str]:
+    reply = r.replies.get(key) if key else None
+    if reply is None or not (reply.reasoning or "").strip():
+        return []
+    return [f"  {label}"] + _quote_chars(reply.reasoning, REASONING_CHARS, "  ")
+
+
+def _closing_key(r: _Run, t, keys: dict) -> str | None:
+    used = {c.key for c in t.calls}
+    left = [k for k in keys.get((t.day, t.instance), []) if k not in used]
+    return left[0] if left else None
+
+
+def _scope(cn) -> str:
+    if cn.scope == "limit":
+        return f"weekly limit {money(cn.weekly_cents)}"
+    return {"read": "read only", "free": "free"}.get(cn.scope, cn.scope)
+
+
+def _instance_head(r: _Run, s: Store, inst) -> list[str]:
+    sub = s.get("subscriptions", inst.subscription) if s.has("subscriptions", inst.subscription) else None
+    out = [f"### {inst.name} ({inst.id})", ""]
+    if sub is None:
+        return out + [f"- Client: {name(s, inst.client)}."]
+    pr = s.get("products", sub.product) if s.has("products", sub.product) else None
+    fee = "no fee"
+    if sub.fee_ob and s.has("obligations", sub.fee_ob):
+        fee = f"{money(s.get('obligations', sub.fee_ob).cents)} a week"
+        if pr is not None and pr.free_weeks:
+            fee = f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {fee}"
+    ended = f"ended on {date_text(sub.ended_on)}" if sub.status == "ended" else "not ended"
+    out.append(f"- Client: {name(s, inst.client)}; subscribed by {name(s, sub.by)} on {date_text(sub.day)}; "
+               f"{fee}; {ended}.")
+    out += [f"- What {name(s, sub.by)} asked when subscribing, in their words:", ""]
+    out += quote(sub.asks, INSTANCE_WORDS, "  ") or ["  (nothing was written)"]
+    out += ["", "- Connections:"]
+    cns = sorted(s.where("connections", instance=inst.id), key=lambda c: id_key(c.id))
+    for cn in cns:
+        until = f"; ended on {date_text(cn.ended_on)}" if cn.status == "ended" else ""
+        out.append(f"  - {long_name(s, cn.system)}: {_scope(cn)}, "
+                   f"by {name(s, cn.grantor)} on {date_text(cn.since)}{until}")
+    if not cns:
+        out.append("  - none")
+    return out
+
+
+def _assistants(r: _Run) -> list[str]:
+    s = r.last()
+    out = ["## The assistants", "",
+           "Each instance: its client, what the client asked, what was connected; then each day it had a turn, what "
+           "reached it, every call it made with what the engine sent back, and whatever it wrote. Anything an "
+           f"instance wrote is quoted; its reasoning is cut at {REASONING_CHARS} characters, a result at "
+           f"{RESULT_CHARS}, its writing at {INSTANCE_WORDS} words."]
+    turns = _seat_turns(r)
+    keys = _seat_keys(r)
+    for inst in sorted(s.all("instances"), key=lambda i: id_key(i.id)):
+        out += [""] + _instance_head(r, s, inst)
+        mine = [t for t in turns if t.instance == inst.id]
+        replies = [r.replies[k] for (_, a), ks in keys.items() if a == inst.id for k in ks]
+        out.append(f"- {len(mine)} turns, {sum(len(t.calls) for t in mine)} calls; {len(replies)} replies stored, "
+                   f"${sum(x.cost for x in replies):.4f}.")
+        for t in mine:
+            out += ["", f"**{date_text(t.day)}**", "", "What reached it:", ""]
+            out += quote(_reached(t.morning), REACHED_WORDS) or ["(nothing new)"]
+            if t.calls:
+                out.append("")
+            for c in t.calls:
+                reply = r.replies.get(c.key)
+                out += call_lines(c)
+                out += _reasoning(r, c.key)
+                if reply is not None and (reply.text or "").strip():
+                    out += ["  Its words beside the call:"] + _quote_chars(reply.text, REASONING_CHARS, "  ")
+            closing_key = _closing_key(r, t, keys)
+            if t.ended == "limit":
+                out += ["", f"It reached the limit of {len(t.calls)} calls, which ended the turn."]
+            elif (t.closing or "").strip():
+                out += ["", "Its closing words:", ""] + quote(t.closing, INSTANCE_WORDS)
+            else:
+                out += ["", f"It ended the turn with nothing said ({code(t.ended, 20)})."]
+            out += [line.lstrip() for line in _reasoning(r, closing_key, "Its reasoning before closing:")]
+    if not s.all("instances"):
+        out += ["", "No instances."]
     return out
 
 
@@ -789,8 +962,12 @@ def _balances(r: _Run) -> list[str]:
 
 
 def account(db: RunDB, run_id: str) -> str:
-    """The kept run `run_id` as a Markdown account in five parts: the run, week by week, counts
-    by family, things to look at, balances. Raises KeyError for a run not in `db`."""
+    """The kept run `run_id` as a Markdown account: the run, week by week, the assistants (when
+    the run has any), counts by family, things to look at, balances. Raises KeyError for a run
+    not in `db`."""
     r = _Run(db, run_id)
-    parts = [[f"# Run {code(run_id, 60)}"], _the_run(r), _week_by_week(r), _counts(r), _looks(r), _balances(r)]
+    parts = [[f"# Run {code(run_id, 60)}"], _the_run(r), _week_by_week(r)]
+    if r.last().all("instances") or r.db.seat_days(run_id):
+        parts.append(_assistants(r))
+    parts += [_counts(r), _looks(r), _balances(r)]
     return "\n\n".join("\n".join(p) for p in parts) + "\n"
