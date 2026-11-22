@@ -478,6 +478,10 @@ def _system(store: Store, act: Act, connected: bool = False):
     written = act.args.get("system")
     found = system_named(store, act.principal, written)
     if found is None:
+        from townsim.town.systems import ruled_out
+        rule = ruled_out(store, act.principal, written)
+        if rule is not None:
+            return None, None, f"{acts.shown(written)} cannot be connected: {rule}"
         yours = "; ".join(s.short for s in grantable(store, act.principal)) or "none"
         return None, None, f"'{acts.shown(written)}' is not one of your systems. Yours are: {yours}."
     client = client_of(store, found.id)
@@ -562,7 +566,10 @@ def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int
     if system(store, system_id) is None or client_of(store, system_id) != i.client:
         return None, f"{acts.shown(system_id)} is not one of your client's systems."
     if not can_grant(store, to, system_id):
-        return None, f"{acts.name_of_who(store, to)} cannot connect {long_name(store, system_id)}."
+        from townsim.town.systems import rule_against
+        rule = rule_against(store, to, system_id)
+        return None, f"{acts.name_of_who(store, to)} cannot connect {long_name(store, system_id)}" + \
+            (f": {rule}" if rule else ".")
     if scope not in SCOPES or (scope == "limit" and cents <= 0):
         return None, "that is not a scope a connection can have."
     if scope == "limit" and no_limit_here(store, system_id):
@@ -584,7 +591,9 @@ def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int
 
 def _check_connect_request(store: Store, act: Act, rq) -> str | None:
     if not can_grant(store, act.principal, rq.org):
-        return f"you cannot connect {long_name(store, rq.org)}."
+        from townsim.town.systems import rule_against
+        rule = rule_against(store, act.principal, rq.org)
+        return f"you cannot connect {long_name(store, rq.org)}" + (f": {rule}" if rule else ".")
     inst = instance_of_client(store, client_of(store, rq.org))
     if inst is None or inst.id != rq.sender:
         return f"{client_name(store, client_of(store, rq.org))} has no subscription to {acts.name_of_who(store, rq.sender)}."

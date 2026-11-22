@@ -810,6 +810,30 @@ class Duty:
 
 
 @dataclass
+class Trait:
+    """Facts about a person and their past (lane B), drawn when lane B is installed: a line of their history
+    with earlier technology (`history`, at `curve`: 0 the earliest of five places on the adopter curve, 4 the
+    latest); something of their own they are trying to make, learn or get done (`project`, "" for none); and
+    the people whose lead they tend to follow (`follows`, person ids)."""
+
+    id: str
+    person: str
+    curve: int
+    history: str
+    project: str = ""
+    follows: list[str] = field(default_factory=list)
+
+
+@dataclass
+class WorkRule:
+    """An employer's rule for its staff (lane B): no outside software may be given access to its records."""
+
+    id: str
+    org: str
+    text: str
+
+
+@dataclass
 class Heard:
     """Something that reached people through a channel of the place on `day` (lane B: `hearing`): of `kind`, in
     the past tense (`text`), for each person in `to`; `about` is what it is about (the one a letter reached, the

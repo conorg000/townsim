@@ -158,11 +158,38 @@ def can_grant(store: Store, pid: str, system_id: str) -> bool:
     found = system(store, system_id)
     if found is None or not isinstance(pid, str) or not store.has("people", pid):
         return False
+    if rule_against(store, pid, system_id) is not None:
+        return False
     if found.kind == "loans":
         return store.get("orgs", found.owner).contact == pid
     if store.has("orgs", found.owner):
         return store.get("orgs", found.owner).owner == pid
     return pid in _adults(store, found.owner)        # a household's account, letters and lets
+
+
+def rule_against(store: Store, pid: str, system_id: str) -> str | None:
+    """With lane B, the rule of the employer whose records the system holds (a business's systems, the bank's loan
+    book) that keeps `pid`, one of its staff, from connecting it, as a sentence; None when there is none."""
+    from townsim.town import traits
+    if not store.all("workrules") or not isinstance(system_id, str) or ":" not in system_id:
+        return None
+    owner = system_id.split(":", 1)[1]
+    return traits.rule_against(store, pid, owner) if store.has("orgs", owner) else None
+
+
+def ruled_out(store: Store, pid: str, short) -> str | None:
+    """The rule that keeps `pid` from connecting the system of their household's or business's that `short`
+    names, when one does; None otherwise."""
+    if not isinstance(short, str) or not store.all("workrules"):
+        return None
+    wanted = short.strip().casefold()
+    clients = [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid and not o.outside]
+    for s in (s for c in clients for s in systems_of_client(store, c)):
+        if s.short.casefold() == wanted:
+            why = rule_against(store, pid, s.id)
+            if why is not None:
+                return why
+    return None
 
 
 def grantable(store: Store, pid: str) -> list[System]:

@@ -256,6 +256,18 @@ def _does(store: Store, pid: str) -> str:
     return "has no work at present" if store.where("jobs", person=pid) else ""
 
 
+def _does_at_home(store: Store, pid: str) -> str:
+    """What a housemate does, as their household says it: their job line; with lane B, someone of the firm that
+    makes the product is said to run it or work at it, without what it makes."""
+    line = _does(store, pid)
+    if not store.all("traits"):
+        return line
+    for o in store.all("orgs"):
+        if o.kind == "firm" and not o.outside and o.name in line and line.startswith(("runs ", "works at ")):
+            return f"runs {o.name}" if line.startswith("runs ") else f"works at {o.name}"
+    return line
+
+
 _COUNT_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 
 
@@ -412,7 +424,7 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
         if store.get("people", other).household != household:
             continue
         at_work = any(w in words for w in ("works for you", "your employer", "works with you"))
-        does = ", ".join(x for x in ("" if at_work and jobs.held(store, person=other) else _does(store, other),
+        does = ", ".join(x for x in ("" if at_work and jobs.held(store, person=other) else _does_at_home(store, other),
                                      _paid(store, other)) if x)
         lines.append(f"{store.get('people', other).name}, {words}" + (f", {does}." if does else "."))
     return lines
@@ -558,9 +570,11 @@ def who(store: Store, pid: str) -> str:
     mind = worries(store, pid, len(p.worries))
     worry_line = [f"What worries you: {' '.join(mind)}"] if mind else []
     voice = [_second_person(p.voice) if _verb(p.voice.split(" ")[0].lower()) else p.voice] if p.voice.strip() else []
+    from townsim.town import traits
+    past = traits.lines(store, pid)
 
     def text() -> str:
-        return "\n".join(head + debts + kin_line + friends_line + beliefs + interests + worry_line + voice)
+        return "\n".join(head + debts + kin_line + friends_line + beliefs + past + interests + worry_line + voice)
 
     for give in ("debts", "interests", "friends", "kin", "beliefs", "worries", "voice"):
         if _words(text()) <= WHO_WORDS:

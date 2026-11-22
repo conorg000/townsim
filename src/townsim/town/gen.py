@@ -1062,6 +1062,76 @@ def check(s: Store, weeks: int = hamlet.RUN_WEEKS) -> list[str]:
     return bad
 
 
+# What lane B draws for a place (`duties`, `traits`): the share of households that seeds 1-30 must keep to (the
+# words no person's description may hold are `traits.NOT_DESCRIBED`).
+DUTY_HOUSEHOLD_RANGE = (0.15, 0.40)    # households with someone caring or in a second job (about 27% expected)
+
+
+def check_b(stores: list[Store]) -> list[str]:
+    """What is unsound about the places lane B was installed in, taken together (seeds 1-30, say): each person
+    has one trait whose followed people are among their ties, nobody's description names the product or
+    anything like it, and the shares of places on the adopter curve, of people with an aim of their own, of
+    households with caring or a second job and of employers with a rule about outside software fall within
+    their ranges."""
+    from townsim.town import product, traits
+    bad: list[str] = []
+    people = curve = projects = households = dutied = employers = ruled = 0
+    places = [0] * len(traits.CURVE)
+    for s in stores:
+        product_words = {product.product_name(o.name).casefold() for o in s.all("orgs") if o.kind == "firm"}
+        product_words |= {p.name.casefold() for p in s.all("products")}
+        for p in s.all("people"):
+            people += 1
+            if not s.has("traits", p.id):
+                bad.append(f"seed {s.seed}: {p.name} has no traits")
+                continue
+            t = s.get("traits", p.id)
+            places[t.curve] += 1
+            projects += bool(t.project)
+            known = set(ties.kinds(s, p.id))
+            if not 1 <= len(t.follows) <= 2 or not set(t.follows) <= known:
+                bad.append(f"seed {s.seed}: {p.name} follows {t.follows}, not one or two people they know")
+            said = " " + facts.who(s, p.id).casefold() + " "
+            hit = [w for w in traits.NOT_DESCRIBED + tuple(product_words) if w in said]
+            if hit:
+                bad.append(f"seed {s.seed}: {p.name}'s description says {hit[0]!r}")
+            if any(x in p.beliefs for pole in BELIEFS["technology"] for x in pole):
+                bad.append(f"seed {s.seed}: {p.name} still holds a slogan about technology")
+        for h in s.all("households"):
+            households += 1
+            dutied += any(d.person in h.members for d in s.all("duties"))
+        for o in s.all("orgs"):
+            if o.kind in traits.RULE_CHANCE and (not o.outside or o.kind == "employer"):
+                employers += 1
+                ruled += s.has("workrules", o.id)
+    curve = sum(places)
+    if not people or curve != people:
+        return bad + ["not every person has a place on the adopter curve"]
+    for i, (lo, hi) in enumerate(traits.CURVE_RANGES):
+        if not lo <= places[i] / people <= hi:
+            bad.append(f"{places[i] / people:.3f} of people are at place {i} of the adopter curve, not {lo}-{hi}")
+    for what, n, d, (lo, hi) in (("people with an aim of their own", projects, people, traits.PROJECT_RANGE),
+                                 ("households with caring or a second job", dutied, households, DUTY_HOUSEHOLD_RANGE),
+                                 ("employers with a rule about outside software", ruled, employers, traits.RULE_RANGE)):
+        if not d or not lo <= n / d <= hi:
+            bad.append(f"{n}/{d} {what}, not {lo}-{hi}")
+    return bad
+
+
+def shares_b(stores: list[Store]) -> dict[str, float]:
+    """The shares `check_b` checks, measured."""
+    from townsim.town import traits
+    people = [s.get("traits", p.id) for s in stores for p in s.all("people") if s.has("traits", p.id)]
+    hh = [(s, h) for s in stores for h in s.all("households")]
+    emp = [(s, o) for s in stores for o in s.all("orgs")
+           if o.kind in traits.RULE_CHANCE and (not o.outside or o.kind == "employer")]
+    out = {f"curve {i}": sum(t.curve == i for t in people) / len(people) for i in range(len(traits.CURVE))}
+    out["project"] = sum(bool(t.project) for t in people) / len(people)
+    out["households with duties"] = sum(any(d.person in h.members for d in s.all("duties")) for s, h in hh) / len(hh)
+    out["employers with a rule"] = sum(s.has("workrules", o.id) for s, o in emp) / len(emp)
+    return out
+
+
 # --- a page to read -----------------------------------------------------------------------
 
 

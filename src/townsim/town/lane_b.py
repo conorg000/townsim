@@ -22,7 +22,8 @@ def install(store: Store, cause: str = "routine:lane-b") -> str:
     """Install lane B: the trade services organisation beyond the place, with an account, named for
     the regional office's area; the web's prepared pages (`web.install`); and the outside desks with
     each household's usual spending (`desks.install`); the investment's term; and people's time: an owner's work
-for a business itemised, and caring and second jobs drawn (`_time`). Returns its id; installing again changes
+for a business itemised, and caring and second jobs drawn (`_time`); and people's traits and employers'
+rules (`traits.draw`). Returns its id; installing again changes
 nothing."""
     found = next((o for o in store.all("orgs") if o.kind == KIND and o.outside), None)
     if found is not None:
@@ -54,6 +55,8 @@ def _time(store: Store, before: dict[str, float], cause: str) -> None:
         if size is not None and w.hours != size:
             store.set("work", w.id, cause, hours=size)
     duties.draw(store, cause)
+    from townsim.town import traits
+    traits.draw(store, cause)
     for p in store.all("people"):
         moved = round(hours.free_hours(store, p.id) - before[p.id], 2)
         if moved:

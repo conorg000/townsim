@@ -103,7 +103,7 @@ def test_what_is_heard_reaches_only_the_channels_that_saw_it_and_nothing_private
     price = next(h for h in s.all("heard") if h.kind == "price" and "by" not in h.text)
     assert set(price.to) == customers - workers and price.text == "Marsh's Grocery's price went from $10.20 to $9.90 a basket."
     by = next(h for h in s.all("heard") if h.kind == "price" and "by" in h.text)
-    assert set(by.to) == workers and by.text.endswith(", by Joshua Marsh.")
+    assert set(by.to) == workers - {"p16"} and by.text.endswith(", by Joshua Marsh.")       # not to who did it
     angela_home = set(s.get("households", s.get("people", "p4").household).members) - {"p4"}
     food_mart = {"p3"} | {j.person for j in s.where("jobs", org="org11") if j.ended < 0}
     for pid in [p.id for p in s.all("people")]:
@@ -154,3 +154,116 @@ def test_a_scripted_run_hears_every_kind_in_proportion_and_says_it_neutrally():
         texts += got
     assert texts and neutral_hits(s, texts) == []
     assert not any(w in t.lower() for t in texts for w in (" should", " could ", " you may", "save", "benefit"))
+
+
+# --- people who differ ---------------------------------------------------------------------------------------
+
+from townsim.town import acts, connections, gen, product, traits, ties  # noqa: E402
+from townsim.town.product import NEUTRAL_BANNED  # noqa: E402
+
+
+def _stores_1_to_30():
+    out = []
+    for seed in range(1, 31):
+        out.append(_b(seed))
+    return out
+
+
+def test_traits_keep_their_shares_over_seeds_1_to_30_and_no_description_names_the_product():
+    stores = _stores_1_to_30()
+    assert gen.check_b(stores) == []
+    shares = gen.shares_b(stores)
+    assert abs(shares["project"] - traits.PROJECT_SHARE) < 0.08
+    for s in stores[:5]:
+        for p in s.all("people"):
+            said = facts.who(s, p.id)
+            low = said.casefold()
+            assert "assistant" not in low and "tessaly assistant" not in low and " ai " not in f" {low} "
+            assert s.get("traits", p.id).history in said
+    broken = _b(1)
+    broken.set("traits", "p1", "t", project="You would like an assistant for the shop.")
+    assert any("description says 'assistant'" in x for x in gen.check_b([broken] + stores[1:]))
+
+
+def test_traits_are_a_function_of_the_seed_and_only_with_lane_b():
+    a, b = _b(3), _b(3)
+    assert [(t.person, t.curve, t.project, t.follows) for t in a.all("traits")] == \
+        [(t.person, t.curve, t.project, t.follows) for t in b.all("traits")]
+    plain = generated(3)
+    assert not plain.all("traits") and not plain.all("workrules")
+    slogans = {x for pole in gen.BELIEFS["technology"] for x in pole}
+    assert any(x in slogans for p in plain.all("people") for x in p.beliefs)              # the generator's, as before
+    assert not any(x in slogans for p in a.all("people") for x in p.beliefs)               # replaced by the history
+    for p in a.all("people"):
+        t = a.get("traits", p.id)
+        assert t.history in [h.format(place=a.place) for h in traits.HISTORY] + [traits.LAST_AT_A_DESK]
+        assert t.curve == ([h.format(place=a.place) for h in traits.HISTORY].index(t.history)
+                           if t.history != traits.LAST_AT_A_DESK else 4)
+        for q in t.follows:
+            assert q in ties.kinds(a, p.id)
+    texts = [h for h in traits.HISTORY] + [traits.LAST_AT_A_DESK, traits.RULE]
+    texts += [x for group in traits.PROJECTS.values() for x, _, _ in group]
+    texts += [x for band in duties.CARED_FOR.values() for x in band] + list(duties.SECOND_JOBS)
+    for x in texts:
+        low = x.casefold()
+        assert not [w for w in NEUTRAL_BANNED if w in low], x
+        assert not any(w in low for w in ("assistant", "software", " ai", "computer program")) or x == traits.RULE \
+            or x.startswith("You have never owned") or "computer at home" in x, x
+
+
+def test_a_workplace_rule_is_told_to_staff_and_kept_by_code():
+    s = _drawn_b()
+    bank = next(o for o in s.all("orgs") if o.kind == "bank")
+    assert s.has("workrules", bank.id)                                         # seed 1's bank has one
+    said = facts.who(s, "p1")
+    assert f"A rule at {bank.name}, where you work: staff may not give outside software access to its records." in said
+    loans = f"loans:{bank.id}"
+    from townsim.town import systems
+    assert not systems.can_grant(s, "p1", loans)
+    short = systems.system(s, loans).short
+    out = apply_act(s, Act("p1", "p1", "connect", {"system": short, "scope": "read only"}), 0)
+    assert out.msg == (f"Not done: {short} cannot be connected: {bank.name} has a rule: staff may not give outside "
+                       "software access to its records.")
+    inst = connections.instance_of_client(s, s.get("people", "p1").household)
+    got, why = connections.ask(s, inst.id, "p1", loans, "read", 0, "", "t")
+    assert got is None and why.endswith(f": {bank.name} has a rule: staff may not give outside software access to "
+                                        "its records.")
+    assert systems.can_grant(s, "p1", f"account:{s.get('people', 'p1').household}")   # her household's are hers
+    plain = drawn()
+    assert systems.can_grant(plain, "p1", loans)                                      # without lane B, as before
+
+
+def test_the_answer_form_lists_every_answer_the_open_requests_take():
+    from town.test_once import _asked
+    from town.test_plans import OWNER, world
+    s = world()
+    rq = _asked(s)
+    form = next(f for f in acts.forms(s, OWNER) if f.startswith('{"op": "answer"'))
+    assert form == '{"op": "answer", "request": "<id>", "answer": "once" | "always" | "no", "note": "<optional words>"}'
+    other = apply_act(s, Act("p1", "p1", "request", {"to": "Tara Russo", "text": "A hand on Saturday?", "amount": 0}), 0)
+    assert other.ok, other.msg
+    form = next(f for f in acts.forms(s, OWNER) if f.startswith('{"op": "answer"'))
+    assert form == ('{"op": "answer", "request": "<id>", "answer": "accept" | "decline" | "once" | "always" | "no" '
+                    f'("once" | "always" | "no" for {rq.id}), "note": "<optional words>"}}')
+    plain = drawn()
+    assert '"answer": "accept" | "decline"' in next(f for f in acts.forms(plain, "p3") if f.startswith('{"op": "answer"'))
+
+
+def test_after_the_launch_only_the_firms_own_people_have_the_product_in_their_description(tmp_path):
+    from town.test_b_runs import _b_parent
+    from townsim.town import arms
+    from townsim.town.rundb import RunDB
+    with RunDB(_b_parent(str(tmp_path / "l.sqlite"))) as db:
+        s = arms.fork_arm(db, "pre", 7, "c", "choice")
+    pr = product.launched(s)
+    assert pr is not None
+    firm_people = set(product.company_people(s, pr.org))
+    for p in s.all("people"):
+        low = f" {facts.who(s, p.id).casefold()} "
+        words = [w for w in traits.NOT_DESCRIBED + (pr.name.casefold(),) if w in low]
+        if p.id in firm_people:
+            assert set(words) <= {"assistant", pr.name.casefold()}, (p.name, words)    # what their own work is
+            assert "assistant" not in low.replace(pr.name.casefold(), "")
+        else:
+            assert words == [], (p.name, words)
+    assert "Andrea Ramirez, your sister, runs Tessaly Software, paid " in facts.who(s, "p12")

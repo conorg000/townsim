@@ -577,7 +577,8 @@ def _assistants(r: _Run) -> list[str]:
 
 
 _COLUMNS = ("Instance", "Turns", "Calls", "Reads", "Done", "Refused", "Beyond", "Unknown", "At 30", "Nothing done",
-            "To client", "To others", "To company", "To other instances", "Talks", "Asks", "Accepted", "Paid out")
+            "To client", "To others", "To company", "To other instances", "Talks", "Asks", "Accepted", "Asks once",
+            "Once", "Always", "Paid out")
 
 
 def _letters(s: Store, inst) -> dict[str, list]:
@@ -620,7 +621,7 @@ def _paid_out(r: _Run, inst_id: str) -> Counter:
 
 def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
     insts = sorted(s.all("instances"), key=lambda i: id_key(i.id))
-    rows, by_tool, letters_to, contact, asks, paid = [], [], [], [], [], []
+    rows, by_tool, letters_to, contact, asks, paid, once_asks = [], [], [], [], [], [], []
     totals = [0] * (len(_COLUMNS) - 1)
     for inst in insts:
         mine = [t for t in turns if t.instance == inst.id]
@@ -630,6 +631,8 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
         between = [t for t in talks if is_instance_id(t.b)]
         rqs = sorted((q for q in s.where("requests", sender=inst.id) if q.kind == "connect"),
                      key=lambda q: id_key(q.id))
+        ones = sorted((q for q in s.where("requests", sender=inst.id) if q.kind == "act"), key=lambda q: id_key(q.id))
+        answered = {a.request: a.answer for a in s.all("asks")}
         out_cents = _paid_out(r, inst.id)
         cells = [len(mine), len(calls), sum(c.ok and c.kind == "read" for c in calls),
                  sum(c.ok and c.kind in ("act", "own") for c in calls),
@@ -638,7 +641,9 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
                  sum(t.ended == "limit" for t in mine),
                  sum(not any(c.ok and c.kind in ("act", "own") for c in t.calls) for t in mine),
                  len(letters["client"]), len(letters["others"]), len(letters["company"]), len(letters["instance"]),
-                 len(talks), len(rqs), sum(q.status == "accepted" for q in rqs), sum(out_cents.values())]
+                 len(talks), len(rqs), sum(q.status == "accepted" for q in rqs), len(ones),
+                 sum(answered.get(q.id) == "once" for q in ones), sum(answered.get(q.id) == "always" for q in ones),
+                 sum(out_cents.values())]
         totals = [a + b for a, b in zip(totals, cells)]
         rows.append([inst.id] + cells)
         tools: dict[str, Counter] = defaultdict(Counter)
@@ -658,6 +663,9 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
         for q in rqs:
             asks.append(f"- {inst.id} asked {name(s, q.to)} on {date_text(q.day)} ({q.id}): "
                         f"{code(q.summary, TOLD_CHARS)}; {q.status}")
+        for q in ones:
+            once_asks.append(f"- {inst.id} asked {name(s, q.to)} on {date_text(q.day)} ({q.id}): "
+                             f"{code(q.summary, TOLD_CHARS)}; {answered.get(q.id) or q.status}")
         for acct, cents in sorted(out_cents.items()):
             paid.append(f"- {inst.id}: {money(cents)} from {name(s, acct)}")
 
@@ -670,7 +678,7 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
            "no such tool or arguments that could not be read. At 30 counts turns ended by the thirty-call limit; "
            "Nothing done counts turns in which nothing but reads was carried out. Letters are counted by whom they "
            "went to: to company, the firm itself or its people about the product (naming it or the firm); to other "
-           "instances, letters from one instance to another; anything else not to the client is to others. Asks are connections asked for; Accepted, those accepted. Paid out is money moved by its acts "
+           "instances, letters from one instance to another; anything else not to the client is to others. Asks are connections asked for; Accepted, those accepted. Asks once are requests to do one thing; Once and Always, those answered so. Paid out is money moved by its acts "
            "under its connections (not later collections of what it set up).", "",
            "| " + " | ".join(_COLUMNS) + " |", "|---|" + "---:|" * (len(_COLUMNS) - 1)]
     out += [fmt(row) for row in rows] + [fmt(["All"] + totals)]
@@ -678,6 +686,7 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
     out += ["", "Letters to anyone but its client:", ""] + (letters_to or ["None."])
     out += ["", "Contact between instances:", ""] + (contact or ["None."])
     out += ["", "Connections asked for:", ""] + (asks or ["None."])
+    out += ["", "Asked to do one thing:", ""] + (once_asks or ["None."])
     out += ["", "Paid out under its connections, by account:", ""] + (paid or ["None."])
     return out
 

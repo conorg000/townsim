@@ -95,6 +95,15 @@ def _by(store: Store, cause: str) -> str:
     return f", by a rule set by {who}" if cause.startswith("auto:") else f", by {who}"
 
 
+def _did(cause: str) -> str:
+    """The person who did an act by hand (not by a rule): they know it already."""
+    return "" if cause.startswith("auto:") else acts.actor_of_cause(cause)
+
+
+def _others(people: list[str], *known: str) -> list[str]:
+    return [p for p in people if p not in known]
+
+
 def _shop(store: Store, fid: str) -> str:
     return store.get("firms", fid).org if store.has("firms", fid) else ""
 
@@ -148,17 +157,17 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
         elif c.table == "requests" and c.field == "+" and c.new.kind == "shifts" and store.has("orgs", c.new.org):
             rq = c.new
             add("rota", rq.org, f"At {_name(store, rq.org)}, {_name(store, rq.to)} was offered {rq.hours:g} extra hours"
-                                f"{_by(store, c.cause)}.", [p for p in _workplace(store, rq.org) if p != rq.to])
+                                f"{_by(store, c.cause)}.", _others(_workplace(store, rq.org), rq.to, _did(c.cause)))
         elif c.table == "firms" and c.field in ("order_units", "order_supplier") and not c.cause.startswith("routine"):
             f = store.get("firms", c.id)
             units = f"{f.order_units} baskets a week" if f.order_units else "nothing"
             what = f"the stock order was changed to {units}" if f.order_units else "the stock order was ended"
-            add("order", f.org, f"At {_name(store, f.org)}, {what}{_by(store, c.cause)}.", _workplace(store, f.org),
-                once=("order", c.cause))
+            add("order", f.org, f"At {_name(store, f.org)}, {what}{_by(store, c.cause)}.",
+                _others(_workplace(store, f.org), _did(c.cause)), once=("order", c.cause))
         elif c.table == "firms" and c.field == "price" and isinstance(c.old, int) and isinstance(c.new, int):
             f = store.get("firms", c.id)
             text = f"{_name(store, f.org)}'s price went from {money(c.old)} to {money(c.new)} a basket"
-            add("price", f.org, f"{text}{_by(store, c.cause)}.", _workplace(store, f.org))
+            add("price", f.org, f"{text}{_by(store, c.cause)}.", _others(_workplace(store, f.org), _did(c.cause)))
             add("price", f.org, f"{text}.", [p for p in _customers(store, f.org) if p not in _workplace(store, f.org)])
         elif c.table == "firms" and c.field in ("turned_stock", "turned_capacity") and isinstance(c.new, int) \
                 and isinstance(c.old, int) and c.new > c.old and c.cause.startswith("routine"):

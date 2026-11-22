@@ -551,6 +551,27 @@ def positions(store: Store, pid: str) -> list[str]:
 FILLED: dict[str, Callable[[Store, str], str]] = {}
 
 
+_ANSWERS = '"accept" | "decline"'
+_ANSWERS_ONCE = '"once" | "always" | "no"'
+
+
+def _answers(store: Store, actor: str, form: str) -> str:
+    """With lane B, the answer form with every answer the open requests to `actor` can take: a request to do one
+    thing is answered once, always or no; any other, accept or decline."""
+    from townsim.town import lane_b
+    if not lane_b.installed(store):
+        return form
+    open_ = sorted((rq for rq in store.where("requests", status="open") if rq.to == actor and rq.expires >= store.day),
+                   key=lambda rq: id_key(rq.id))
+    ones = [rq.id for rq in open_ if rq.kind == "act"]
+    if not ones:
+        return form
+    if len(ones) == len(open_):
+        return form.replace(_ANSWERS, _ANSWERS_ONCE)
+    return form.replace(_ANSWERS, f'{_ANSWERS} | "once" | "always" | "no" ({_ANSWERS_ONCE} for '
+                                  f'{", ".join(ones)})')
+
+
 def forms(store: Store, actor: str) -> list[str]:
     """The written form of every operation open to the actor's positions, by `order` and
     then name, with the reader's own things in place of a placeholder that has a few known
@@ -570,6 +591,8 @@ def forms(store: Store, actor: str) -> list[str]:
         for holder, fill in FILLED.items():
             if holder in form:
                 form = form.replace(holder, fill(store, actor))
+        if spec.name == "answer":
+            form = _answers(store, actor, form)
         if spec.takes_from and form.endswith("}"):
             reads = spec.name == "read"
             some = names if reads else drawn

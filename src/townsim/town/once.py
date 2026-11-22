@@ -151,7 +151,9 @@ def check(store: Store, act: Act, rq) -> str | None:
     if inst.status != "active":
         return f"{inst.name} is {inst.status}."
     if not connections.can_grant(store, act.principal, row.system):
-        return f"you cannot connect {long_name(store, row.system)}."
+        from townsim.town.systems import rule_against
+        rule = rule_against(store, act.principal, row.system)
+        return f"you cannot connect {long_name(store, row.system)}" + (f": {rule}" if rule else ".")
     return None
 
 

@@ -300,6 +300,12 @@ def test_a_run_with_a_call_to_the_assistant_and_an_act_done_once_replays_exactly
         assert cn is not None and cn.scope == "free" and not plans.is_free(end, _sub(end))
         day = talks[0].day
         assert any(c.key.split("|")[4].startswith("seat:tk") for t in db.seat_turns("o", day) for c in t.calls)
+        from townsim.town import story
+        counts = [x for x in story.account(db, "o").split("\n") if x.startswith("| ")]
+        head = [c.strip("| ") for c in counts[0].split(" | ")]
+        row = next(x.split(" | ") for x in counts if x.startswith("| as1 "))
+        cell = {h: row[i].strip("| ") for i, h in enumerate(head)}
+        assert (cell["Asks"], cell["Asks once"], cell["Once"], cell["Always"]) == ("0", "2", "1", "1")
 
 
 # --- results in the client's own records, after the fact ---------------------------------------------------
