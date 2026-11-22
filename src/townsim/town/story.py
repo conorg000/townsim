@@ -217,6 +217,10 @@ def name(s: Store, who: str) -> str:
 
 def _the_run(r: _Run) -> list[str]:
     out = ["## The run", ""]
+    from townsim.town import arms, lane_b
+    what = arms.label(r.db.note(r.id, "arm"), lane_b.installed(r.last()))
+    if what is not None:
+        out.append(f"- Arm: {what}")
     out.append(f"- Seed: {r.seed}")
     if r.turn_days:
         first, last = r.turn_days[0], r.turn_days[-1]

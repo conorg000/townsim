@@ -489,10 +489,12 @@ def town_arms_cmd(
         rdb.get_run(parent)
         if rdb.snapshot_hash(parent, at_day) is None:
             _fail(f"run {parent!r} in {db} has no morning kept for day {at_day}")
+        from townsim.town import lane_b
         for arm in arms.ARMS:
             store = arms.fork_arm(rdb, parent, at_day, f"{prefix}-{arm}", arm, start=day0)
             subs = ", ".join(f"{s.id} {s.client}" for s in store.all("subscriptions"))
-            typer.echo(f"{prefix}-{arm}: day {at_day}" + (f"; drawn: {subs}" if subs else ""))
+            what = arms.label(arm, True) if lane_b.installed(store) else None
+            typer.echo(f"{prefix}-{arm}: day {at_day}" + (f"; {what}" if what else "") + (f"; drawn: {subs}" if subs else ""))
 
 
 @app.command("town-story")

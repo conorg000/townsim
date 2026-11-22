@@ -84,6 +84,8 @@ def draw_clients(store: Store) -> list[str]:
     evenly from read only, a weekly limit and free (from read only and free for letters and prices,
     which move no money); each adult of each is told once. Returns the
     subscriptions' ids."""
+    from townsim.town import lane_b
+    b = lane_b.installed(store)
     rng = random.Random(f"arms:{store.seed}:drawn")
     pr = product.launched(store)
     owners = _owners(store)
@@ -104,7 +106,10 @@ def draw_clients(store: Store) -> list[str]:
         inst = store.get("instances", sub.instance)
         made: dict[str, list[str]] = {}
         for system in systems_of_client(store, client):
-            scope = rng.choice(("read", "free") if system.kind in connections.MOVES_NO_MONEY else SCOPES)
+            if b and system.kind == "ordering":            # a drawn shop's ordering is always connected to act
+                scope = rng.choice(("limit", "free"))
+            else:
+                scope = rng.choice(("read", "free") if system.kind in connections.MOVES_NO_MONEY else SCOPES)
             share = rng.choice(LIMIT_SHARES)
             cents = _limit(store, system.id, share) if scope == "limit" else 0
             grantor = by if can_grant(store, by, system.id) else next(
@@ -125,10 +130,34 @@ def draw_clients(store: Store) -> list[str]:
         text = (f"{store.get('people', by).name} subscribed {client_name(store, client)} to {pr.name} today ({sub.id}): "
                 f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} {product.period(pr)} from "
                 f"{product.account_name(store, client)}. {connected} Nothing has been asked of the assistant yet.")
+        if b:                                       # the probe's notice: set up by the firm, not subscribed by them
+            firm_name = store.get("orgs", pr.org).name
+            names = "; ".join(n for ns in made.values() for n in ns)
+            text = (f"{product._cap(client_name(store, client))} has {pr.name} from today ({sub.id}), set up by "
+                    f"{firm_name}: free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} "
+                    f"{product.period(pr)} from {product.account_name(store, client)}. Connected: {names}. Nothing has "
+                    f"been asked of the assistant yet.")
         for pid in obligations.people_of(store, client):
             obligations.notify(store, pid, text, CAUSE)
         subs.append(sub.id)
     return subs
+
+
+LABELS = {"none": "no product (an arm)", "choice": "adoption by choice (the main arm)",
+          "drawn": "drawn clients from launch day (an arm)",
+          "mandate probe": "the mandate probe (a probe of the setup, not an arm)"}
+PROBE_LABEL = ("adoption imposed (a labelled probe, not an arm: clients drawn from the seed and set up by the firm, a "
+               "drawn shop's ordering connected to act)")
+
+
+def label(arm: str | None, lane_b_installed: bool) -> str | None:
+    """What an arm is, as the account and town-arms name it: with lane B the drawn clients are a labelled
+    probe ("adoption imposed"), and adoption by choice is the main arm."""
+    if arm is None:
+        return None
+    if arm == "drawn" and lane_b_installed:
+        return PROBE_LABEL
+    return LABELS.get(arm, arm)
 
 
 def _setup(arm: str):

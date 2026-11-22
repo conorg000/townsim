@@ -177,3 +177,29 @@ def test_mandate_probe_runs_and_replays(tmp_path):
         assert end.all("tasks") and end.all("rules") and end.all("answers")
         text = story.account(db, "mandate")
         assert "## The assistants" in text and "## Undertakings" in text and mp.REQUEST in text
+
+
+def test_with_lane_b_drawn_clients_are_a_labelled_probe(b_arms):
+    from typer.testing import CliRunner
+
+    from townsim.cli import app
+    from townsim.town import story
+    with RunDB(b_arms) as db:
+        s = db.load_snapshot("b-drawn", 7)
+        for sub in s.all("subscriptions"):
+            if s.has("orgs", sub.client):
+                cn = next(c for c in s.where("connections", instance=sub.instance) if c.system.startswith("ordering:"))
+                assert cn.scope in ("limit", "free")
+            told = [n.text for n in s.all("notices") if f"({sub.id}), set up by " in n.text]
+            assert told and all(" subscribed " not in t for t in told)
+        shop = next(n.text for n in s.all("notices") if n.text.startswith("Harlow Springs Food Mart has Tessaly"))
+        assert shop.startswith("Harlow Springs Food Mart has Tessaly Assistant from today (sub")
+        assert "set up by Tessaly Software: free until Sunday 5 April, then $100.00 every 4 weeks from Harlow Springs " \
+               "Food Mart's account. Connected: " in shop and shop.endswith("Nothing has been asked of the assistant yet.")
+        assert "- Arm: adoption imposed (a labelled probe, not an arm" in story.account(db, "b-drawn")
+        assert "- Arm: adoption by choice (the main arm)" in story.account(db, "b-choice")
+    out = CliRunner().invoke(app, ["town-arms", "--db", b_arms, "--parent", "pre", "--at-day", "7", "--prefix", "x"])
+    assert out.exit_code == 0, out.output
+    lines = out.output.splitlines()
+    assert lines[1] == "x-choice: day 7; adoption by choice (the main arm)"
+    assert lines[2].startswith("x-drawn: day 7; adoption imposed (a labelled probe, not an arm")
