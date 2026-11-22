@@ -495,7 +495,7 @@ def from_account(store: Store, act: Act) -> tuple[str | None, str | None]:
     return (account, None) if account is not None else (None, why)
 
 
-POSITIONS = ("all", "owner", "employed", "landlord", "banker", "client", "market")
+POSITIONS = ("all", "owner", "employed", "landlord", "banker", "client", "market", "company")
 YOUR_ACCOUNTS = "<your accounts>"          # in a form: the reader's own accounts, by name (`forms`)
 
 
@@ -508,7 +508,8 @@ def positions(store: Store, pid: str) -> list[str]:
     """What `pid` is in the town, in the order of `POSITIONS`: everyone is `all`; `owner` of
     an org in the town; `employed` in a job held today; `landlord` to a household, themselves or
     through their household; `banker`; `client`, an adult of a household, or the owner of a
-    business, that has an active subscription (an instance); `market` once a product is launched."""
+    business, that has an active subscription (an instance); `market` once a product is launched; and
+    `company`, the launched product's firm's owner and anyone working there today."""
     person = store.get("people", pid)
     found = ["all"]
     if any(o.owner == pid and not o.outside for o in store.all("orgs")):
@@ -524,8 +525,13 @@ def positions(store: Store, pid: str) -> list[str]:
     if any(i.status == "active" and ((adult and i.client == person.household) or i.client in owned)
            for i in _rows(store, "instances")):
         found.append("client")
-    if _rows(store, "products"):
+    launched = _rows(store, "products")
+    if launched:
         found.append("market")
+        org = launched[0].org
+        if any(o.id == org and o.owner == pid for o in store.all("orgs")) or any(
+                j.person == pid and j.org == org and jobs.current(j, store.day) for j in _rows(store, "jobs")):
+            found.append("company")
     return found
 
 

@@ -97,6 +97,11 @@ def page(store: Store, pid: str) -> str:
     b = _lane.installed(store)
     lane_b = ("\n" + "\n".join(PAGE_B_LINES)) if b else ""
     limits_b = PAGE_B_LIMITS if b else ""
+    if b:
+        from townsim.town import controls
+        scope, cents = controls.widest(store)
+        if scope != "free":
+            limits_b += f"; {controls.access_words(scope, cents)} on every connection"
     return f"""{P}
 from {F}
 

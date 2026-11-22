@@ -997,7 +997,7 @@ GIVES_AN_ID = {"standing_payment", "request", "offer_job", "offer_shifts", "prop
 NAMES_NO_ID = {"pay", "stop", "message", "answer", "read", "write_notes",   # a letter's id is shown to no one
                "dismiss", "move_money", "order_stock", "quit", "set_price", "set_staff_pay", "work_extra_hours",
                "repay", "set_rent", "serve_notice", "connect", "disconnect", "read_page", "register_business", "delete_rule",
-               "look_up", "publish"}
+               "look_up", "publish", "set_product"}
 
 
 def test_every_confirmation_carries_its_id_within_twelve_words():

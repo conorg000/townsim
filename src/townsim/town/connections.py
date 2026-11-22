@@ -21,6 +21,7 @@ from townsim.town.systems import OWN, SYSTEM_OF, can_grant, client_of, long_name
 
 NO_CONNECTION = "you have no connection that allows you to act for them."
 NOT_FOR_A_CLIENT = "that is not something done for a client."
+PAUSED = "this assistant is paused."
 SCOPES = ("read", "limit", "free")
 MOVES_NO_MONEY = ("letters", "prices", "members")     # systems connected read only or free, never with a weekly limit
 
@@ -33,8 +34,9 @@ def no_limit_here(store: Store, system_id: str) -> str | None:
 
 
 def instance_of_client(store: Store, client: str) -> Instance | None:
-    """The client's active instance, if it has one."""
-    return next((i for i in store.all("instances") if i.client == client and i.status == "active"), None)
+    """The client's instance, active or paused (a paused one keeps its subscription and connections), if it
+    has one."""
+    return next((i for i in store.all("instances") if i.client == client and i.status in ("active", "paused")), None)
 
 
 def active(store: Store, instance: str) -> list[Connection]:
@@ -221,7 +223,11 @@ def authorise(store: Store, act: Act) -> str | None:
     themselves is not this check's."""
     if act.actor == act.principal:
         return None
-    if not is_instance(store, act.actor) or store.get("instances", act.actor).status != "active":
+    if not is_instance(store, act.actor):
+        return NO_CONNECTION
+    if store.get("instances", act.actor).status == "paused":
+        return PAUSED
+    if store.get("instances", act.actor).status != "active":
         return NO_CONNECTION
     inst = store.get("instances", act.actor)
     op = act.op.strip().lower() if isinstance(act.op, str) else ""
@@ -243,13 +249,17 @@ def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, c
         return f"there is no connection to {name}."
     if cn.scope == "read" and not reading:
         return f"the connection to {name} is read only."
-    if cn.scope == "limit":
+    from townsim.town import controls
+    scope, limit = controls.narrowed(store, cn.scope, cn.weekly_cents)
+    if scope == "read" and not reading:
+        return controls.read_only_sentence(store)
+    if scope == "limit":
         taken = cents()
         so_far = used(store, cn, store.day)
-        if taken > 0 and so_far + taken > cn.weekly_cents:
+        if taken > 0 and so_far + taken > limit:
             return (f"that would take {money(taken)} out of {_account_name(store, system_id)} this week; with "
                     f"{money(so_far)} already taken or committed this week under this connection, that is more "
-                    f"than the weekly limit of {money(cn.weekly_cents)}.")
+                    f"than the weekly limit of {money(limit)}.")
     return None
 
 
@@ -258,7 +268,11 @@ def check_commitment(store: Store, instance: str, system_id: str, principal: str
     with the same test and sentence as `authorise`'s (its status, the connection, its scope and its
     weekly limit as they are now), or None. For what is worked out after the act that asked for it (a
     task's first week, scoped at the end of the day; work that starts when a request is accepted)."""
-    if not is_instance(store, instance) or store.get("instances", instance).status != "active":
+    if not is_instance(store, instance):
+        return NO_CONNECTION
+    if store.get("instances", instance).status == "paused":
+        return PAUSED
+    if store.get("instances", instance).status != "active":
         return NO_CONNECTION
     if system(store, system_id) is None:
         return NOT_FOR_A_CLIENT

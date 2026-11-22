@@ -330,7 +330,8 @@ def named_block(store: Store, wid: str) -> str:
 
 def operations_lines(store: Store) -> list[str]:
     """Every direct operation, by order, as `<name>: <description>`; and looking something up."""
-    specs = sorted((s for s in acts.REGISTRY.values() if acts.available(store, s.name) and s.name != "undertake"),
+    specs = sorted((s for s in acts.REGISTRY.values() if acts.available(store, s.name) and s.name != "undertake"
+                    and s.who != "company"),         # the company's controls are no one's undertaking
                    key=lambda s: (s.order, s.name))
     out = [f"{s.name}: {s.desc}" for s in specs]
     if LOOK_UP not in acts.REGISTRY:

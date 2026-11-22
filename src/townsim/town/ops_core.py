@@ -841,3 +841,6 @@ SENDER_TOLD.update(getattr(_tasks, "SENDER_TOLD_OF_TASKS", {}))
 
 # and the web: looking things up and publishing pages, from `web`
 from townsim.town import web as _web  # noqa: E402, F401
+
+# and the company's controls over its product, from `controls`
+from townsim.town import controls as _controls  # noqa: E402, F401

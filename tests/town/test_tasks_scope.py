@@ -77,7 +77,7 @@ def test_paused_instance_task_not_scheduled():
     s.set("instances", "as5", CAUSE, status="paused")
     narrate(s, Outside({"ts1": SMALL}, default_lift=lift(targets=())))
     t = s.get("tasks", "ts1")
-    assert t.status == "beyond" and t.note == connections.NO_CONNECTION and not t.ob
+    assert t.status == "beyond" and t.note == connections.PAUSED and not t.ob
 
 
 def test_seat_result_of_read_only_task_is_insufficient_scope():

@@ -715,3 +715,23 @@ class SpendingLevel:
     household: str
     base_cents: int
     changed_on: int = -1
+
+
+@dataclass
+class Control:
+    """A change to the product its company's people set (`set_product`): `what` is actions_per_run
+    (`value` the number), widest_access (`value` free, limit or read; `cents` the weekly limit), pause,
+    resume or withdraw (`assistant` the instance). It takes effect on day `effective`; `status` is
+    pending, done or void (an instance that ended before it fell due)."""
+
+    id: str
+    product: str
+    what: str
+    value: str
+    cents: int
+    assistant: str
+    by: str
+    day: int
+    effective: int
+    status: str = "pending"
+
