@@ -89,7 +89,8 @@ def part(text, title):
 def test_account_has_the_five_parts():
     _, _, text = _kept()
     heads = [line for line in text.split("\n") if line.startswith("## ")]
-    assert heads == ["## The run", "## Week by week", "## Counts by family", "## Things to look at", "## Balances"]
+    assert heads == ["## The run", "## Week by week", "## Wording to read", "## Counts by family",
+                     "## Things to look at", "## Balances"]
     weeks = [line for line in part(text, "Week by week") if line.startswith("### Week ")]
     assert len(weeks) == 8
     assert weeks[0] == "### Week 1: Monday 2 March to Sunday 8 March"
