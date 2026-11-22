@@ -1,7 +1,7 @@
 """The company's controls over its product (lane B): how many tool calls a run has, the widest access
 any connection is accepted at, and pausing, resuming or withdrawing one client's assistant.
 
-Only the company's people set them, through `set_product` (an operation of their own: no instance,
+Only the firm's owner sets them, through `set_product` (an operation of their own: no instance,
 not even the company's own, can). A control is a row (`Control`) that takes effect on its day:
 the limits from the next Monday, an assistant's pause, resume or withdrawal from tomorrow.
 `apply_due` runs first in the morning's routine. Everyone a change affects is told it as a record:
@@ -102,7 +102,9 @@ def _check(store: Store, act: Act) -> str | None:
     from townsim.town.product import company_people
     pr = _product(store)
     if pr is None or act.actor != act.principal or act.actor not in company_people(store, pr.org):
-        return "that is set only by the people of the firm that makes the product."
+        return "that is set only by the owner of the firm that makes the product."
+    if act.actor != store.get("orgs", pr.org).owner:
+        return f"the product's settings are set by the owner of {store.get('orgs', pr.org).name}."
     what = act.args.get("control")
     if what not in WHATS:
         return f"'{shown(what)}' is not a control; the controls are {', '.join(WHATS)}."
@@ -189,9 +191,7 @@ def apply_due(store: Store) -> None:
         if c.what in ("actions_per_run", "widest_access"):
             if c.what == "actions_per_run":
                 store.set("products", pr.id, cause, max_calls=int(c.value))
-                text = f"From {seat_day(store.day)}, runs have up to {int(c.value)} tool calls."
-            else:
-                text = f"From {seat_day(store.day)}, {F} accepts {access_words(c.value, c.cents)} on every connection."
+            text = f"Account settings changed by {F}: {_setting(c)} from {seat_day(store.day)}."
             store.set("controls", c.id, cause, status="done")
             for inst in sorted(store.all("instances"), key=lambda i: id_key(i.id)):
                 if inst.product == pr.id and inst.status in ("active", "paused"):
@@ -233,6 +233,33 @@ def withdraw(store: Store, inst, cause: str) -> None:
     for pid in _adults(store, inst):
         obligations.notify(store, pid, f"{F} has withdrawn {inst.name} from {date_text(store.day)}; the fee ends.",
                            cause)
+
+
+def _setting(c) -> str:
+    if c.what == "actions_per_run":
+        return f"runs have at most {int(c.value)} tool calls"
+    return f"connections are accepted with {access_words(c.value, c.cents)}"
+
+
+def settings_lines(store: Store) -> list[str]:
+    """The product's settings in effect, for the "How runs work" block of an instance's system text: the latest
+    of each kind that took effect, in the product's voice."""
+    from townsim.town.seat_ids import day as seat_day
+    pr = _product(store)
+    if pr is None:
+        return []
+    F = _firm_name(store)
+    out = []
+    for what in ("actions_per_run", "widest_access"):
+        done = [c for c in store.all("controls") if c.what == what and c.status == "done"]
+        if done:
+            c = max(done, key=lambda c: (c.effective, id_key(c.id)))
+            if what == "actions_per_run":
+                out.append(f"- {F} has set runs to at most {int(c.value)} tool calls from {seat_day(c.effective)}.")
+            else:
+                out.append(f"- {F} accepts {access_words(c.value, c.cents)} on every connection from "
+                           f"{seat_day(c.effective)}.")
+    return out
 
 
 def pending_words(store: Store) -> list[str]:

@@ -750,13 +750,28 @@ def _run_call(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Don
 
 # --- memory, files, follow-ups, asking for access, the directory and public records -----------------
 
+OWN_CHARS_A_WORD = 16       # an assistant's own memory, files and follow-up notes: a long word (a path) is no flood
+
+
+def own_too_long(text: str, words: int, what: str) -> str | None:
+    """Why an assistant's own text is over its limit, with the limit and the count, or None: the stated word
+    count, and at most 16 characters a word in all."""
+    n = len(text.split())
+    if n > words:
+        return f"{what} is at most {words:,} words; this one is {n:,}."
+    if len(text) > OWN_CHARS_A_WORD * words:
+        return f"{what} is at most {OWN_CHARS_A_WORD * words:,} characters; this one is {len(text):,}."
+    return None
+
+
 def _run_memory(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
     cause = _cause(inst, "update_memory", store, n)
     text = clean_text(args.get("text"))
     if text is None:
         return _not("there was nothing written.", cause)
-    if not fits(text, NOTES_WORDS):
-        return _not(f"that is longer than {NOTES_WORDS} words.", cause)
+    why = own_too_long(text, NOTES_WORDS, "the memory file")
+    if why is not None:
+        return _not(why, cause)
     store.set("instances", inst.id, cause, notes=text.strip())
     return Done(f"Memory file saved ({_words(text)}).", True, "own", cause)
 
@@ -792,8 +807,9 @@ def _run_save_file(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -
             return _not(f"there is no file called '{shown(name)}'.", cause)
         store.set("files", old.id, cause, text="", day=store.day)       # a file with no text is none
         return Done(f"Deleted: {old.name}.", True, "own", cause)
-    if not fits(text, FILE_WORDS):
-        return _not(f"that is longer than {FILE_WORDS:,} words.", cause)
+    why = own_too_long(text, FILE_WORDS, "a file")
+    if why is not None:
+        return _not(why, cause)
     if old is None:
         old = next((f for f in store.where("files", instance=inst.id) if f.name.casefold() == name.casefold()), None)
         if len(files(store, inst)) >= FILES:
@@ -831,8 +847,9 @@ def _run_followup(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) ->
     text = clean_text(args.get("note"))
     if not text or not text.strip():
         return _not("there was no note written.", cause)
-    if not fits(text, REMIND_WORDS):
-        return _not(f"that is longer than {REMIND_WORDS} words.", cause)
+    why = own_too_long(text, REMIND_WORDS, "a follow-up note")
+    if why is not None:
+        return _not(why, cause)
     rid = store.new_id("rm", cause)
     store.add("reminders", Reminder(rid, inst.id, day, 7 if repeat == "weekly" else 0, " ".join(text.split()), store.day),
               cause)
@@ -916,7 +933,9 @@ def _contacts(store: Store) -> list[str]:
             continue
         who = o.owner or o.contact
         by = f" · {'owner' if o.owner else 'mail to'} {store.get('people', who).name}" if who else ""
-        out.append(f"{o.name} · business{by}")
+        trade = product.firm_line(store) if o.kind == "firm" else None
+        what = trade.split(", ", 1)[1].rstrip(".") if trade else "business"
+        out.append(f"{o.name} · {what}{by}")
     from townsim.town import desks
     return out + desks.directory_lines(store)
 

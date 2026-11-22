@@ -193,7 +193,7 @@ def test_memory_files_followups_bounds():
                         call("schedule_followup", date="2026-03-02", note="past"),
                         call("schedule_followup", date="2026-03-13", repeat="weekly", note="Check the rent.")])
     r = [c.result for c in t.calls]
-    assert json.loads(r[0]) == {"status": "declined", "error": "too_long", "message": "That is longer than 600 words."}
+    assert json.loads(r[0]) == {"status": "declined", "error": "too_long", "message": "The memory file is at most 600 words; this one is 601."}
     assert r[1] == "Memory file saved (4 words)."
     assert r[2] == "Saved: f0 (1 word)." and r[21] == "Saved: f19 (1 word)."
     assert json.loads(r[22])["message"] == "There are 20 files already, the most kept."

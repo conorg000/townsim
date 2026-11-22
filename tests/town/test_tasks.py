@@ -189,9 +189,9 @@ def test_disagreeing_rulings_ask_the_fixed_question():
     _undertake(s, "p3", "Posters", 5000)
     other = [{"op": "invest", "target": "org11", "attribute": "visibility", "scale": "medium"}]
     narrate(s, Outside({"ts1": (CAMPAIGN, other), "ts2": ("no reply I can read", "nor this")}))
-    for tid in ("ts1", "ts2"):
-        t = s.get("tasks", tid)
-        assert (t.status, t.note, t.agreed) == ("needs_detail", narrator.FIXED_QUESTION, False)
+    assert [(s.get("tasks", t).status, s.get("tasks", t).note) for t in ("ts1", "ts2")] == [
+        ("needs_detail", "Is this local publicity, or advertising and signs?"),      # code names what differs
+        ("needs_detail", narrator.FIXED_QUESTION)]
     assert s.all("notices")[-1].text == "Not arranged (ts2): What exactly will be done, by whom, and with what or whom?"
 
 

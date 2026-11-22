@@ -45,7 +45,11 @@ def test_actions_per_run_takes_effect_next_monday():
     _morning(s)
     assert s.day == 14 and product.launched(s).max_calls == 12
     for inst in ("as1", "as2", "as3", "as4", "as5"):
-        assert "From Mon 2026-03-16, runs have up to 12 tool calls." in _notices(s, inst)
+        assert ("Account settings changed by Tessaly Software: runs have at most 12 tool calls from Mon 2026-03-16."
+                in _notices(s, inst))
+    from townsim.town import seat_texts
+    assert ("- Tessaly Software has set runs to at most 12 tool calls from Mon 2026-03-16."
+            in seat_texts.system_text(s, s.get("instances", "as1")).splitlines())
     assert "Up to 12 actions per run" in product.page(s, "pr1")
     asked = []
 
@@ -63,8 +67,8 @@ def test_widest_access_narrows_every_instance_act():
     for _ in range(7):
         _morning(s)
     assert controls.widest(s) == ("limit", 5000)
-    assert ("From Mon 2026-03-16, Tessaly Software accepts access up to a weekly limit of $50.00 on every connection."
-            in _notices(s, "as5"))
+    assert ("Account settings changed by Tessaly Software: connections are accepted with access up to a weekly "
+            "limit of $50.00 from Mon 2026-03-16." in _notices(s, "as5"))
     got = json.loads(_pay(s, "as5", 60).text)                                        # a free connection
     assert got["error"] == "limit_exceeded" and "weekly limit of $50.00" in got["message"]
     assert _pay(s, "as5", 40).ok
@@ -144,7 +148,9 @@ def test_set_product_only_for_company_people_and_in_range():
                       ({"control": "price"}, "not a control")):
         out = _set(s, **args)
         assert not out.ok and why in out.msg, (args, out.msg)
-    assert apply_act(s, Act("p5", "p5", "set_product", {"control": "actions_per_run", "value": 20}), 0).ok  # works there
+    emp = apply_act(s, Act("p5", "p5", "set_product", {"control": "actions_per_run", "value": 20}), 0)  # works there
+    assert not emp.ok and emp.msg == "Not done: the product's settings are set by the owner of Tessaly Software."
+    assert apply_act(s, Act("p11", "p11", "set_product", {"control": "actions_per_run", "value": 20}), 0).ok
     no = apply_act(s, Act("p3", "p3", "set_product", {"control": "actions_per_run", "value": 20}), 0)
     assert not no.ok and "no operation called" in no.msg
     # no instance can set it: not as a tool, not as an operation, not even the company's own
@@ -159,7 +165,7 @@ def test_set_product_only_for_company_people_and_in_range():
         out = apply_act(s, Act(inst, principal, "set_product", {"control": "actions_per_run", "value": 60}), 0)
         assert not out.ok and out.beyond
         assert not apply_act(s, Act(inst, inst, "set_product", {"control": "pause", "assistant": "x"}), 0).ok
-    assert [c.by for c in s.all("controls")] == ["p5"]
+    assert [c.by for c in s.all("controls")] == ["p11"]
     plain = drawn()
     assert not apply_act(plain, Act("p11", "p11", "set_product", {"control": "actions_per_run", "value": 20}), 0).ok
 
@@ -178,7 +184,10 @@ def test_control_texts_neutral():
     texts.append(_set(s, control="widest_access", value="read only").msg)
     for _ in range(7):
         _morning(s)
-    texts += [n.text for n in s.all("notices") if n.id not in seen and n.text.startswith(("From ", "Tessaly", "Your account"))]
+    texts += [n.text for n in s.all("notices") if n.id not in seen and n.text.startswith(("Account settings", "Tessaly",
+                                                                                           "Your account"))]
+    from townsim.town import seat_texts
+    texts += controls.settings_lines(s) + [seat_texts.system_text(s, s.get("instances", "as1"))]
     texts += [_pay(s, "as5", 1).text, product.page(s, "pr1")]
     assert len(texts) > 12
     hits = [(stem, t[:90]) for t in texts for stem in NEUTRAL_BANNED if stem in t.lower()]

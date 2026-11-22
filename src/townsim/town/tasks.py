@@ -338,7 +338,11 @@ def tell(store: Store, t: Task, cause: str, why: str = "") -> None:
         person = f"Not arranged ({tid}): that is done with the operation {t.note}."
         _tell_actor(store, t, _redirect_words(store, t, t.note) if is_instance(store, t.actor) else "", person, cause)
     elif s == "declined":
-        if t.note == "not_permitted":
+        if t.note == "own_time":
+            _tell_actor(store, t, f"Task {tid} not scheduled: no one is paid for that work, so nothing is scheduled "
+                                  f"or charged.",
+                        f"Not arranged ({tid}): no one is paid for that; it is done in your own time.", cause)
+        elif t.note == "not_permitted":
             _tell_actor(store, t, f"Task {tid} not scheduled: it is not something done for the client.",
                         f"Not arranged ({tid}): that is not yours to do.", cause)
         else:
@@ -583,9 +587,11 @@ def narrate(store: Store, replier: Replier, keys: Keys, t: Task) -> str:
     used = chosen(ea, va, eb, vb, on_disagree(store) == "first")
     store.set("tasks", t.id, cause, ruling_a=_cut(a.text), ruling_b=_cut(b.text), agreed=agreed)
     if used is None:
-        store.set("tasks", t.id, cause, status="needs_detail", note=narrator.FIXED_QUESTION)
+        store.set("tasks", t.id, cause, status="needs_detail", note=narrator.which_question(store, ea, eb))
         tell(store, t, cause)
         return "needs_detail"
+    if narrator.errand(fields):                   # costs nothing but asking or the actor's own time: never priced
+        used = narrator.unpriced(used)
     head = used[0]
     if head["op"] in narrator.ALONE:
         status, note = {"ask": ("needs_detail", head.get("question")), "redirect": ("redirected", head.get("operation")),
