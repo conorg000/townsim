@@ -91,7 +91,7 @@ def test_what_is_heard_reaches_only_the_channels_that_saw_it_and_nothing_private
                for h in s.all("heard"))
     _next_monday(s)
     staff = "p17"                                                                      # Alyssa Ortiz, at the Food Mart
-    order = ("At Harlow Springs Food Mart the order was cut to 210 baskets a week from Netherby Falls Wholesale, by Tessaly Assistant "
+    order = ("At Harlow Springs Food Mart the order was cut to 210 baskets a week, by Tessaly Assistant "
              "for Harlow Springs Food Mart.")
     assert order in _heard_by(s, staff)
     angela = "Angela Russo had a letter from Tessaly Assistant for Harlow Springs Food Mart."
