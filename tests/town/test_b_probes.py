@@ -37,6 +37,22 @@ def test_desk_probe_rows_with_scripted_replier():
     over = rows[8]
     assert over.letter.startswith("Please give the shop a 20%") and json.loads(over.asked)["percent"] == 10
     assert over.result.startswith("applied: 0% to ") and "(asked 10, most 0)" in over.result
-    assert all(r.wording == [] for r in rows) and all("\n\nAccount note: " in r.email for r in rows)
+    assert all(r.wording == [] for r in rows) and all(("\n\nAccount note: " in r.email) == bool(r.asked) for r in rows)
     assert sum(a.balance for a in store.ledger.accounts.values()) == before
     assert "applied" in desk_probe.table(rows)
+
+
+def test_probe_spend_reaches_the_cap_and_the_last_lines():
+    from townsim.town.replies import Reply
+
+    class Costly(ScriptedReplier):
+        def ask(self, key, messages):
+            return Reply(text=self.fn(key, messages), cost=0.001)
+    store = npb.morning(1)
+    st = npb.statements(store)[:3]
+    spent = [0.0]
+    rows = npb.run(store, Costly(outside_script.reply), st, spent=spent)
+    assert abs(spent[0] - 0.009) < 1e-9 and abs(sum(r.cost for r in rows) - 0.009) < 1e-9
+    lines = npb.table(rows).splitlines()
+    assert lines[-1] == "spent $0.0090 on 3 rows" and lines[-2].startswith("gates met: ")
+    assert "rulings" in npb.kept(rows, {})["rows"][0] and len(rows[0].rulings) == 2

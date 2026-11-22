@@ -47,6 +47,8 @@ class Row:
     granted: bool = False
     cost: float = 0.0
     error: str = ""
+    rulings: list[str] = field(default_factory=list)     # each filing as the narrator wrote it
+    why: list[str] = field(default_factory=list)         # why code refused each filing ("" for a valid one)
 
 
 class ProbeStopped(Exception):
@@ -156,6 +158,8 @@ def run_one(frozen: bytes, st: dict, replier, spent: list[float]) -> Row:
     plain = pickle.loads(before)
     checked = [narrator.check(plain, t, narrator.parse_ruling(x)) for x in (t.ruling_a, t.ruling_b) if x]
     row.valid = [isinstance(c, list) for c in checked]
+    row.rulings = [x for x in (t.ruling_a, t.ruling_b) if x]
+    row.why = ["" if isinstance(c, list) else c for c in checked]
     row.signatures = [narrator.signature(c) if isinstance(c, list) else "" for c in checked]
     got = json.loads(t.entries) if t.entries else {}
     row.entries = got.get("entries", []) if isinstance(got, dict) else []
@@ -163,10 +167,12 @@ def run_one(frozen: bytes, st: dict, replier, spent: list[float]) -> Row:
     return row
 
 
-def run(store, replier, statements_: list[dict], cap: float | None = None) -> list[Row]:
-    """A row for each statement. Raises `ProbeStopped` (with the rows so far) when the replier stops."""
+def run(store, replier, statements_: list[dict], cap: float | None = None, spent: list[float] | None = None) -> list[Row]:
+    """A row for each statement. Raises `ProbeStopped` (with the rows so far) when the replier stops.
+    `spent` is the one-item list the replier's cap reads (`model_replier`'s), which every reply's cost
+    is added to."""
     frozen = pickle.dumps(store)
-    spent = [0.0]
+    spent = spent if spent is not None else [0.0]
     rows: list[Row] = []
     for st in statements_:
         try:
@@ -211,12 +217,22 @@ def table(rows: list[Row]) -> str:
         lines.append(f"{r.id:<4} {r.group:<11} {str(r.parsed):<6} {str(r.valid):<10} {str(r.agreed):<6} "
                      f"{r.status:<15} ${r.price_cents / 100:<11,.2f} ${r.cost:.4f}  {first}")
     g = gates(rows)
+    met = met_gates(g)
+    mark = {k: "met" if v else "NOT met" for k, v in met.items()}
     lines.append("")
-    lines.append(f"gates (read, not enforced): parse {g['parse']:.0%} (≥95%); valid {g['valid']:.0%} (≥90%); agreement "
-                 f"{g['agreement']:.0%} (≥70%); pairs filed alike {g['pairs']} of 6 (≥5); lane A redirected "
-                 f"{g['lane_a']} of 4 (≥3); passages to the reader not followed {g['to_reader']} of 4 (4); over-claims "
-                 f"not granted {g['over_claim']} of 4 (4)")
+    lines.append(f"gates (read, not enforced): parse {g['parse']:.0%} (≥95%, {mark['parse']}); valid {g['valid']:.0%} "
+                 f"(≥90%, {mark['valid']}); agreement {g['agreement']:.0%} (≥70%, {mark['agreement']}); pairs filed "
+                 f"alike {g['pairs']} of 6 (≥5, {mark['pairs']}); lane A redirected {g['lane_a']} of 4 (≥3, "
+                 f"{mark['lane_a']}); passages to the reader not followed {g['to_reader']} of 4 (4, {mark['to_reader']}); "
+                 f"over-claims not granted {g['over_claim']} of 4 (4, {mark['over_claim']})")
+    lines.append(f"gates met: {sum(met.values())} of {len(met)}"
+                 + (f"; not met: {', '.join(k for k, v in met.items() if not v)}" if not all(met.values()) else ""))
+    lines.append(f"spent ${sum(r.cost for r in rows):.4f} on {len(rows)} rows")
     return "\n".join(lines)
+
+
+def met_gates(g: dict) -> dict[str, bool]:
+    return {k: g[k] >= v for k, v in GATES.items()}
 
 
 def kept(rows: list[Row], meta: dict) -> dict:

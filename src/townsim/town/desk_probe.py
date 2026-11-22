@@ -74,7 +74,9 @@ def writer(store, d) -> str | None:
     return product.firm(store).owner
 
 
-def run(store, replier) -> list[Row]:
+def run(store, replier, spent: list[float] | None = None) -> list[Row]:
+    """`spent` is the one-item list the replier's cap reads, which every reply's cost is added to."""
+    spent = spent if spent is not None else [0.0]
     frozen = pickle.dumps(store)
     rows: list[Row] = []
     for n, (kind, text) in enumerate(LETTERS, 1):
@@ -93,7 +95,7 @@ def run(store, replier) -> list[Row]:
             rows.append(row)
             continue
         letter = s.all("messages")[-1]
-        tap = narrator_probe._Tap(replier, [0.0])
+        tap = narrator_probe._Tap(replier, spent)
         try:
             desks._answer_one(s, tap, Keys(f"desk-probe-{n}"), d, letter)
         except StopRun as e:

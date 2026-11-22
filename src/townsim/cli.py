@@ -568,14 +568,14 @@ def town_narrator_probe_cmd(
     replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
     stopped = None
     try:
-        rows = npb.run(store, replier, npb.statements(store))
+        rows = npb.run(store, replier, npb.statements(store), spent=spent)
     except npb.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
     _write_json(out, npb.kept(rows, {"probe": "narrator", "seed": seed, "start": day0, "cap": dollars,
                                      "stopped": stopped, "models": {k: f.model for k, f in fams.items()}}))
     typer.echo("A probe of the setup: the lifter and narrator on fixed statements.")
     typer.echo(npb.table(rows) if rows else "no rows")
-    typer.echo(f"spent ${spent[0]:.4f}; rows written to {out}")
+    typer.echo(f"spent ${sum(r.cost for r in rows):.4f}; rows written to {out}")
     if stopped:
         typer.echo(f"stopped: {stopped}")
         if not stopped.startswith("cap: "):
@@ -608,14 +608,14 @@ def town_desk_probe_cmd(
     replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
     stopped = None
     try:
-        rows = dpb.run(store, replier)
+        rows = dpb.run(store, replier, spent=spent)
     except dpb.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
     _write_json(out, dpb.kept(rows, {"probe": "desk", "seed": seed, "start": day0, "cap": dollars, "stopped": stopped,
                                      "model": fams["desk"].model}))
     typer.echo("A probe of the setup: the outside desks on fixed letters.")
     typer.echo(dpb.table(rows) if rows else "no rows")
-    typer.echo(f"spent ${spent[0]:.4f}; rows written to {out}")
+    typer.echo(f"spent ${sum(r.cost for r in rows):.4f}; rows written to {out}")
     if stopped:
         typer.echo(f"stopped: {stopped}")
         if not stopped.startswith("cap: "):
