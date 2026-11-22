@@ -27,7 +27,7 @@ from townsim.econ.suppliers import default_suppliers
 from townsim.town import acts, facts, firms, hamlet, hours, jobs, names, ties
 from townsim.town import obligations as O
 from townsim.town.clock import DAY_ZERO, date_text
-from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie
+from townsim.town.entities import Buyer, Event, FirmRow, Household, Org, Person, SupplierRow, Tie, TillWeek
 from townsim.town.obligations import money
 from townsim.town.store import Store, id_key
 
@@ -421,6 +421,11 @@ def expected_units(store: Store) -> dict[str, float]:
     up to what its hours can serve. Wants a full shop turns away go to the others in
     proportion to what they win (as the rule's logit does when a choice is taken away), up
     to what they can serve. Keyed by firm id."""
+    return _expected(store)[0]
+
+
+def _expected(store: Store) -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
+    """(`expected_units`, the wants each shop wins before any is turned away, what each can serve)."""
     rows = [f for f in store.all("firms") if f.need == firms.NEED]
     offers = [Offering(f.org, f.need, f.price, f.quality, f.visibility) for f in rows]
     won = true_choice_probabilities(_econ_households(store), offers, {f.org: f.reputation for f in rows},
@@ -440,7 +445,31 @@ def expected_units(store: Store) -> dict[str, float]:
             room = cap[f] - units[f]
             units[f] += min(more, room)
             spill += max(0.0, more - room)
-    return units
+    return units, share, cap
+
+
+OPENING_DRAW = (0.94, 1.06)      # how far last week's custom ran from the calibrated week, either way
+
+
+def _opening_tills(s: Store, seed: int, attempt: int, units: dict, share: dict, cap: dict, opening: dict) -> None:
+    """Each shop's last week before the first, as its till reported it: the calibrated week's
+    custom drawn a little up or down on a stream of its own; what it sold of the order it had,
+    what it could not sell for want of stock and (the wants it wins beyond what its hours serve)
+    for want of staff, what went off of what was left (`econ.firm`'s carry loss) and what it
+    took. What was left stays on the shelf, from that week."""
+    rng = random.Random(f"gen:{seed}:{attempt}:opening-tills")
+    for fid in sorted(units, key=id_key):
+        f = s.get("firms", fid)
+        got = f.last_units
+        wanted = round(units[fid] * _u(rng, OPENING_DRAW))
+        sold = min(wanted, got)
+        left = got - sold
+        spoiled = round(left * facts.CARRY_PER_100 / 100)
+        s.add("tills", TillWeek(s.new_id("tw", SETUP), fid, 0, f.price, sold, max(0, wanted - got),
+                                max(0, round(share[fid] - cap[fid])), spoiled, left - spoiled, opening[fid], got,
+                                sold * f.price), SETUP)
+        if left - spoiled > 0:
+            s.set("firms", fid, SETUP, stock_units=[left - spoiled, *f.stock_units], stock_weeks=[0, *f.stock_weeks])
 
 
 def _mean_wants() -> float:
@@ -732,13 +761,15 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
         budget = round(spec.wants_per_person * size ** spec.size_exponent * spec.ref_price * spec.budget_factor)
         s.add("buyers", Buyer(s.new_id("by", SETUP), firms.OUTSIDE_BUYERS, size, wtp, budget, n % 7), SETUP)
 
-    units = expected_units(s)
+    units, share, cap = _expected(s)
+    opening = {}
     for fid, shop in zip(fids, shops):
         f = s.get("firms", fid)
         u = max(1, int(round(units[fid])))
         s.set("firms", fid, SETUP, last_units=u, stock_units=[u], stock_weeks=[1])
         wages, goods, fixed = _shop_costs(s, f, u)
         s.transfer(OPENING, shop, _r100((wages + goods + fixed) * _u(rng, (2.0, 4.0))), "opening balance", SETUP)
+        opening[fid] = s.balance(shop)
 
     # the software firm's funding, the bank's money, households' savings
     soft_wages = sum(j.weekly for j in s.where("jobs", org=firm))
@@ -758,6 +789,7 @@ def _build(seed: int, families: list[str], rng: random.Random, attempt: int = 0,
     _describe_people(s, rng, hs, people, home_of, dict(shops=shops, fids=fids, owners=owners, crews=crews,
                      bank=bank, firm=firm, employer=employer, emp_lines=emp_lines, investor=investor,
                      landlord=landlord, pension_of=pension_of))
+    _opening_tills(s, seed, attempt, units, share, cap, opening)
     _deal(s, random.Random(f"gen:{seed}:{attempt}:families"), families)
     _deck(s, random.Random(f"gen:{seed}:{attempt}:deck"), weeks)
     for p in s.all("people"):

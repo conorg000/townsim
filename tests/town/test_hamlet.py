@@ -224,7 +224,7 @@ def test_shops_have_customers_and_tills_every_week():
     s, _, _, _ = eight_weeks()
     for f in s.all("firms"):
         tills = [t for t in s.all("tills") if t.firm == f.id]
-        assert [t.week for t in tills] == list(range(1, 9))
+        assert [t.week for t in tills] == list(range(0, 9))           # the week before the first comes with the place
         assert sum(1 for t in tills if t.sold > 0) >= 6, f.id
         assert all(t.cash == t.cash for t in tills)
 

@@ -413,13 +413,19 @@ def test_the_business_is_shown_as_a_till_prints_it():
     text = facts.business(s, owner.id)
     lines = text.split("\n")
     assert lines[:3] == [org.name, f"Account: {money(s.balance(org.id))}", f"Price: {money(f.price)} a basket"]
-    assert lines[3] == f"On the shelf: {sum(f.stock_units)} baskets ({sum(f.stock_units)} from this week, 0 from last week)"
+    this = sum(u for u, w in zip(f.stock_units, f.stock_weeks) if w == 1)
+    assert lines[3] == (f"On the shelf: {sum(f.stock_units)} baskets ({this} from this week, "
+                        f"{sum(f.stock_units) - this} from last week)")
     sup = s.get("orgs", s.get("suppliers", f.last_supplier).org).name
     assert lines[4] == f"Nothing ordered; last week's order was {f.last_units} baskets from {sup}"
     staff = [f"  {s.get('people', j.person).name}, {j.hours:g} hours, {money(j.weekly)} a week"
              for j in s.where("jobs", org=org.id)]
     assert lines[5:6 + len(staff)] == ["Staff:"] + staff
-    assert "Last week:" not in text and f"Going out by {date_text(6)}:" in text
+    [opening] = [t for t in s.all("tills") if t.firm == f.id]          # the week before the first, from the place
+    assert opening.week == 0 and f"Going out by {date_text(6)}:" in text
+    assert (f"Last week: sold {opening.sold} baskets, could not sell {opening.turned_stock} for want of stock and "
+            f"{opening.turned_capacity} for want of staff, threw away {opening.spoiled}, "
+            f"took {money(opening.takings)}") in text
     firms.place_order(s, f.id, f.last_supplier, 120, "op:x:order:d0.0")
     assert facts.business(s, owner.id).split("\n")[4] == f"On order for Monday: 120 baskets from {sup}"
     run_routine(s, 14)

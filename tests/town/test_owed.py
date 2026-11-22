@@ -32,9 +32,10 @@ def section(text, head):
 
 
 def days(s, n):
+    from townsim.town.loop import close
     for _ in range(n):
         routine(s)
-        s.advance_day()
+        close(s)
 
 
 def test_a_debt_between_households_reads_from_each_side_with_who_agreed_it():
@@ -273,3 +274,54 @@ def test_the_view_lists_every_other_resident_and_the_dealings_with_those_known()
                                                                    for j in jobs.held(s, person=p.id)]
         assert x.startswith(f"{p.name}, {h.street}") and all(w in x for w in work)
         assert "benefit" not in x and "out of work" not in x and "$" not in x
+
+
+# what an owner sees of the week
+
+def test_the_place_comes_with_last_weeks_till_from_its_calibration_and_the_first_close_follows_it():
+    from townsim.town import gen
+    s = place()
+    again = gen.generate(1, ["a", "b", "c", "d"])
+    units = gen.expected_units(again)
+    for f in s.all("firms"):
+        [t] = [t for t in s.all("tills") if t.firm == f.id]
+        assert t.week == 0 and t.delivered == f.last_units and t.sold <= t.delivered
+        assert t.takings == t.sold * f.price and abs(t.sold + t.turned_stock - units[f.id]) <= 0.07 * units[f.id] + 1
+        assert t.stock_left == sum(u for u, w in zip(f.stock_units, f.stock_weeks) if w == 0)
+    assert [(t.firm, t.sold, t.spoiled) for t in again.all("tills")] == [(t.firm, t.sold, t.spoiled) for t in s.all("tills")]
+    days(s, 7)
+    routine(s)
+    shop = next(o for o in s.all("orgs") if o.kind == "shop")
+    business = section(person_view(s, shop.owner)[1]["content"], "YOUR BUSINESS")
+    assert any(x.startswith("Last week: sold ") for x in business)
+    f = s.where("firms", org=shop.id)[0]
+    week1 = next(t for t in s.all("tills") if t.firm == f.id and t.week == 1)
+    assert f"Last week: sold {week1.sold} baskets," in "\n".join(business)
+
+
+def test_an_owner_sees_extra_hours_accepted_this_week_and_is_told_when_offering_more():
+    from townsim.town import jobs
+    s = place()
+    shop = next(o for o in s.all("orgs") if o.kind == "shop" and len(jobs.held(s, org=o.id)) > 1)
+    staff = next(j for j in jobs.held(s, org=shop.id) if j.person != shop.owner)
+    name = s.get("people", staff.person).name
+    out = apply_act(s, Act(shop.owner, shop.owner, "offer_shifts", {"to": name, "hours": 6}), 0)
+    rq = s.all("requests")[-1]
+    assert apply_act(s, Act(staff.person, staff.person, "answer", {"request": rq.id, "answer": "accept"}), 1).ok
+    line = next(x for x in section(person_view(s, shop.owner)[1]["content"], "YOUR BUSINESS")
+                if x.startswith(f"  {name}, "))
+    assert line.endswith(f"; this week 6 extra hours accepted, {money(rq.pay)} ({rq.id})")
+    again = apply_act(s, Act(shop.owner, shop.owner, "offer_shifts", {"to": name, "hours": 6}), 2)
+    assert again.msg.endswith(f" {name} has accepted 6 extra hours this week already, {money(rq.pay)} ({rq.id}).")
+    assert "already" not in out.msg
+
+
+def test_reading_a_shops_agreements_lists_its_standing_order():
+    s = place()
+    shop = next(o for o in s.all("orgs") if o.kind == "shop")
+    f = s.where("firms", org=shop.id)[0]
+    sp = s.get("suppliers", f.last_supplier)
+    out = apply_act(s, Act(shop.owner, shop.owner, "read", {"what": "agreements", "from": shop.name}), 0)
+    assert out.msg.split("\n")[0] == (
+        f"Standing order: {f.last_units} baskets a week from {s.get('orgs', sp.org).name} at {money(sp.unit_cents)}, "
+        f"delivered Mondays; comes again each week until changed")

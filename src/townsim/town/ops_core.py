@@ -709,7 +709,10 @@ def _do_read(store: Store, act: Act, cause: str) -> str:
     own = _source(store, act)
     what = _what(act)
     if what == "agreements":
-        return agreements_text(store, own)
+        from townsim.town import facts                # facts reads the operations' modules
+        text = agreements_text(store, own)
+        order = facts.standing_order(store, own)
+        return "\n".join(order + ([] if text == "nothing" and order else [text]))
     if what == "account in full":
         return statement_text(store, statement(store, own, back=28, max_lines=60), act.actor)
     return statement_text(store, statement(store, own), act.actor)

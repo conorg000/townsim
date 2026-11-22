@@ -928,7 +928,7 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
         if staff:
             lines.append("Staff:")
             lines += [f"  {store.get('people', j.person).name}, {j.hours:g} hours, {money(j.weekly)} a week"
-                      for j in staff]
+                      + extra_line(store, org.id, j.person) for j in staff]
         for f in shops:
             tills = sorted((t for t in store.all("tills") if t.firm == f.id), key=lambda t: -t.week)
             for label, t in list(zip(("Last week", "The week before"), tills))[:max(0, min(weeks, 2))]:
@@ -943,6 +943,43 @@ def business_rows(store: Store, pid: str, weeks: int = 2, out_most: int = GOING_
             lines += coming(store, coming_in, COMING_IN if out_most >= GOING_OUT else max(1, out_most // 2))
         blocks += lines
     return blocks
+
+
+def extra_accepted(store: Store, org: str, pid: str) -> tuple[float, int, list[str]]:
+    """(hours, cents, request ids) of the extra hours at `org` that `pid` has accepted this week:
+    offers of shifts accepted whose pay was agreed from this Monday on."""
+    monday = store.day - dow(store.day)
+    home = store.get("people", pid).household
+    agreed = {(o.cents, o.first) for o in store.where("obligations", payer=org)
+              if o.payee == home and o.kind == "wage" and o.memo.startswith("extra hours at ") and o.made_on >= monday}
+    found = [rq for rq in store.where("requests", status="accepted")
+             if rq.kind == "shifts" and rq.org == org and rq.to == pid and (rq.pay, rq.first) in agreed]
+    return round(sum(rq.hours for rq in found), 2), sum(rq.pay for rq in found), [rq.id for rq in found]
+
+
+def extra_line(store: Store, org: str, pid: str) -> str:
+    """`; this week 6 extra hours accepted, $81.30 (rq4)` for a member of staff who has; else ""."""
+    h, cents, ids = extra_accepted(store, org, pid)
+    if not ids:
+        return ""
+    return f"; this week {h:g} extra hours accepted, {money(cents)} ({', '.join(ids)})"
+
+
+def standing_order(store: Store, org: str) -> list[str]:
+    """`Standing order: <n> baskets a week from <supplier> at <$x>, delivered Mondays; comes again
+    each week until changed` for each shop of `org` with an order; nothing for one without."""
+    out = []
+    for f in store.where("firms", org=org):
+        if f.order_units > 0 and store.has("suppliers", f.order_supplier):
+            units, sid, cents = f.order_units, f.order_supplier, f.order_cents
+        elif f.last_units > 0 and store.has("suppliers", f.last_supplier):
+            units, sid = f.last_units, f.last_supplier
+            cents = store.get("suppliers", sid).unit_cents
+        else:
+            continue
+        out.append(f"Standing order: {baskets(units)} a week from {_supplier_name(store, sid)} at {money(cents)}, "
+                   f"delivered Mondays; comes again each week until changed")
+    return out
 
 
 def _last_delivery(store: Store, f) -> str:

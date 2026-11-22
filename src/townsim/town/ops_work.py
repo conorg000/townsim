@@ -348,7 +348,11 @@ def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
     rq = Request(store.new_id("rq", cause), store.day, act.actor, who, SHIFTS_TEXT, 0,
                  friday - 1, kind="shifts", summary=summary, org=job.org, first=friday, hours=h, pay=pay)
     store.add("requests", rq, cause)
-    return sent(store, rq, summary)
+    from townsim.town import facts                    # facts reads this module's operations
+    had, cents, ids = facts.extra_accepted(store, job.org, who)
+    already = (f" {store.get('people', who).name} has accepted {had:g} extra hours this week already, {money(cents)} "
+               f"({', '.join(ids)}).") if ids else ""
+    return sent(store, rq, summary) + already
 
 
 def _check_shifts(store: Store, act: Act, rq: Request) -> str | None:
