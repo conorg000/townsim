@@ -778,3 +778,6 @@ ANSWERERS.update(getattr(_ops_deals, "ANSWERERS_OF_DEALS", {}))
 from townsim.town import ops_talk as _ops_talk  # noqa: E402
 
 STOPPABLE.update(getattr(_ops_talk, "STOPPABLE_OF_TALK", {}))
+
+# and acts done for a client are checked against its connections, from `connections`
+from townsim.town import connections as _connections  # noqa: E402,F401

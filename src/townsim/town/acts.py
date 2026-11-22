@@ -94,7 +94,11 @@ def _acting_for_themselves(store: Store, act: Act) -> str | None:
     return None
 
 
-AUTHORISERS: list[Callable[[Store, Act], str | None]] = [_acting_for_themselves]
+AUTHORISERS: list[Callable[[Store, Act], str | None]] = [_acting_for_themselves]   # `connections` puts its own first
+
+# For an act done for someone else, each of these is called before it is done and returns
+# what to call with the act's cause once it has been done (`connections.on_behalf`).
+ON_BEHALF: list[Callable[[Store, Act], Callable[[str], None]]] = []
 
 
 def shown(value: Any) -> str:
@@ -118,8 +122,10 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
     `op:<actor>/<principal>:...` for an act done for someone else; for an act naming no
     operation, the tag has `?` in place of the operation's name. Hours are the actor's."""
     spec = REGISTRY.get(act.op.strip().lower()) if isinstance(act.op, str) else None
-    if spec is not None and spec.who != "all" and spec.who not in _positions_or_none(store, act.actor):
-        spec = None   # an operation outside the actor's positions is one they do not have
+    person = isinstance(act.actor, str) and store.has("people", act.actor)
+    held = _positions_or_none(store, act.actor if person else act.principal)
+    if spec is not None and spec.who != "all" and spec.who not in held:
+        spec = None   # an operation outside the positions of the one it is done for is one they do not have
     who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
     cause = f"op:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
@@ -131,18 +137,24 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         for authorise in AUTHORISERS:
             reason = authorise(store, act)
             if reason is not None:
-                return _not_done(act, reason, cause)
-        person = store.get("people", act.actor)
-        hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
-        if person.hours_left < hours:
-            from townsim.town.hours import no_time          # hours reads the jobs this module reads
-            return _not_done(act, no_time(store, act.actor, hours), cause)
+                return Outcome(False, f"Not done: {reason}", act, cause, beyond=True)
+        hours = 0.0
+        if person:                     # an instance's acts take no one's hours
+            hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
+            if store.get("people", act.actor).hours_left < hours:
+                from townsim.town.hours import no_time          # hours reads the jobs this module reads
+                return _not_done(act, no_time(store, act.actor, hours), cause)
         reason = spec.check(store, act)
         if reason is not None:
             return _not_done(act, reason, cause)
+        after = [f(store, act) for f in ON_BEHALF] if act.actor != act.principal else []
         with store.transaction():
             told = spec.do(store, act, cause)
-            store.set("people", act.actor, cause, hours_left=round(person.hours_left - hours, 2))
+            if person:
+                left = store.get("people", act.actor).hours_left
+                store.set("people", act.actor, cause, hours_left=round(left - hours, 2))
+            for f in after:
+                f(cause)
     except Exception as e:  # a bug in an operation: the act is undone and reported, never raised
         if store.mark() != before:
             store.undo_to(before)
@@ -346,15 +358,20 @@ def is_instance(store: Store, who: object) -> bool:
 
 
 def account_of(store: Store, who: str) -> str:
-    """A person's household account; a household's or org's own id."""
+    """A person's household account; an instance's, its client's; a household's or org's own id."""
     if store.has("people", who):
         return store.get("people", who).household
+    if is_instance(store, who):
+        return store.get("instances", who).client
     return who
 
 
 def accounts_of(store: Store, pid: str) -> list[str]:
     """The accounts `pid` controls: their household's, then every org in the town they own,
-    in id order. An org outside the town is not theirs to draw on, whoever its owner."""
+    in id order. An org outside the town is not theirs to draw on, whoever its owner. An
+    instance's are its client's account alone."""
+    if is_instance(store, pid):
+        return [store.get("instances", pid).client]
     return [store.get("people", pid).household] + [o.id for o in store.all("orgs") if o.owner == pid and not o.outside]
 
 

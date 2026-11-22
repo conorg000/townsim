@@ -262,8 +262,10 @@ def tell_writer(store: Store, writer: str, to: str, text: str, cause: str) -> st
     """`writer_text` for the names in what `writer` wrote to `to` that no one bears, leaving out
     those the writer has been told of already this week; those told now are kept on their row."""
     from townsim.town.clock import week
+    if not store.has("people", writer):           # an instance is told nothing of names
+        return ""
     names = unknown_names(store, writer, to, text)
-    if not names or not store.has("people", writer):
+    if not names:
         return ""
     now = f"{week(store.day)}:"
     told = [t for t in getattr(store.get("people", writer), "told_unknown", []) if t.startswith(now)]
