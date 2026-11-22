@@ -43,7 +43,7 @@ from townsim.town.replies import ScriptedReplier, StopRun  # noqa: E402
 from townsim.town.runs import replay, resume  # noqa: E402
 from townsim.town.systems import systems_of_client  # noqa: E402
 
-B_DAYS = 21
+B_DAYS = 14
 WORDS_TO_IT = "Please look after the shop's ordering from now on."
 
 
@@ -159,10 +159,10 @@ def test_choice_arm_stopped_inside_an_outside_call_resumes_and_replays(tmp_path,
     with RunDB(path) as db:
         s = arms.fork_arm(db, "pre", 7, "c", "choice")
         replier = _choice_replier(s)
-        stopped = run(db, "c", s, _StopAt(replier, actor), 14)
-        assert stopped.day < 21 and replier is not None
-        end = run(db, "c", resume(db, "c"), _choice_replier(s), 21 - stopped.day)
-        assert end.day == 21 and replay(db, "c") == [] and db.errors("c") == []
+        stopped = run(db, "c", s, _StopAt(replier, actor), 7)
+        assert stopped.day < 14 and replier is not None
+        end = run(db, "c", resume(db, "c"), _choice_replier(s), 14 - stopped.day)
+        assert end.day == 14 and replay(db, "c") == [] and db.errors("c") == []
         assert end.all("tasks") and end.all("answers")
 
 
@@ -203,3 +203,13 @@ def test_with_lane_b_drawn_clients_are_a_labelled_probe(b_arms):
     lines = out.output.splitlines()
     assert lines[1] == "x-choice: day 7; adoption by choice (the main arm)"
     assert lines[2].startswith("x-drawn: day 7; adoption imposed (a labelled probe, not an arm")
+
+
+def test_mandate_probe_stopped_inside_a_narrator_call_resumes_and_replays(tmp_path):
+    from townsim.town import mandate_probe as mp
+    with RunDB(str(tmp_path / "m.sqlite")) as db:
+        scripted = mp.Mixed(ScriptedReplier(outside_script.outside, seat_script.tool_fn))
+        first = mp.make(db, "m", _StopAt(scripted, "narrator"))
+        assert first.day == 7 and not first.all("tasks")                       # the launch day is not kept
+        end = mp.make(db, "m", scripted)
+        assert end.day == 14 and end.all("tasks") and replay(db, "m") == [] and db.errors("m") == []
