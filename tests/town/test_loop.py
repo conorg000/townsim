@@ -274,3 +274,60 @@ def test_a_lapsed_request_without_words_is_told_by_its_summary():
         "$400.00 a week.",
         "Your request rq2 to Craig Pryce was not answered and has lapsed.",
         'Your request rq3 to Craig Pryce ("Lend me $5?") was not answered and has lapsed.']
+
+
+# replies mended where the mending is unambiguous (the two slips seen in the first model run)
+
+CLOSED_WRONG = ('{"thoughts": "Bingo is sorted.", "aims": ["Confirm bingo"], "acts": [{"op": "message", '
+                '"to": "Yvonne Sowerby", "text": "Tuesday suits me!"],"op": "message", "to": "Martin Lumb", '
+                '"text": "Could I have some more extra hours?"},{"op": "write_notes", "text": "Asked Martin."}]}')
+KEY_LEFT_OUT = ('{"thoughts": "Settled.", "aims": ["Leave the $1,000 alone"], "acts": [{"op": "message", '
+                '"to": "Alice Ramsden", "text": "Understood, Alice."},{"op": "write_notes": "Tuesday 10 March. '
+                'Leave it alone."}]}')
+
+
+def test_a_list_closed_where_an_object_ended_is_read_as_the_next_object():
+    assert parse_acts(CLOSED_WRONG) == [
+        {"op": "message", "to": "Yvonne Sowerby", "text": "Tuesday suits me!"},
+        {"op": "message", "to": "Martin Lumb", "text": "Could I have some more extra hours?"},
+        {"op": "write_notes", "text": "Asked Martin."}]
+
+
+def test_an_act_with_a_key_left_out_is_one_that_cannot_be_read_and_the_rest_are_read():
+    assert parse_acts(KEY_LEFT_OUT) == [{"op": "message", "to": "Alice Ramsden", "text": "Understood, Alice."}, None]
+    from townsim.town.acts import apply_act
+    from townsim.town.loop import act_of
+    s = thin_town()
+    assert apply_act(s, act_of("p01", None), 0).msg == ("Not done: that operation was not written in a form that "
+                                                       "can be read.")
+
+
+@pytest.mark.parametrize("text, acts", [
+    ('{"acts": [{"op": "read", "what": "account"},]}', [{"op": "read", "what": "account"}]),
+    ('{"thoughts": "x", "acts": [],} and then some words', []),
+    ('{"acts": [{"op": "read"}]} and stray text after it', [{"op": "read"}]),
+])
+def test_a_trailing_comma_is_left_out_and_stray_text_after_the_object_is_ignored(text, acts):
+    assert parse_acts(text) == acts
+
+
+@pytest.mark.parametrize("text", [
+    '{"thoughts": "x", "acts": [{"op": "message", "to": "Alice Ramsden", "text": "Underst',     # cut off
+    '{“thoughts”: "x", “acts”: []}',                                         # curly quotes
+    '{"acts": [{"op": "message", "to": "A"}]] }',
+])
+def test_a_reply_cut_off_or_with_curly_quotes_stays_unreadable(text):
+    assert parse_acts(text) is None
+
+
+def test_a_talk_reply_is_mended_the_same_way():
+    from townsim.town.talk import parse_say
+    got = parse_say('{"say": "Fine.", "acts": [{"op": "pay", "to": "A", "amount": 5],"op": "read", "what": '
+                    '"account"}], "end": true,}')
+    assert got == {"say": "Fine.", "acts": [{"op": "pay", "to": "A", "amount": 5}, {"op": "read", "what": "account"}],
+                   "end": True}
+
+
+def test_a_reply_that_reads_as_it_stands_is_not_mended():
+    text = '{"acts": [{"op": "read", "what": "account"}]} {"acts": [1],}'
+    assert parse_acts(text) == [{"op": "read", "what": "account"}]

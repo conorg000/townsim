@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
-from townsim.town import acts, facts, loop, unknown, views
+from townsim.town import acts, facts, loop, mend, unknown, views
 from townsim.town.acts import LONGEST_WORD, Outcome, accounts_of, apply_act, clean_text, name_of_who
 from townsim.town.clock import date_text, dow, week
 from townsim.town.entities import Line, Result, Talk
@@ -94,10 +94,20 @@ def said(value: Any, other: str) -> str:
 def first_object(text: Any, key: str) -> dict | None:
     """The first top-level JSON object in `text` that has `key` (with, for `acts`, a list),
     reading at most `SCAN_CHARS` characters and trying at most `SCAN_TRIES` decodes. An
-    object without it is skipped whole. Never raises."""
+    object without it is skipped whole. If none can be read, it is read again with its slips
+    mended where that is unambiguous (`mend.mended`). Never raises."""
     if not isinstance(text, str):
         return None
     text = text[:SCAN_CHARS]
+    found = _first_with(text, key)
+    if found is None:
+        again = mend.mended(text)
+        if again != text:
+            found = _first_with(again, key)
+    return found
+
+
+def _first_with(text: str, key: str) -> dict | None:
     decoder = json.JSONDecoder()
     at = text.find("{")
     for _ in range(SCAN_TRIES):

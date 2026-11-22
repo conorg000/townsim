@@ -16,9 +16,10 @@ hunyuan:
   params: {max_tokens: 1200, temperature: 0.8, reasoning_effort: "none"}
   left_out: false
 # minimax reasons before it answers and the reasoning counts against max_tokens: at 1200 a
-# third of its probe replies were cut off before any answer (probe of 2026-11-23), so it
-# has room for both.
+# third of its probe replies were cut off before any answer (probe of 2026-11-23), and at
+# 2400 three of its 49 replies in the first two-week run were, so it has the most the loader
+# allows.
 minimax:
   model: minimax/minimax-m3.1-flash
-  params: {max_tokens: 2400, temperature: 0.8, reasoning_effort: "low"}
+  params: {max_tokens: 4000, temperature: 0.8, reasoning_effort: "low"}
   left_out: false

@@ -258,7 +258,7 @@ def test_names_and_families_are_plain_lists():
         "hunyuan": "tencent/hy4-flash", "minimax": "minimax/minimax-m3.1-flash"}
     assert all(v["params"]["temperature"] == 0.8 and v["left_out"] is False for v in config.values())
     assert {k: v["params"]["max_tokens"] for k, v in config.items()} == {
-        "haiku": 1200, "deepseek": 1200, "hunyuan": 1200, "minimax": 2400}   # minimax reasons first
+        "haiku": 1200, "deepseek": 1200, "hunyuan": 1200, "minimax": 4000}   # minimax reasons first
 
 
 def test_draw_lists_are_wide_enough():

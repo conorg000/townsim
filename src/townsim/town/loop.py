@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import aims, firms, hamlet, hours, jobs, obligations, talk
+from townsim.town import aims, firms, hamlet, hours, jobs, mend, obligations, talk
 from townsim.town.acts import Act, Outcome, apply_act, clean_text, cut, name_of_who, shown
 from townsim.town.clock import dow
 from townsim.town.entities import Result
@@ -116,10 +116,20 @@ def parse_acts(text: str | None) -> list | None:
 
 def parse_reply(text: str | None) -> dict | None:
     """The first top-level JSON object in `text` that has an `acts` list, or None; read as
-    `parse_acts` reads it. Never raises."""
+    `parse_acts` reads it, and if none can be read, read again with its slips mended where
+    that is unambiguous (`mend.mended`). Never raises."""
     if not isinstance(text, str):
         return None
     text = text[:SCAN_CHARS]
+    found = _first_reply(text)
+    if found is None:
+        again = mend.mended(text)
+        if again != text:
+            found = _first_reply(again)
+    return found
+
+
+def _first_reply(text: str) -> dict | None:
     decoder = json.JSONDecoder()
     at = text.find("{")
     for _ in range(SCAN_TRIES):
