@@ -111,8 +111,8 @@ def test_thirtieth_result_says_so_and_no_31st_ask():
         return call("note", text=f"n{key.n}")
     t, n = seat.run_turn(s, ScriptedReplier(lambda k, m: None, tool_fn), Keys("t"), "as3", 0)
     assert len(asked) == 30 == len(t.calls) and t.ended == "limit" and n == 30
-    assert t.calls[-1].result == ("Noted.\n(This was the 30th action of this turn, the most Ridgeway Assistant "
-                                  "carries out in one turn. The turn ends here.)")
+    assert t.calls[-1].result == ("Noted.\n(This was the 30th action of this run, the most Ridgeway Assistant "
+                                  "carries out in one run. The run ends here.)")
     assert all(c.result == "Noted." for c in t.calls[:-1])
 
 
@@ -249,3 +249,29 @@ def test_a_notice_reaches_only_the_instance_whose_matter_it_is():
     shop_news = seat_texts.morning(s, s.get("instances", shop.id))[0]
     assert "$12.00" in home_news and "$40.00" not in home_news
     assert "$40.00" in shop_news and "$12.00" not in shop_news
+
+
+def test_unreadable_arguments_go_back_as_empty_and_a_fault_in_a_talk_leaves_no_talk_open(monkeypatch):
+    s = drawn()
+    asked = []
+
+    def tool_fn(key, messages, tools):
+        asked.append(messages)
+        return [{"name": "note", "arguments": "{bad"}, call("talk", **{"with": "Beth Varley", "words": "Hello."}),
+                call("talk", **{"with": "Beth Varley", "words": "Hello again."}), None][key.n]
+    from townsim.town import talk
+    real, fails = talk._view, [1]
+
+    def view(store, pid, tk):
+        if fails:
+            fails.pop()
+            raise RuntimeError("no view")
+        return real(store, pid, tk)
+    monkeypatch.setattr(talk, "_view", view)
+    t, _ = seat.run_turn(s, ScriptedReplier(lambda k, m: TALK, tool_fn), Keys("t"), "as3", 0)
+    assert asked[1][2]["tool_calls"][0]["function"]["arguments"] == "{}"
+    assert t.calls[0].args == "{bad"
+    assert t.calls[1].result == "Not done: that could not be carried out." and s.engine_errors
+    assert t.calls[2].result == "Beth Varley said:\n  > Good morning to you."
+    talks = [x for x in s.all("talks") if x.kind == "instance"]
+    assert len(talks) == 1 and [ln.speaker for ln in s.where("lines", talk=talks[0].id)] == ["as3", "p10"]

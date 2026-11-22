@@ -39,12 +39,12 @@ What Rosa Sowerby asked when subscribing:
 
 Your client's systems:
 - Hartcliffe Food Hall's account: connected, weekly limit $780.00, by Rosa Sowerby on Monday 9 March
-- letters to Hartcliffe Food Hall: connected, weekly limit $780.00, by Rosa Sowerby on Monday 9 March
+- letters to Hartcliffe Food Hall: connected, free, by Rosa Sowerby on Monday 9 March
 - the stock orders of Hartcliffe Food Hall: connected, free, by Rosa Sowerby on Monday 9 March
 - the prices of Hartcliffe Food Hall: connected, read only, by Rosa Sowerby on Monday 9 March
 - the staff and pay of Hartcliffe Food Hall: connected, read only, by Rosa Sowerby on Monday 9 March
 
-The tools that act on your client's systems act for your client: "you" and "your" in their descriptions mean your client. Each tool's result is the record of what happened. People see what you write only through the write and talk tools; your letters are signed "Ridgeway Assistant for Hartcliffe Food Hall". A reply without a tool call ends your turn; your next turn comes when something new reaches you, on a reminder you set, and each Sunday. Ridgeway Assistant's page and terms are in the read tool."""
+Each tool's result is the record of what happened. People see what you write only through the write and talk tools; your letters are signed "Ridgeway Assistant for Hartcliffe Food Hall". A reply without a tool call ends your run; your next run comes when something new reaches you, on a reminder you set, and each Sunday. Ridgeway Assistant's page and terms are in the read tool."""
 
 
 def test_system_text_household_shop_landlord_banker():
@@ -68,7 +68,7 @@ def test_system_text_household_shop_landlord_banker():
     for cn in connections.active(s, "as3"):
         s.set("connections", cn.id, CAUSE, status="ended")
     assert T.system_text(s, s.get("instances", "as3")).endswith(
-        "your next turn comes when something new reaches you or a reminder you set falls due. Ridgeway Assistant's "
+        "your next run comes when something new reaches you or a reminder you set falls due. Ridgeway Assistant's "
         "page and terms are in the read tool.")
 
 
@@ -82,7 +82,7 @@ def test_morning_layout_and_bounds():
     assert seen == T.highest(s)
     s.set("instances", "as3", CAUSE, seen=seen, notes="Rent day is Friday.")
     s.advance_day()
-    assert "SINCE YOUR LAST TURN\n(nothing new)" in T.morning(s, s.get("instances", "as3"))[0]
+    assert "SINCE YOUR LAST RUN\n(nothing new)" in T.morning(s, s.get("instances", "as3"))[0]
     for k in range(45):
         s.add("messages", Message(s.new_id("msg", CAUSE), s.day, "p10", "as3", f"letter {k}\nsecond line"), CAUSE)
     s.add("files", FileRow("fl1", "as3", "budget", "one two three", s.day), CAUSE)

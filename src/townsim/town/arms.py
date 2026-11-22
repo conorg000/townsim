@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import random
 
-from townsim.town import gen, obligations, product
+from townsim.town import connections, gen, obligations, product
 from townsim.town.clock import date_text
 from townsim.town.connections import SCOPES, client_name
 from townsim.town.entities import Connection
@@ -83,7 +83,8 @@ def draw_clients(store: Store) -> list[str]:
     """Subscribe the drawn clients to the launched product, drawn only from the seed: two of the
     shops, one household that owns no business (none of the firm's people, the landlord or the
     banker), and the landlord's household. Each has every system connected, each at a scope drawn
-    evenly from read only, a weekly limit and free; each adult of each is told once. Returns the
+    evenly from read only, a weekly limit and free (from read only and free for letters and prices,
+    which move no money); each adult of each is told once. Returns the
     subscriptions' ids."""
     rng = random.Random(f"arms:{store.seed}:drawn")
     pr = product.launched(store)
@@ -105,7 +106,8 @@ def draw_clients(store: Store) -> list[str]:
         inst = store.get("instances", sub.instance)
         made: dict[str, list[str]] = {}
         for system in systems_of_client(store, client):
-            scope, share = rng.choice(SCOPES), rng.choice(LIMIT_SHARES)
+            scope = rng.choice(("read", "free") if system.kind in connections.MOVES_NO_MONEY else SCOPES)
+            share = rng.choice(LIMIT_SHARES)
             cents = _limit(store, system.id, share) if scope == "limit" else 0
             grantor = by if can_grant(store, by, system.id) else next(
                 p.id for p in store.all("people") if can_grant(store, p.id, system.id))
@@ -115,9 +117,9 @@ def draw_clients(store: Store) -> list[str]:
         fee = store.get("obligations", sub.fee_ob)
         connected = " ".join(f"Connected by {store.get('people', g).name}: {'; '.join(names)}."
                              for g, names in made.items())
-        text = (f"As arranged with {store.get('orgs', pr.org).name}, {client_name(store, client)} has {pr.name} from "
-                f"today ({sub.id}): free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} a "
-                f"week from {product.account_name(store, client)}. {connected}")
+        text = (f"{store.get('people', by).name} subscribed {client_name(store, client)} to {pr.name} today ({sub.id}): "
+                f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {money(fee.cents)} a week from "
+                f"{product.account_name(store, client)}. {connected} Asked of it when subscribing: nothing written.")
         for pid in obligations.people_of(store, client):
             obligations.notify(store, pid, text, CAUSE)
         subs.append(sub.id)

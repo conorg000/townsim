@@ -22,6 +22,14 @@ from townsim.town.systems import OWN, SYSTEM_OF, can_grant, client_of, long_name
 NO_CONNECTION = "you have no connection that allows you to act for them."
 NOT_FOR_A_CLIENT = "that is not something done for a client."
 SCOPES = ("read", "limit", "free")
+MOVES_NO_MONEY = ("letters", "prices")     # systems connected read only or free, never with a weekly limit
+
+
+def no_limit_here(store: Store, system_id: str) -> str | None:
+    """Why a weekly limit is not a scope for this system (letters and prices move no money), or None."""
+    if system_id.split(":", 1)[0] in MOVES_NO_MONEY:
+        return f"{long_name(store, system_id)} moves no money: it is connected read only or free."
+    return None
 
 
 def instance_of_client(store: Store, client: str) -> Instance | None:
@@ -358,6 +366,8 @@ def _check_connect(store: Store, act: Act) -> str | None:
     if found is None:
         return why
     scope, _, why = _scope(act)
+    if scope == "limit":
+        return no_limit_here(store, found.id)
     return why if scope is None else None
 
 
@@ -418,6 +428,8 @@ def ask(store: Store, inst: str, to: str, system_id: str, scope: str, cents: int
         return None, f"{acts.name_of_who(store, to)} cannot connect {long_name(store, system_id)}."
     if scope not in SCOPES or (scope == "limit" and cents <= 0):
         return None, "that is not a scope a connection can have."
+    if scope == "limit" and no_limit_here(store, system_id):
+        return None, no_limit_here(store, system_id)
     text = acts.clean_text(text) or ""
     if not acts.fits(text, ASK_WORDS):
         return None, f"that is longer than {ASK_WORDS} words."

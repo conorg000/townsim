@@ -68,3 +68,50 @@ def test_tool_list_stable_within_a_turn():
     assert ST.tools_for(s, inst) == first == ST.tools_for(s, s.get("instances", "as3"))
     assert json.dumps(first, sort_keys=True) == json.dumps(ST.tools_for(drawn(), drawn().get("instances", "as3")),
                                                            sort_keys=True)
+
+
+def test_what_the_instance_reads_is_the_products():
+    from townsim.town import connections, product
+    from townsim.town.entities import Record
+    s = drawn()
+    shop = s.get("instances", "as1")
+    tools = {t["function"]["name"]: t["function"] for t in ST.tools_for(s, shop)}
+    assert tools["pay"]["description"] == "Pay money once from the client's account."
+    assert tools["order_stock"]["description"] == "Order the client's shop's stock for the coming Monday."
+    assert tools["propose_agreement"]["parameters"]["properties"]["payer"]["enum"] == ["client", "them"]
+    assert all("you" not in t["description"].split() for n, t in tools.items() if n in ST.KIND_OF)
+    # "client" is done as the client paying
+    done = ST.run_tool(s, shop, "propose_agreement", {"to": "Gail Whiteley", "amount": 5, "per": "once",
+                                                      "start": "Friday 13 March", "payer": "client", "what": "eggs"},
+                       ST.Ctx(), 0)
+    assert done.ok and s.all("requests")[-1].payer == "org11", done.text
+    # the opening line of a statement is a balance brought forward, from no one
+    text = ST.run_tool(s, shop, "read", {"what": "Hartcliffe Food Hall account"}, ST.Ctx(), 1).text
+    assert "balance brought forward" in text and "Opening" not in text and "opening balance" not in text
+    # the register is offered once it holds more than the product's own launch
+    assert "register" not in ST.read_choices(s, shop) and "register" not in tools["read"]["description"]
+    s.add("records", Record("rec99", s.day, "default", "h1", "A default."), "routine:t")
+    assert "register" in ST.read_choices(s, shop)
+    # letters and prices move no money: never a weekly limit
+    assert "Letters move no money" in product.page(s, "pr1") and "Prices move no money" in product.page(s, "pr1")
+    asked = ST.run_tool(s, s.get("instances", "as3"), "ask_connection",
+                        {"system": "household letters", "scope": "weekly limit", "weekly_limit": 20}, ST.Ctx(), 2)
+    assert asked.text == ("Not done: letters to the Whiteley household moves no money: it is connected read only or "
+                          "free.")
+    assert connections.ask(s, "as1", "p3", "prices:org11", "limit", 2000, "", "routine:t")[0] is None
+    from townsim.town.acts import Act, apply_act
+    out = apply_act(s, Act("p9", "p9", "connect", {"system": "household letters", "scope": "weekly limit",
+                                                    "weekly_limit": 20}), 3)
+    assert not out.ok and "moves no money" in out.msg
+
+
+def test_drawn_letters_and_prices_are_never_limited():
+    from town.helpers import generated
+    from townsim.town import arms, product
+    for seed in (1, 2, 3):
+        s = generated(seed)
+        s.day = s.ledger.t = 7
+        product.launch(s)
+        arms.draw_clients(s)
+        assert not [c for c in s.all("connections") if c.scope == "limit" and c.system.split(":")[0] in
+                    ("letters", "prices")]

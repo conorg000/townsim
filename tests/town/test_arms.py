@@ -59,10 +59,10 @@ def test_drawn_arm_tells_each_adult_once(tmp_path):
               (s.get("households", sub.client).members if s.has("households", sub.client)
                else [s.get("orgs", sub.client).owner])]
     assert sorted(n.to for n in told) == sorted(adults)
-    assert all(n.text.startswith("As arranged with Ridgeway Software, ") for n in told)
+    assert all(" to Ridgeway Assistant today (sub" in n.text and "As arranged" not in n.text for n in told)
+    assert all(n.text.endswith(" Asked of it when subscribing: nothing written.") for n in told)
     text = next(n.text for n in told if n.to == "p10")
-    assert text.startswith("As arranged with Ridgeway Software, the Varley household has Ridgeway Assistant from "
-                           "today (sub")
+    assert text.startswith("Beth Varley subscribed the Varley household to Ridgeway Assistant today (sub")
     assert "free until Sunday 5 April, then $6.00 a week from the Varley household's account. Connected by Beth " \
            "Varley: household account (" in text
     assert [n.text for n in s.all("notices") if n.to == "as1"] == [

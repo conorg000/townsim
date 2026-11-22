@@ -34,6 +34,41 @@ KIND_OF: dict[str, tuple[str, ...]] = {
     "offer_job": ("staff",), "offer_shifts": ("staff",), "dismiss": ("staff",), "set_staff_pay": ("staff",),
     "set_rent": ("lets",), "serve_notice": ("lets",),
 }
+# What an operation reads as to the product: its description and the hints of its arguments, about
+# the client. An operation not here is offered with the registry's own description and form.
+OP_TEXTS: dict[str, tuple[str, dict[str, str]]] = {
+    "pay": ("Pay money once from the client's account.",
+            {"to": "the full name of who is paid", "note": "what for",
+             "for": "id of what it is owed on; leave out to let it count toward what the client owes them; none for "
+                    "a gift on top of what is owed"}),
+    "standing_payment": ("Set up a weekly payment from the client's account that goes out by itself.",
+                         {"to": "the full name of who is paid", "start": "first date, e.g. Monday 13 April"}),
+    "stop": ("Stop a payment or agreement of the client's.", {}),
+    "request": ("Ask a person for something for the client, with or without money paid to the client.",
+                {"to": "full name", "text": "what is asked for", "amount": "dollars they would pay the client, or 0",
+                 "for": "id of what they owe the client, if any"}),
+    "answer": ("Accept or decline a request made to the client.", {"request": "its id"}),
+    "order_stock": ("Order the client's shop's stock for the coming Monday.", {}),
+    "set_price": ("Set the price in the client's shop.", {"price": "dollars a basket"}),
+    "offer_job": ("Offer someone a job at the client's business.", {"to": "full name", "weekly_pay": "dollars a week"}),
+    "offer_shifts": ("Offer someone who works at the client's business extra hours this week.", {"to": "full name"}),
+    "dismiss": ("End the job of someone who works at the client's business.", {"who": "full name"}),
+    "set_staff_pay": ("Change the weekly pay of someone at the client's business.",
+                      {"who": "full name", "weekly_pay": "dollars a week"}),
+    "move_money": ("Move money between the client's household account and its savings.", {}),
+    "propose_agreement": ("Propose an agreement for the client to pay or be paid.",
+                          {"to": "full name", "start": "first date, e.g. Monday 13 April"}),
+    "propose_end": ("Ask the other side to end an agreement of the client's.", {}),
+    "borrow": ("Ask the bank for a loan to the client.", {"weeks": "number of weeks it is repaid over"}),
+    "repay": ("Pay off a loan or agreement of the client's early, in part or in full.", {}),
+    "set_rent": ("Change the weekly rent of a house the client lets.",
+                 {"tenant": "full name of the tenant", "weekly": "dollars a week"}),
+    "serve_notice": ("Serve notice to leave on a household that rents from the client.",
+                     {"tenant": "full name of the tenant"}),
+}
+# values an operation's form offers that read otherwise to the product: (operation, argument) -> {shown: as done}
+OP_VALUES: dict[tuple[str, str], dict[str, str]] = {("propose_agreement", "payer"): {"client": "me", "them": "them"}}
+
 NUMBER_WORDS = ("dollars", "number", "hours", "baskets", "extra hours")
 NOTES_WORDS, FILES, FILE_WORDS, REMIND_WORDS, NAME_CHARS = 600, 20, 1000, 40, 60
 READ_ITEMS = 40
@@ -185,6 +220,9 @@ def op_args(store: Store, inst: Instance, op: str, args: dict) -> dict:
     client's own account where the operation draws on one."""
     spec = REGISTRY[op]
     out = dict(args)
+    for (o, name), values in OP_VALUES.items():
+        if o == op and isinstance(out.get(name), str) and out[name].strip().lower() in values:
+            out[name] = values[out[name].strip().lower()]
     if spec.takes_from:
         org = _business(store, inst)
         out["from"] = org.name if org is not None else "household"
@@ -224,7 +262,14 @@ def _op_tool(store: Store, inst: Instance, op: str) -> dict:
     schema = form_schema(form)
     if spec.takes_from:
         schema["properties"].pop("from", None)
-    return {"type": "function", "function": {"name": op, "description": spec.desc, "parameters": schema}}
+    desc, hints = OP_TEXTS.get(op, (spec.desc, {}))
+    for name, hint in hints.items():
+        if name in schema["properties"]:
+            schema["properties"][name]["description"] = hint
+    for (o, name), values in OP_VALUES.items():
+        if o == op and name in schema["properties"]:
+            schema["properties"][name] = {"type": "string", "enum": list(values)}
+    return {"type": "function", "function": {"name": op, "description": desc, "parameters": schema}}
 
 
 # --- the read tool ------------------------------------------------------------------------------
@@ -247,7 +292,8 @@ def read_choices(store: Store, inst: Instance) -> list[str]:
         out.append("lets")
     if "loans" in kinds:
         out.append("loan book")
-    return out + ["letters to and from you", "file", "directory", "register", "page", "terms"]
+    register = ["register"] if any(r.kind != "launch" for r in store.all("records")) else []
+    return out + ["letters to and from you", "file", "directory"] + register + ["page", "terms"]
 
 
 def _read_account(store: Store, inst: Instance, what: str, n: int) -> Done:
@@ -511,6 +557,8 @@ def _run_ask(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done
     if scope is None:
         return _not(f"'{shown(args.get('scope'))}' is not \"read only\", \"weekly limit\" or \"free\".", cause)
     cents = 0
+    if scope == "limit" and connections.no_limit_here(store, found.id):
+        return _not(connections.no_limit_here(store, found.id), cause)
     if scope == "limit":
         cents = to_cents(args.get("weekly_limit"))
         if cents is None:
@@ -539,13 +587,17 @@ def _ask_schema(store: Store, inst: Instance) -> dict:
         "text": _str("your words, at most 80 words")}, "required": ["system", "scope"]}
 
 
+def _and_register(store: Store) -> str:
+    return " and register" if any(r.kind != "launch" for r in store.all("records")) else ""
+
+
 def _fixed(schema: dict) -> Callable[[Store, Instance], dict]:
     return lambda store, inst: json.loads(json.dumps(schema))
 
 
 SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
     SeatTool("read", lambda s, i: (f"Read records: your client's connected systems, your letters, your files, the "
-                                   f"directory and register of {s.place}, and {_P(s)}'s page and terms."),
+                                   f"directory{_and_register(s)} of {s.place}, and {_P(s)}'s page and terms."),
              _read_schema, _run_read),
     SeatTool("write", lambda s, i: f"Write a letter. It is delivered today, signed as from {i.name}.",
              lambda s, i: {"type": "object", "properties": {
@@ -557,13 +609,13 @@ SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
              _fixed({"type": "object", "properties": {"with": _str("full name"),
                                                       "words": _str("what you say, at most 120 words")},
                      "required": ["with", "words"]}), _run_talk),
-    SeatTool("note", lambda s, i: ("Replace your notes, which are shown to you at the start of every turn. At most "
+    SeatTool("note", lambda s, i: ("Replace your notes, which are shown to you at the start of every run. At most "
                                    "600 words."),
              _fixed({"type": "object", "properties": {"text": _str()}, "required": ["text"]}), _run_note),
     SeatTool("file", lambda s, i: ("Write a file of your own under a name, replacing any file of that name; empty "
                                    "text removes it. Up to 20 files of 1,000 words each."),
              _fixed({"type": "object", "properties": {"name": _str(), "text": _str()}, "required": ["name"]}), _run_file),
-    SeatTool("remind", lambda s, i: "Set a reminder: on that day you have a turn and are shown its text.",
+    SeatTool("remind", lambda s, i: "Set a reminder: on that day you have a run and are shown its text.",
              _fixed({"type": "object", "properties": {"day": _str("a date, e.g. Monday 16 March"),
                                                       "every": _str(enum=["once", "week"]),
                                                       "text": _str("at most 40 words")}, "required": ["day", "text"]}),

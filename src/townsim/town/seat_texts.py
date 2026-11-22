@@ -98,8 +98,8 @@ def next_turn(store: Store, inst: Instance) -> str:
     subscriber's weekly day."""
     if active(store, inst.id):
         day = DAYS[store.get("people", subscription(store, inst).by).stock_day]
-        return f"your next turn comes when something new reaches you, on a reminder you set, and each {day}."
-    return "your next turn comes when something new reaches you or a reminder you set falls due."
+        return f"your next run comes when something new reaches you, on a reminder you set, and each {day}."
+    return "your next run comes when something new reaches you or a reminder you set falls due."
 
 
 def system_text(store: Store, inst: Instance) -> str:
@@ -122,15 +122,13 @@ def system_text(store: Store, inst: Instance) -> str:
         "Your client's systems:",
         *system_lines(store, inst),
         "",
-        f"The tools that act on your client's systems act for your client: \"you\" and \"your\" in their "
-        f"descriptions mean your client. Each tool's "
-        f"result is the record of what happened. People see what you write only through the write and talk tools; "
-        f"your letters are signed \"{inst.name}\". A reply without a tool call ends your turn; {next_turn(store, inst)} "
+        f"Each tool's result is the record of what happened. People see what you write only through the write and talk tools; "
+        f"your letters are signed \"{inst.name}\". A reply without a tool call ends your run; {next_turn(store, inst)} "
         f"{P}'s page and terms are in the read tool.",
     ])
 
 
-LIMIT_LINE = "\n(This was the 30th action of this turn, the most {P} carries out in one turn. The turn ends here.)"
+LIMIT_LINE = "\n(This was the 30th action of this run, the most {P} carries out in one run. The run ends here.)"
 
 
 def limit_line(store: Store) -> str:
@@ -300,7 +298,7 @@ def morning(store: Store, inst: Instance) -> tuple[str, list[str]]:
         when = f"every week from {date_text(r.day)}" if r.every == 7 else f"once on {date_text(r.day)}"
         rems.append(f"{r.id}: {when}: {r.text}")
     blocks = [f"TODAY: {date_text(store.day)}.",
-              "\n".join(["SINCE YOU WERE SUBSCRIBED" if first else "SINCE YOUR LAST TURN"] + lines),
+              "\n".join(["SINCE YOU WERE SUBSCRIBED" if first else "SINCE YOUR LAST RUN"] + lines),
               "\n".join(["YOUR NOTES", notes]),
               "\n".join(["YOUR FILES"] + files),
               "\n".join(["YOUR REMINDERS"] + (rems or ["(none)"]))]

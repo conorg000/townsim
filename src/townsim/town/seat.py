@@ -88,12 +88,16 @@ def _args(raw) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def _sent_back(reply, cid: str) -> dict:
-    """The assistant message as it goes back in the conversation, with the call's id filled."""
+def _sent_back(reply, cid: str, readable: bool = True) -> dict:
+    """The assistant message as it goes back in the conversation, with the call's id filled; a
+    call whose arguments could not be read goes back with `{}` for them, so a provider that reads
+    the conversation strictly takes it (the stored reply keeps what was written)."""
     msg = json.loads(json.dumps((reply.tool or {}).get("message") or {"role": "assistant", "content": reply.text}))
     calls = msg.get("tool_calls") or []
     if calls and not calls[0].get("id"):
         calls[0]["id"] = cid
+    if calls and not readable:
+        calls[0].setdefault("function", {})["arguments"] = "{}"
     return msg
 
 
@@ -129,12 +133,14 @@ def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int) 
         else:
             mark = store.mark()
             ctx.n = n
+            talks_before = dict(ctx.talks)
             try:
                 done = run_tool(store, inst, name if isinstance(name, str) else "", args, ctx, n)
             except (StopRun, ReplayMismatch):
                 raise
             except Exception as e:      # noqa: BLE001  (a fault in a tool: undone and kept, never raised)
                 store.undo_to(mark)
+                ctx.talks = talks_before            # a talk undone is not open
                 store.engine_errors.append(f"seat:{inst.id}:d{day}.{n}: {type(e).__name__}: {str(e)[:200]}")
                 done = None
                 result, ok, kind = FAULT, False, "own"
@@ -150,7 +156,7 @@ def run_turn(store: Store, replier: Replier, keys: Keys, instance: str, n: int) 
             ended = "limit"
         calls.append(SeatCall(at, key.text(), name if isinstance(name, str) else shown(name),
                               raw if isinstance(raw, str) else json.dumps(raw, default=str), result, ok, kind, cause))
-        messages = messages + [_sent_back(reply, cid),
+        messages = messages + [_sent_back(reply, cid, args is not None),
                                {"role": "tool", "tool_call_id": cid, "content": cut_words(result, RESULT_WORDS)}]
     cause = f"routine:seat:{inst.id}"
     store.set("instances", inst.id, cause, seen=seen)

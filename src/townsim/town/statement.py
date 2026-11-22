@@ -123,10 +123,15 @@ def mover(line: Line) -> str:
     return line.cause.split(":")[1].split("/")[0]
 
 
+OPENING = "outside:opening"          # where the generator's opening balances come from (`gen.OPENING`)
+
+
 def other_and_memo(store: Store, line: Line, reader: str = "") -> str:
     """What a statement line says after its date and sum: the other account's name and the memo;
     for money someone else of the household moved between their own accounts, `<Name> moved
     <$x> from <account>` (or `to`) in their place."""
+    if line.other == OPENING:                       # the books began here: no one paid it
+        return "balance brought forward"
     who = mover(line)
     if who and reader and who != reader and store.has("people", who):
         way = "from" if line.cents > 0 else "to"

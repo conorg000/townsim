@@ -81,16 +81,16 @@ Price: {money(pr.household_cents)} a week for a household, {money(pr.business_ce
 
 Connections. Read only: it reads the records and reports. With a weekly limit: it also acts, and what it does through that connection takes at most the limit out of the client's accounts in any week. Free: it acts with no limit.
 - A household's or a business's account (with savings): it reads the statement and what is owed; acting, it pays, sets up and stops payments, moves money between the client's own accounts, asks for and answers requests about money, proposes and ends agreements, borrows and repays.
-- Letters: it reads the letters, notices and requests that reach the household or the business; acting, it also answers requests that ask for no money.
+- Letters: it reads the letters, notices and requests that reach the household or the business; acting, it also answers requests that ask for no money. Letters move no money, so they are connected read only or free.
 - A shop's ordering: it reads stock, sales and orders; acting, it orders stock.
-- A shop's prices: it reads them; acting, it sets the price.
+- A shop's prices: it reads them; acting, it sets the price. Prices move no money, so they are connected read only or free.
 - A business's staff and pay: it reads who works there and for what pay; acting, it offers jobs and extra hours, changes pay and ends jobs.
 - Houses let: it reads the lets and rents; acting, it changes rents and serves notice.
 - A bank's loan book: it reads the loans; acting, it answers requests for loans.
 
 Payments and agreements it makes are its client's, and stay the client's when a connection is narrowed or taken back. It writes letters to anyone and talks with people, signed as from {P} for its client. It keeps its own notes and files and sets itself reminders.
 
-Limits: up to {pr.max_calls} actions in a turn; at most one turn a day; notes of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each. Each client has its own {P}, which sees only what that client connected.
+Limits: up to {pr.max_calls} actions in a run; at most one run a day; notes of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each. Each client has its own {P}, which sees only what that client connected.
 
 Subscribing: the subscribe operation. Connecting: connect; connecting again with a narrower scope narrows it; disconnect takes a connection back; stop, with the subscription's id, ends the subscription. Each client's {P} has a name of its own, "{P} for" the client, and letters to that name, or to "my assistant", reach it. {F} is reached by writing to {F}."""
 
