@@ -37,6 +37,10 @@ create table if not exists turns (
     run text not null, day integer not null, blob blob not null,
     primary key (run, day)
 );
+create table if not exists seat_turns (
+    run text not null, day integer not null, blob blob not null,
+    primary key (run, day)
+);
 create table if not exists notes (
     run text not null, name text not null, value text not null,
     primary key (run, name)
@@ -199,6 +203,18 @@ class RunDB:
 
     def turn_days(self, run_id: str) -> list[int]:
         return [r[0] for r in self._db.execute("select day from turns where run = ? order by day", (run_id,))]
+
+    def put_seat_turns(self, run_id: str, day: int, turns: list) -> None:
+        """Keep a day's instance turns (`seat.SeatTurn`), replacing any already kept for that day."""
+        self._write("insert or replace into seat_turns values (?, ?, ?)", (run_id, day, pickle.dumps(list(turns))))
+
+    def seat_turns(self, run_id: str, day: int) -> list:
+        """The instance turns kept for the day, or [] when none were."""
+        row = self._db.execute("select blob from seat_turns where run = ? and day = ?", (run_id, day)).fetchone()
+        return [] if row is None else pickle.loads(row[0])
+
+    def seat_days(self, run_id: str) -> list[int]:
+        return [r[0] for r in self._db.execute("select day from seat_turns where run = ? order by day", (run_id,))]
 
     def put_errors(self, run_id: str, day: int, errors: list[str]) -> None:
         """Keep the engine errors a day raised, replacing any already kept for that day."""

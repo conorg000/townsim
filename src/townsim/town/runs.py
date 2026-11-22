@@ -32,6 +32,8 @@ def run(db: RunDB, run_id: str, store: Store, replier: Replier, days: int) -> St
             return db.load_snapshot(run_id, day)
         db.put_changes(run_id, day, store.changes[mark:])
         db.put_turns(run_id, day, report.turns)
+        if report.seat:
+            db.put_seat_turns(run_id, day, report.seat)
         db.put_errors(run_id, day, store.engine_errors[errors:])
     db.save_snapshot(run_id, store.day, store)
     return store
