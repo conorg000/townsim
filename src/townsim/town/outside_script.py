@@ -5,7 +5,8 @@ The lifter names the first register entry the statement names; the narrator file
 ("Advertise" a medium visibility investment in the actor's shop, "Open" a small fit-out with a shop on
 completion, "Club" a club, "Ask" a request to the first person named, "Pay" a redirect to pay, anything else a
 question), the second filing the same unless the statement says "differ"; desks answer with a short email and,
-for a supplier asked for a discount, a grant of 10% (which code clamps); the web's writer gives NONE for news and
+for a supplier asked for a discount, a grant of 10% (which code clamps), for time to pay six weeks, for a
+weekly amount $1 (which code refuses); the web's writer gives NONE for news and
 a page of about 150 words otherwise. Everyone else is the hamlet's script (`reply`).
 """
 
@@ -79,8 +80,13 @@ def _desk(actor: str, text: str) -> str:
     action = None
     shop = re.search(r"^- (.+?) \(a (?:shop|buying group)\)", text, re.M)
     email = re.search(r"<email>\n(.*)\n</email>", text, re.S)
-    if shop and email and "discount" in email.group(1).lower():
+    asked = email.group(1).lower() if email else ""
+    if shop and "discount" in asked:
         action = {"action": "grant_discount", "to": shop.group(1), "percent": 10}
+    elif "time to pay" in asked:
+        action = {"action": "time_to_pay", "weeks": 6}
+    elif "weekly amount" in asked:
+        action = {"action": "set_weekly_amount", "dollars": 1}
     return json.dumps({"email": "Thank you for your email. We have looked at your account and written back below.",
                        "action": action})
 
