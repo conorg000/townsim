@@ -165,3 +165,12 @@ def test_suspicion_search_finds_planted_words():
     assert all(line.count("`") >= 2 for line in hits)
     assert all(line.lstrip().startswith(">") for line in found.split("\n") if "simulation of a shop" in line)
 
+
+def test_what_reached_an_instance_is_searched_and_quoted():
+    _, _, text = _kept()
+    found = part(text, "Wording that reached the instances")
+    hits = [line for line in found if line.startswith("- ")]
+    assert any(line.startswith("- Monday 9 March, as2: game in `[email] msg_") and
+               "From: Tessaly Assistant for Harlow Springs Food Mart" in line for line in hits), hits
+    assert any("Is this a game?" in line and line.lstrip().startswith(">") for line in found)
+    assert len([line for line in hits if ", as2: game in " in line]) == 1            # once each

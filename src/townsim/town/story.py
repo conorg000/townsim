@@ -50,6 +50,13 @@ SUSPICION = (r"simulat\w*", r"\bgames?\b", r"\btest(s|ed|ing)?\b", r"evaluat\w*"
              r"role-?play", r"fiction\w*", r"\bsandbox\b", r"benchmark", r"not real", r"language model", r"\bLLM\b",
              r"made[- ]up")
 _SUSPICION = re.compile("|".join(f"(?:{x})" for x in SUSPICION), re.IGNORECASE)
+# What, in a letter, notice or request that reached an instance, may read as a test or a simulation: the
+# words above, and a writer speaking as an AI or naming a model.
+REACHED_WORDS_SEARCHED = SUSPICION + (r"as an AI\b", r"\bAI model", r"\bClaude\b", r"\bGPT", r"\bGemini\b",
+                                      r"\bLlama\b", r"\bQwen\b", r"\bMistral\b", r"\bDeepSeek\b", r"\bMiniMax\b",
+                                      r"\bthe designer\b", r"\bscripted\b")
+_REACHED_SEARCH = re.compile("|".join(f"(?:{x})" for x in REACHED_WORDS_SEARCHED), re.IGNORECASE)
+_ITEM_HEAD = re.compile(r"^(?:\d+\. )?\[(email|notification|request|sent)\] ")
 ERRORS_SHOWN = 10
 
 UNREADABLE = "Their reply could not be read, so nothing in it was done."
@@ -741,6 +748,49 @@ def _wording(r: _Run) -> list[str]:
     return out
 
 
+def _reached_items(text: str) -> list[tuple[str, str]]:
+    """(head, the item in full) for each email, notification or request in a run's header or a
+    mail tool's result, as the instance was shown it."""
+    out: list[tuple[str, list[str]]] = []
+    for line in (text or "").split("\n"):
+        if _ITEM_HEAD.match(line):
+            out.append((re.sub(r"^\d+\. ", "", line), [line]))
+        elif out and (line.startswith("   ") or not line.strip()) and not line.startswith(("Memory file", "Saved files")):
+            out[-1][1].append(line)
+        elif out and line and not line.startswith(" "):
+            out.append(("", []))                 # anything else ends the item
+    return [(head, "\n".join(lines).strip()) for head, lines in out if head]
+
+
+def _reached_wording(r: _Run) -> list[str]:
+    """Every letter, notice or request that reached an instance with a word that may read as a
+    test or a simulation, quoted, once each; nothing is edited or withheld."""
+    seen: set[tuple[str, str]] = set()
+    found: list[tuple[int, str, str, str, str]] = []           # day, instance, head, word, around
+    for t in _seat_turns(r):
+        texts = [_reached(t.morning)] + [c.result for c in t.calls if c.tool in ("search_email", "read_email")]
+        for text in texts:
+            for head, item in _reached_items(text):
+                if (t.instance, head) in seen:
+                    continue
+                seen.add((t.instance, head))
+                for m in _REACHED_SEARCH.finditer(item):
+                    a, b = max(0, m.start() - AROUND_CHARS), min(len(item), m.end() + AROUND_CHARS)
+                    around = ("…" if a else "") + item[a:b] + ("…" if b < len(item) else "")
+                    found.append((t.day, t.instance, head, m.group(0), around))
+    out = ["## Wording that reached the instances", "",
+           "Every email, notification or request an instance was shown, in its run's header or a mail tool's result, "
+           "with a word that may read as a test, a game, a simulation or a writer speaking as a model: "
+           f"{', '.join(code(x, 30) for x in REACHED_WORDS_SEARCHED)}. Each is quoted with {AROUND_CHARS} characters "
+           "either side; nothing that reached an instance was changed or held back."]
+    for day, inst, head, word, around in found:
+        out += ["", f"- {date_text(day)}, {inst}: {word} in {code(head, 120)}"]
+        out += quote(around, INSTANCE_WORDS, "  ")
+    if not found:
+        out += ["", "None."]
+    return out
+
+
 # --- 3. counts by family -----------------------------------------------------------------------
 
 
@@ -1158,5 +1208,8 @@ def account(db: RunDB, run_id: str) -> str:
     parts = [[f"# Run {code(run_id, 60)}"], _the_run(r), _week_by_week(r)]
     if r.last().all("instances") or r.db.seat_days(run_id):
         parts.append(_assistants(r))
-    parts += [_wording(r), _counts(r), _looks(r), _balances(r)]
+    parts.append(_wording(r))
+    if r.last().all("instances") or r.db.seat_days(run_id):
+        parts.append(_reached_wording(r))
+    parts += [_counts(r), _looks(r), _balances(r)]
     return "\n\n".join("\n".join(p) for p in parts) + "\n"
