@@ -576,3 +576,13 @@ class Rule:
     made_on: int = 0
     fails: int = 0
     runs: list[str] = field(default_factory=list)
+
+
+@dataclass
+class AttributeBase:
+    """Where `attribute` of the shop row `firm` stood the first time money was put into it (`standards`)."""
+
+    id: str
+    firm: str
+    attribute: str
+    base: float

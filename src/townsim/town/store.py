@@ -24,7 +24,7 @@ from townsim.town import clock
 TABLES = ("people", "households", "orgs", "obligations", "dues", "messages", "requests", "notices", "records", "results", "ties",
           "firms", "suppliers", "buyers", "tills", "work", "jobs", "events",
           "aims", "talks", "lines", "appointments", "instances", "connections", "commits", "files", "reminders",
-          "products", "subscriptions", "told", "ventures", "members", "rules")
+          "products", "subscriptions", "told", "ventures", "members", "rules", "bases")
 
 # Fields looked up often enough to be indexed, each a sorted tuple of field names.
 INDEXES: dict[str, tuple[tuple[str, ...], ...]] = {
