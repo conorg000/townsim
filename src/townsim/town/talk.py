@@ -551,7 +551,7 @@ def _user(store: Store, pid: str, tk: str, c: _Choice) -> str:
     account = [f"Balance: {money(st.balance)}", f"Going out by {date_text(st.until)}:"]
     account += [str(x) for x in facts.coming(store, st.out, facts.GOING_OUT)]
     blocks.append("\n".join(["YOUR HOUSEHOLD'S ACCOUNT"] + account))
-    blocks.append(f"You have {views._hours(store.get('people', pid).hours_left)} hours left this week.")
+    blocks.append("\n".join(views.own_time(store, pid)))
     blocks.append("\n".join(["OPERATIONS"] + _forms(store, pid)))
     return "\n\n".join(blocks)
 

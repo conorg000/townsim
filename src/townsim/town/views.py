@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Any, NamedTuple
 
 import townsim.town.ops_core  # noqa: F401  (registers the operations)
-from townsim.town import acts, aims, facts, talk, ties, unknown
+from townsim.town import acts, aims, facts, hours, talk, ties, unknown
 from townsim.town.acts import CHARS_A_WORD, accounts_of, name_of_who
 from townsim.town.clock import date_text
 from townsim.town.entities import Message
@@ -246,6 +246,27 @@ def _hours(h: float) -> str:
     return f"{round(h, 2):g}"
 
 
+# What some operations are called when their time is told, in the order told (at most six).
+COSTS = (("message", "a letter"), ("converse", "a talk"), ("request", "a request"), ("pay", "a payment"),
+         ("offer_job", "a job offer"), ("offer_shifts", "an offer of extra hours"))
+
+
+def own_time(store: Store, pid: str) -> list[str]:
+    """The reader's own time this week: while ill, until when; else the hours left outside their
+    work, and what some of their operations take, read from the operations themselves."""
+    if hours.ill(store, pid):
+        return [hours.ill_line(store, pid)]
+    left = _hours(store.get("people", pid).hours_left)
+    held = acts.positions(store, pid)
+    costs = [(what, hours.length(acts.REGISTRY[op].hours)) for op, what in COSTS
+             if op in acts.REGISTRY and acts.REGISTRY[op].who in held][:6]
+    lines = [f"Time of your own left this week, outside your work: {left} hour{'' if left == '1' else 's'}."]
+    if costs:
+        (what, took), rest = costs[0], costs[1:]
+        lines.append(f"{what[:1].upper()}{what[1:]} takes {took}" + "".join(f", {w} {t}" for w, t in rest) + ".")
+    return lines
+
+
 def _appointments(store: Store, pid: str) -> list[str]:
     """`<id>: with <name> on <date>, about <"label">` for each talk booked with `pid` from
     today on, soonest first: at most five, then a line counting the rest."""
@@ -284,7 +305,7 @@ class _Parts(NamedTuple):
     knowhow: list[str]
     mind: list[str]
     notes: str
-    hours: str
+    hours: list[str]
     operations: list[str]
     pid: str = ""
     built: dict | None = None          # lines already laid out, by what they depend on
@@ -358,7 +379,7 @@ def _parts(store: Store, pid: str) -> _Parts:
                   _unseen(store, pid, rank), talk.unseen_talks(store, pid), _waiting(store, pid, rank),
                   _appointments(store, pid),
                   _people(store, pid), facts.knowhow(store, pid), aims.lines(store, pid),
-                  person.notes if person.notes.strip() else "", _hours(person.hours_left), acts.forms(store, pid), pid,
+                  person.notes if person.notes.strip() else "", own_time(store, pid), acts.forms(store, pid), pid,
                   {})
 
 
@@ -438,7 +459,7 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
         out.append(_Sec("ON YOUR MIND", _own("\n".join(parts.mind))))
     if parts.notes:
         out.append(_Sec("YOUR NOTES", _own(parts.notes)))
-    out.append(_Sec(None, [(f"You have {parts.hours} hours left this week.", None)], fixed=True))
+    out.append(_Sec(None, [(line, None) for line in parts.hours], fixed=True))
     out.append(_Sec("OPERATIONS", _plain("\n".join(parts.operations)), fixed=True))
     return out
 

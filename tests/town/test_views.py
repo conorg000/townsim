@@ -40,7 +40,7 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
     assert "Not Craig's." not in text
     heads = ["TODAY: Monday 2 March.", "WHAT CAME OF YOUR LAST ACTS", "YOUR HOUSEHOLD'S ACCOUNT",
              "LETTERS AND NOTICES", "WAITING FOR YOUR ANSWER", "PEOPLE YOU KNOW", "YOUR NOTES",
-             "You have 11.75 hours left this week.", "OPERATIONS"]
+             "Time of your own left this week, outside your work: 11.75 hours.", "OPERATIONS"]
     lines = text.split("\n")
     assert [lines.index(h) for h in heads] == sorted(lines.index(h) for h in heads)
     assert "LETTERS AND NOTICES\nA notice.\nFrom Ruth Ashby:\n  > Hello Craig.\n\n" in text and "Not for Craig." not in text
@@ -53,7 +53,7 @@ def test_sections_come_in_order_and_empty_ones_are_left_out():
 
 
 def test_whole_hours_are_shown_without_a_fraction():
-    assert "You have 70 hours left this week." in person_view(thin_town(), "p01")[1]["content"]
+    assert "Time of your own left this week, outside your work: 70 hours." in person_view(thin_town(), "p01")[1]["content"]
 
 
 def test_mark_seen_marks_only_what_it_is_given():
@@ -772,7 +772,7 @@ def test_the_last_guard_holds_the_ceiling():
     v = views.layout(s, "p03")
     assert v.steps[-1] == "guard" and len(v.system.split()) + len(v.user.split()) < 2000
     assert "(not everything is shown today)" in v.user and "rq1 from Ruth Ashby:\n  > Lend me a ladder" in v.user
-    assert v.user.startswith("TODAY:") and "\nOPERATIONS\n" in v.user and "hours left this week." in v.user
+    assert v.user.startswith("TODAY:") and "\nOPERATIONS\n" in v.user and "Time of your own left this week" in v.user
     letters = section(v.user, "LETTERS AND NOTICES") or []
     assert [i for i in v.ids if i.startswith("msg")] == [f"msg{k + 1}" for k in range(len(
         [x for x in letters if x.startswith("From ")]))]
@@ -881,7 +881,7 @@ def _check_view(s, pid):
     total = len(v.system.split()) + len(v.user.split())
     assert total < 2000, (pid, total, v.steps)
     lines = v.user.split("\n")
-    assert v.user.startswith("TODAY:") and "OPERATIONS" in lines and any(x.endswith("hours left this week.") for x in lines)
+    assert v.user.startswith("TODAY:") and "OPERATIONS" in lines and any(x.startswith(("Time of your own left this week", "You are ill until")) for x in lines)
     results = sorted(s.where("results", actor=pid, seen=False), key=lambda r: (r.day, acts.id_key(r.id)))
     if results:
         rows = [x for x in section(v.user, "WHAT CAME OF YOUR LAST ACTS") if not x.startswith("  ")]

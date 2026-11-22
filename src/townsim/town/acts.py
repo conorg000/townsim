@@ -132,7 +132,8 @@ def apply_act(store: Store, act: Act, n: int) -> Outcome:
         person = store.get("people", act.actor)
         hours = spec.hours if spec.hours_of is None else spec.hours_of(store, act)
         if person.hours_left < hours:
-            return _not_done(act, "you have no time left this week for that.", cause)
+            from townsim.town.hours import no_time          # hours reads the jobs this module reads
+            return _not_done(act, no_time(store, act.actor, hours), cause)
         reason = spec.check(store, act)
         if reason is not None:
             return _not_done(act, reason, cause)

@@ -358,7 +358,7 @@ def _check_shifts(store: Store, act: Act, rq: Request) -> str | None:
     if act.actor == act.principal:              # answering takes its own time too
         left -= REGISTRY["answer"].hours
     if left < rq.hours:
-        return f"you have {_h(round(max(left, 0.0), 2))} hours left this week, and this is {_h(rq.hours)}."
+        return f"you have {_h(round(max(left, 0.0), 2))} hours of your own left this week, and this is {_h(rq.hours)} hours."
     return None
 
 

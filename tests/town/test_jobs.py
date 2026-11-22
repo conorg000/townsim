@@ -214,7 +214,7 @@ def test_extra_hours_need_the_hours_and_a_job_there():
     rq = s.all("requests")[-1]
     s.set("people", "p03", T, hours_left=5.0)
     assert refused(s, "p03", "answer", request=rq.id, answer="accept") == \
-        "Not done: you have 4.9 hours left this week, and this is 8."
+        "Not done: you have 4.9 hours of your own left this week, and this is 8 hours."
     assert refused(s, "p01", "offer_shifts", to="Megan Pryce", hours=8) == \
         "Not done: Megan Pryce does not work at Marsh's Stores."
     assert refused(s, "p01", "offer_shifts", to="Craig Pryce", hours=21) == \
@@ -476,7 +476,9 @@ def test_extra_hours_raise_this_weeks_capacity_only():
     assert out.msg == "You work 19 extra hours at Marsh's Stores this week."
     assert firms.capacity(s, "fm1") == 90 and s.get("people", "p01").hours_left == 51
     s.set("people", "p01", T, hours_left=10.0)
-    assert refused(s, "p01", "work_extra_hours", hours=11) == "Not done: you have no time left this week for that."
+    assert refused(s, "p01", "work_extra_hours", hours=11) == (
+        "Not done: you have 10 hours of your own left this week, and this takes 11 hours (19 extra hours worked at "
+        "Marsh's Stores on Monday). It returns on Monday 9 March.")
     to_day(s, 7)
     assert firms.capacity(s, "fm1") == 60
 

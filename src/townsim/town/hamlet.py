@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import random
 
-from townsim.town import jobs, obligations
+from townsim.town import hours, jobs, obligations
 from townsim.town.clock import DAY_ZERO, date_text, dow, week
 from townsim.town.entities import Event
 from townsim.town.obligations import money
@@ -69,7 +69,7 @@ def _illness(store: Store, e: Event, cause: str) -> str | None:
     if dow(e.day) != 0:                  # on a Monday the week's hours, set next, are none
         fields["hours_left"] = 0.0
     store.set("people", e.who, cause, **fields)
-    _tell(store, [e.who], "You are ill this week.", cause)
+    _tell(store, [e.who], f"You have fallen ill. {hours.ill_line(store, e.who)}", cause)
     return None
 
 

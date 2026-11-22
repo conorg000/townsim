@@ -389,7 +389,8 @@ def notices(s, changes):
 def test_an_illness_on_a_monday_leaves_no_hours_that_week():
     s = at(14)
     changes = event(s, "illness", "p2")
-    assert notices(s, changes) == [("p2", "You are ill this week.")]
+    assert notices(s, changes) == [("p2", "You have fallen ill. You are ill until Sunday 22 March: you are not at work and have no time "
+                                          "of your own until Monday 23 March.")]
     assert touched(changes, "people") == {"p2"} and s.get("people", "p2").ill_until == 20
     assert {c.table for c in changes} <= {"people", "notices", "counter", "events"}
     hours.monday_hours(s)
@@ -407,7 +408,8 @@ def test_an_illness_mid_week_takes_the_hours_left_at_once():
     changes = event(s, "illness", "p2")
     p = s.get("people", "p2")
     assert (p.ill_until, p.hours_left, p.hours_week) == (20, 0, week_hours)
-    assert notices(s, changes) == [("p2", "You are ill this week.")]
+    assert notices(s, changes) == [("p2", "You have fallen ill. You are ill until Sunday 22 March: you are not at work and have no time "
+                                          "of your own until Monday 23 March.")]
 
 
 def _only(s, kind, day, who, amount=0, weeks=1):

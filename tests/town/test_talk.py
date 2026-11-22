@@ -323,7 +323,8 @@ def test_the_talk_view_shows_what_is_between_them_in_order():
     user = talk.view(s, CRAIG, tk)[1]["content"]
     heads = [b.split("\n")[0] for b in user.split("\n\n")]
     assert heads == ["TODAY: Monday 2 March.", "YOU ARE TALKING WITH Ruth Ashby", "BETWEEN YOU", "THE TALK SO FAR",
-                     "YOUR HOUSEHOLD'S ACCOUNT", "You have 68.75 hours left this week.", "OPERATIONS"]
+                     "YOUR HOUSEHOLD'S ACCOUNT", "Time of your own left this week, outside your work: 68.75 hours.",
+                     "OPERATIONS"]
     between = user.split("BETWEEN YOU\n")[1].split("\n\n")[0].split("\n")
     assert between[0].startswith("ob9: ") and "a week from Ashby" in between[0]
     assert between[1:4] == ["rq1 from you to Ruth Ashby:", "  > Lend us $50?", "You ask them for $50.00."]

@@ -92,7 +92,8 @@ def test_hours_are_taken_and_run_out():
     assert apply_act(s, Act("p01", "p01", "message", {"to": "Craig Pryce", "text": "hello"}), 0).ok
     assert s.get("people", "p01").hours_left == pytest.approx(0.05)
     out = apply_act(s, Act("p01", "p01", "message", {"to": "Craig Pryce", "text": "again"}), 1)
-    assert out.msg == "Not done: you have no time left this week for that."
+    assert out.msg == ("Not done: you have 0.05 hours of your own left this week, and this takes \u00bc hour (1 letter, "
+                       "\u00bc hour). It returns on Monday 9 March.")
 
 
 def test_to_cents():
