@@ -675,7 +675,7 @@ def _sum(cents: int, usual: int) -> str:
     return "" if cents == usual else f", {money(cents)}"
 
 
-def _paid_last(store: Store, ob) -> str:
+def paid_last(store: Store, ob) -> str:
     """`last paid <date>` (and the sum, when it was not the usual one), or `nothing paid yet`."""
     got = last_paid(store).get(ob.id)
     if got is None:
@@ -686,7 +686,7 @@ def _paid_last(store: Store, ob) -> str:
     return f"last paid {date_text(got[0])}{_sum(got[1], cents_now(store, ob))}" if got else "nothing paid yet"
 
 
-def _next_due(store: Store, ob) -> str:
+def next_due(store: Store, ob) -> str:
     """`next due <date>` (and the sum, when it is not the usual one; and a change of amount to
     come), or ""."""
     day = next_instalment(store, ob)
@@ -743,10 +743,10 @@ def owed_rows(store: Store, account: str, out: bool, most: int = OWED_LINES) -> 
         also_text = (f" (as well as {', '.join(also[:2])}" + (f" and {len(also) - 2} more" if len(also) > 2 else "")
                      + ")") if also else ""
         parts = [f"{ob.id}: {memo(ob.memo)}, {how} {party}{also_text}{_end(ob) if ob.status in SCHEDULED else ''}",
-                 _paid_last(store, ob)]
+                 paid_last(store, ob)]
         if late:
             parts.append(f"{money(late)} overdue since {date_text(since)}")
-        nxt = _next_due(store, ob) if ob.status in SCHEDULED else ""
+        nxt = next_due(store, ob) if ob.status in SCHEDULED else ""
         if nxt:
             parts.append(nxt)
         rows.append("; ".join(parts))

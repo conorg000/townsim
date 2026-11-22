@@ -251,6 +251,9 @@ def _do_pay(store: Store, act: Act, cause: str) -> str:
         for due in dues:
             counted.append(f"{memo_shown(store.get('obligations', due.obligation).memo)} due {date_text(due.day)}")
         told += " It was counted toward " + "; ".join(counted) + _left_on(store, dues[-1], len(dues))
+        rest = cents - sum(m.cents for m in matches)
+        if rest > 0:
+            told += f" {money(rest)} of it was not counted toward anything owed."
     return told + _still_taken(store, source, payee, {store.get("dues", m.due).obligation for m in matches})
 
 

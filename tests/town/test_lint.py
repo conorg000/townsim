@@ -72,3 +72,37 @@ def test_over_21_weeks_no_step_of_giving_way_adds_words_and_no_view_is_over_1600
         assert all(b <= a for a, b in zip(trail, trail[1:])), (seed, day, pid, steps, trail)
         assert words <= trail[-1] and words <= 1600, (seed, day, pid, words, steps)
         assert words < 2000 and chars <= 16000
+
+
+ALSO_LINE = re.compile(r"[A-Z][\w'-]+(?: [A-Z][\w'-]+)+(?:, \d+ [A-Z][\w ]+)?(?:, (?:runs|works at) [^$]+)?")
+OWED_LINE = re.compile(r"ob\d+: .+, \$[\d,]+\.\d\d (?:a week|a day|every \d+ days|once on [^;]+) (?:to|from) .+"
+                       r"; (?:last paid [^;]+|nothing paid yet)(?:; \$[\d,]+\.\d\d overdue since [^;]+)?(?:; next due .+)?")
+
+
+@pytest.mark.parametrize("seed", (1, 3))
+def test_the_new_sections_are_records_of_the_day(seed):
+    _, _, asked = scripted_weeks(seed)
+    seen = {"also": 0, "owed": 0, "savings": 0, "time": 0}
+    for day, pid, purpose, system, user, _ in asked:
+        if purpose != "turn":
+            continue
+        for block in user.split("\n\n"):
+            lines = block.split("\n")
+            if lines[0].startswith("ALSO IN "):
+                for x in lines[1:]:
+                    assert ALSO_LINE.fullmatch(x) and not re.search(r"benefit|out of work|\$", x), (seed, day, pid, x)
+                    seen["also"] += 1
+            elif lines[0] in ("YOU OWE", "OWED TO YOU"):
+                for x in lines[1:]:
+                    if x.endswith(":") or x.startswith("("):
+                        continue
+                    assert OWED_LINE.fullmatch(re.sub(r'"[^"]*"', '""', x)), (seed, day, pid, x)
+                    seen["owed"] += 1
+        for x in user.split("\n"):
+            if x.startswith("Savings: "):
+                assert re.fullmatch(r"Savings: \$[\d,]+\.\d\d", x), x
+                seen["savings"] += 1
+            if x.startswith("Time of your own"):
+                assert re.fullmatch(r"Time of your own left this week, outside your work: [\d.]+ hours?\.", x), x
+                seen["time"] += 1
+    assert all(seen.values()), seen

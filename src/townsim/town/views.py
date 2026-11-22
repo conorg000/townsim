@@ -2,10 +2,12 @@
 
 The system message is who they are (`facts.who`) and the form of a reply. The user message
 is their day, in sections in a fixed order, each left out when it is empty: the date; what
-came of their last acts; their household's account; their business; what is owed; their
-letters and notices; the talks they have had since they were last shown them; requests
-waiting for their answer; the talks booked with them; the people they know;
-how their trade works; what is on their mind; their notes; their hours; the operations.
+came of their last acts; their household's account (with its savings); their business; what
+they owe and what is owed to them; their letters and notices; the talks they have had since
+they were last shown them; requests waiting for their answer; the talks booked with them; the
+people they know, with the record of their dealings; the place's other residents; how their
+trade works; what is on their mind; their notes; their own time and what things take; the
+operations, naming the reader's own accounts and suppliers.
 
 The inbox shows the three most pressing letters and notices in full (closest ties first, a
 notice ranking with the household, then oldest) and counts the rest, which stay unseen;
@@ -534,20 +536,24 @@ def layout(store: Store, pid: str) -> Layout:
     needs. While the whole is over 1,500 words, and each only as far as needed, the least of what
     the reader needs gives way first, so that what matters most is kept: the results of their
     last acts and what is new to them, then the statement's last seven days, then their business
-    with all its figures, then what is owed, then the rest. In order: how the trade works
-    (`knowhow`); the people known who are not among those the reader lives or works with or has
-    dealt with in the last four weeks, furthest first (`people`); the household statement's
+    with all its figures, then what is owed, then the rest. In order: the place's other
+    residents (`also`); how the trade works (`knowhow`); the people known who are not among
+    those the reader lives or works with or has dealt with in the last four weeks, furthest
+    first (`people`); the household statement's
     in-and-out lines older than seven days, oldest first (`statement`: the last seven days give
     way only to the last guard); the people known, down to the six closest (`closest`); the
     payments going out and coming in, down to five and three, and the business's going out to
     four (`coming`); what is owed, down to four lines an account (`owed`); the business's second
-    till week (`till`); its own figures beyond its account, price, shelf, order, staff and till
-    (`business`); the statement's lines without what each was counted toward (`toward`); the
+    till week (`till`); the statement's lines without what each was counted toward (`toward`); the
     second talk, which moves to the counted line and waits unseen, and then each turn of the
     first cut to 20 words in place of 40 (`talks`); the third and second letters or notices,
     which move to the counted line and wait unseen (`inbox`); the third and second requests,
-    likewise (`requests`); the latest read result cut to 120 words (`read`). Letters and
-    requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
+    likewise (`requests`); the latest read result cut to 120 words (`read`); then, last of all,
+    what is owed down to two lines an account each way (`owed_least`), the payments going out
+    and coming in down to three and two and the business's going out to two (`coming_least`),
+    what things take (`costs`), the people known down to the three closest (`people_least`), and
+    the business's own figures beyond its account, price, shelf, order, staff and till
+    (`business`). Letters and requests are never cut: what is shown is shown whole. If the whole is still 2,000 words or
     more, or more than 16,000 characters, the last guard (`guard`) takes whole lines from the
     end of the longest section that may lose them until it is under both, and ends that
     section with `(not everything is shown today)`; the date, the results, the first

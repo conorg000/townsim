@@ -419,8 +419,10 @@ def _between_obligations(store: Store, pid: str, other: str, most: int) -> list[
         else:
             every = {1: "a day", 7: "a week"}.get(ob.every, f"every {ob.every} days")
             how = f"{every} {party}" + facts.until(ob)
+        paid = "; " + facts.paid_last(store, ob)
+        nxt = facts.next_due(store, ob) if ob.status in SCHEDULED else ""
         rows.append(f"{ob.id}: {facts.memo(ob.memo)}, {money(ob.cents)} {how}"
-                    + (f", {money(late)} overdue" if late else ""))
+                    + (f", {money(late)} overdue" if late else "") + paid + (f"; {nxt}" if nxt else ""))
     if len(rows) > most:
         rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]
     return rows
