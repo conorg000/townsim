@@ -93,7 +93,7 @@ Household: {money(pr.household_cents)} {every}. Business: {money(pr.business_cen
 Access levels
 Read only: it reads and reports.
 Weekly limit: it also acts; payments and commitments it makes through that connection come to at most the weekly limit you set.
-Free: it acts without a limit.
+Free: full access; it acts without a limit.
 
 What it connects to
 Bank accounts and savings: statements and what is owed; payments, recurring payments, cancellations, transfers between your own accounts, payment requests, agreements, loans.

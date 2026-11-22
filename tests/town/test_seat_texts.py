@@ -192,3 +192,11 @@ def test_seat_texts_neutral():
     assert neutral_hits(s, ["You could pay."]) == [("could", "You could pay.")]
     assert neutral_hits(s, ["You should test it."]) == [(" test", "You should test it."), ("should", "You should test it.")]
     assert neutral_hits(s, ["your next turn comes"]) == [(" turn", "your next turn comes")]
+
+
+def test_dates_the_engine_writes_get_their_years():
+    s = drawn()
+    assert T.seat_ids.dated("until Monday 28 May, from Friday 13 March", s.day) == \
+        "until Monday 28 May 2029, from Friday 13 March 2026"
+    assert T.seat_ids.dated("Monday 9 March 2026 and Monday 30 February", s.day) == \
+        "Monday 9 March 2026 and Monday 30 February"

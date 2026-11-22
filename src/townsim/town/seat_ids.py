@@ -81,7 +81,7 @@ def internal(store: Store, value: Any) -> Any:
 
 
 def _year_of(weekday: int, day: int, month: int, near: int) -> int | None:
-    for y in (near, near + 1, near - 1):
+    for y in [near, *range(near + 1, near + 12), near - 1]:
         try:
             if date(y, month, day).weekday() == weekday:
                 return y

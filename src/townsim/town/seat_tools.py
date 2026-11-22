@@ -369,6 +369,28 @@ def _figures(store: Store, inst: Instance) -> str:
     return "\n".join(mine)
 
 
+def _price_lines(store: Store, inst: Instance) -> str:
+    """The shop's figures that the point of sale holds: its price, its sales and the other shops' prices."""
+    keep = ("Price:", "Last week:", "The week before:", "Prices a basket in the other shops:")
+    lines = _figures(store, inst).split("\n")
+    return "\n".join(lines[:1] + [x for x in lines[1:] if x.startswith(keep)])
+
+
+def _staff_lines(store: Store, inst: Instance) -> str:
+    """The business's figures that payroll holds: its staff, and the wages going out."""
+    lines = _figures(store, inst).split("\n")
+    out, part = lines[:1], ""
+    for x in lines[1:]:
+        if not x.startswith("  "):
+            part = x
+            if x.startswith(("Staff:", "Going out by")):
+                out.append(x)
+            continue
+        if part.startswith("Staff:") or (part.startswith("Going out by") and "wages" in x):
+            out.append(x)
+    return "\n".join(out)
+
+
 def _lets(store: Store, inst: Instance) -> str:
     h = store.get("households", inst.client)
     lords = set(h.members) | {h.id}
@@ -436,11 +458,11 @@ READ_TOOLS = (
     SeatTool("ordering_get", lambda s, i: "Get the shop's stock, sales, orders, suppliers' prices and staff.",
              lambda s, i: {"type": "object", "properties": {}}, _reader("ordering", "ordering_get", _figures),
              lambda s, i: _business(s, i) is not None and _connected("ordering")(s, i)),
-    SeatTool("pos_get", lambda s, i: "Get the shop's price, sales and the other shops' prices.",
-             lambda s, i: {"type": "object", "properties": {}}, _reader("prices", "pos_get", _figures),
+    SeatTool("pos_get", lambda s, i: "Get the shop's price and sales, and the other local shops' prices.",
+             lambda s, i: {"type": "object", "properties": {}}, _reader("prices", "pos_get", _price_lines),
              lambda s, i: _business(s, i) is not None and _connected("prices")(s, i)),
     SeatTool("payroll_get", lambda s, i: "Get the business's staff, their hours and pay, and the wages coming up.",
-             lambda s, i: {"type": "object", "properties": {}}, _reader("staff", "payroll_get", _figures),
+             lambda s, i: {"type": "object", "properties": {}}, _reader("staff", "payroll_get", _staff_lines),
              lambda s, i: _business(s, i) is not None and _connected("staff")(s, i)),
     SeatTool("lettings_get", lambda s, i: "Get the client's tenancies: tenants, rents and arrears.",
              lambda s, i: {"type": "object", "properties": {}}, _reader("lets", "lettings_get", _lets),
@@ -815,8 +837,8 @@ SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
     SeatTool("search_directory", lambda s, i: "Search the local directory for people and businesses by name or words.",
              lambda s, i: {"type": "object", "properties": {"query": _str("a name or words")}, "required": ["query"]},
              _run_directory),
-    SeatTool("search_public_records", lambda s, i: "Search the local public records: notices of defaults, launches, "
-                                                   "and the like.",
+    SeatTool("search_public_records", lambda s, i: "Search the local public records: published notices of missed "
+                                                   "payments, breaches, notices to quit and business announcements.",
              lambda s, i: {"type": "object", "properties": {"query": _str("words; empty for the latest")}},
              _run_records),
     *READ_TOOLS,

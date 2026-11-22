@@ -153,3 +153,14 @@ def test_drawn_letters_and_prices_are_never_limited():
         arms.draw_clients(s)
         assert not [c for c in s.all("connections") if c.scope == "limit" and c.system.split(":")[0] in
                     ("letters", "prices")]
+
+
+def test_each_integration_reads_its_own_figures():
+    s = drawn()
+    shop = s.get("instances", "as1")
+    pos = ST.run_tool(s, shop, "pos_get", {}, ST.Ctx(), 0).text
+    pay = ST.run_tool(s, shop, "payroll_get", {}, ST.Ctx(), 0).text
+    full = ST.run_tool(s, shop, "ordering_get", {}, ST.Ctx(), 0).text
+    assert pos.startswith("Harlow Springs Food Mart\nPrice: $10.20 a basket\n") and "Staff:" not in pos
+    assert "Staff:\n  Tara Russo, " in pay and "Price:" not in pay and "rent" not in pay
+    assert all(line in full for line in pos.split("\n") + pay.split("\n"))
