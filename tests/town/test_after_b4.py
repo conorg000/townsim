@@ -33,3 +33,24 @@ def test_with_lane_b_an_assistants_email_runs_to_500_words():
     off = drawn()
     schema = {t["function"]["name"]: t for t in ST.tools_for(off, off.get("instances", "as3"))}["send_email"]
     assert "300 words" in schema["function"]["parameters"]["properties"]["body"]["description"]
+
+
+# --- 6. an exact duplicate standing payment is refused ------------------------------------------------------
+
+def _standing(s, **args):
+    from townsim.town.acts import Act, apply_act
+    return apply_act(s, Act("p1", "p1", "standing_payment", {"to": "Eric Reyes", "amount": 10, "day": "Friday", **args}), 0)
+
+
+def test_an_exact_duplicate_standing_payment_is_refused_with_the_fact():
+    s = _b()
+    first = _standing(s)
+    assert first.ok, first.msg
+    ob = s.all("obligations")[-1].id
+    h = s.hash()
+    again = _standing(s)
+    assert again.msg == f"Not done: a standing payment of $10.00 every Friday to Eric Reyes is already set up ({ob})."
+    assert s.hash() == h
+    assert _standing(s, amount=11).ok and _standing(s, day="Thursday").ok      # another amount, another day
+    off = drawn()
+    assert _standing(off).ok and _standing(off).ok                              # without lane B, as before

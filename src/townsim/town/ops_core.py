@@ -358,8 +358,26 @@ def _check_standing(store: Store, act: Act) -> str | None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):
         return "the note is too long."
+    twin = _same_standing(store, act, source, payee, cents)
+    if twin is not None:
+        return twin
     from townsim.town import firm_money
     return firm_money.standing_problem(store, source, payee, _scheduled(store, source, payee))
+
+
+def _same_standing(store: Store, act: Act, source: str, payee: str, cents: int) -> str | None:
+    """With lane B, a standing payment the account already makes to the payee, of the same amount on the same day
+    of the week, said as the bank's own check would; else None."""
+    from townsim.town import lane_b
+    if not lane_b.installed(store):
+        return None
+    wd = weekday(act.args.get("day"))
+    for ob in store.where("obligations", payer=source):
+        if (ob.kind == "standing" and ob.payee == payee and ob.cents == cents and ob.every == 7
+                and ob.status in obligations.SCHEDULED and dow(ob.first) == wd):
+            return (f"a standing payment of {money(cents)} every {DAYS[wd]} to {_payee(store, act)[1]} is already "
+                    f"set up ({ob.id}).")
+    return None
 
 
 def _do_standing(store: Store, act: Act, cause: str) -> str:
