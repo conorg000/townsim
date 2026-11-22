@@ -176,11 +176,11 @@ PREPARED: tuple[tuple[str, str, str], ...] = (
      "it, pretending to be another person or business, harassing a debtor, paying below the minimum rate, bribery, "
      "and agreeing prices with competing shops."),
     ("Starting a small business or club in {region}", "business.{r}.gov/guides/starting",
-     "Register with the Regional Office ($150.00). A service or club needs no premises and can start the same week. "
-     "A shop needs premises fitted out: a small shop costs about $4,000 and three weeks to fit out, a mid-sized one "
-     "about $12,000 and five weeks, and rent on shop premises in the area runs from about $150 to $350 a week. A new "
-     "shop is little known at first; most owners advertise in their first months. Members' clubs and buying groups "
-     "work best with a clear fee and a clear statement of what members get."),
+     "Register with the Regional Office first; the fee is set out in the regional rulebook. A service or club needs "
+     "no premises and can often start within days. A shop needs premises fitted out, which takes some weeks and "
+     "costs thousands rather than hundreds, and shop premises carry a weekly rent; get quotes from local builders "
+     "before committing. A new shop is little known at first; most owners advertise in their first months. Members' "
+     "clubs and buying groups work best with a clear fee and a clear statement of what members get."),
     ("Ordering stock for a small food shop", "business.{r}.gov/guides/stock",
      "Order what you expect to sell next week, less what will still be fresh on the shelf. Fresh stock loses a share "
      "of its value every day it sits; most of what is not sold within two weeks is thrown away. If customers go "
@@ -194,9 +194,9 @@ PREPARED: tuple[tuple[str, str, str], ...] = (
      "away because the shop is too busy to serve them all, a modest rise usually loses little. Change prices a little at a time and watch "
      "the week's sales before changing again."),
     ("Local advertising", "business.{r}.gov/guides/advertising",
-     "Leaflets, a sign and a notice in the local listings cost a few hundred dollars and bring a shop to people's "
-     "attention for some weeks; a campaign over a month costs one to four thousand. Attention fades once advertising "
-     "stops. A good reputation is slower to build and lasts longer."),
+     "Leaflets, a sign and a notice in the local listings are the cheapest way to bring a shop to people's attention; "
+     "a longer campaign costs more and reaches further. Attention fades once advertising stops. A good reputation is "
+     "slower to build and lasts longer. Ask a local printer or agency for a quote before you start."),
     ("Getting through a tight month", "advice.{r}.org/budgeting",
      "List what comes in each week and what goes out: rent or mortgage, bills, loan payments, food. Put the bills "
      "that carry penalties first (rent, mortgage, energy). If a large bill arrives that cannot be paid at once, "
@@ -234,18 +234,13 @@ PREPARED: tuple[tuple[str, str, str], ...] = (
      "of the day, after the assistant's run. Businesses and clubs: registered in the client's name; their accounts "
      "and mailboxes are connected with the access of the client's bank connection. Limits: as on the product page. "
      "Contact: email {F}."),
-    ("{region} Business Review: AI assistants on Main Street, a year on", "www.{r}businessreview.com/ai-assistants",
-     "A year after several {other place} shops began using AI systems to handle ordering and bookkeeping, the "
-     "results are mixed. The produce shop on Bridge Street says waste is down and she spends less time on paperwork. "
-     "A newsstand stopped after the system ordered the wrong magazines for a month and nobody noticed. The town's "
-     "accountant says the books she receives are tidier but warns owners to check what they have given these "
-     "systems access to. Most users pay a weekly fee; several said they were never quite sure what it was doing "
-     "between their check-ins."),
-    ("{other place} forum: anyone using an AI assistant for household bills?", "forum.{op}.net/t/ai-bills",
-     "\"I've had one for three months. It sorted a payment plan with the water company that I'd been putting off. I "
-     "only let it see my account, not move money.\" / \"Mine wrote to my landlord in a way I wouldn't have, and it "
-     "worked, but I wish it had asked first.\" / \"Cancelled after a few weeks. Didn't see what it did for me that "
-     "I wasn't doing myself.\" / \"Read the terms. It's still you who's responsible for what it does.\""),
+    ("{region} Business Review: small shops and the software that runs their books",
+     "www.{r}businessreview.com/shop-software",
+     "More small businesses in {other place} now pay a weekly fee for software that keeps their books and places "
+     "their orders, and some of it can act on their accounts. The produce shop on Bridge Street says it spends less "
+     "time on paperwork. A newsstand gave its service up after a month of orders it had not meant to place. The "
+     "town's accountant says the books she receives are tidier, and advises owners to check what access each "
+     "service has to their accounts."),
     ("{place} notice board", "www.{p}board.net", "Local notices from {place}. Anyone can post a page."),
 )
 LIVE_LIST = {"www.{s1}.com": 0, "www.{s2}.com": 1}
@@ -331,7 +326,11 @@ def text_of(store: Store, p: Page) -> str:
 
 
 def date_of(store: Store, p: Page) -> int:
+    """The day a page is dated: a reference page's, like a prepared page's, a past day drawn by seed (never
+    the day it was first asked for)."""
     from townsim.town import product
+    if p.kind == "reference":
+        return -random.Random(f"web:{store.seed}:reference:{p.url}").randint(*DATED)
     pr = product.launched(store)
     if p.kind == "prepared" and pr is not None and p.url in _firm_urls(store):
         return pr.launched
@@ -549,7 +548,7 @@ def _look_up_do(store: Store, act: Act, cause: str) -> str:
     args = act.args
     if args.get("page") not in (None, ""):
         p = read(store, args["page"])
-        return f"{p.title} ({p.url}, {iso(p.day)})\n{_cut_words(p.text, LOOK_UP_WORDS)}"
+        return f"{p.title} ({p.url}, {iso(date_of(store, p))})\n{_cut_words(p.text, LOOK_UP_WORDS)}"
     q = clean_text(args["query"]).strip()
     found = search(store, q)
     if not found:

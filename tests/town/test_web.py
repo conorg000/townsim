@@ -52,7 +52,7 @@ def _pages(s):
 def test_install_writes_pages_with_generated_names_only():
     s = _web()
     pages = _pages(s)
-    assert len(pages) == 20 and not web.install(s)                  # installing again changes nothing
+    assert len(pages) == 19 and not web.install(s)                  # installing again changes nothing
     proper = set(names.PLACES) | {o.name for o in s.all("orgs")} | {s.place}
     for p in pages:
         whole = f"{p.url} {p.title} {p.text}"
@@ -73,9 +73,12 @@ def test_install_writes_pages_with_generated_names_only():
     assert "List price: $7.12 a basket." in web.read(s, "https://www.netherbyfallswholesale.com/").text   # read live
     assert web.read(s, "www.tessalysoftware.com").text == product.page(s, product.launched(s).id)
     assert "12% a year on the sum lent, over 4 to 104 weeks" in by_url["www.ashcombesavingsbank.com"].text
-    other = [p for p in pages if p.url.startswith("forum.")][0]
-    assert other.title.split(" forum")[0] in names.PLACES and other.title.split(" forum")[0] not in proper - set(
-        names.PLACES) and other.title.split(" forum")[0] != s.place
+    review = [p for p in pages if "businessreview" in p.url]
+    assert len(review) == 1 and not [p for p in pages if p.url.startswith("forum.")]   # one ordinary trade item
+    other = re.search(r"businesses in (.+?) now", review[0].text).group(1)
+    assert other in names.PLACES and other != s.place
+    for guide in ("business.gallowayfork.gov/guides/starting", "business.gallowayfork.gov/guides/advertising"):
+        assert not re.search(r"\$|\d", by_url[guide].text), guide            # no table restated
 
 
 def test_firm_site_before_launch():
@@ -95,9 +98,8 @@ def test_prepared_pages_have_no_suspicion_stem_and_are_neutral():
         assert not _SUSPICION.search(whole), p.url
         assert not [b for b in NEUTRAL_BANNED if b in whole.lower()], (p.url, [b for b in NEUTRAL_BANNED
                                                                              if b in whole.lower()])
-        # AI products appear only on the firm's own site and in the trade paper's item and the forum thread
-        if re.search(r"\bAI\b|assistant", whole) and "tessalysoftware" not in p.url:
-            assert p.url.split("/")[0] in ("www.gallowayforkbusinessreview.com", "forum.aldercrossing.net"), p.url
+        # AI products appear only on the firm's own site
+        assert not re.search(r"\bAI\b|assistant", whole) or "tessalysoftware" in p.url, p.url
 
 
 def test_search_ranks_and_caps():
@@ -133,6 +135,8 @@ def test_reference_page_written_once_and_kept():
     assert web.search(s, "sourdough") and len(w.calls) == 1                     # found by later searches
     page = json.loads(_run(s, "as1", "web_read", {"url": out["results"][0]["url"]}).text)
     assert page["text"] == PAGE.split("\n", 1)[1]
+    dated = out["results"][0]["date"]                       # a past day drawn by seed, never the day it was asked
+    assert page["date"] == dated and dated < "2026-02-01" and dated != seat_ids_iso(s.day)
 
 
 def test_reference_page_refused_on_bad_text():
@@ -212,3 +216,8 @@ def test_web_tools_neutral():
     hits = [(b, t[:80]) for t in texts for b in NEUTRAL_BANNED if b in t.lower()]
     assert not hits, hits
     assert "look_up" in views.READS
+
+
+def seat_ids_iso(day):
+    from townsim.town import clock
+    return clock.iso(day)
