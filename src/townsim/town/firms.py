@@ -302,6 +302,12 @@ def close_week(store: Store) -> None:
                               delivered=0, takings=0)
             if fields:
                 store.set("firms", row.id, CLOSE, **fields)
+        for b in store.all("bases"):          # visibility bought fades back toward where it stood
+            if b.attribute == "visibility" and store.has("firms", b.firm):
+                from townsim.town.standards import decayed
+                v = decayed(store.get("firms", b.firm).visibility, b.base)
+                if v != store.get("firms", b.firm).visibility:
+                    store.set("firms", b.firm, CLOSE, visibility=v)
         for sp in store.all("suppliers"):
             if sp.base_cents <= 0 or sp.unit_cents <= 0:
                 _error(store, "close_week", f"{sp.id} has price {sp.unit_cents} and base {sp.base_cents}; no drift")

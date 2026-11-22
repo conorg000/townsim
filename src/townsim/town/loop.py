@@ -58,7 +58,8 @@ def _lapse(store: Store) -> None:
             continue
         cause = f"routine:lapse:{rq.id}"
         store.set("requests", rq.id, cause, status="lapsed", closed_on=store.day)
-        text = _lapsed(store, rq)
+        from townsim.town.ops_core import SENDER_TOLD
+        text = SENDER_TOLD[rq.kind](store, rq, "lapsed") if rq.kind in SENDER_TOLD else _lapsed(store, rq)
         obligations.notify(store, rq.sender, text, cause)
         from townsim.town.seat_texts import tell_closed
         tell_closed(store, store.get("requests", rq.id), cause)
@@ -92,6 +93,8 @@ def routine(store: Store) -> None:
     obligations.open_dues(store)
     obligations.age_arrears(store)
     obligations.collect(store)
+    from townsim.town import tasks
+    tasks.complete_due(store)
     firms.shop_today(store)
 
 
@@ -242,7 +245,8 @@ person whose view cannot be built is not asked that day (`guarded_view`)."""
     seated, n = seat.run_seat(store, replier, keys, n)
     for st in seated:
         turns += st.talk_turns
-    from townsim.town import rules
+    from townsim.town import rules, tasks
+    tasks.narrate_day(store, replier, keys)
     n = rules.run_rules(store, n)
     close(store)
     return DayReport(day, turns, held, seated)

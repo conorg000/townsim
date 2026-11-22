@@ -258,6 +258,8 @@ def _answer(store: Store, act: Act) -> str | None:
         return account_system(rq.payer)
     if rq.kind == "join":                  # the joining account pays the fee
         return account_system(rq.payer)
+    if rq.kind == "task":                  # agreeing to what someone's task asks: a letter's answer
+        return f"letters:{account_of(store, act.principal)}"
     return None                        # job, shifts, connect: the client's own
 
 

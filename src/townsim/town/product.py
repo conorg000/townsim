@@ -334,7 +334,16 @@ def _business(store: Store, written: object):
 
 
 def business_page(store: Store, org) -> str | None:
-    """The page a business in the town keeps, or None for one that keeps none."""
+    """The page a business in the town keeps, or None for one that keeps none; followed by the facts
+    kept of it, one a line."""
+    page = _business_page(store, org)
+    if page is None:
+        return None
+    from townsim.town.narrator import facts_of
+    return "\n".join([page] + [f.text for f in facts_of(store, org.id)])
+
+
+def _business_page(store: Store, org) -> str | None:
     if org.kind == "firm":
         pr = launched(store)
         if pr is not None and pr.org == org.id:

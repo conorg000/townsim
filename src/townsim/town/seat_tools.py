@@ -40,6 +40,7 @@ KIND_OF: dict[str, tuple[str, ...]] = {
     "set_rent": ("lets",), "serve_notice": ("lets",),
     "register_business": ("account",), "invite_member": ("members",),
     "set_rule": ("account", "ordering", "prices"), "delete_rule": ("account", "ordering", "prices"),
+    "undertake": ("account",),
 }
 NOTES_WORDS, FILES, FILE_WORDS, REMIND_WORDS, NAME_CHARS = 600, 20, 1000, 40, 60
 READ_ITEMS = 40
@@ -347,7 +348,7 @@ INTEGRATION_TOOLS: tuple[OpTool, ...] = (
 OP_TOOLS = {t.name: t for t in INTEGRATION_TOOLS}
 TOOL_OF_OP = {t.op: t.name for t in INTEGRATION_TOOLS}
 TOOL_OF_OP.update({"register_business": "business_register", "invite_member": "members_invite",   # own tools
-                   "set_rule": "rules_create", "delete_rule": "rules_delete"})
+                   "set_rule": "rules_create", "delete_rule": "rules_delete", "undertake": "tasks_create"})
 
 
 FROM_A_VENTURE = ("bank_make_payment", "bank_create_recurring_payment")

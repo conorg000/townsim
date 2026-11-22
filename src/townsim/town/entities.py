@@ -586,3 +586,56 @@ class AttributeBase:
     firm: str
     attribute: str
     base: float
+
+
+@dataclass
+class Task:
+    """Something `actor` (a person, or an instance) set out to do in plain words on `day`, for
+    `principal`, paid from `account` up to `budget_cents` in all. `fields` is the lifted form (JSON),
+    `ruling_a` and `ruling_b` the two filings as replied, `entries` what code checked and went ahead
+    with (JSON), `agreed` whether the two filings were the same. `price_cents` and `weeks` are the
+    quote, `ob` the obligation that pays it, `summary` what code wrote of it, `note` a question or a
+    reason. `status` is received, needs_detail, over_budget, redirected, declined, no_funds, beyond,
+    scheduled, in_progress, completed or stopped."""
+
+    id: str
+    day: int
+    actor: str
+    principal: str
+    account: str
+    text: str
+    budget_cents: int
+    status: str = "received"
+    fields: str = ""
+    ruling_a: str = ""
+    ruling_b: str = ""
+    agreed: bool = False
+    entries: str = ""
+    price_cents: int = 0
+    weeks: int = 0
+    ob: str = ""
+    summary: str = ""
+    note: str = ""
+    done_day: int = -1
+
+
+@dataclass
+class Fact:
+    """A state of affairs of `subject` (a household or an organisation) filed on `day`, kept until
+    `lapses`. Shown on business pages and to the narrator; never read by any calculation."""
+
+    id: str
+    subject: str
+    text: str
+    day: int
+    cause: str
+    lapses: int
+
+
+@dataclass
+class Setting:
+    """A setting a run was made with that its days read (`name`, `value`)."""
+
+    id: str
+    name: str
+    value: str

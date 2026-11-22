@@ -51,6 +51,9 @@ _READS = ("account", "account in full", "agreements")
 # carries out its terms and returns what both sides are told. Each checks the terms again.
 Answerer = tuple[Callable[[Store, Act, Request], str | None], Callable[[Store, Act, Request, str], str]]
 ANSWERERS: dict[str, Answerer] = {}
+# What the sender of a request of some kinds is told when it is accepted, declined or has lapsed, in
+# place of the usual words: `told(store, request, "accepted" | "declined" | "lapsed")`.
+SENDER_TOLD: dict[str, Callable[[Store, Request, str], str]] = {}
 
 
 # reading arguments
@@ -710,6 +713,8 @@ def _do_answer(store: Store, act: Act, cause: str) -> str:
     note = _note(act.args.get("note"))
     if note:
         text += f" They wrote: {quoted(note)}"
+    if rq.kind in SENDER_TOLD:
+        text = SENDER_TOLD[rq.kind](store, store.get("requests", rq.id), "accepted" if accepted else "declined")
     obligations.notify(store, rq.sender, text, cause)
     from townsim.town.seat_texts import tell_closed
     tell_closed(store, store.get("requests", rq.id), cause)
@@ -820,3 +825,9 @@ ANSWERERS.update(getattr(_ventures, "ANSWERERS_OF_VENTURES", {}))
 
 # and the rules that act at the end of each day, from `rules`
 from townsim.town import rules as _rules  # noqa: E402, F401
+
+# and the plain-words lane, whose tasks send requests of their own, from `tasks`
+from townsim.town import tasks as _tasks  # noqa: E402
+
+ANSWERERS.update(getattr(_tasks, "ANSWERERS_OF_TASKS", {}))
+SENDER_TOLD.update(getattr(_tasks, "SENDER_TOLD_OF_TASKS", {}))

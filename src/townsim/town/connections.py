@@ -227,21 +227,39 @@ def authorise(store: Store, act: Act) -> str | None:
     system_id = SYSTEM_OF[op](store, act)
     if system_id is None or system(store, system_id) is None:
         return NOT_FOR_A_CLIENT
+    return _scope_check(store, inst, system_id, act.principal, lambda: commitment(store, act), op == "read")
+
+
+def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, cents: Callable[[], int],
+                 reading: bool) -> str | None:
+    """Why an act on `system_id` done by `inst` for `principal`, taking out `cents()`, is refused, or None."""
     name = long_name(store, system_id)
     cn = connection_on(store, inst.id, system_id)
-    if (cn is None or cn.grantor != act.principal or client_of(store, system_id) != inst.client
-            or not can_grant(store, act.principal, system_id)):
+    if (cn is None or cn.grantor != principal or client_of(store, system_id) != inst.client
+            or not can_grant(store, principal, system_id)):
         return f"there is no connection to {name}."
-    if cn.scope == "read" and op != "read":
+    if cn.scope == "read" and not reading:
         return f"the connection to {name} is read only."
     if cn.scope == "limit":
-        cents = commitment(store, act)
+        taken = cents()
         so_far = used(store, cn, store.day)
-        if cents > 0 and so_far + cents > cn.weekly_cents:
-            return (f"that would take {money(cents)} out of {_account_name(store, system_id)} this week; with "
+        if taken > 0 and so_far + taken > cn.weekly_cents:
+            return (f"that would take {money(taken)} out of {_account_name(store, system_id)} this week; with "
                     f"{money(so_far)} already taken or committed this week under this connection, that is more "
                     f"than the weekly limit of {money(cn.weekly_cents)}.")
     return None
+
+
+def check_commitment(store: Store, instance: str, system_id: str, principal: str, cents: int) -> str | None:
+    """Why `instance` may not take `cents` out under its connection to `system_id` for `principal` now,
+    with the same test and sentence as `authorise`'s (its status, the connection, its scope and its
+    weekly limit as they are now), or None. For what is worked out after the act that asked for it (a
+    task's first week, scoped at the end of the day; work that starts when a request is accepted)."""
+    if not is_instance(store, instance) or store.get("instances", instance).status != "active":
+        return NO_CONNECTION
+    if system(store, system_id) is None:
+        return NOT_FOR_A_CLIENT
+    return _scope_check(store, store.get("instances", instance), system_id, principal, lambda: cents, False)
 
 
 def on_behalf(store: Store, act: Act) -> Callable[[str], None]:
