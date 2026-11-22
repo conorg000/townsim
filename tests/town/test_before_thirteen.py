@@ -30,6 +30,8 @@ def _neutral(texts):
 def test_the_firm_and_its_product_can_be_found():
     s = _b()
     assert views.also_here(s, "p7", set())[-1] == FIRM_LINE
+    for pid in ("p3", "p14", "p7"):                       # kept when the other residents give way
+        assert FIRM_LINE in views.view(s, pid)[0][-1]["content"], pid
     got = ST.run_tool(s, s.get("instances", "as1"), "search_directory", {"query": "Tessaly"}, ST.Ctx(), 0).text
     assert got.startswith("Tessaly Software · software firm: makes Tessaly Assistant, an AI assistant for households")
     assert any(f.startswith('{"op": "subscribe", "to": "Tessaly Assistant", ') for f in acts.forms(s, "p7"))

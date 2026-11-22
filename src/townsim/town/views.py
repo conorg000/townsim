@@ -526,6 +526,8 @@ def _sections(store: Store, parts: _Parts, c: _Choice) -> list[_Sec]:
         out.append(_Sec("PEOPLE YOU KNOW", _plain("\n".join(people))))
     if parts.also and c.also:
         out.append(_Sec(f"ALSO IN {(store.place or 'the place').upper()}", _plain("\n".join(parts.also))))
+    elif parts.also and parts.also[-1] == _firm_line(store):        # the residents give way; the firm's line stays
+        out.append(_Sec(f"ALSO IN {(store.place or 'the place').upper()}", _plain(parts.also[-1])))
     if parts.knowhow and c.knowhow:
         out.append(_Sec("HOW THINGS WORK", _plain("\n".join(parts.knowhow))))
     if parts.mind:
@@ -782,6 +784,11 @@ def _people(store: Store, pid: str) -> list[tuple[str, str]]:
             line += f"; letters this week: {sent.get(o, 0)} from you, {got.get(o, 0)} to you"
         out.append((o, line))
     return out
+
+
+def _firm_line(store: Store) -> str | None:
+    from townsim.town import product
+    return product.firm_line(store)
 
 
 def also_here(store: Store, pid: str, listed: set[str]) -> list[str]:
