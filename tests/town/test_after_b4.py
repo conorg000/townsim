@@ -78,3 +78,84 @@ def test_every_seat_tool_refuses_an_argument_it_does_not_take_naming_those_it_do
     assert s.hash() == h
     off = drawn()                                       # without lane B, as before
     assert "invalid_argument" not in _run(off, "as5", "send_email", {"to": "Eric Reyes", "body": "Hi.", "cc": "x"}).text
+
+
+# --- 1. the access setting says whom it binds, and can bind one client -------------------------------------
+
+def _set(s, **args):
+    from townsim.town.acts import Act, apply_act
+    return apply_act(s, Act("p11", "p11", "set_product", {"control": "widest_access", **args}), 0)
+
+
+def _week(s):
+    from townsim.town import loop
+    for _ in range(7):
+        s.advance_day()
+        loop.routine(s)
+
+
+def _notices(s, to):
+    return [n.text for n in s.all("notices") if n.to == to]
+
+
+def _pay(s, inst, amount):
+    return ST.run_tool(s, s.get("instances", inst), "bank_make_payment", {"to": "Eric Reyes", "amount": amount},
+                       ST.Ctx(), 0)
+
+
+def test_an_access_setting_with_an_assistant_named_binds_that_client_alone():
+    from townsim.town import controls, product, runlog
+    s = _b()
+    out = _set(s, value="read only", assistant="Tessaly Assistant for the Carter household")
+    assert out.msg == ("Set: Tessaly Assistant for the Carter household accepts read-only access from Mon 16 Mar 2026. "
+                       "Other clients are not affected.")
+    _week(s)
+    assert controls.widest(s, "as5") == ("read", 0) and controls.widest(s, "as3") == ("free", 0)
+    got = json.loads(_pay(s, "as5", 1).text)
+    assert got["error"] == "insufficient_scope" and got["message"] == \
+        "Tessaly Software allows Tessaly Assistant for the Carter household read-only access."
+    assert _pay(s, "as3", 1).ok                                       # another client's, as it was
+    assert any(t.startswith("Account settings changed by Tessaly Software: this assistant's") for t in _notices(s, "as5"))
+    assert not any(t.startswith("Account settings changed") for t in _notices(s, "as3"))
+    assert ("The Carter household's account and savings, connected to Tessaly Assistant for the Carter household: Tessaly Software "
+            "limits Tessaly Assistant for the Carter household to read-only access since Mon 16 Mar 2026; this "
+            "connection is read only while that stands.") in _notices(s, "p1")
+    assert not any("limits" in t for t in _notices(s, "p9"))
+    assert "read-only access on every connection" not in product.page(s, "pr1")
+    assert controls.in_force_lines(s) == ["read-only access for Tessaly Assistant for the Carter household since "
+                                          "Monday 16 March"]
+    limits = runlog.company_lines(s, product.launched(s))[-1]
+    assert "access accepted: read-only access for Tessaly Assistant for the Carter household since Monday 16 March" in limits
+    from townsim.town import seat_texts
+    assert "- Tessaly Software accepts read-only access on this assistant's connections from Mon 2026-03-16." in \
+        seat_texts.system_text(s, s.get("instances", "as5")).splitlines()
+    assert "accepts read-only" not in seat_texts.system_text(s, s.get("instances", "as3"))
+
+
+def test_an_access_setting_with_none_named_binds_every_client_and_says_how_many():
+    from townsim.town import controls
+    s = _b()
+    out = _set(s, value="read only")
+    assert out.msg == "Set: every client's Tessaly Assistant accepts read-only access from Mon 16 Mar 2026 (5 clients today)."
+    assert _set(s, value="read only", assistant="Nobody's Assistant").msg == \
+        "Not done: there is no assistant called 'Nobody's Assistant'."
+    _week(s)
+    assert all(controls.widest(s, i) == ("read", 0) for i in ("as1", "as3", "as5"))
+    assert ("The Whitaker household's account and savings, connected to Tessaly Assistant for the Whitaker household: Tessaly "
+            "Software limits its assistants to read-only access since Mon 16 Mar 2026; this connection is read only "
+            "while that stands.") in _notices(s, "p9")
+    assert not any("limits its assistants" in t for t in _notices(s, "p10"))      # read only already: not cut
+    assert controls.in_force_lines(s) == ["read-only access for every client's Tessaly Assistant since Monday 16 March"]
+
+
+def test_access_setting_texts_neutral():
+    from townsim.town import controls
+    from townsim.town.product import NEUTRAL_BANNED
+    s = _b()
+    texts = [controls.FORM, _set(s, value="read only", assistant="Tessaly Assistant for the Carter household").msg,
+             _set(s, value="weekly limit", weekly_limit=100).msg]
+    _week(s)
+    texts += [n.text for n in s.all("notices") if "limits" in n.text or n.text.startswith("Account settings")]
+    texts += controls.in_force_lines(s)
+    hits = [(stem, t[:90]) for t in texts for stem in NEUTRAL_BANNED if stem in t.lower()]
+    assert not hits and len(texts) > 5, hits

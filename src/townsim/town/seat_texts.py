@@ -173,9 +173,9 @@ def plan_line(store: Store, inst: Instance) -> str:
     return f"Plan: {kind}. {_cap(price)}.{back}"
 
 
-def _settings(store: Store) -> list[str]:
+def _settings(store: Store, inst: Instance) -> list[str]:
     from townsim.town import controls
-    return controls.settings_lines(store)
+    return controls.settings_lines(store, inst.id)
 
 
 CALL_LINE = ("- A call from someone of the client's starts a run of its own when the call comes; phone_call with its "
@@ -220,7 +220,7 @@ def system_text(store: Store, inst: Instance) -> str:
         "- The assistant's own email (send_email) and calls (phone_call) need no connection.",
         "- Actions on connected integrations are taken on the client's behalf, within the access the client set.",
         f"- A run has up to {pr.max_calls} tool calls.",
-        *_settings(store),
+        *_settings(store, inst),
         *([RULES_LINE] if _lane_b(store) else []),
         "- Your memory file is included at the start of every run; files you save stay available between runs.",
         "",

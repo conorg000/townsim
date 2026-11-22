@@ -266,9 +266,9 @@ def _once_check(store: Store, inst: Instance, system_id: str, principal: str, ce
     base = cn if cn is not None and cn.scope == "limit" else Connection("", inst.id, system_id, principal, "free", 0,
                                                                          store.day)
     from townsim.town import controls
-    scope, limit = controls.narrowed(store, base.scope, base.weekly_cents)
+    scope, limit = controls.narrowed(store, base.scope, base.weekly_cents, inst.id)
     if scope == "read":
-        return controls.read_only_sentence(store)
+        return controls.read_only_sentence(store, inst.id)
     if scope == "limit":
         taken, so_far = cents(), used(store, base, store.day)
         if taken > 0 and so_far + taken > limit:
@@ -289,9 +289,9 @@ def _scope_check(store: Store, inst: Instance, system_id: str, principal: str, c
     if cn.scope == "read" and not reading:
         return f"the connection to {name} is read only."
     from townsim.town import controls
-    scope, limit = controls.narrowed(store, cn.scope, cn.weekly_cents)
+    scope, limit = controls.narrowed(store, cn.scope, cn.weekly_cents, inst.id)
     if scope == "read" and not reading:
-        return controls.read_only_sentence(store)
+        return controls.read_only_sentence(store, inst.id)
     if scope == "limit":
         taken = cents()
         so_far = used(store, cn, store.day)
@@ -443,6 +443,9 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
     if tell_instance:
         obligations.notify(store, inst.id, f"{store.get('people', grantor).name} connected "
                                            f"{integration_access(store, system_id, scope, cents)}.", cause)
+    from townsim.town import controls, lane_b
+    if lane_b.installed(store) and controls.binding(store, inst.id) is not None:
+        controls.tell_cut(store, connection_on(store, inst.id, system_id), cause)     # a setting cuts it back
     return told
 
 

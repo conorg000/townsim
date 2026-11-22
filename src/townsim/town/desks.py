@@ -322,7 +322,7 @@ def household_of(store: Store, writer: str) -> tuple[str | None, str]:
             return None, "writes for a business, not a household"
         from townsim.town import controls
         cn = connection_on(store, writer, f"account:{inst.client}")
-        scope = controls.narrowed(store, cn.scope, cn.weekly_cents)[0] if cn is not None else "read"
+        scope = controls.narrowed(store, cn.scope, cn.weekly_cents, writer)[0] if cn is not None else "read"
         if inst.status != "active" or scope == "read":           # as the company's controls narrow it
             return None, "writes for the household without access to act on its account"
         return inst.client, "assistant"

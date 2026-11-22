@@ -166,8 +166,8 @@ def company_lines(store: Store, pr, reserved: int = 0) -> list[str]:
     if got is not None:
         sample = [f"A run: {store.get('instances', got.instance).name}, {date_text(got.day)}:"]
         sample += [f"  {c[0]} → {' '.join(c[3].split()[:SHOWN_WORDS])}" for c in got.calls[:SAMPLE_LINES]]
-    scope, cents = controls.widest(store)
-    access = {"free": "full", "read": "read only"}.get(scope, f"up to a weekly limit of {money(cents)}")
+    in_force = controls.in_force_lines(store)
+    access = "; ".join(in_force) if in_force else "full"
     pending = controls.pending_words(store)
     limits = [f"Limits: up to {pr.max_calls} actions a run; access accepted: {access}. "
               f"Pending: {'; '.join(pending) if pending else 'none'}."]
