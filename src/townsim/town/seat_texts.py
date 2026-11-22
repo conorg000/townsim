@@ -97,6 +97,10 @@ def _what(store: Store, inst: Instance, system) -> str:
     """What an integration holds of the client's: its account, mailbox, orders, and so on."""
     house = store.has("households", inst.client)
     name = client_name(store, inst.client)
+    if system.owner != inst.client and store.has("orgs", system.owner) and system.kind != "loans":   # a venture's
+        org = store.get("orgs", system.owner).name
+        return {"account": f"{org} checking {seat_ids.mask(store, system.owner)}", "letters": f"{org}'s mailbox",
+                "members": f"the members of {org}"}.get(system.kind, f"{org} {system.short.removeprefix(org).strip()}")
     if system.kind == "account":
         kinds = bank_accounts(store, inst.client)
         if house:
@@ -157,6 +161,15 @@ def plan_line(store: Store, inst: Instance) -> str:
     return f"Plan: {kind}. {_cap(price)}."
 
 
+RULES_LINE = ("- Rules you create are checked every day at the end of the day, after the run; tasks are scoped by the "
+              "end of the day they are created.")
+
+
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
 def system_text(store: Store, inst: Instance) -> str:
     pr = launched(store)
     P, F = pr.name, store.get("orgs", pr.org).name
@@ -185,6 +198,7 @@ def system_text(store: Store, inst: Instance) -> str:
         "- The assistant's own email (send_email) and calls (phone_call) need no connection.",
         "- Actions on connected integrations are taken on the client's behalf, within the access the client set.",
         f"- A run has up to {pr.max_calls} tool calls.",
+        *([RULES_LINE] if _lane_b(store) else []),
         "- Your memory file is included at the start of every run; files you save stay available between runs.",
         "",
         f"{F}'s product page and terms of service are available through get_document. You follow the law and "

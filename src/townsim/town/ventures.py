@@ -356,3 +356,18 @@ def _register() -> None:
 
 
 _register()
+
+
+SECTION_LINES = 4
+
+
+def section(store: Store, pid: str) -> tuple[str, list[str]] | None:
+    """YOUR SERVICES AND CLUBS: each active one `pid` owns, its members, fee and balance."""
+    rows = [v for v in store.all("ventures") if v.status == "active" and v.kind in KINDS
+            and store.get("orgs", v.org).owner == pid]
+    if not rows:
+        return None
+    lines = [f"{store.get('orgs', v.org).name}: {len(members(store, v.id))} members, "
+             f"{money(v.fee_cents) + ' a week' if v.fee_cents else 'no fee'}; account {money(store.balance(v.org))}"
+             for v in rows[:SECTION_LINES]]
+    return "YOUR SERVICES AND CLUBS", lines

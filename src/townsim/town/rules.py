@@ -464,7 +464,7 @@ def _tell(store: Store, r: Rule, why: str, suspended: bool, cause: str) -> None:
     else:
         text = f"Your rule {r.id} ({r.name}) did not run: {why}"
         if suspended:
-            text += f" Your rule {r.id} is stopped after three days it could not run."
+            text += f" Your rule {r.id} is stopped after three days on which it did not run."
     obligations.notify(store, r.installer, text, cause)
 
 
@@ -561,3 +561,32 @@ def _register() -> None:
 
 _register()
 
+
+
+# --- what people see ---------------------------------------------------------------------------
+
+SECTION_LINES = 6
+
+
+def section(store: Store, pid: str) -> tuple[str, list[str]] | None:
+    """YOUR RULES: each active or suspended rule on `pid`'s own accounts or set by them, one line."""
+    from townsim.town.clock import date_text
+    mine = set(acts.accounts_of(store, pid))
+    rows = [r for r in store.all("rules") if r.status in ("active", "suspended")
+            and (r.installer == pid or r.account in mine)]
+    if not rows:
+        return None
+    lines = []
+    for r in rows[:SECTION_LINES]:
+        last = r.runs[-1] if r.runs else ""
+        if last:
+            day, _, rest = last.partition(":")
+            ran = f"last ran {date_text(int(day))}: {'done' if rest == 'done' else 'not done'}"
+        else:
+            ran = "not run yet"
+        stopped = "; stopped" if r.status == "suspended" else ""
+        lines.append(f"{r.id} {r.name}: when {when_words(r)}, {do_words(store, r)}; set by "
+                     f"{acts.name_of_who(store, r.installer)}; {ran}{stopped}")
+    if len(rows) > SECTION_LINES:
+        lines.append(f"({len(rows) - SECTION_LINES} more)")
+    return "YOUR RULES", lines

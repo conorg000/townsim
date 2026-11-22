@@ -25,7 +25,7 @@ KINDS: dict[str, tuple[str, str, int]] = {
     "ob": ("obligations", "agr", 6), "rq": ("requests", "req", 5), "sub": ("subscriptions", "acct", 6),
     "msg": ("messages", "msg", 5), "n": ("notices", "ntf", 5), "rm": ("reminders", "fu", 4),
     "tk": ("talks", "call", 4), "jb": ("jobs", "emp", 5), "rec": ("records", "rec", 5), "du": ("dues", "due", 5),
-    "ap": ("appointments", "appt", 4),
+    "ap": ("appointments", "appt", 4), "rl": ("rules", "rule", 4), "mb": ("members", "mbr", 4),
 }
 SHOWN = {v[1]: k for k, v in KINDS.items()}
 _INTERNAL = re.compile(r"\b(" + "|".join(sorted(KINDS, key=len, reverse=True)) + r")(\d+)\b")

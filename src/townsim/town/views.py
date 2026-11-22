@@ -844,3 +844,9 @@ from townsim.town import product as _product  # noqa: E402
 
 EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _product.__name__]
 EXTRA_SECTIONS += list(getattr(_product, "SECTIONS_OF_PRODUCT", ()))
+
+# and the rules people set and the services and clubs they run (lane B)
+from townsim.town import rules as _rules, ventures as _ventures  # noqa: E402
+
+EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") not in (_rules.__name__, _ventures.__name__)]
+EXTRA_SECTIONS += [_rules.section, _ventures.section]

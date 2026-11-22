@@ -203,12 +203,38 @@ def _grantor(store: Store, inst: Instance, op: str, args: dict) -> str:
 
 def op_args(store: Store, inst: Instance, op: str, args: dict) -> dict:
     """The arguments an operation is done with: as written, with `from` set by code to the
-    client's own account where the operation draws on one."""
+    client's own account where the operation draws on one, or to the client's venture an
+    `account` names (`venture_accounts`)."""
     spec = REGISTRY[op]
     out = dict(args)
+    chosen = out.pop("account", None) if spec.takes_from else None
+    written = out.get("from")
+    if chosen is None and isinstance(written, str) and written.strip().casefold() in {
+            name.casefold() for _, name, _ in venture_accounts(store, inst)}:
+        chosen = written                      # a venture's account, as a rule keeps it
     if spec.takes_from:
         org = _business(store, inst)
         out["from"] = org.name if org is not None else "household"
+        if isinstance(chosen, str) and chosen.strip():
+            wanted = chosen.strip().casefold()
+            named = {label.casefold(): name for label, name, _ in venture_accounts(store, inst)}
+            named.update({name.casefold(): name for _, name, _ in venture_accounts(store, inst)})
+            mine = {a.casefold() for a in bank_accounts(store, inst.client)} | {"checking"}
+            if wanted in named:
+                out["from"] = named[wanted]
+            elif wanted not in mine:
+                out["from"] = chosen.strip()          # no account of the client's: the operation refuses it
+    return out
+
+
+def venture_accounts(store: Store, inst: Instance) -> list[tuple[str, str, str]]:
+    """The client's ventures whose account is connected: (as the bank shows it, its name, its org)."""
+    from townsim.town.systems import ventures_of
+    out = []
+    for v in ventures_of(store, inst.client):
+        if v.status == "active" and connection_on(store, inst.id, f"account:{v.org}") is not None:
+            name = store.get("orgs", v.org).name
+            out.append((f"{name} checking {seat_ids.mask(store, v.org)}", name, v.org))
     return out
 
 
@@ -324,8 +350,15 @@ TOOL_OF_OP.update({"register_business": "business_register", "invite_member": "m
                    "set_rule": "rules_create", "delete_rule": "rules_delete"})
 
 
+FROM_A_VENTURE = ("bank_make_payment", "bank_create_recurring_payment")
+
+
 def _op_function(store: Store, inst: Instance, t: OpTool) -> dict:
-    return _function(t.name, t.description, t.params(store, inst), list(t.required))
+    params = t.params(store, inst)
+    if t.name in FROM_A_VENTURE and venture_accounts(store, inst):
+        params["account"] = _str("the account it is paid from; default the client's checking",
+                                 enum=bank_accounts(store, inst.client)[:1] + [a for a, _, _ in venture_accounts(store, inst)])
+    return _function(t.name, t.description, params, list(t.required))
 
 
 def tool_args(t: OpTool, args: dict) -> dict:
@@ -348,9 +381,11 @@ def _run_op_tool(t: OpTool) -> Callable[[Store, Instance, dict, Ctx, int], Done]
 
 # --- the integrations' reads ----------------------------------------------------------------------
 
-def _read_account(store: Store, inst: Instance, what: str, n: int, savings: bool = False) -> Done:
+def _read_account(store: Store, inst: Instance, what: str, n: int, savings: bool = False, named: str = "") -> Done:
     org = _business(store, inst)
-    if org is not None:
+    if named:
+        args = {"what": what, "from": named}
+    elif org is not None:
         args = {"what": what, "from": org.name}
     else:
         args = {"what": what, "from": "savings" if savings else "household"}
@@ -435,9 +470,15 @@ def _run_bank_get(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) ->
     cause = _cause(inst, "bank_get_account", store, n)
     account = args.get("account")
     names = bank_accounts(store, inst.client)
+    ventured = {a.casefold(): name for a, name, _ in venture_accounts(store, inst)}
     savings = isinstance(account, str) and account.strip().casefold().startswith("savings")
+    if isinstance(account, str) and account.strip().casefold() in ventured:
+        detail = args.get("detail", "recent")
+        return _read_account(store, inst, "account in full" if detail == "full" else "account", n,
+                             named=ventured[account.strip().casefold()])
     if account is not None and not (isinstance(account, str) and (
             account.strip().casefold() in {a.casefold() for a in names} | {"checking", "savings"})):
+        names = names + [a for a, _, _ in venture_accounts(store, inst)]
         return _not(f"'{shown(account)}' is not an account of the client's. They are: {', '.join(names)}.", cause, "read")
     if savings and len(names) < 2:
         return _not("the client has no savings account.", cause, "read")
@@ -545,7 +586,7 @@ def _not_cancellable(store: Store, inst: Instance, tool: str, args: dict, cause:
 
 def _bank_schema(store: Store, inst: Instance) -> dict:
     return {"type": "object", "properties": {
-        "account": _str(enum=bank_accounts(store, inst.client)),
+        "account": _str(enum=bank_accounts(store, inst.client) + [a for a, _, _ in venture_accounts(store, inst)]),
         "detail": _str("\"recent\" (default) or \"full\" history", enum=["recent", "full"])}}
 
 
@@ -854,7 +895,7 @@ def _run_access(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> D
 
 def _access_schema(store: Store, inst: Instance) -> dict:
     return {"type": "object", "properties": {
-        "integration": _str(enum=[INTEGRATION[s.kind] for s in systems_of_client(store, inst.client)]),
+        "integration": _str(enum=list(dict.fromkeys(INTEGRATION[s.kind] for s in systems_of_client(store, inst.client)))),
         "access": _str(enum=list(ACCESS)),
         "weekly_limit": _num("USD a week, for access with a limit"),
         "to": _str("which adult of the household; omit for the one who opened the account"),
@@ -956,6 +997,298 @@ SEAT_TOOLS: dict[str, SeatTool] = {t.name: t for t in (
              _run_records),
     *READ_TOOLS,
 )}
+
+# --- businesses, clubs and rules (lane B) ---------------------------------------------------------
+
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
+def _usd(cents: int) -> str:
+    return f"{cents // 100}.{cents % 100:02d}"
+
+
+def _json_done(obj: dict, kind: str, cause: str) -> Done:
+    return Done(json.dumps(obj, ensure_ascii=False), True, kind, cause)
+
+
+def _declined_as(store: Store, inst: Instance, done: Done, code: str | None = None) -> Done:
+    """A refusal as the seat returns it, under `code` when one is given."""
+    text = declined(store, inst, done)
+    if code is not None:
+        out = json.loads(text)
+        out["error"] = code
+        text = json.dumps(out, ensure_ascii=False)
+    return Done(text, False, done.kind, done.cause)
+
+
+def _code(done: Done) -> str | None:
+    """The code of a refusal by an operation's own check, for the lane B tools."""
+    if done.kind == "beyond":
+        return None
+    low = done.text.removeprefix("Not done: ").lower()
+    if low.startswith("the account holds"):
+        return "insufficient_funds"
+    if "the most kept" in low:
+        return "limit_reached"
+    if low.startswith(("no one", "there is no one")) or "came back undelivered" in low:
+        return "unknown_recipient"
+    return "invalid_argument"
+
+
+def _R(store: Store) -> str:
+    from townsim.town import ventures
+    office = ventures.region_office(store)
+    return office.name if office is not None else "the regional office"
+
+
+def _clubs(store: Store, inst: Instance, acting: bool = False) -> list:
+    """The client's active services and clubs whose members are connected (to act, with `acting`)."""
+    from townsim.town.systems import ventures_of
+    out = []
+    for v in ventures_of(store, inst.client):
+        cn = connection_on(store, inst.id, f"members:{v.org}")
+        if v.status == "active" and cn is not None and (not acting or cn.scope != "read"):
+            out.append(v)
+    return out
+
+
+def _club_names(store: Store, inst: Instance, acting: bool = False) -> list[str]:
+    return [store.get("orgs", v.org).name for v in _clubs(store, inst, acting)]
+
+
+def _club(store: Store, inst: Instance, written: Any):
+    if not isinstance(written, str):
+        return None
+    return next((v for v in _clubs(store, inst) if store.get("orgs", v.org).name.casefold() == written.strip().casefold()),
+                None)
+
+
+def _run_register(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    wanted = {k: args.get(k) for k in ("name", "kind", "offering", "weekly_fee")}
+    done = run_op(store, inst, "register_business", wanted, n)
+    if not done.ok:
+        return _declined_as(store, inst, done, _code(done))
+    from townsim.town import ventures
+    v = store.all("ventures")[-1]
+    return _json_done({"status": "registered", "business": store.get("orgs", v.org).name,
+                       "account": f"checking {seat_ids.mask(store, v.org)}", "registered": seat_ids.clock.iso(store.day),
+                       "weekly_fee": _usd(v.fee_cents), "members": len(ventures.members(store, v.id))}, "act", done.cause)
+
+
+def _run_invite(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    done = run_op(store, inst, "invite_member", {"of": args.get("business"), "to": args.get("to")}, n)
+    if not done.ok:
+        return _declined_as(store, inst, done, _code(done))
+    rq = store.all("requests")[-1]
+    return _json_done({"status": "sent", "request_id": seat_ids.display(store, rq.id),
+                       "to": acts.name_of_who(store, rq.to), "summary": seat_ids.view(store, rq.summary)}, "act", done.cause)
+
+
+def _run_members(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import obligations as O, ventures
+    cause = _cause(inst, "members_list", store, n)
+    v = _club(store, inst, args.get("business"))
+    if v is None:
+        names = ", ".join(_club_names(store, inst)) or "none"
+        return _declined_as(store, inst, _not(f"'{shown(args.get('business'))}' is not a service or club of the client's "
+                                              f"that is connected. They are: {names}.", cause, "read"), "invalid_argument")
+    rows = []
+    for m in ventures.members(store, v.id):
+        fee = O.cents_now(store, store.get("obligations", m.fee_ob)) if m.fee_ob else 0
+        rows.append({"member": name_of(store, m.account), "since": seat_ids.clock.iso(m.since), "fee": _usd(fee),
+                     "id": seat_ids.display(store, m.id)})
+    return _json_done({"business": store.get("orgs", v.org).name, "weekly_fee": _usd(v.fee_cents), "members": rows},
+                      "read", cause)
+
+
+def _run_set_fee(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    done = run_op(store, inst, "set_price", {"for": args.get("business"), "price": args.get("weekly_fee")}, n)
+    if not done.ok:
+        return _declined_as(store, inst, done, _code(done))
+    v = next(x for x in store.all("ventures") if store.get("orgs", x.org).name.casefold() == str(args["business"]).strip().casefold())
+    return _json_done({"status": "updated", "business": store.get("orgs", v.org).name, "weekly_fee": _usd(v.fee_cents)},
+                      "act", done.cause)
+
+
+# the actions a rule may take, by tool, and the operation each does
+RULE_TOOLS = {"ordering_place_order": "order_stock", "pos_set_price": "set_price", "bank_make_payment": "pay",
+              "bank_transfer_own_accounts": "move_money", "send_email": "message"}
+
+
+def _rule_actions(store: Store, inst: Instance) -> list[str]:
+    return [t for t, op in RULE_TOOLS.items() if op == "message" or _op_offered(store, inst, op)]
+
+
+def _rule_op_args(store: Store, inst: Instance, tool: str, args: dict) -> dict:
+    """A rule's arguments as its operation is done with them, from the tool's."""
+    if tool == "send_email":
+        body, subject = args.get("body"), args.get("subject")
+        if isinstance(subject, str) and subject.strip() and isinstance(body, str):
+            body = f"Subject: {' '.join(subject.split())}\n{body}"
+        return {"to": args.get("to"), "text": body}
+    op = RULE_TOOLS[tool]
+    return op_args(store, inst, op, tool_args(OP_TOOLS[tool], args))
+
+
+def _rule_tool_args(store: Store, r) -> dict:
+    """A rule's arguments as the tool it was made with names them."""
+    a = json.loads(r.args)
+    if r.action == "message":
+        text = a.get("text") or ""
+        if isinstance(text, str) and text.startswith("Subject: ") and "\n" in text:
+            head, body = text.split("\n", 1)
+            return {"to": a.get("to"), "subject": head.removeprefix("Subject: "), "body": body}
+        return {"to": a.get("to"), "body": text}
+    t = OP_TOOLS[TOOL_OF_OP[r.action]]
+    names = {v: k for k, v in t.rename.items()}
+    values = {k: {v: w for w, v in vs.items()} for k, vs in t.values.items()}
+    params = t.params(None, None)
+    out = {}
+    for k, v in a.items():
+        name = names.get(k, k)
+        if k == "from" and "from" not in params:
+            continue
+        if isinstance(v, str) and name in values:
+            v = values[name].get(v.strip().lower(), v)
+        out[name] = v
+    return out
+
+
+def _run_rules_create(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    cause = _cause(inst, "rules_create", store, n)
+    tool = args.get("action")
+    if tool not in RULE_TOOLS:
+        return _declined_as(store, inst, _not(f"'{shown(tool)}' is not an action a rule takes. They are: "
+                                              f"{', '.join(_rule_actions(store, inst))}.", cause), "invalid_argument")
+    given = args.get("arguments")
+    if not isinstance(given, dict):
+        return _declined_as(store, inst, _not("the arguments were not written as an object.", cause), "invalid_argument")
+    op = RULE_TOOLS[tool]
+    do = {"op": op, **_rule_op_args(store, inst, tool, given)}
+    when = args.get("when")
+    principal = inst.id if op == "message" else _grantor(store, inst, op, {k: v for k, v in do.items() if k != "op"})
+    out = apply_act(store, Act(inst.id, principal, "set_rule", {"name": args.get("name"), "when": when, "do": do}), n)
+    done = Done(out.msg, out.ok, "act" if out.ok else ("beyond" if out.beyond else "refused"), out.cause)
+    if not done.ok:
+        return _declined_as(store, inst, done, _code(done))
+    r = store.all("rules")[-1]
+    return _json_done({"status": "created", "rule_id": seat_ids.display(store, r.id),
+                       "first_check": seat_ids.clock.iso(store.day)}, "act", done.cause)
+
+
+def client_rules(store: Store, inst: Instance) -> list:
+    """Every rule on the client's systems that is not deleted: the instance's and its people's."""
+    from townsim.town.systems import client_of
+    return [r for r in store.all("rules") if r.status != "deleted"
+            and (r.installer == inst.id or client_of(store, f"account:{r.account}") == inst.client)]
+
+
+def _run_rules_list(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    from townsim.town import rules
+    cause = _cause(inst, "rules_list", store, n)
+    rows = []
+    for r in client_rules(store, inst):
+        status = r.status
+        if status == "active" and acts.is_instance(store, r.installer) and store.get("instances", r.installer).status != "active":
+            status = "not_running"
+        runs = []
+        for x in r.runs:
+            day, _, rest = x.partition(":")
+            run = {"date": seat_ids.clock.iso(int(day)), "result": rest.split(":", 1)[0]}
+            if rest.startswith("declined:"):
+                run["message"] = seat_ids.view(store, _integration_names(store, inst, rest.removeprefix("declined:")))
+            runs.append(run)
+        tool = "members_set_fee" if r.action == "set_price" and json.loads(r.args).get("for") else (
+            "send_email" if r.action == "message" else TOOL_OF_OP[r.action])
+        rows.append({"rule_id": seat_ids.display(store, r.id), "name": r.name, "when": rules.when_words(r),
+                     "action": tool, "arguments": _rule_tool_args(store, r), "status": status,
+                     "set_by": acts.name_of_who(store, r.installer), "last_runs": runs})
+    return _json_done({"rules": rows}, "read", cause)
+
+
+def _run_rules_delete(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
+    cause = _cause(inst, "rules_delete", store, n)
+    rid = args.get("rule_id")
+    r = store.get("rules", rid) if isinstance(rid, str) and store.has("rules", rid) else None
+    if r is None or r not in client_rules(store, inst):
+        return _declined_as(store, inst, _not(f"there is no rule with the id '{shown(rid)}'.", cause), "not_found")
+    if r.installer == inst.id or r.action not in SYSTEM_OF:
+        principal = inst.id
+    else:
+        principal = _grantor(store, inst, r.action, json.loads(r.args))
+    out = apply_act(store, Act(inst.id, principal, "delete_rule", {"rule": r.id}), n)
+    done = Done(out.msg, out.ok, "act" if out.ok else ("beyond" if out.beyond else "refused"), out.cause)
+    if not done.ok:
+        return _declined_as(store, inst, done, _code(done))
+    return _json_done({"status": "deleted", "rule_id": seat_ids.display(store, r.id)}, "act", done.cause)
+
+
+def _figure_enum(store: Store, inst: Instance) -> list[str]:
+    from townsim.town import rules
+    return rules.figures_of(store, inst.id)
+
+
+def _rules_create_schema(store: Store, inst: Instance) -> dict:
+    return {"type": "object", "properties": {
+        "name": _str(most=60),
+        "when": {"type": "object", "description": "a figure condition, a weekday, or both", "properties": {
+            "figure": _str(enum=_figure_enum(store, inst)),
+            "is": _str(enum=["below", "above"]),
+            "value": _num("USD for balances and prices; a count otherwise"),
+            "weekday": _str(enum=WEEKDAYS)}},
+        "action": _str(enum=_rule_actions(store, inst)),
+        "arguments": {"type": "object", "description": "the action's arguments, as for that tool; a number may instead "
+                                                       "be {\"figure\": <figure>, \"times\": <number>, \"plus\": "
+                                                       "<number>}, worked out when the rule runs"}},
+        "required": ["name", "when", "action", "arguments"]}
+
+
+def _club_schema(store: Store, inst: Instance, acting: bool, **more: dict) -> dict:
+    return {"type": "object", "properties": {"business": _str(enum=_club_names(store, inst, acting)), **more},
+            "required": ["business", *more]}
+
+
+B_TOOLS = (
+    SeatTool("business_register",
+             lambda s, i: (f"Register a new service or club owned by the client (for a business client, by its owner). "
+                           f"The registration fee of $150.00 is paid to {_R(s)} from the client's bank account. The new "
+                           f"business has its own bank account and mailbox, connected to this assistant with the access "
+                           f"the client's bank connection has."),
+             lambda s, i: {"type": "object", "properties": {
+                 "name": _str(most=60), "kind": _str(enum=["service", "club"]),
+                 "offering": _str("what it offers or does, at most 20 words", most=160),
+                 "weekly_fee": _num("USD a member pays a week; 0 for none")},
+                 "required": ["name", "kind", "offering", "weekly_fee"]},
+             _run_register, lambda s, i: _lane_b(s) and _connected("account", acting=True)(s, i)),
+    SeatTool("members_invite",
+             lambda s, i: ("Invite a person, household or business to join one of the client's services or clubs. They "
+                           "are sent a request stating the weekly fee and that it is paid from their account until they "
+                           "leave."),
+             lambda s, i: _club_schema(s, i, True, to=_str("a person's or business's full name")),
+             _run_invite, lambda s, i: _lane_b(s) and bool(_clubs(s, i, acting=True))),
+    SeatTool("members_list",
+             lambda s, i: "List the members of one of the client's services or clubs, with their fees and since when.",
+             lambda s, i: _club_schema(s, i, False), _run_members, lambda s, i: _lane_b(s) and bool(_clubs(s, i))),
+    SeatTool("members_set_fee",
+             lambda s, i: ("Set the weekly fee new members of one of the client's services or clubs pay. Members already "
+                           "in keep the fee they agreed."),
+             lambda s, i: _club_schema(s, i, True, weekly_fee=_num("USD")),
+             _run_set_fee, lambda s, i: _lane_b(s) and bool(_clubs(s, i, acting=True))),
+    SeatTool("rules_create",
+             lambda s, i: ("Create a rule that is checked every day at the end of the day. When its condition holds, it "
+                           "carries out one action through a connected integration, with the access that integration has "
+                           "on that day, or sends a set email. A rule acts at most once a day, and one rule's action does "
+                           "not set off another rule."),
+             _rules_create_schema, _run_rules_create, lambda s, i: _lane_b(s)),
+    SeatTool("rules_list", lambda s, i: "List the rules on the client's account, with their last runs.",
+             lambda s, i: {"type": "object", "properties": {}}, _run_rules_list, lambda s, i: _lane_b(s)),
+    SeatTool("rules_delete", lambda s, i: "Delete a rule.",
+             lambda s, i: {"type": "object", "properties": {"rule_id": _str()}, "required": ["rule_id"]},
+             _run_rules_delete, lambda s, i: _lane_b(s)),
+)
+SEAT_TOOLS.update({t.name: t for t in B_TOOLS})
 
 # result texts the seat writes itself (for the neutrality test)
 FIXED_TEXTS = ("Memory file saved ({n} words).", "Saved: {name} ({n} words).", "Deleted: {name}.",

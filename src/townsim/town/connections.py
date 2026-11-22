@@ -369,10 +369,12 @@ def make(store: Store, grantor: str, inst: Instance, system_id: str, scope: str,
 def integration_access(store: Store, system_id: str, scope: str, cents: int) -> str:
     """An integration and its access as the product states them to an instance: `Bank (limit
     $780.00/wk)`, `Email (full)`, `Point of sale (read only)`."""
-    from townsim.town.systems import INTEGRATION
-    kind = system_id.split(":", 1)[0]
+    from townsim.town.systems import INTEGRATION, venture_of
+    kind, owner = system_id.split(":", 1)
     access = {"read": "read only", "limit": f"limit {money(cents)}/wk", "free": "full"}[scope]
-    return f"{INTEGRATION.get(kind, kind)} ({access})"
+    v = venture_of(store, owner)
+    of = f" for {store.get('orgs', v.org).name}" if v is not None else ""     # a venture's, by its name
+    return f"{INTEGRATION.get(kind, kind)}{of} ({access})"
 
 
 def _scope(act: Act) -> tuple[str | None, int, str]:

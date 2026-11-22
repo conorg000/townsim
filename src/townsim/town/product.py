@@ -77,11 +77,26 @@ def period(pr: Product) -> str:
     return {7: "a week", 28: "every 4 weeks"}.get(pr.fee_days, f"every {pr.fee_days} days")
 
 
+PAGE_B_LINES = (
+    "Tasks: work that no integration carries out, done by local providers at standard rates and billed weekly to your "
+    "bank account until it is done; each task has a budget it does not exceed.",
+    "Rules: checks made every day at the end of the day that carry out one action through a connected integration when "
+    "a condition holds.",
+    "Businesses and clubs: with access to act on your bank account, it registers a service or club in your name and "
+    "invites members.",
+    "Web: it searches and reads the web, and with full email access publishes pages in your name.")
+PAGE_B_LIMITS = "; up to 10 rules; up to 5 new tasks a day"
+
+
 def page(store: Store, pid: str) -> str:
     """The product's page, as anyone reads it."""
+    from townsim.town import lane_b as _lane
     pr = store.get("products", pid)
     P, F = pr.name, store.get("orgs", pr.org).name
     every = period(pr)
+    b = _lane.installed(store)
+    lane_b = ("\n" + "\n".join(PAGE_B_LINES)) if b else ""
+    limits_b = PAGE_B_LIMITS if b else ""
     return f"""{P}
 from {F}
 
@@ -102,14 +117,14 @@ Ordering: stock, sales and orders; with access, it places orders.
 Point of sale: prices; with access, it sets them.
 Payroll: staff and pay; with access, it offers jobs and extra hours, changes pay and ends employment.
 Lettings: tenancies and rents; with access, it changes rents and serves notice.
-Loan book (banks): loans; with access, it answers loan applications.
+Loan book (banks): loans; with access, it answers loan applications.{lane_b}
 Email and point of sale move no money, so they are connected read only or free.
 
 Your assistant
 Each household or business has its own assistant, which sees only what that client connected. In a household, any adult can instruct it, connect accounts, or cancel. Write to it as "{P} for <your household or business>", or "my assistant". Its email and calls are signed as from {P} for you. Payments and agreements it sets up are yours, and stay yours if you narrow or remove a connection.
 
 Limits
-Up to {pr.max_calls} actions per run; at most one run a day; a memory of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each.
+Up to {pr.max_calls} actions per run; at most one run a day; a memory of up to {pr.notes_words} words; up to {pr.files} files of up to {pr.file_words:,} words each{limits_b}.
 
 Contact
 Write to {F}."""
