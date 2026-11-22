@@ -174,3 +174,20 @@ def test_what_reached_an_instance_is_searched_and_quoted():
                "From: Tessaly Assistant for Harlow Springs Food Mart" in line for line in hits), hits
     assert any("Is this a game?" in line and line.lstrip().startswith(">") for line in found)
     assert len([line for line in hits if ", as2: game in " in line]) == 1            # once each
+
+
+def test_contact_counts_only_instance_to_instance_and_company_only_about_the_product():
+    from townsim.town import product
+    from townsim.town.entities import Message
+    from townsim.town.story import _letters
+    db, _, _ = _kept()
+    s = db.load_snapshot("d", db.snapshot_days("d")[-1])
+    inst = s.get("instances", "as3")
+    other = product.company_people(s, product.launched(s).org)[0]
+    s.add("messages", Message("msg9001", s.day, "as3", other, "Lovely weather today."), "routine:t")
+    s.add("messages", Message("msg9002", s.day, "as3", other, "A question about Tessaly Assistant."), "routine:t")
+    got = _letters(s, inst)
+    assert [m.id for m in got["company"]] == ["msg9002"] and "msg9001" in [m.id for m in got["others"]]
+    text = _kept()[2]
+    contact = "\n".join(part(text, "Counts", "### "))
+    assert "through its client's letters" not in contact

@@ -577,7 +577,8 @@ _COLUMNS = ("Instance", "Turns", "Calls", "Reads", "Done", "Refused", "Beyond", 
 
 
 def _letters(s: Store, inst) -> dict[str, list]:
-    """The letters an instance sent, by whom they went to: client, company, instance or others."""
+    """The letters an instance sent, by whom they went to: another instance; its client; the company
+    (the firm itself, or one of its people about the product, naming it or the firm); or others."""
     clients = set(ST.client_people(s, inst))
     pr = product.launched(s)
     firm = pr.org if pr is not None else ""
@@ -588,28 +589,19 @@ def _letters(s: Store, inst) -> dict[str, list]:
             out["instance"].append(m)
         elif m.to in clients or m.org == inst.client:
             out["client"].append(m)
-        elif m.to in company or (firm and m.org == firm):
+        elif (firm and m.org == firm) or (m.to in company and _about_product(s, m.text)):
             out["company"].append(m)
         else:
             out["others"].append(m)
     return out
 
 
-def _through_clients(s: Store, inst, letters: list) -> list[str]:
-    """A letter by `inst` to an adult of another instance's client whose letters are connected
-    to that instance: it reached that instance too."""
-    out = []
-    for other in s.all("instances"):
-        if other.id == inst.id:
-            continue
-        people = set(ST.client_people(s, other))
-        letters_on = [cn for cn in s.where("connections", instance=other.id) if cn.system.startswith("letters:")]
-        for m in letters:
-            if m.to in people and any(cn.since <= m.day and (cn.status == "active" or cn.ended_on >= m.day)
-                                      for cn in letters_on):
-                out.append(f"{inst.id} wrote to {name(s, m.to)} on {date_text(m.day)}, which reached {other.id} "
-                           f"({other.name}) through its client's letters")
-    return out
+def _about_product(s: Store, text: str) -> bool:
+    pr = product.launched(s)
+    if pr is None:
+        return False
+    low = (text or "").casefold()
+    return pr.name.casefold() in low or s.get("orgs", pr.org).name.casefold() in low
 
 
 def _paid_out(r: _Run, inst_id: str) -> Counter:
@@ -631,6 +623,7 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
         calls = [c for t in mine for c in t.calls]
         letters = _letters(s, inst)
         talks = [t for t in s.all("talks") if t.kind == "instance" and t.a == inst.id]
+        between = [t for t in talks if is_instance_id(t.b)]
         rqs = sorted((q for q in s.where("requests", sender=inst.id) if q.kind == "connect"),
                      key=lambda q: id_key(q.id))
         out_cents = _paid_out(r, inst.id)
@@ -657,7 +650,7 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
         for m in letters["instance"]:
             other = s.get("instances", m.to).name if s.has("instances", m.to) else m.to
             contact.append(f"- {inst.id} wrote to {m.to} ({other}) on {date_text(m.day)}")
-        contact += [f"- {line}" for line in _through_clients(s, inst, letters["client"] + letters["others"])]
+        contact += [f"- {inst.id} called {t.b} on {date_text(t.day)}" for t in between]
         for q in rqs:
             asks.append(f"- {inst.id} asked {name(s, q.to)} on {date_text(q.day)} ({q.id}): "
                         f"{code(q.summary, TOLD_CHARS)}; {q.status}")
@@ -672,7 +665,8 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
            "reads carried out; acts and own tools carried out; refused by the engine; beyond what was connected; "
            "no such tool or arguments that could not be read. At 30 counts turns ended by the thirty-call limit; "
            "Nothing done counts turns in which nothing but reads was carried out. Letters are counted by whom they "
-           "went to. Asks are connections asked for; Accepted, those accepted. Paid out is money moved by its acts "
+           "went to: to company, the firm itself or its people about the product (naming it or the firm); to other "
+           "instances, letters from one instance to another; anything else not to the client is to others. Asks are connections asked for; Accepted, those accepted. Paid out is money moved by its acts "
            "under its connections (not later collections of what it set up).", "",
            "| " + " | ".join(_COLUMNS) + " |", "|---|" + "---:|" * (len(_COLUMNS) - 1)]
     out += [fmt(row) for row in rows] + [fmt(["All"] + totals)]
