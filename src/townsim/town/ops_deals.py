@@ -31,7 +31,7 @@ from townsim.town import facts, jobs, obligations
 from townsim.town import ops_core as core
 from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, actor_name, controls, fits, from_account, name_of_who,
-                               register, shown, to_cents)
+                               is_instance, register, shown, to_cents)
 from townsim.town.clock import date_text, date_year, parse_date, unreadable
 from townsim.town.entities import Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
@@ -269,7 +269,8 @@ def _do_agreement(store: Store, act: Act, rq: Request, cause: str) -> str:
     last = rq.first + 7 * (rq.times - 1) if rq.every and rq.times else None
     ob = obligations.create(store, kind="agreement", payer=rq.payer, payee=rq.payee, cents=rq.pay, first=rq.first,
                             every=rq.every, last=last, memo=_quoted_part(rq.summary), ends="both",
-                            made_by=rq.sender, cause=cause, party=act.principal)
+                            made_by=act.actor if is_instance(store, act.actor) else rq.sender, cause=cause,
+                            party=act.principal)       # one an instance accepts counts toward its limit each week
     return f"Agreed ({ob}): {rq.summary}"
 
 

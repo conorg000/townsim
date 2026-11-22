@@ -270,9 +270,22 @@ def _do_offer_job(store: Store, act: Act, cause: str) -> str:
     return sent(store, rq, rq.summary)
 
 
+def _offered_by_business(store: Store, rq: Request, org) -> bool:
+    """An offer is the business's while its sender owns it, or is the business's own active
+    instance: an offer an instance made for a business is the business's offer."""
+    if org.outside:
+        return False
+    if org.owner == rq.sender:
+        return True
+    if store.has("instances", rq.sender):
+        inst = store.get("instances", rq.sender)
+        return inst.status == "active" and inst.client == org.id
+    return False
+
+
 def _check_job(store: Store, act: Act, rq: Request) -> str | None:
     org = store.get("orgs", rq.org)
-    if org.owner != rq.sender or org.outside:
+    if not _offered_by_business(store, rq, org):
         return f"{name_of_who(store, rq.sender)} no longer owns {org.name}."
     why = _too_little(rq.pay, rq.hours)
     if why is not None:
@@ -357,7 +370,7 @@ def _do_offer_shifts(store: Store, act: Act, cause: str) -> str:
 
 def _check_shifts(store: Store, act: Act, rq: Request) -> str | None:
     org = store.get("orgs", rq.org)
-    if org.owner != rq.sender or org.outside:
+    if not _offered_by_business(store, rq, org):
         return f"{name_of_who(store, rq.sender)} no longer owns {org.name}."
     if not jobs.held(store, person=act.principal, org=rq.org):
         return f"you no longer work at {org.name}."

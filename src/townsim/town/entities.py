@@ -442,7 +442,8 @@ class Connection:
 @dataclass
 class Commit:
     """What one act done under `connection` takes, or may take, out of an account: `cents`, on
-    `day`, by the operation `op` with the act's cause in `ref`."""
+    `day`, by the operation `op` with the act's cause in `ref`; `about` is the job a change of
+    pay was made to."""
 
     id: str
     connection: str
@@ -450,6 +451,7 @@ class Commit:
     cents: int
     op: str
     ref: str
+    about: str = ""
 
 
 @dataclass

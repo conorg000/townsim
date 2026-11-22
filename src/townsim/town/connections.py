@@ -142,7 +142,37 @@ def used(store: Store, cn: Connection, day: int) -> int:
             total += sum(obligations.instalment_cents(ob, d) for d in obligations.instalment_days(ob, monday, 7)
                          if d <= monday + 6)
     for rq in store.where("requests", status="open"):
-        if rq.sender == cn.instance and rq.kind == "agreement" and rq.payer in accounts and rq.day < monday:
+        if rq.sender != cn.instance or rq.day >= monday:
+            continue
+        if rq.kind == "agreement" and rq.payer in accounts:
+            total += rq.pay
+        elif rq.kind == "loan" and rq.payer in accounts:           # its weekly repayment, once lent
+            from townsim.town import ops_deals
+            total += ops_deals.loan_schedule(rq.pay, rq.times)[1]
+    if cn.system.startswith("staff:"):
+        total += _staff_since(store, cn, same, monday)
+    return total
+
+
+def _staff_since(store: Store, cn: Connection, same: set[str], monday: int) -> int:
+    """What staff changes the instance made before this week still take each week: every rise in
+    pay on a job still current, and the pay of every job it offered that is still open or was
+    taken and is still current."""
+    from townsim.town import jobs
+    org = cn.system.split(":", 1)[1]
+    total = 0
+    for c in same:
+        for m in store.where("commits", connection=c):
+            if m.op == "set_staff_pay" and m.day < monday and m.about and store.has("jobs", m.about) \
+                    and jobs.current(store.get("jobs", m.about), store.day):
+                total += m.cents
+    for rq in store.all("requests"):
+        if rq.sender != cn.instance or rq.kind != "job" or rq.org != org or rq.day >= monday:
+            continue
+        if rq.status == "open":
+            total += rq.pay
+        elif rq.status == "accepted" and any(j.person == rq.to and j.since == rq.first and jobs.current(j, store.day)
+                                             for j in store.where("jobs", org=org)):
             total += rq.pay
     return total
 
@@ -192,9 +222,15 @@ def on_behalf(store: Store, act: Act) -> Callable[[str], None]:
     system_id = SYSTEM_OF[op](store, act)
     cn = connection_on(store, act.actor, system_id)
 
+    about = ""
+    if op == "set_staff_pay":
+        from townsim.town import ops_work
+        job, _ = ops_work._staff(store, act)
+        about = job.id if job is not None else ""
+
     def after(cause: str) -> None:
         if cents > 0:
-            store.add("commits", Commit(store.new_id("cm", cause), cn.id, store.day, cents, op, cause), cause)
+            store.add("commits", Commit(store.new_id("cm", cause), cn.id, store.day, cents, op, cause, about), cause)
     return after
 
 
