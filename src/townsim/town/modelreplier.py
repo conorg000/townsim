@@ -74,6 +74,9 @@ def _refusal(resp) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
 
 
+OVERRUN = 2.0       # a reply that cost more than this many times its worst case stops the run
+
+
 class ModelReplier:
     """Asks each person's family's model through `completion_fn`.
 
@@ -89,9 +92,10 @@ class ModelReplier:
     order; a raising `lost` stops this replier (`unavailable: lost-spend callback failed`)
     after the batch is returned whole. An answer that cannot be read counts as one lost
     attempt. `spent()` gives the dollars already spent on the run: what its stored replies cost
-    plus everything `lost` was given. A reply that cost more than the worst case of its attempt
-    stops this replier once its batch is returned (`cap: a reply cost ...`), since the cap's
-    reckoning no longer holds. Text from the provider or its client is passed through `safe`
+    plus everything `lost` was given. A reply that cost more than the worst case of its attempt is
+    kept and counted as any is; one that cost more than twice it (`OVERRUN`) stops this replier once
+    its batch is returned (`cap: a reply cost ...`), since the cap's reckoning no longer holds; a
+    reply billed a little over its worst case (rounding, a provider's own count) does not. Text from the provider or its client is passed through `safe`
     before it is kept in an error or `stopped`. `stopped` says why this replier last stopped a run:
     `cap: ...`, `refused: <model>: ...` or `unavailable: <model>: ...`.
 
@@ -223,7 +227,7 @@ class ModelReplier:
             elif isinstance(got, StopRun):
                 why.append(str(got))
         over = [(got.cost, w, f.model) for got, w, f in zip(results, worsts, fams)
-                if isinstance(got, Reply) and got.cost > w]
+                if isinstance(got, Reply) and got.cost > OVERRUN * w]
         if over:
             self._halted = True
             why.append("cap: a reply cost ${:.4f}, more than its worst case ${:.4f} ({})".format(*over[0]))

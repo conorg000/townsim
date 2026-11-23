@@ -448,3 +448,16 @@ def test_a_reply_costing_more_than_its_worst_case_stops_after_its_batch():
     assert r.stopped.startswith("cap: a reply cost $") and "more than its worst case $" in r.stopped
     second = r.ask_many(pairs)
     assert all(isinstance(x, StopRun) for x in second) and len(fake.calls) == 4
+
+
+@pytest.mark.parametrize("times,stops", [(1.05, False), (1.99, False), (2.05, True)])
+def test_a_reply_a_little_over_its_worst_case_is_kept_and_only_twice_it_stops(times, stops):
+    w = worst_case(FAMILIES["a"], PRICES["maker/alpha"], MESSAGES)
+    fake = Fake()
+    r = replier(fake, cost_fn=lambda resp: times * w)
+    got = r.ask(key("p02"), MESSAGES)
+    assert isinstance(got, Reply) and got.cost == pytest.approx(times * w)        # kept and counted as it cost
+    assert (r.stopped is not None and r.stopped.startswith("cap: a reply cost $")
+            and "more than its worst case $" in r.stopped) == stops
+    again = r.ask_many([(key("p02", day=4), MESSAGES)])
+    assert isinstance(again[0], StopRun) == stops
