@@ -103,6 +103,7 @@ uv run townsim town-hamlet --db hamlet.sqlite --seed 1 --weeks 8
 uv run townsim town-replay --db hamlet.sqlite hamlet
 uv run townsim town-arms --db b.sqlite --parent pre --at-day 7 --prefix b --start 2026-11-23
 uv run townsim town-story --db b.sqlite b-choice   # a kept run as a plain account
+uv run townsim town-refusals --db b.sqlite         # every distinct refusal its people and assistants met
 ```
 
 These call models and spend money, each behind its own cap:

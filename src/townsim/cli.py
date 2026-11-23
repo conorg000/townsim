@@ -550,6 +550,52 @@ def town_story_cmd(
     typer.echo(os.path.relpath(out))
 
 
+@app.command("town-refusals")
+def town_refusals_cmd(
+    db: Annotated[list[str], typer.Option("--db", help="SQLite file holding runs; give it again for more.")],
+    run: Annotated[list[str] | None, typer.Option("--run", help="A run to read (every run in the files when not "
+                                                                "given); give it again for more.")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=0, help="Print at most this many texts (0: all).")] = 0,
+) -> None:
+    """Print every distinct refusal and error text the people and assistants of kept runs received, with names,
+    ids, sums and dates made placeholders so that like texts group: each with its count and one full example, most
+    frequent first, marked [checked] when the no-model check met it too. No model is called. A file or run that
+    cannot be read on this code is named and passed over."""
+    import sqlite3
+
+    from townsim.town import refusals
+    from townsim.town.rundb import RunDB
+
+    sources, bases = [], []
+    for path in db:
+        if not Path(path).is_file():
+            _fail(f"no database file {path}")
+        try:
+            rdb = RunDB(path)
+            ids = [r[0] for r in rdb._db.execute("select id from runs order by id")]
+        except sqlite3.Error as e:
+            typer.echo(f"cannot read {path}: {e}")
+            continue
+        bases.append(rdb)
+        for run_id in ids:
+            if run and run_id not in run:
+                continue
+            try:
+                refusals.received(rdb, run_id)
+            except Exception as e:      # noqa: BLE001  (kept by older code: said, and passed over)
+                typer.echo(f"cannot read run {run_id!r} in {path} on this code: {type(e).__name__}: {e}")
+                continue
+            sources.append((rdb, run_id))
+    if not sources:
+        _fail("no run to read")
+    typer.echo("runs: " + ", ".join(f"{r.path}:{run_id}" for r, run_id in sources))
+    found = refusals.gather(sources, refusals.every_path_shapes(_ROOT / "runs"))
+    for line in refusals.lines(found[:limit] if limit else found):
+        typer.echo(line)
+    for rdb in bases:
+        rdb.close()
+
+
 _OUTSIDE = str(_ROOT / "config" / "outside.yaml")
 
 
