@@ -1206,6 +1206,16 @@ def test_what_the_second_paid_run_on_that_town_found(seed):
     act(s, lender, "request", step="the payee asks for what is owed on what was stopped", to=t.name(s, t.adult1),
         text="what is owed on the club", amount=3, **{"for": agr})
     assert not s.engine_errors, s.engine_errors
+    # a subscriber who subscribes again to change what they asked is told what can and cannot be changed
+    s = connected(seed)
+    sub = _sub(s, t.plain)
+    _free_to_act(s, sub.by, "subscribing again", 2.0)
+    out = act(s, sub.by, "subscribe", expect=False, step="subscribe again to change what was asked",
+              **{"to": t.product, "for": "household", "asks": "Warn me before the rent is due."})
+    assert out.msg.endswith(product.AFTER_SUBSCRIBING) and _sub(s, t.plain).asks == sub.asks, out.msg
+    act(s, sub.by, "message", step="write to one's assistant what it is to do now", to="my assistant",
+        text="Warn me before the rent is due.")
+    assert [m.to for m in s.all("messages") if m.text == "Warn me before the rent is due."] == [sub.instance]
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------

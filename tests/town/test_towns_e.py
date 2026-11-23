@@ -143,3 +143,19 @@ def test_the_one_who_is_paid_is_told_what_a_stopped_agreement_is_as_the_payer_is
     assert s.get("obligations", ended).status == "finished"
     out = do(s, lender, "propose_end", id=ended)
     assert out.msg.startswith(f"Not done: {ended} (lessons), paid to you by the ") and " ended on " in out.msg, out.msg
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_subscribing_again_says_what_can_and_cannot_be_changed_and_the_letter_it_names_reaches_the_assistant(seed):
+    from townsim.town import product
+    s, home, iid = late(seed)
+    who = adults(s, home)[0]
+    sub = product.subscription_of(s, home)
+    asks = sub.asks
+    out = do(s, who, "subscribe", to=product.launched(s).name, **{"for": "household", "asks": "Warn me before rent."})
+    inst = s.get("instances", iid)
+    assert out.msg == (f'Not done: {product.client_name(s, home)} already subscribes ({sub.id}); its assistant is '
+                       f'written to as "{inst.name}". {product.AFTER_SUBSCRIBING}'), out.msg
+    assert product.subscription_of(s, home).asks == asks
+    out = do(s, who, "message", to="my assistant", text="Warn me before rent.")
+    assert out.ok and [m.to for m in s.all("messages") if m.text == "Warn me before rent."] == [iid], out.msg

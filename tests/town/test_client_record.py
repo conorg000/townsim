@@ -103,7 +103,7 @@ def test_routes_to_the_assistant():
                                       '"Tessaly Assistant for Harlow Springs Food Mart".')
     again = apply_act(s, Act("p10", "p10", "subscribe", {"to": "Tessaly Assistant", "asks": ""}), 0)
     assert again.msg == ('Not done: the Wagner household already subscribes (sub4); its assistant is written to as '
-                         '"Tessaly Assistant for the Wagner household".')
+                         '"Tessaly Assistant for the Wagner household". ' + product.AFTER_SUBSCRIBING)
     plain = drawn()                                                          # without lane B, as before
     assert apply_act(plain, Act("p10", "p10", "subscribe", {"to": "Tessaly Assistant", "asks": ""}),
                      0).msg == "Not done: the Wagner household already subscribes (sub4)."

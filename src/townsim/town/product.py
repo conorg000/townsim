@@ -296,6 +296,13 @@ def _client(store: Store, act: Act) -> tuple[str | None, str]:
     return account, ""
 
 
+# With lane B, what a subscriber is told on subscribing again: what can and cannot be changed after subscribing.
+AFTER_SUBSCRIBING = ('What was written at sign-up stays as written; subscribing again changes nothing. What you want '
+                     'it to do now is written to it as a letter (message to "my assistant"). After subscribing, '
+                     'connect and disconnect change what is connected to it and how far, and stop ends the '
+                     'subscription.')
+
+
 def _check_subscribe(store: Store, act: Act) -> str | None:
     pr = launched(store)
     F = store.get("orgs", pr.org).name
@@ -313,7 +320,7 @@ def _check_subscribe(store: Store, act: Act) -> str | None:
         if lane_b.installed(store):
             inst = store.get("instances", held.instance)
             return (f'{client_name(store, client)} already subscribes ({held.id}); its assistant is written to as '
-                    f'"{inst.name}".')
+                    f'"{inst.name}". {AFTER_SUBSCRIBING}')
         return f"{client_name(store, client)} already subscribes ({held.id})."
     asks = act.args.get("asks")
     text = clean_text(asks) if asks is not None else ""
