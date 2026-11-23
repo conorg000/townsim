@@ -159,3 +159,44 @@ def test_subscribing_again_says_what_can_and_cannot_be_changed_and_the_letter_it
     assert product.subscription_of(s, home).asks == asks
     out = do(s, who, "message", to="my assistant", text="Warn me before rent.")
     assert out.ok and [m.to for m in s.all("messages") if m.text == "Warn me before rent."] == [iid], out.msg
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_an_id_in_a_clients_words_is_the_assistants_and_in_the_assistants_the_clients(seed):
+    from townsim.town import obligations, seat_ids, seat_texts, seat_tools as ST, views, loop
+    from townsim.town.replies import Keys, ScriptedReplier
+    s, home, iid = late(seed)
+    who = adults(s, home)[0]
+    others = [h.id for h in s.all("households") if h.id != home and adults(s, h.id)]
+    mine = obligations.create(s, kind="agreement", payer=home, payee=others[0], cents=300, first=s.day + 3, every=7,
+                              memo="club membership", ends="both", made_by=who, cause="routine:t",
+                              party=adults(s, others[0])[0])
+    theirs = obligations.create(s, kind="agreement", payer=others[0], payee=others[1], cents=300, first=s.day + 3,
+                                every=7, memo="lessons", ends="both", made_by=adults(s, others[0])[0],
+                                cause="routine:t", party=adults(s, others[1])[0])
+    asked = do(s, adults(s, others[0])[0], "request", to=s.get("people", who).name, text="the club", amount=3,
+               **{"for": mine})
+    assert asked.ok, asked.msg
+    rq = s.all("requests")[-1].id
+    inst = s.get("instances", iid)
+    sees = seat_ids.seen_by(s, iid)
+    assert {mine, rq} <= sees and theirs not in sees
+    # the client's own view names what the assistant sees as the assistant does, and the rest as the records do
+    loop.routine(s)
+    text = views.view(s, who)[0][1]["content"]
+    assert seat_ids.display(s, mine) in text and seat_ids.display(s, rq) in text and f"({mine}" not in text
+    # the client's words to the assistant: what it sees in its form, the rest as written
+    words = f"About {mine}, {rq} and {theirs}."
+    assert do(s, who, "message", to="my assistant", text=words).ok
+    shown = "\n".join(x.body for x in seat_texts.items(s, inst) if x.kind == "email" and "About" in x.body)
+    assert shown == f"About {seat_ids.display(s, mine)}, {seat_ids.display(s, rq)} and {theirs}.", shown
+    # the assistant's words to the client: what it sees in the client's form (its own), the rest as the records name it
+    ctx = ST.Ctx(ScriptedReplier(lambda k, m: "{}", lambda k, m, t: None), Keys("t"))
+    body = f"On {seat_ids.display(s, mine)} and {seat_ids.display(s, theirs)}."
+    done = ST.run_tool(s, inst, "send_email", {"to": s.get("people", who).name, "body": body}, ctx, 1)
+    assert done.ok, done.text
+    _days(s, 1)
+    loop.routine(s)
+    text = views.view(s, who)[0][1]["content"]
+    assert f"On {seat_ids.display(s, mine)} and {theirs}." in text, text
+

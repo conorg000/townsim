@@ -395,7 +395,8 @@ def test_a_request_made_during_a_call_is_answered_in_the_call():
     def people(key, messages):
         if key.purpose == "talk":
             view = messages[-1]["content"]
-            got = [w.split()[0] for w in view.split("\n") if w.startswith("rq") and " from Tessaly" in w]
+            got = [w.split()[0] for w in view.split("\n")        # with lane B the id as the assistant names it
+                   if w.startswith("req_") and " from Tessaly" in w]
             return json.dumps({"say": "Yes, do it.", "acts": [{"op": "answer", "request": r, "answer": "once"}
                                                              for r in got], "end": False})
         return outside_script.reply(key, messages)

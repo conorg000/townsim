@@ -1216,6 +1216,27 @@ def test_what_the_second_paid_run_on_that_town_found(seed):
     act(s, sub.by, "message", step="write to one's assistant what it is to do now", to="my assistant",
         text="Warn me before the rent is due.")
     assert [m.to for m in s.all("messages") if m.text == "Warn me before the rent is due."] == [sub.instance]
+    # an id in a client's words is the assistant's when it sees the thing, and in the assistant's words the client's
+    from townsim.town import seat_texts, views
+    s = connected(seed)
+    full = inst_of(s, t.plain)
+    lend_home = s.get("people", t.outsider).household
+    mine = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=300, first=s.day + 3,
+                              every=7, memo="club membership", ends="both", made_by=t.adult1, cause=CAUSE,
+                              party=t.outsider)
+    theirs = obligations.create(s, kind="agreement", payer=lend_home, payee=t.banker_home, cents=300, first=s.day + 3,
+                                every=7, memo="lessons", ends="both", made_by=t.outsider, cause=CAUSE, party=t.banker)
+    _free_to_act(s, t.adult1, "ids in a client's words", 2.0)
+    act(s, t.adult1, "message", step="write to one's assistant naming agreements by id", to="my assistant",
+        text=f"About {mine} and {theirs}.")
+    body = [x.body for x in seat_texts.items(s, s.get("instances", full)) if x.body.startswith("About")]
+    assert body == [f"About {seat_ids.display(s, mine)} and {theirs}."], body
+    tool(s, full, "send_email", {"to": t.name(s, t.adult1), "body": f"On {seat_ids.display(s, mine)} and "
+                                 f"{seat_ids.display(s, theirs)}."}, step="an assistant's email naming agreements by id")
+    _days(s, 1)
+    loop.routine(s)
+    assert f"On {seat_ids.display(s, mine)} and {theirs}." in views.view(s, t.adult1)[0][1]["content"]
+    assert not s.engine_errors, s.engine_errors
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------

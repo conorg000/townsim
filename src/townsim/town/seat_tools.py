@@ -767,6 +767,8 @@ def _run_call(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Don
     ended = text.endswith(f"({person} ended the talk.)") or text.endswith("(You part after this.)")
     said = text.removesuffix(f"\n({person} ended the talk.)").removesuffix("\n(You part after this.)")
     said = said.replace(f"{person} said nothing.", f"{person} says nothing.").replace(f"{person} said:", "They said:")
+    if _lane_b(store):
+        said = seat_ids.in_words(store, seat_ids.seen_by(store, inst.id), said)
     status = "ended" if ended else "in_progress"
     head = f"call_id: {seat_ids.display(store, tk)} · status: {status}"
     return Done(f"{head}\n{said}" if said else head, True, "own", cause)

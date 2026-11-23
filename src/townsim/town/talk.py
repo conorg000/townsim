@@ -694,8 +694,10 @@ def layout(store: Store, pid: str, tk: str) -> TalkLayout:
 
 
 def _view(store: Store, pid: str, tk: str) -> tuple[list[dict], list[str]]:
+    from townsim.town import seat_ids
     v = layout(store, pid, tk)
-    return [{"role": "system", "content": v.system}, {"role": "user", "content": v.user}], v.ids
+    user = seat_ids.for_client(store, pid, v.user)       # with lane B, ids their assistant sees, as it sees them
+    return [{"role": "system", "content": v.system}, {"role": "user", "content": user}], v.ids
 
 
 def view(store: Store, pid: str, talk_id: str) -> list[dict]:

@@ -94,12 +94,16 @@ def dated(text: str, today: int) -> str:
     return _DATE.sub(one, text)
 
 
-def view(store: Store, text: str) -> str:
+def view(store: Store, text: str, seen: set[str] | None = None) -> str:
     """What the engine wrote, as the seat shows it: its ids as shown and its dates with their
-    years. Lines set off with `>` are someone's own words and are left as written."""
+    years. Lines set off with `>` are someone's own words and are left as written, but for the ids of what the
+    reader sees (`seen`, `in_words`)."""
     out = []
     for line in (text or "").split("\n"):
-        out.append(line if line.lstrip().startswith(">") else dated(shown(store, line), store.day))
+        if line.lstrip().startswith(">"):
+            out.append(in_words(store, seen, line) if seen else line)
+        else:
+            out.append(dated(shown(store, line), store.day))
     return "\n".join(out)
 
 
@@ -110,34 +114,62 @@ def day(d: int) -> str:
 
 # --- one id on both sides --------------------------------------------------------------------------------------
 
-def _seen_by_assistant(store: Store, pid: str) -> set[str]:
-    """The store's ids of what `pid`'s own assistant also sees: the requests it sent, and the agreements on an
-    account of theirs connected to it (at any access)."""
-    from townsim.town.acts import accounts_of
-    mine = set(accounts_of(store, pid)) if store.has("people", pid) else set()
-    insts = [s.instance for s in store.all("subscriptions") if s.status == "active" and s.client in mine]
-    out: set[str] = set()
-    for iid in insts:
-        out |= {r.id for r in store.where("requests", sender=iid)}
-        for c in store.where("connections", instance=iid):
-            if c.status == "active" and c.system.startswith("account:"):
-                acct = c.system.removeprefix("account:")
-                out |= {o.id for o in store.all("obligations") if acct in (o.payer, o.payee)}
+def seen_by(store: Store, iid: str) -> set[str]:
+    """The store's ids of the agreements and requests instance `iid` sees: the requests it sent, the requests that
+    reach it (to its client's people, on a system of theirs connected to it), and the agreements on an account of
+    its client's connected to it (at any access)."""
+    from townsim.town.seat_texts import _request_reaches, client_people
+    inst = store.get("instances", iid)
+    out = {r.id for r in store.where("requests", sender=iid)}
+    people = set(client_people(store, inst))
+    out |= {r.id for r in store.all("requests")
+            if r.to in people and r.sender != iid and _request_reaches(store, inst, r, open_only=False)}
+    for c in store.where("connections", instance=iid):
+        if c.status == "active" and c.system.startswith("account:"):
+            acct = c.system.removeprefix("account:")
+            out |= {o.id for o in store.all("obligations") if acct in (o.payer, o.payee)}
     return out
 
 
+def _seen_by_assistant(store: Store, pid: str) -> set[str]:
+    """The store's ids of what `pid`'s own assistants also see (`seen_by`)."""
+    from townsim.town.acts import accounts_of
+    mine = set(accounts_of(store, pid)) if store.has("people", pid) else set()
+    out: set[str] = set()
+    for sub in store.all("subscriptions"):
+        if sub.status == "active" and sub.client in mine:
+            out |= seen_by(store, sub.instance)
+    return out
+
+
+_WORDS_ID = re.compile(r"\b(?:ob|rq)\d+\b")
+_SHOWN_ID = re.compile(r"\b(agr|req)_([0-9A-Za-z]+)\b")
+
+
 def for_client(store: Store, pid: str, text: str) -> str:
-    """`text` as `pid` reads it: with lane B, the id of anything their own assistant also sees (a request it sent;
-    an agreement on an account of theirs connected to it) written as the assistant is shown it, so that the two can
-    name the same thing; every other id as it is."""
+    """`text` as `pid` reads it: with lane B, the id of anything their own assistant also sees (a request it sent or
+    that reaches it; an agreement on an account of theirs connected to it) written as the assistant is shown it, so
+    that the two can name the same thing; an agreement's or request's id as an assistant writes it, of anything their
+    own assistant does not see, written as the town's records name it; every other id as it is."""
     from townsim.town import lane_b
     if not text or not lane_b.installed(store):
         return text
     seen = _seen_by_assistant(store, pid)
-    if not seen:
+    if seen:
+        text = _WORDS_ID.sub(lambda m: display(store, m.group(0)) if m.group(0) in seen else m.group(0), text)
+
+    def back(m: re.Match) -> str:
+        found = _lookup(store, m.group(1), m.group(2))
+        return found if found is not None and found not in seen else m.group(0)
+    return _SHOWN_ID.sub(back, text) if _SHOWN_ID.search(text) else text
+
+
+def in_words(store: Store, seen: set[str], text: str) -> str:
+    """Someone's own words as an assistant is shown them: the id of an agreement or a request it sees (`seen`, from
+    `seen_by`) written as it is shown that thing; every other id left as written."""
+    if not text or not seen:
         return text
-    return re.sub(r"\b(?:ob|rq)\d+\b", lambda m: display(store, m.group(0)) if m.group(0) in seen else m.group(0),
-                  text)
+    return _WORDS_ID.sub(lambda m: display(store, m.group(0)) if m.group(0) in seen else m.group(0), text)
 
 
 def from_client(store: Store, args: Any) -> Any:

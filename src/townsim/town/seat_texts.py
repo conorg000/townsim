@@ -357,7 +357,9 @@ def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None
     people = client_people(store, inst)
     pr = launched(store)
     company = store.get("orgs", pr.org).name if pr is not None else ""
-    v = lambda text: seat_ids.view(store, text)          # noqa: E731
+    sees = seat_ids.seen_by(store, inst.id) if _lane_b(store) else set()   # ids in people's words, as it sees them
+    v = lambda text: seat_ids.view(store, text, sees)    # noqa: E731
+    w = lambda text: seat_ids.in_words(store, sees, text)   # noqa: E731
     own_sub = f"({inst.subscription})"
     out = []
     for m in store.all("messages"):
@@ -367,7 +369,7 @@ def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None
             to = inst.name if m.to == inst.id else _who(store, m.org or m.to)
             head = (f"[email] {seat_ids.display(store, m.id)} · {seat_ids.day(m.day)} · From: {_who(store, m.sender)} "
                     f"· To: {to}")
-            out.append(Item(m.day, 0, m.id, "email", head, m.text or "", "", m.to == inst.id, m.sender))
+            out.append(Item(m.day, 0, m.id, "email", head, w(m.text or ""), "", m.to == inst.id, m.sender))
     for n in store.all("notices"):
         if not _after(n.id, nt) or n.day < since:
             continue
@@ -388,7 +390,7 @@ def items(store: Store, inst: Instance, seen: tuple[str, str, str] | None = None
         head = (f"[request] {seat_ids.display(store, r.id)} · {seat_ids.day(r.day)} · From: {_who(store, r.sender)} "
                 f"· To: {_who(store, r.to)}{asked} · {state}")
         tail = v(" ".join(r.summary.split())) if r.summary.strip() else ""
-        out.append(Item(r.day, 2, r.id, "request", head, r.text or "", tail, sender=r.sender))
+        out.append(Item(r.day, 2, r.id, "request", head, w(r.text or ""), tail, sender=r.sender))
     out.sort(key=lambda x: (x.day, x.order, id_key(x.id)))
     if seen is not None:
         return out
