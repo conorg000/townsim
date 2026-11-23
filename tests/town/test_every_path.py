@@ -1237,6 +1237,17 @@ def test_what_the_second_paid_run_on_that_town_found(seed):
     loop.routine(s)
     assert f"On {seat_ids.display(s, mine)} and {theirs}." in views.view(s, t.adult1)[0][1]["content"]
     assert not s.engine_errors, s.engine_errors
+    # the account's reader states the free weeks the records hold, from the day the paid plan started
+    from townsim.town import story
+    s = world(seed)
+    _free_to_act(s, t.adult1, "a subscription whose paid plan starts later", 2.0)
+    act(s, t.adult1, "subscribe", step="subscribe on the free plan", **{"to": t.product, "for": "household",
+                                                                         "asks": ""})
+    _days(s, 10)
+    _connect(s, t.adult1, inst_of(s, t.plain), f"account:{t.plain}", "limit", 5000)
+    fee = s.get("obligations", _sub(s, t.plain).fee_ob)
+    head = "\n".join(story._instance_head(None, s, s.get("instances", inst_of(s, t.plain))))
+    assert fee.first == s.day + 28 and f"free until {date_text(fee.first - 1)}, then " in head, head
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------

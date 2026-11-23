@@ -524,8 +524,12 @@ def _instance_head(r: _Run, s: Store, inst) -> list[str]:
     if sub.fee_ob and s.has("obligations", sub.fee_ob):
         ob = s.get("obligations", sub.fee_ob)
         fee = f"{money(ob.cents)} " + {7: "a week", 28: "every 4 weeks"}.get(ob.every, f"every {ob.every} days")
-        if pr is not None and pr.free_weeks:
-            fee = f"free until {date_text(sub.day + 7 * pr.free_weeks - 1)}, then {fee}"
+        # the free weeks the records hold: with lane B the paid plan's own (from the day it started), else the day
+        # before the first fee
+        plan = next((p for p in s.all("plans") if p.fee_ob == ob.id), None)
+        free_until = plan.free_until if plan is not None else ob.first - 1
+        if pr is not None and pr.free_weeks and free_until >= sub.day:
+            fee = f"free until {date_text(free_until)}, then {fee}"
     ended = f"ended on {date_text(sub.ended_on)}" if sub.status == "ended" else "not ended"
     out.append(f"- Client: {name(s, inst.client)}; subscribed by {name(s, sub.by)} on {date_text(sub.day)}; "
                f"{fee}; {ended}.")

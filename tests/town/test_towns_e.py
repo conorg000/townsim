@@ -200,3 +200,17 @@ def test_an_id_in_a_clients_words_is_the_assistants_and_in_the_assistants_the_cl
     text = views.view(s, who)[0][1]["content"]
     assert f"On {seat_ids.display(s, mine)} and {theirs}." in text, text
 
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_the_account_states_the_free_weeks_the_records_hold_from_the_day_the_paid_plan_started(seed):
+    from townsim.town import connections, obligations, product, story
+    s, home, iid = late(seed)
+    who = adults(s, home)[0]
+    _days(s, 20)
+    sub = product.subscription_of(s, home)
+    connections.make(s, who, s.get("instances", iid), f"account:{home}", "limit", 10000, "routine:t")
+    ob = s.get("obligations", product.subscription_of(s, home).fee_ob)
+    assert ob.first == s.day + 28 and sub.day == 0            # the paid plan began 20 days after subscribing
+    head = "\n".join(story._instance_head(None, s, s.get("instances", iid)))
+    fee = f"{obligations.money(ob.cents)} every 4 weeks"
+    assert f"free until {clock.date_text(ob.first - 1)}, then {fee}" in head, head
