@@ -242,7 +242,9 @@ def town_live_cmd(
     weeks: Annotated[int, typer.Option("--weeks", min=1, help="Weeks to run in all, from day 0.")],
     cap: Annotated[str, typer.Option("--cap", help="Dollars the run may spend in all, at most 5.")],
     run_id: Annotated[str, typer.Option("--run-id", help="Name of the run.")] = "live",
-    seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
+    seed: Annotated[int | None, typer.Option("--seed", help="The seed the hamlet is generated from (1 for a new run; "
+                                                            "a run in the file goes on with its own).",
+                                             show_default=False)] = None,
     families: Annotated[str, typer.Option("--families", help="YAML file of the model families.",
                                           show_default="config/families.yaml")] = _FAMILIES,
     prices: Annotated[str, typer.Option("--prices", help="YAML file of model prices.",
@@ -273,6 +275,9 @@ def town_live_cmd(
     outside_families, settings = _load_outside(outside, prices) if outside else (None, None)
     completion_fn, cost_fn = _litellm()
     with _plainly(db), RunDB(db) as rdb:
+        if seed is None:                    # a run in the file goes on with the seed it was made with
+            noted = rdb.note(run_id, "seed")
+            seed = int(noted) if noted is not None else 1
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
                             past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0,

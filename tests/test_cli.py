@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -187,3 +188,34 @@ def test_help_shows_no_local_paths(command):
     assert str(Path(cli.__file__).resolve().parents[2]) not in result.output
     if command == "town-hamlet":
         assert "config/families.yaml" in result.output
+
+
+def test_town_live_goes_on_with_the_runs_own_seed_and_refuses_another(tmp_path, monkeypatch):
+    import townsim.cli as cli
+    from townsim.town import live
+    from townsim.town.rundb import RunDB
+    db = str(tmp_path / "r.sqlite")
+    with RunDB(db) as rdb:
+        rdb.create_run("go", seed=3)
+        rdb.put_note("go", "seed", "3")
+    seen = []
+
+    def play(rdb, run_id, seed, *a, **k):
+        seen.append(seed)
+        noted = rdb.note(run_id, "seed")
+        if noted is not None and noted != str(seed):        # as live._check_resume says it
+            raise ValueError(f"run {run_id!r} was made with seed {noted}, not {seed}")
+        return SimpleNamespace(stopped=None, days_done=0)
+    monkeypatch.setenv(cli._KEY, "x")
+    monkeypatch.setattr(cli, "_litellm", lambda: (None, None))
+    monkeypatch.setattr(cli, "_replay", lambda rdb, run_id: None)
+    monkeypatch.setattr(live, "play", play)
+    monkeypatch.setattr(live, "spend_by_family", lambda rdb, run_id: [])
+    monkeypatch.setattr(live, "lost_spend", lambda rdb, run_id: 0.0)
+    base = ["town-live", "--db", db, "--weeks", "1", "--cap", "0.1", "--run-id"]
+    result = runner.invoke(app, base + ["go"])
+    assert seen == [3], result.output
+    result = runner.invoke(app, base + ["go", "--seed", "4"])
+    assert result.exit_code == 1 and "made with seed 3, not 4" in result.output
+    runner.invoke(app, base + ["new"])
+    assert seen[-1] == 1                                     # a new run: the seed 1, as before
