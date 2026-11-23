@@ -405,6 +405,19 @@ def name_of_who(store: Store, who: str) -> str:
     return who
 
 
+def not_a_person(store: Store, who: str) -> str:
+    """Why `who` cannot be addressed as a person: a household names its adults, who can be."""
+    if store.has("households", who):
+        h = store.get("households", who)
+        adults = [store.get("people", p).name for p in h.members
+                  if store.has("people", p) and store.get("people", p).age >= 18]
+        if adults:
+            names = adults[0] if len(adults) == 1 else ", ".join(adults[:-1]) + " and " + adults[-1]
+            return f"The {h.name} is not a person; its {'adult is' if len(adults) == 1 else 'adults are'} {names}."
+        return f"The {h.name} is not a person."
+    return f"{name_of_who(store, who)} is not a person."
+
+
 def actor_name(store: Store, who: str) -> str:
     """The name of whoever did an act: a person's name, or an instance's."""
     return name_of_who(store, who)

@@ -1164,7 +1164,7 @@ def _code(done: Done) -> str | None:
         return "insufficient_funds"
     if "the most kept" in low:
         return "limit_reached"
-    if low.startswith(("no one", "there is no one")) or "came back undelivered" in low:
+    if low.startswith(("no one", "there is no one")) or "came back undelivered" in low or "is not a person" in low:
         return "unknown_recipient"
     return "invalid_argument"
 

@@ -14,12 +14,13 @@ and notes are the actor's own. Names are resolved as the actor knows people.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable
 
 from townsim.town import jobs, names, obligations
 from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account_names, account_of, accounts_of,
                                clean_text, controls, cut, dollars, fits, from_account, has_savings, is_instance, knows,
-                               name_of_who,
+                               name_of_who, not_a_person,
                                register, resolve, shown, to_cents)
 from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
 from townsim.town.entities import Message, Request
@@ -528,7 +529,39 @@ def _addressee(store: Store, act: Act) -> tuple[str, str] | None:
             return org.id, org.id
         if store.has("people", act.actor) and org.name in record_orgs(store, act.actor):
             return org.id, org.id
+    if who is None:
+        desk = desk_signed(store, act.args.get("to"))
+        if desk is not None:                        # a desk's signer, by name, with or without the organisation
+            return desk, desk
     return None
+
+
+_JOINS = re.compile(r"^[\s,;:()\-–—]*(?:(?:at|of|from|for|in|care of|c/o)\s+)?(?:the\s+)?|[\s,;:()\-–—.]*$",
+                    re.IGNORECASE)
+
+
+def desk_signed(store: Store, to: Any) -> str | None:
+    """The outside organisation whose desk signs its letters with the name `to` gives, alone or with the
+    organisation's name (or part of it) before or after it: `Kevin Brooks`, `Kevin Brooks, Marrow Station`,
+    `Kevin Brooks at Shops and services in Marrow Station`. None when no desk, or more than one, signs so."""
+    if not isinstance(to, str) or len(to) > 2 * LONGEST_NAME:
+        return None
+    wanted = " ".join(to.split()).casefold()
+    found = []
+    for d in store.all("desks"):
+        if not store.has("orgs", d.org):
+            continue
+        signer, org = d.signer.casefold(), store.get("orgs", d.org).name.casefold()
+        for rest in ((wanted.removeprefix(signer) if wanted.startswith(signer) else None),
+                     (wanted.removesuffix(signer) if wanted.endswith(signer) else None)):
+            if rest is None:
+                continue
+            rest = _JOINS.sub("", rest).strip()
+            if not rest or rest in org or org in rest:
+                found.append(d.org)
+                break
+    found = list(dict.fromkeys(found))
+    return found[0] if len(found) == 1 and _desk(store, found[0]) else None
 
 
 def _also_reads(store: Store, org: str, to: str, writer: str = "") -> list[str]:
@@ -549,6 +582,9 @@ def _desk(store: Store, org_id: str) -> bool:
 def _check_message(store: Store, act: Act) -> str | None:
     found = _addressee(store, act)
     if found is None:
+        who = _resolve(store, act.args.get("to"), act.actor)
+        if who is not None and store.has("households", who):
+            return not_a_person(store, who)
         why = _product.assistant_refusal(store, act.args.get("to"), act.actor)
         return why or f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
     if found[0] == act.actor and (found[1] or is_instance(store, act.actor)):
@@ -618,7 +654,7 @@ def _request_to(store: Store, act: Act) -> tuple[str | None, str]:
             return None, _outside(store, act, org)
         who = org.owner or org.contact
     if not store.has("people", who):
-        return None, f"{name_of_who(store, who)} is not a person."
+        return None, not_a_person(store, who)
     if who == act.actor:
         return None, "that is you."
     return who, ""

@@ -11,7 +11,7 @@ from typing import Any
 from townsim.town import hours
 from townsim.town import ops_core as core
 from townsim.town import talk
-from townsim.town.acts import Act, OpSpec, clean_text, fits, register, shown
+from townsim.town.acts import Act, OpSpec, clean_text, fits, not_a_person, register, shown
 from townsim.town.clock import date_text, parse_date, unreadable
 from townsim.town.entities import Appointment, Talk
 from townsim.town.statement import quoted
@@ -55,7 +55,8 @@ def _with(store: Store, act: Act, booking: bool = False) -> tuple[str | None, st
     if who is None:
         return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
-        return None, f"{store.get('orgs', who).name if store.has('orgs', who) else shown(value)} is not a person."
+        return None, (not_a_person(store, who) if store.has("households", who) else
+                      f"{store.get('orgs', who).name if store.has('orgs', who) else shown(value)} is not a person.")
     if who == act.actor:
         return None, "that is you."
     return who, ""

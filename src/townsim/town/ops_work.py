@@ -24,7 +24,7 @@ from typing import Any
 from townsim.town import firms, hours, jobs, obligations, statement
 from townsim.town import ops_core as core
 from townsim.town.acts import (FILLED, REGISTRY, YOUR_ACCOUNTS, Act, OpSpec, _alternatives, account_named, actor_name, dollars, fits,
-                               is_savings, name_of_who, register, shown, to_cents)
+                               is_savings, name_of_who, not_a_person, register, shown, to_cents)
 from townsim.town.clock import date_in, date_text
 from townsim.town.entities import Job, Org, Request
 from townsim.town.obligations import money
@@ -92,7 +92,7 @@ def _person(store: Store, act: Act, key: str) -> tuple[str | None, str]:
     if who is None:
         return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
-        return None, f"{name_of_who(store, who)} is not a person."
+        return None, not_a_person(store, who)
     if who == act.principal:
         return None, "that is you."
     return who, ""
@@ -474,7 +474,7 @@ def _staff(store: Store, act: Act) -> tuple[Job | None, str]:
     if who is None:
         return None, f"no one you know is called '{shown(value)}'. Names are written in full, as they appear in your records."
     if not store.has("people", who):
-        return None, f"{name_of_who(store, who)} is not a person."
+        return None, not_a_person(store, who)
     if _business(store, act.principal) is None:
         return None, "you own no business in the town."
     job = _job_with(store, who, act.principal)
