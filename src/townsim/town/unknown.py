@@ -258,13 +258,15 @@ def reader_lines(names: list[str]) -> list[str]:
     return lines
 
 
-def tell_writer(store: Store, writer: str, to: str, text: str, cause: str) -> str:
+def tell_writer(store: Store, writer: str, to: str, text: str, cause: str, known_too: tuple[str, ...] = ()) -> str:
     """`writer_text` for the names in what `writer` wrote to `to` that no one bears, leaving out
-    those the writer has been told of already this week; those told now are kept on their row."""
+    those the writer has been told of already this week and those of `known_too` (a desk's signer, in a letter to
+    that desk) and their parts; those told now are kept on their row."""
     from townsim.town.clock import week
     if not store.has("people", writer):           # an instance is told nothing of names
         return ""
-    names = unknown_names(store, writer, to, text)
+    parts = {w.casefold() for n in known_too for w in [n, *n.split()]}
+    names = [n for n in unknown_names(store, writer, to, text) if n.casefold() not in parts]
     if not names:
         return ""
     now = f"{week(store.day)}:"

@@ -121,6 +121,10 @@ def _payee(store: Store, act: Act) -> tuple[str | None, str]:
     if who is None:
         if isinstance(to, str) and len(to) <= LONGEST_NAME and "savings" in to.casefold():
             if to.strip().casefold() in SAVINGS_WORDS and has_savings(store, _own(store, act)):
+                if _lane_b(store):
+                    what = "a standing payment" if act.op == "standing_payment" else "a payment"
+                    return None, (f"Money is moved between your household's account and its savings with move_money; "
+                                  f"{what} goes to someone else.")
                 return None, "that is your own household's savings."
             return None, f"there is no account called '{shown(to)}'. Yours are: {', '.join(account_names(store, act.principal))}."
         return None, f"no one you know is called '{shown(to)}'. Names are written in full, as they appear in your records."
@@ -667,7 +671,8 @@ def _do_message(store: Store, act: Act, cause: str) -> str:
     if to == org:                       # no one in the town reads it: kept as sent, and never shown as news
         store.add("messages", Message(store.new_id("msg", cause), store.day, act.actor, to, text, seen=True, org=org),
                   cause)
-        return f"Sent to {name_of_who(store, org)}." + tell_writer(store, act.actor, "", text, cause)
+        signers = tuple(d.signer for d in store.all("desks") if d.org == org)
+        return f"Sent to {name_of_who(store, org)}." + tell_writer(store, act.actor, "", text, cause, signers)
     unknown = [] if is_instance(store, to) else unknown_names(store, to, act.actor, text)
     message = Message(store.new_id("msg", cause), store.day, act.actor, to, text, org=org, unknown=unknown)
     store.add("messages", message, cause)

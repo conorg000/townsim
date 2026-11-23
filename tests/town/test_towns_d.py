@@ -234,3 +234,34 @@ def test_stop_on_a_payment_stopped_ended_or_repaid_and_on_an_ended_subscription_
     assert do(s, debtor, "stop", id=sub.id).ok
     out = do(s, debtor, "stop", id=sub.id)
     assert out.msg.startswith(f"Not done: {sub.id} ended on {date_text(s.day)}"), out.msg
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_putting_money_by_names_move_money_and_a_rule_may_do_it_each_week(seed):
+    from townsim.town import acts, rules
+    s = town(seed)
+    h = next(x for x in s.all("households") if adults(s, x.id) and acts.has_savings(s, x.id))
+    who = adults(s, h.id)[0]
+    out = do(s, who, "standing_payment", to="savings", amount=20, day="Friday", start="", weeks=0)
+    assert out.msg == ("Not done: Money is moved between your household's account and its savings with move_money; a "
+                       "standing payment goes to someone else."), out.msg
+    out = do(s, who, "pay", to="savings", amount=20)
+    assert out.msg.endswith("with move_money; a payment goes to someone else."), out.msg
+    out = do(s, who, "set_rule", name="put by", when={"weekday": clock.DAYS[clock.dow(s.day)]},
+             do={"op": "move_money", "from": "household", "to": "savings", "amount": 20})
+    assert out.ok, out.msg
+    before = s.balance(acts.savings_of(h.id))
+    rules.run_rules(s, 1)
+    assert s.balance(acts.savings_of(h.id)) - before == 2000
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_a_desk_has_no_page_and_a_letter_naming_its_signer_does_not_call_the_signer_unknown(seed):
+    s = town(seed)
+    who = next(p.id for p in s.all("people") if p.age >= 18)
+    for d in s.all("desks"):
+        org = s.get("orgs", d.org).name
+        out = do(s, who, "read_page", of=org)
+        assert out.msg == f"Not done: {org} has no page; it is written to by letter.", out.msg
+        out = do(s, who, "message", to=org, text=f"Dear {d.signer}, please write back.")
+        assert out.ok and d.signer not in out.msg and "not anyone you know" not in out.msg, out.msg

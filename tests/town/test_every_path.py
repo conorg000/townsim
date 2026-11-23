@@ -1092,6 +1092,28 @@ def test_what_the_paid_run_on_a_second_town_found(seed):
     act(s, t.adult1, "stop", step="end the household's subscription", id=sub.id)
     out = act(s, t.adult1, "stop", expect=False, step="stop a subscription that has ended", id=sub.id)
     assert out.msg.startswith(f"Not done: {sub.id} ended on {date_text(s.day)}"), out.msg
+    # putting money by: the refusal names move_money, and a rule may carry it out each week
+    if not has_savings(s, t.plain):
+        skip(seed, "a standing payment to the household's savings", "the household has no savings")
+    else:
+        out = act(s, t.adult1, "standing_payment", expect=False, step="a standing payment to the household's savings",
+                  to="savings", amount=20, day="Friday", start="", weeks=0)
+        assert out.msg == ("Not done: Money is moved between your household's account and its savings with move_money; "
+                           "a standing payment goes to someone else."), out.msg
+        act(s, t.adult1, "set_rule", step="a rule that puts money by each week", name="put by",
+            when={"weekday": DAYS[dow(s.day)]}, do={"op": "move_money", "from": "household", "to": "savings",
+                                                    "amount": 20})
+        before = s.balance(savings_of(t.plain))
+        rules.run_rules(s, _n())
+        assert s.balance(savings_of(t.plain)) - before == 2000
+    # a desk keeps no page and is written to by letter; a letter to its signer does not call the signer unknown
+    for d in s.all("desks"):
+        org = t.name(s, d.org)
+        out = act(s, t.adult1, "read_page", expect=False, step=f"read the {d.kind} desk's page", of=org)
+        assert out.msg == f"Not done: {org} has no page; it is written to by letter.", out.msg
+        out = act(s, t.adult1, "message", step=f"a letter to the {d.kind} desk naming its signer", to=org,
+                  text=f"Dear {d.signer}, please write back.")
+        assert d.signer not in out.msg, out.msg
     assert not s.engine_errors, s.engine_errors
 
 

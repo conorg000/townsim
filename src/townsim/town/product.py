@@ -528,9 +528,23 @@ def _fill_part(store: Store, pid: str) -> str:
     return ', "part": <1 unless a page says it has more parts>' if lane_b.installed(store) else ""
 
 
+def _desk_named(store: Store, name):
+    """With lane B, the organisation outside the place that answers letters at a desk and is called `name`, or None."""
+    from townsim.town import lane_b
+    from townsim.town.narrator import has_desk
+    if not lane_b.installed(store) or not isinstance(name, str):
+        return None
+    wanted = " ".join(name.split()).casefold()
+    return next((o for o in store.all("orgs") if o.outside and o.name.casefold() == wanted and has_desk(store, o.id)),
+                None)
+
+
 def _check_read_page(store: Store, act: Act) -> str | None:
     org = _business(store, act.args.get("of"))
     if org is None:
+        desk = _desk_named(store, act.args.get("of"))
+        if desk is not None:
+            return f"{desk.name} has no page; it is written to by letter."
         return f"there is no business in {store.place} called '{shown(act.args.get('of'))}'."
     text = business_page(store, org)
     if text is None:
