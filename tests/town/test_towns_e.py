@@ -105,3 +105,41 @@ def test_without_lane_b_the_example_dates_are_as_they_were():
     assert "e.g. Monday 13 April" in text and "e.g. Thursday 12 March" in text
     assert clock.unreadable("soon") == "'soon' is not a date that can be read. Write it like Monday 16 March."
 
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_the_one_who_is_paid_is_told_what_a_stopped_agreement_is_as_the_payer_is(seed):
+    from townsim.town import facts, obligations
+    from townsim.town.clock import date_text
+    from townsim.town.obligations import money
+    from .test_towns_d import _two_households, _view, town
+    s = town(seed)
+    payer, payee = _two_households(s)
+    debtor, lender = adults(s, payer.id)[0], adults(s, payee.id)[0]
+    ob = obligations.create(s, kind="agreement", payer=payer.id, payee=payee.id, cents=300, first=s.day + 3, every=7,
+                            memo="club membership", ends="both", made_by=debtor, cause="routine:t", party=lender)
+    _days(s, 7)
+    assert do(s, debtor, "stop", id=ob).ok
+    on = date_text(s.day)
+    _days(s, 15)
+    late = sum(d.cents - d.paid for d in obligations.owed_dues(s, ob))
+    head = (f"{ob} (club membership), paid to you by the {s.get('households', payer.id).name}, was stopped "
+            f"by them on {on} and recorded as a breach; {money(late)} of it remains owed to you.")
+    text = _view(s, lender)
+    assert ob in text, text                                 # the id the payee's own view lists
+    for op in ("propose_end", "stop"):
+        out = do(s, lender, op, id=ob)
+        assert not out.ok and out.msg.startswith(f"Not done: {head}"), (op, out.msg)
+    assert do(s, lender, "stop", id=ob).msg.endswith(" Stop is for what you pay.")
+    worry = " ".join(facts.worries(s, lender, 20))
+    assert f"stopped by the {s.get('households', payer.id).name} on {on}" in worry, worry
+    out = do(s, lender, "request", to=s.get("people", debtor).name, text="what is owed on the club", amount=3,
+             **{"for": ob})
+    assert out.ok, out.msg
+    # an agreement that ended, from the side it was paid to
+    ended = obligations.create(s, kind="agreement", payer=payer.id, payee=payee.id, cents=200, first=s.day + 1,
+                               every=7, last=s.day + 8, memo="lessons", ends="both", made_by=debtor,
+                               cause="routine:t", party=lender)
+    _days(s, 10)
+    assert s.get("obligations", ended).status == "finished"
+    out = do(s, lender, "propose_end", id=ended)
+    assert out.msg.startswith(f"Not done: {ended} (lessons), paid to you by the ") and " ended on " in out.msg, out.msg

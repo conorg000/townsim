@@ -1177,6 +1177,35 @@ def test_what_the_second_paid_run_on_that_town_found(seed):
          step="a follow-up on a day that has passed, across the year")
     tool(s, full, "search_email", {"since": "Thursday 4 February"}, step="search email since a day across the year")
     assert not s.engine_errors, s.engine_errors
+    # the one who is paid is told what a stopped or ended agreement is, who pays it and what remains owed
+    from townsim.town import obligations
+    from townsim.town.clock import date_text
+    from townsim.town.obligations import money
+    t = _town(seed)
+    s = world(seed)
+    lender, lend_home = t.outsider, s.get("people", t.outsider).household
+    agr = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=300, first=s.day + 3, every=7,
+                             memo="club membership", ends="both", made_by=t.adult1, cause=CAUSE, party=lender)
+    ended = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=200, first=s.day + 1, every=7,
+                               last=s.day + 8, memo="lessons", ends="both", made_by=t.adult1, cause=CAUSE, party=lender)
+    _days(s, 7)
+    _free_to_act(s, t.adult1, "the payee of what was stopped", 2.0)
+    act(s, t.adult1, "stop", step="the payer stops an agreement", id=agr)
+    on = date_text(s.day)
+    _days(s, 15)
+    _free_to_act(s, lender, "the payee of what was stopped", 2.0)
+    late = sum(d.cents - d.paid for d in obligations.owed_dues(s, agr))
+    payer = s.get("households", t.plain).name
+    for op in ("propose_end", "stop"):
+        out = act(s, lender, op, expect=False, step=f"the payee's {op} on what the payer stopped", id=agr)
+        assert out.msg.startswith(f"Not done: {agr} (club membership), paid to you by the {payer}, was stopped by them "
+                                  f"on {on} and recorded as a breach; {money(late)} of it remains owed to you."), out.msg
+    assert s.get("obligations", ended).status == "finished"
+    out = act(s, lender, "propose_end", expect=False, step="the payee's propose_end on what has ended", id=ended)
+    assert out.msg.startswith(f"Not done: {ended} (lessons), paid to you by the {payer}, ended on "), out.msg
+    act(s, lender, "request", step="the payee asks for what is owed on what was stopped", to=t.name(s, t.adult1),
+        text="what is owed on the club", amount=3, **{"for": agr})
+    assert not s.engine_errors, s.engine_errors
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------
