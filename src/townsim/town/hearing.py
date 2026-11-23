@@ -250,7 +250,8 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             if _moved(f, mine) and f.order_units and store.has("orgs", f.org):
                 friends(store.get("orgs", f.org).owner, f"{_name(store, f.org)} changed its supplier to "
                                                         f"{_supplier(store, f.order_supplier)}.", to)
-        elif c.table == "firms" and c.field == "price" and isinstance(c.old, int) and isinstance(c.new, int):
+        elif c.table == "firms" and c.field == "price" and isinstance(c.old, int) and isinstance(c.new, int) \
+                and c.old != c.new:                     # a price set to what it was is no change to tell
             f = store.get("firms", c.id)
             text = f"{_name(store, f.org)}'s price went from {money(c.old)} to {money(c.new)} a basket"
             add("price", f.org, f"{text}{_by(store, c.cause)}.", _others(_workplace(store, f.org), _did(c.cause)))

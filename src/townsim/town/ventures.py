@@ -328,8 +328,10 @@ def check_fee(store: Store, act: Act) -> str | None:
 def do_fee(store: Store, act: Act, cause: str) -> str:
     v = named(store, act.principal, act.args["for"])
     fee = _fee(act.args["price"])
-    store.set("ventures", v.id, cause, fee_cents=fee)
     name = store.get("orgs", v.org).name
+    if fee == v.fee_cents:                                          # nothing changes: nothing is told
+        return f"Members who join {name} already {'pay ' + money(fee) + ' a week' if fee else 'pay no fee'}."
+    store.set("ventures", v.id, cause, fee_cents=fee)
     pays = f"pay {money(fee)} a week" if fee else "pay no fee"
     return f"Members who join {name} from now {pays}; members already in pay what they agreed."
 

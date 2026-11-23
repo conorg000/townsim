@@ -487,7 +487,7 @@ def run_rules(store: Store, n: int) -> int:
     for rid, args, why in due:
         r = store.get("rules", rid)
         cause = f"routine:rules:{rid}"
-        ok = False
+        ok, same = False, False
         if args is not None:
             try:
                 act = _act(store, r, args)
@@ -495,11 +495,14 @@ def run_rules(store: Store, n: int) -> int:
                 store.engine_errors.append(f"rule:{rid}:d{store.day}: {type(e).__name__}: {str(e)[:200]}")
                 act, why = None, "that could not be carried out."
             if act is not None:
+                mark = store.mark()
                 out = apply_act(store, act, n, via=f"auto:{rid}")
                 n += 1
                 ok, why = out.ok, out.msg.removeprefix("Not done: ").strip()
-        if ok:
-            store.set("rules", rid, cause, fails=0, runs=(r.runs + [f"{store.day}:done"])[-KEPT_RUNS:])
+                same = ok and not any(c.cause == out.cause and c.old != c.new for c in store.changes[mark:])
+        if ok:          # a firing that changed nothing is kept as having run, not as a change
+            store.set("rules", rid, cause, fails=0,
+                      runs=(r.runs + [f"{store.day}:{'unchanged' if same else 'done'}"])[-KEPT_RUNS:])
             continue
         fails = r.fails + 1
         suspended = fails >= SUSPEND_AFTER
@@ -581,7 +584,8 @@ def section(store: Store, pid: str) -> tuple[str, list[str]] | None:
         last = r.runs[-1] if r.runs else ""
         if last:
             day, _, rest = last.partition(":")
-            ran = f"last ran {date_text(int(day))}: {'done' if rest == 'done' else 'not done'}"
+            ran = f"last ran {date_text(int(day))}: " + {"done": "done", "unchanged": "done, nothing to change"}.get(
+                rest, "not done")
         else:
             ran = "not run yet"
         stopped = "; stopped" if r.status == "suspended" else ""

@@ -111,7 +111,7 @@ def _rules(r, s: Store) -> list[str]:
         return out + ["None."]
     fired = Counter()
     for c in _changes(r):
-        if c.cause.startswith("auto:"):
+        if c.cause.startswith("auto:") and c.old != c.new:          # a firing that changed nothing is no change
             fired[(c.cause.split(":")[1], c.day)] += 1
     notices = [n.text for n in s.all("notices")]
     for rl in rows:
@@ -266,7 +266,7 @@ def counts(r, s: Store, turns: list) -> list[str]:
         if t.ob:
             spend += sum(c for _, c in _collected(s, t.ob))
     rules_ = s.all("rules")
-    fired = {(c.cause.split(":")[1], c.day) for c in _changes(r) if c.cause.startswith("auto:")}
+    fired = {(c.cause.split(":")[1], c.day) for c in _changes(r) if c.cause.startswith("auto:") and c.old != c.new}
     refused = sum(1 for n in s.all("notices") if " did not run" in n.text and ("Rule " in n.text or "Your rule" in n.text))
     members = s.all("members")
     fees = sum(c for m in members if m.fee_ob for _, c in _collected(s, m.fee_ob))

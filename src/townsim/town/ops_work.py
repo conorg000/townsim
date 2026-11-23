@@ -589,6 +589,8 @@ def _do_price(store: Store, act: Act, cause: str) -> str:
         return ventures.do_fee(store, act, cause)
     fid, _ = _own_shop(store, act)
     cents = _price(act.args.get("price"))
+    if cents == store.get("firms", fid).price and core._lane_b(store):     # nothing changes: nothing is told
+        return f"The price at {_org_name(store, store.get('firms', fid).org)} is already {money(cents)} a basket."
     store.set("firms", fid, cause, price=cents)
     return f"The price at {_org_name(store, store.get('firms', fid).org)} is now {money(cents)} a basket."
 
