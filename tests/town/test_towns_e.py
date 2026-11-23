@@ -214,3 +214,19 @@ def test_the_account_states_the_free_weeks_the_records_hold_from_the_day_the_pai
     head = "\n".join(story._instance_head(None, s, s.get("instances", iid)))
     fee = f"{obligations.money(ob.cents)} every 4 weeks"
     assert f"free until {clock.date_text(ob.first - 1)}, then {fee}" in head, head
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_the_investor_counts_each_fee_once_across_letters_four_weeks_apart(seed):
+    from townsim.town import connections, desks, investment, obligations, product
+    s, home, iid = late(seed)
+    connections.make(s, adults(s, home)[0], s.get("instances", iid), f"account:{home}", "limit", 10000, "routine:t")
+    ob = s.get("obligations", product.subscription_of(s, home).fee_ob)
+    d = next(x for x in s.all("desks") if x.kind == "investor")
+    fee = f"fees received in the last four weeks {obligations.money(ob.cents)};"
+    from townsim.town import loop
+    for due in (ob.first, ob.first + 28):
+        _days(s, due - s.day)
+        loop.routine(s)                                # the fee is taken on its day, and a letter written that day
+        assert fee in desks._investor_records(s, d)[0], desks._investor_records(s, d)
+        assert investment.fees(s) == ob.cents

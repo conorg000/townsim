@@ -1248,6 +1248,19 @@ def test_what_the_second_paid_run_on_that_town_found(seed):
     fee = s.get("obligations", _sub(s, t.plain).fee_ob)
     head = "\n".join(story._instance_head(None, s, s.get("instances", inst_of(s, t.plain))))
     assert fee.first == s.day + 28 and f"free until {date_text(fee.first - 1)}, then " in head, head
+    # the investor's letters four weeks apart count each fee once
+    from townsim.town import desks, investment
+    desk = next((d for d in s.all("desks") if d.kind == "investor"), None)
+    for due in (fee.first, fee.first + 28):
+        _days(s, due - s.day)
+        loop.routine(s)
+        dues = {d.id for d in s.where("dues", obligation=fee.id) if d.day == due}       # taken on that day, if paid
+        got = sum(x.cents for x in s.ledger.transfers if x.cause.removeprefix("routine:collect:") in dues)
+        if desk is not None:
+            told = desks._investor_records(s, desk)[0]
+            assert f"fees received in the last four weeks {money(got)};" in told, told
+        assert investment.fees(s) == got
+    assert not s.engine_errors, s.engine_errors
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------

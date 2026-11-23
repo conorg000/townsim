@@ -649,6 +649,12 @@ def fees_received(store: Store, pr: Product, since: int = 0) -> int:
     return total
 
 
+def fees_four_weeks(store: Store, pr: Product) -> int:
+    """The fees collected into the firm in the last four weeks: the 28 days to today, so that letters four weeks
+    apart count each fee once."""
+    return fees_received(store, pr, store.day - 27)
+
+
 def client_line(store: Store, pr: Product, sub: Subscription) -> str:
     """A client as the firm's people read it: who it is and where, who subscribed and when, the plan, the trial,
     the fees received, the next fee, and whether it has ended."""

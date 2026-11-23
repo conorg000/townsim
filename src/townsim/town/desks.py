@@ -376,7 +376,7 @@ def _investor_records(store: Store, d) -> list[str]:
     subs = store.all("subscriptions")
     now = sum(1 for s in subs if s.status == "active")
     before = sum(1 for s in subs if s.day <= store.day - 28)
-    fees = product.fees_received(store, pr, store.day - 28)
+    fees = product.fees_four_weeks(store, pr)
     return [f"{firm.name}: {now} clients now; {before} four weeks ago; fees received in the last four weeks "
             f"{money(fees)}; account balance {money(store.balance(firm.id))}."]
 

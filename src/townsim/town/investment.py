@@ -67,7 +67,7 @@ def wages(store: Store) -> int:
 def fees(store: Store) -> int:
     from townsim.town import product
     pr = product.launched(store)
-    return product.fees_received(store, pr, store.day - 28) if pr else 0
+    return product.fees_four_weeks(store, pr) if pr else 0
 
 
 def decision(store: Store) -> tuple[int, float]:
