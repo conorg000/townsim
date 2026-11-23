@@ -32,7 +32,7 @@ from townsim.town import ops_core as core
 from townsim.town import ops_work as work
 from townsim.town.acts import (Act, OpSpec, account_of, accounts_of, actor_name, controls, fits, from_account, name_of_who,
                                is_instance, register, shown, to_cents)
-from townsim.town.clock import date_in, date_text, date_year, parse_date, unreadable
+from townsim.town.clock import date_in, date_text, date_year, parse_date, parse_near, unreadable
 from townsim.town.entities import Org, Record, Request
 from townsim.town.obligations import SCHEDULED, last_cents, money, name_of, outstanding, owed_dues
 from townsim.town.statement import memo as memo_shown, quoted
@@ -80,12 +80,19 @@ def _start(store: Store, value: Any) -> tuple[int | None, str]:
     if core._blank(value):
         return store.day + 2, ""
     readable = isinstance(value, str) and len(value) <= _DATE_CHARS
-    day = parse_date(value, store.day, core._lane_b(store)) if readable else None
+    if core._lane_b(store):
+        day = parse_near(value, store.day) if readable else None
+        if day is None:
+            return None, unreadable(value)
+        if day < store.day:
+            return None, f"{date_in(day, store.day)} has passed."
+    else:
+        day = parse_date(value, store.day) if readable else None
     if day is None:
         from townsim.town.ops_talk import _gone
         gone = _gone(store, value) if readable else None
         if gone is not None:
-            return None, f"{date_in(gone, store.day) if core._lane_b(store) else date_text(gone)} has passed."
+            return None, f"{date_text(gone)} has passed."
         return None, unreadable(value)
     if day == store.day:
         return None, f"{date_text(day)} is today."

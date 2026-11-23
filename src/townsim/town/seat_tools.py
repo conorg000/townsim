@@ -857,10 +857,12 @@ def _run_read_file(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -
 def _run_followup(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
     cause = _cause(inst, "schedule_followup", store, n)
     written = args.get("date")
-    day = parse_date(written, store.day, _lane_b(store)) if isinstance(written, str) else None
-    if day is None and isinstance(written, str) and (parse_near(written, store.day) if _lane_b(store)
-                                                     else parse_date(written, -100_000)) is not None:
-        day = store.day                                   # a date that has passed
+    if _lane_b(store):
+        day = parse_near(written, store.day) if isinstance(written, str) else None
+    else:
+        day = parse_date(written, store.day) if isinstance(written, str) else None
+        if day is None and isinstance(written, str) and parse_date(written, -100_000) is not None:
+            day = store.day                               # a date that has passed
     if day is None:
         return _not(f"'{shown(written)}' is not a date that can be read. Write it YYYY-MM-DD.", cause)
     if day <= store.day:

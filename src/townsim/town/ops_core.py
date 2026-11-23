@@ -22,7 +22,7 @@ from townsim.town.acts import (LONGEST_NAME, SAVINGS_WORDS, Act, OpSpec, account
                                clean_text, controls, cut, dollars, fits, from_account, has_savings, is_instance, knows,
                                name_of_who, not_a_person,
                                register, resolve, shown, to_cents)
-from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, unreadable, weekday
+from townsim.town.clock import DAYS, date_in, date_text, dow, parse_date, parse_near, unreadable, weekday
 from townsim.town.entities import Message, Request
 from townsim.town.obligations import money, name_of
 from townsim.town.statement import agreements_text, memo as memo_shown, quoted, statement, statement_text
@@ -359,13 +359,19 @@ def _weeks(value: Any) -> int | None:
     return value
 
 
-def _start(store: Store, act: Act) -> tuple[int | None, bool]:
-    """The start day written, or None if none was written; and whether it could be read."""
+def _start(store: Store, act: Act) -> tuple[int | None, str]:
+    """The start day written, or None if none was written; and why it cannot be the start, or "". With lane B a date
+    is read as the such date nearest today (`parse_near`), and one that has passed is named."""
     start = act.args.get("start")
     if _blank(start):
-        return None, True
-    day = parse_date(start, store.day, _lane_b(store))
-    return day, day is not None
+        return None, ""
+    if _lane_b(store):
+        day = parse_near(start, store.day) if isinstance(start, str) and len(start) <= 100 else None
+        if day is not None and day < store.day:
+            return None, f"{date_in(day, store.day)} has passed."
+    else:
+        day = parse_date(start, store.day)
+    return day, "" if day is not None else unreadable(start)
 
 
 def _check_standing(store: Store, act: Act) -> str | None:
@@ -383,8 +389,9 @@ def _check_standing(store: Store, act: Act) -> str | None:
         return why
     if weekday(act.args.get("day")) is None:
         return f"'{shown(act.args.get('day'))}' is not a day of the week."
-    if not _start(store, act)[1]:
-        return unreadable(act.args.get('start'))
+    why = _start(store, act)[1]
+    if why:
+        return why
     if _weeks(act.args.get("weeks")) is None:
         return f"'{shown(act.args.get('weeks'))}' is not a number of weeks."
     if _too_long(_note(act.args.get("note")), NOTE_WORDS):

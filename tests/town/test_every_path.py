@@ -1117,6 +1117,43 @@ def test_what_the_paid_run_on_a_second_town_found(seed):
     assert not s.engine_errors, s.engine_errors
 
 
+# --- 9. what the second thirteen-week paid run on that town found -----------------------------------------------
+
+def test_what_the_second_paid_run_on_that_town_found(seed):
+    """Every operation that takes a date reads one with no year as the nearest such date, on either side of the turn
+    of the year."""
+    from townsim.town import clock
+    s, home, who, other = pickle.loads(_late_bytes(seed))
+    full, name = inst_of(s, home), s.get("people", other).name
+    _days(s, 35 - s.day)                                          # Monday 28 December 2026
+    _free_to_act(s, who, "a date of the new year with the wrong weekday", 2.0)
+    out = act(s, who, "book_appointment", step="book a day of the new year written with another weekday",
+              day="Sunday 4 January", about="the bills", **{"with": name})
+    assert "Monday 4 January" in out.msg, out.msg
+    _days(s, 74 - s.day)                                          # Friday 5 February 2027
+    assert clock.date_year(s.day) == "Friday 5 February 2027"
+    _free_to_act(s, who, "a date a week ahead written with last year's weekday", 2.0)
+    ahead = {"book_appointment": {"day": "Thursday 12 February", "about": "the bills", "with": name},
+             "standing_payment": {"to": name, "amount": 5, "day": "Friday", "start": "Thursday 12 February",
+                                  "weeks": 2},
+             "propose_agreement": {"to": name, "amount": 5, "per": "week", "weeks": 4, "start": "Thursday 12 February",
+                                   "payer": "me", "what": "the bills"}}
+    for op, args in ahead.items():
+        passed = {**args, **({"day": "Thursday 4 February"} if op == "book_appointment"
+                             else {"start": "Thursday 4 February"})}
+        out = act(s, who, op, expect=False, step=f"{op} on a day that has passed, across the year", **passed)
+        assert out.msg == "Not done: Thursday 4 February has passed.", out.msg
+        out = act(s, who, op, step=f"{op} on a day a week ahead written with last year's weekday", **args)
+        assert "Friday 12 February" in out.msg, out.msg
+    tool(s, full, "schedule_followup", {"date": "Thursday 12 February", "note": "the bills"},
+         step="a follow-up a week ahead written with last year's weekday")
+    assert s.all("reminders")[-1].day == 81
+    tool(s, full, "schedule_followup", {"date": "Thursday 4 February", "note": "the bills"}, expect=False,
+         step="a follow-up on a day that has passed, across the year")
+    tool(s, full, "search_email", {"since": "Thursday 4 February"}, step="search email since a day across the year")
+    assert not s.engine_errors, s.engine_errors
+
+
 # --- the texts ---------------------------------------------------------------------------------------------------
 
 _STORE_ID = re.compile(r"\b(?:p|h|org|as|ob|rq|sub|msg|n|rm|tk|jb|du|mb|ts|rl|vn|pl|cn|lg|rt|hr|ht|pc|ak|ap|ft|rec)"

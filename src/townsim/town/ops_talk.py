@@ -99,24 +99,30 @@ def _do_converse(store: Store, act: Act, cause: str) -> str:
 # book_appointment
 
 def _gone(store: Store, value: str) -> int | None:
-    """The day a date that is not today or later names: with lane B the such date nearest today, its year as the
-    calendar has it (`parse_near`); without, as it was read before."""
-    if core._lane_b(store):
-        day = parse_near(value, store.day)
-        return day if day is not None and day < store.day else None
+    """Without lane B, the day a date that is not today or later names, as it was read before. (With lane B every
+    date is read as the such date nearest today, `clock.parse_near`.)"""
     return parse_date(value, -10 ** 6)
 
 
 def _when(store: Store, act: Act) -> tuple[int | None, str]:
     """The day a talk is booked for: today or a day within 60 days; or None and why not."""
     value = act.args.get("day")
-    day = parse_date(value, store.day, core._lane_b(store)) if isinstance(value, str) and len(value) <= 100 else None
+    if core._lane_b(store):
+        day = parse_near(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
+        if day is None:
+            return None, unreadable(value)
+        if day < store.day:
+            return None, f"{date_in(day, store.day)} has passed."
+        if day > store.day + AHEAD_DAYS:
+            return None, f"'{shown(value)}' is not today or a day within 60 days."
+        return day, ""
+    day = parse_date(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
     if day is None:
         gone = _gone(store, value) if isinstance(value, str) and len(value) <= 100 else None
         if gone is None:
             return None, unreadable(value)
         if gone < store.day:
-            return None, f"{date_in(gone, store.day) if core._lane_b(store) else date_text(gone)} has passed."
+            return None, f"{date_text(gone)} has passed."
         day = gone
     if not store.day <= day <= store.day + AHEAD_DAYS:
         return None, f"'{shown(value)}' is not today or a day within 60 days."

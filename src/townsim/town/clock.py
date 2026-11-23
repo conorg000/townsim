@@ -150,11 +150,25 @@ def unreadable(value: object) -> str:
     return f"'{shown(value)}' is not a date that can be read. {DATE_FORM}"
 
 
+def nearest_date(day: int, month: int, today: int, weekday: int | None = None) -> int | None:
+    """The day on which `day` `month` falls nearest `today`, this year's or the year either side, whatever the day of
+    the week written beside it (`weekday` decides only between two as near); None when it is no date."""
+    ref = on(today)
+    found = []
+    for y in (ref.year - 1, ref.year, ref.year + 1):
+        try:
+            d = date(y, month, day)
+        except ValueError:
+            continue
+        found.append((abs((d - ref).days), weekday is None or d.weekday() != weekday, -y, d))
+    return (min(found)[3] - _START[0]).days if found else None
+
+
 def parse_near(text: str, today: int) -> int | None:
     """The day a written date names, before or after `today`: an ISO date, or a day and month in the year written
-    after it, or with no year the such date nearest `today` (this year's or the year either side; with the day of
-    the week written beside it, the one that falls on it when one does). `today`, `tomorrow` and a bare weekday read
-    as `parse_date` reads them. None for what is no date. Never raises."""
+    after it, or with no year the such date nearest `today` (`nearest_date`: a day of the week written beside it that
+    is not that date's does not make it another year's). `today`, `tomorrow` and a bare weekday read as `parse_date`
+    reads them. None for what is no date. Never raises."""
     if not isinstance(text, str):
         return None
     plain = text.strip().lower().rstrip(".")
@@ -175,10 +189,8 @@ def parse_near(text: str, today: int) -> int | None:
     if len(weekdays) + len(months) + len(numbers) + (year is not None) != len(words) or len(weekdays) > 1:
         return None
     if year is None:
-        year = nearest_year(weekdays[0] if weekdays else None, numbers[0], months[0], today)
-        if year is None and weekdays:
-            year = nearest_year(None, numbers[0], months[0], today)
-    if year is None or not 2000 <= year <= 2200:
+        return nearest_date(numbers[0], months[0], today, weekdays[0] if weekdays else None)
+    if not 2000 <= year <= 2200:
         return None
     try:
         return (date(year, months[0], numbers[0]) - _START[0]).days
@@ -186,7 +198,7 @@ def parse_near(text: str, today: int) -> int | None:
         return None
 
 
-def parse_date(text: str, today: int, passed: bool = False) -> int | None:
+def parse_date(text: str, today: int) -> int | None:
     """The day a written date names, or None if it names none on or after `today`.
 
     `today` and `tomorrow` are those days; an ISO date (`2026-03-16`) is that day. A date
@@ -196,9 +208,8 @@ def parse_date(text: str, today: int, passed: bool = False) -> int | None:
     November is next January), unless the day of the week written beside it is that of this
     year's, which has passed; otherwise the date wins over any weekday beside it. Commas,
     ordinals ("12th"), the words "the" and "of", three-letter weekdays and months ("Thu",
-    "Mar", and "Sept") and full stops after words are allowed. With `passed`, a day and month whose day of the
-    week written is not that of the coming such date but is that of the one before it, which has passed, names
-    none ("Monday 28 December" said in January). Never raises.
+    "Mar", and "Sept") and full stops after words are allowed. Never raises. (With lane B the operations read a
+    date with `parse_near` instead.)
     """
     if not isinstance(text, str):
         return None
@@ -242,19 +253,10 @@ def parse_date(text: str, today: int, passed: bool = False) -> int | None:
         day = day_in(year)
         return day if day is not None and day >= today else None
     this = on(max(today, 0)).year
-
-    def last_years(found: int, y: int) -> bool:
-        """Whether the weekday written is not `found`'s but is that of the year before's, which has passed."""
-        if not (passed and weekdays and dow(found) != weekdays[0]):
-            return False
-        before = day_in(y - 1)
-        return before is not None and before < today and dow(before) == weekdays[0]
     day = day_in(this)
     if day is not None and day >= today:
-        return None if last_years(day, this) else day
+        return day
     if day is not None and weekdays and dow(day) == weekdays[0]:
         return None                       # the day of the week written is this year's: it has passed
     later = day_in(this + 1)
-    if later is not None and later >= today and last_years(later, this + 1):
-        return None
     return later if later is not None and later >= today else None
