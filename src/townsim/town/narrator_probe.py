@@ -182,12 +182,15 @@ def run(store, replier, statements_: list[dict], cap: float | None = None, spent
     return rows
 
 
-def model_replier(outside: dict, prices: dict, completion_fn: Callable, cap: float, cost_fn=None, spent=None):
-    """The lifter's and narrator's models behind the cap (`spent` a one-item list kept by the caller)."""
+def model_replier(outside: dict, prices: dict, completion_fn: Callable, cap: float, cost_fn=None, spent=None,
+                  patience: float | None = None, echo: Callable[[str], None] | None = None):
+    """The lifter's and narrator's models behind the cap (`spent` a one-item list kept by the caller);
+    `patience` (minutes; the replier's default when None) and `echo` are the replier's."""
     from townsim.town.modelreplier import ModelReplier
     box = spent if spent is not None else [0.0]
     return ModelReplier({}, prices, {}, completion_fn, cap=cap, spent=lambda: box[0], cost_fn=cost_fn,
-                        lost=lambda d: box.__setitem__(0, box[0] + d), outside=outside), box
+                        lost=lambda d: box.__setitem__(0, box[0] + d), outside=outside, echo=echo,
+                        **({} if patience is None else {"patience": patience})), box
 
 
 def gates(rows: list[Row]) -> dict:

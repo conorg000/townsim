@@ -49,6 +49,7 @@ def key(actor="p01", day=3, run="r"):
 
 
 def replier(fake, cap=10.0, spent=0.0, cost_fn=None, **kw):
+    kw.setdefault("patience", 0)        # the tests of patience give it; the rest are of one round
     return ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=cap, spent=lambda: spent, cost_fn=cost_fn,
                         sleep_fn=lambda s: None, **kw)
 
@@ -123,7 +124,7 @@ def test_cap_stops_before_sending():
 def test_exactly_at_the_cap_is_allowed():
     fake = Fake()
     worst = worst_case(FAMILIES["a"], PRICES["maker/alpha"], MESSAGES)
-    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + 3 * worst, spent=lambda: 0.5)
+    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + 3 * worst, spent=lambda: 0.5, patience=0)
     r.ask(key("p02"), MESSAGES)
     assert len(fake.calls) == 1 and r.stopped is None
     r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=0.5 + 3 * worst - 1e-12, spent=lambda: 0.5)
@@ -461,3 +462,211 @@ def test_a_reply_a_little_over_its_worst_case_is_kept_and_only_twice_it_stops(ti
             and "more than its worst case $" in r.stopped) == stops
     again = r.ask_many([(key("p02", day=4), MESSAGES)])
     assert isinstance(again[0], StopRun) == stops
+
+
+# --- patience: a call with no answer is asked again after a wait ----------------------------------
+
+class APIError(Exception):
+    """A client's error of the shape the router's upstream 522 came back in (made-up values)."""
+
+    status_code = 502
+
+
+OUTAGE = APIError('litellm.APIError: APIError: OpenrouterException - {"error":{"message":"Provider returned error",'
+                  '"code":522,"metadata":{"raw":"error code: 522","provider_name":"Fakeprov","is_byok":false}},'
+                  '"user_id":"user_2xQfakeFAKE9zz7Lm"}')
+
+
+class Down:
+    """A completion function down for `rounds` rounds of a call's three quick attempts (the
+    calls whose last message is one of `who`, or all), then answering; it records every call."""
+
+    def __init__(self, rounds, who=None, exc=OUTAGE):
+        self.rounds, self.who, self.exc = rounds, who, exc
+        self.calls, self.tries = [], {}
+        self.lock = threading.Lock()
+
+    def __call__(self, **kwargs):
+        who = kwargs["messages"][-1]["content"]
+        with self.lock:
+            self.calls.append(who)
+            self.tries[who] = self.tries.get(who, 0) + 1
+            n = self.tries[who]
+        if (self.who is None or who in self.who) and (self.rounds is None or n <= 3 * self.rounds):
+            raise self.exc
+        return response(f"reply for {who}")
+
+
+def patient(fake, cap=10.0, spent=None, **kw):
+    sleeps, lines, told = [], [], []
+    box = [0.0]
+
+    def lost(d):
+        told.append(d)
+        box[0] += d
+    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=cap, spent=spent or (lambda: box[0]),
+                     sleep_fn=sleeps.append, lost=lost, echo=lines.append, **kw)
+    return r, sleeps, lines, told
+
+
+def test_the_default_patience_is_thirty_seconds_two_minutes_then_five():
+    from townsim.cli import _PATIENCE
+    from townsim.town.modelreplier import DEFAULT_PATIENCE, PATIENCE, patience_waits
+    assert PATIENCE == (30, 120, 300) and DEFAULT_PATIENCE == 7.5 == _PATIENCE
+    assert patience_waits(DEFAULT_PATIENCE) == (30, 120, 300)
+    assert patience_waits(0) == () and patience_waits(0.4) == () and patience_waits(1) == (30,)
+    assert patience_waits(2.5) == (30, 120) and patience_waits(17.5) == (30, 120, 300, 300, 300)
+    for bad in (-1, 61, float("nan"), "8", True, None):
+        with pytest.raises(ValueError, match="patience"):
+            patience_waits(bad)
+    with pytest.raises(ValueError, match="patience"):
+        ModelReplier(FAMILIES, PRICES, FAMILY_OF, Fake(), cap=1.0, spent=lambda: 0.0, patience=-1)
+
+
+@pytest.mark.parametrize("rounds", [1, 2, 3])
+def test_a_provider_down_for_some_rounds_is_waited_for_and_answers(rounds):
+    fake = Down(rounds)
+    r, sleeps, lines, told = patient(fake)
+    reply = r.ask(key("p02"), [{"role": "user", "content": "p02"}])
+    assert reply.text == "reply for p02" and reply.error is None and r.stopped is None
+    assert len(fake.calls) == 3 * rounds + 1
+    long = [s for s in sleeps if s >= 30]
+    assert long == [30, 120, 300][:rounds] and sleeps.count(1) == sleeps.count(4) == rounds
+    assert lines == [f"waiting {w}: maker/alpha gave no answer (522 from Fakeprov)"
+                     for w in ("30 seconds", "2 minutes", "5 minutes")[:rounds]]
+    w = worst_case(FAMILIES["a"], PRICES["maker/alpha"], [{"role": "user", "content": "p02"}])
+    assert told == [w] * (3 * rounds)                   # every attempt that raised, at its worst case
+
+
+def test_a_provider_that_never_answers_stops_after_the_schedule_with_a_readable_reason():
+    fake = Down(None)
+    r, sleeps, lines, told = patient(fake)
+    with pytest.raises(StopRun) as got:
+        r.ask(key("p02"), MESSAGES)
+    assert len(fake.calls) == 12 and len(told) == 12 and [s for s in sleeps if s >= 30] == [30, 120, 300]
+    assert len(lines) == 3
+    why = str(got.value)
+    assert why == r.stopped
+    assert why.startswith("unavailable: maker/alpha: 522 from Fakeprov: APIError: ")
+    assert why.endswith("(no answer after 12 attempts)")
+    message = why.split("APIError: ", 2)[-1].rsplit(" (no answer", 1)[0]
+    assert len(message) <= 120
+    assert "user_2xQ" not in why and "FAKE9" not in why and all("user_2xQ" not in x for x in lines)
+
+
+def test_patience_zero_stops_after_the_quick_attempts_as_before():
+    fake = Down(None)
+    r, sleeps, lines, told = patient(fake, patience=0)
+    with pytest.raises(StopRun):
+        r.ask(key("p02"), MESSAGES)
+    assert len(fake.calls) == 3 and sleeps == [1, 4] and lines == [] and len(told) == 3
+    assert r.stopped.startswith("unavailable: maker/alpha: 522 from Fakeprov: APIError: ")
+    assert r.stopped.endswith("(no answer after 3 attempts)")
+
+
+def test_a_batch_with_one_slow_provider_keeps_the_others_and_asks_nothing_twice():
+    fake = Down(2, who={"p04"})
+    r, sleeps, lines, told = patient(fake)
+    pairs = [(key(p), [{"role": "user", "content": p}]) for p in PEOPLE[:6]]
+    got = r.ask_many(pairs)
+    assert [g.text for g in got] == [f"reply for {p}" for p in PEOPLE[:6]] and r.stopped is None
+    assert {p: fake.calls.count(p) for p in PEOPLE[:6]} == {**{p: 1 for p in PEOPLE[:6]}, "p04": 7}
+    assert lines == ["waiting 30 seconds: maker/alpha gave no answer (522 from Fakeprov)",
+                     "waiting 2 minutes: maker/alpha gave no answer (522 from Fakeprov)"]
+    assert told == [worst_case(FAMILIES["a"], PRICES["maker/alpha"], pairs[3][1])] * 6
+
+
+def test_one_line_per_wait_however_many_calls_wait():
+    fake = Down(1, who={"p01", "p02", "p03"})
+    r, sleeps, lines, told = patient(fake)
+    got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in PEOPLE[:4]])
+    assert all(isinstance(g, Reply) for g in got)
+    assert lines == ["waiting 30 seconds: maker/beta gave no answer (522 from Fakeprov); 2 other calls wait too"]
+
+
+def test_patience_never_passes_the_cap():
+    w = worst_case(FAMILIES["a"], PRICES["maker/alpha"], MESSAGES)
+    for rounds_fit in range(1, 4):          # the cap holds this many rounds of three attempts, and a little
+        fake = Down(None)
+        cap = 3 * w * rounds_fit + w / 2
+        r, sleeps, lines, told = patient(fake, cap=cap)
+        with pytest.raises(StopRun):
+            r.ask(key("p02"), MESSAGES)
+        assert sum(told) <= cap and len(fake.calls) == 3 * rounds_fit
+        assert r.stopped.startswith("cap: ") and "would pass the cap" in r.stopped
+        assert len(lines) == len([s for s in sleeps if s >= 30]) == rounds_fit - 1   # no wait the cap forbids
+
+
+def test_patience_counts_the_batch_s_answered_replies_toward_the_cap():
+    w = worst_case(FAMILIES["a"], PRICES["maker/alpha"], [{"role": "user", "content": "p02"}])
+    fake = Down(None, who={"p02"})
+    told = []
+    cost = 1.9 * w        # what p04's answer costs: with it a second round of p02 no longer fits
+    cap = 7 * w           # both calls' first rounds fit (6w); 3w lost, 1.9w paid and 3w more do not
+    r = ModelReplier(FAMILIES, PRICES, FAMILY_OF, fake, cap=cap, spent=lambda: sum(told), cost_fn=lambda resp: cost,
+                     sleep_fn=lambda s: None, lost=told.append)
+    got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in ("p02", "p04")])
+    assert isinstance(got[0], StopRun) and got[1].text == "reply for p04"
+    assert r.stopped.startswith("cap: ") and fake.calls.count("p02") == 3
+    assert sum(told) + got[1].cost <= cap
+
+
+def test_a_refusal_in_the_batch_ends_patience():
+    def answer(**kwargs):
+        who = kwargs["messages"][-1]["content"]
+        calls.append(who)
+        if who == "p02":
+            raise OUTAGE
+        return response(None, refusal="No.")
+    calls = []
+    r, sleeps, lines, told = patient(answer)
+    got = r.ask_many([(key(p), [{"role": "user", "content": p}]) for p in ("p02", "p04")])
+    assert isinstance(got[0], StopRun) and got[1].error.startswith("refused:")
+    assert calls.count("p02") == 3 and lines == [] and r.stopped.startswith("unavailable: maker/alpha: 522")
+
+
+def test_the_seat_s_calls_are_patient_too():
+    seat = Family("seat", "maker/alpha", {"max_tokens": 100})
+    fake = Down(1)
+    sleeps = []
+    r = ModelReplier({}, PRICES, {}, fake, cap=10.0, spent=lambda: 0.0, sleep_fn=sleeps.append, seat=seat)
+    reply = r.ask_tools(key("i01"), [{"role": "user", "content": "i01"}], [])
+    assert reply.text == "reply for i01" and len(fake.calls) == 4 and 30 in sleeps
+
+
+@pytest.mark.parametrize("exc, why", [
+    (OUTAGE, "522 from Fakeprov"),
+    (TimeoutError("took too long"), ""),
+    (type("RateLimitError", (Exception,), {"status_code": 429})("slow down"), "429"),
+    (RuntimeError('{\\"error\\":{\\"code\\":\\"overloaded\\",\\"metadata\\":{\\"provider_name\\":\\"Other Co\\"}}}'),
+     "overloaded from Other Co"),
+    (RuntimeError('"provider_name": "Lone"'), "an error from Lone"),
+    (type("Odd", (Exception,), {"__str__": lambda self: 1 / 0, "status_code": property(lambda s: 1 / 0)})(), ""),
+    (RuntimeError("x" * 5000), ""),
+])
+def test_the_cause_is_read_defensively(exc, why):
+    from townsim.town.modelreplier import cause, no_answer
+    assert cause(exc) == why
+    text = no_answer("maker/alpha", exc, 3)
+    assert text.startswith("unavailable: maker/alpha: " + (why + ": " if why else "") + type(exc).__name__)
+    assert len(text) <= 300
+
+
+@pytest.mark.parametrize("raw, kept", [
+    ('stopped on day 9: unavailable: m: no answer after 3 attempts: {"error":{"message":"Provider returned error",'
+     '"code":522,"metadata":{"provider_name":"Fakeprov"}},"user_id":"user_2xQfakeFAKE9zz7Lm"}',
+     'stopped on day 9: unavailable: m: no answer after 3 attempts: {"error":{"message":"Provider returned error",'
+     '"code":522,"metadata":{"provider_name":"Fakeprov"}},"user_id":[removed]}'),
+    ('{"user": "someone-made-up", "org_id": 12345, "request_id":"req-abc"}',
+     '{"user": [removed], "org_id": [removed], "request_id":[removed]}'),
+    ("{'organization': 'Made Up Ltd', 'x-request-id': 'abc'}", "{'organization': [removed], 'x-request-id': [removed]}"),
+    ('{\\"user_id\\":\\"user_madeup123\\"}', '{\\"user_id\\":[removed]}'),
+    ("url?user_id=madeup42&org_id=org-madeup99&x=1", "url?user_id=[removed]&org_id=[removed]&x=1"),
+    ("request_id=abc123 userId=zz9", "request_id=[removed] userId=[removed]"),
+    ("by user_AbC123xyz and org-ZZtop9876 today", "by [removed] and [removed] today"),
+    ("a user_id of user_ab is short", "a user_id of user_ab is short"),
+    ('the "user" said hello; "request": {"model": "m"}', 'the "user" said hello; "request": {"model": "m"}'),
+])
+def test_safe_removes_account_identifiers(raw, kept):
+    from townsim.town.modelreplier import safe
+    assert safe(raw) == kept

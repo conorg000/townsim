@@ -15,7 +15,13 @@ DEFAULT_TIMEOUT = 60.0  # seconds a completion call may take before it counts as
 
 
 class ModelUnavailable(Exception):
-    """Raised when a model gives no answer after its retries."""
+    """Raised when a model gives no answer after its retries; `last` is the last attempt's
+    exception (also the `__cause__`) and `attempts` how many were made."""
+
+    def __init__(self, message: str, last: BaseException | None = None, attempts: int = 0) -> None:
+        super().__init__(message)
+        self.last = last
+        self.attempts = attempts
 
 
 def complete(completion_fn: Callable, *, model: str, messages: list[dict], timeout: float = DEFAULT_TIMEOUT,
@@ -29,7 +35,7 @@ def complete(completion_fn: Callable, *, model: str, messages: list[dict], timeo
             return completion_fn(model=model, messages=messages, timeout=timeout, **params)
         except Exception as exc:
             if wait is None:
-                raise ModelUnavailable(f"{model}: no answer after {attempt} attempts: {exc}") from exc
+                raise ModelUnavailable(f"{model}: no answer after {attempt} attempts: {exc}", exc, attempt) from exc
             sleep_fn(wait)
 
 

@@ -256,7 +256,7 @@ def test_cli_writes_the_rows_when_the_probe_stops(tmp_path, monkeypatch):
     families, prices = _cli_files(tmp_path)
     out = tmp_path / "o.json"
     got = CliRunner().invoke(app, ["town-probe", "--families", families, "--prices", prices, "--out", str(out),
-                                   "--n", "1", "--cap", "0.5"])
+                                   "--n", "1", "--cap", "0.5", "--patience", "0"])
     assert got.exit_code == 1 and "stopped: unavailable: maker/beta" in got.output
     assert "SECRET" not in got.output and "SECRET" not in out.read_text()
     kept = json.loads(out.read_text())

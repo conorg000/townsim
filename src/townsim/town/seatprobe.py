@@ -83,13 +83,16 @@ class _Tap:
 
 
 def run(store, seat_family: Family, prices: dict[str, Price], completion_fn: Callable, cap: float, n: int = 2,
-        cost_fn: Callable | None = None, sleep_fn: Callable[[float], None] | None = None) -> list[Row]:
+        cost_fn: Callable | None = None, sleep_fn: Callable[[float], None] | None = None,
+        patience: float | None = None, echo: Callable[[str], None] | None = None) -> list[Row]:
     """A row for each drawn instance's first turn, `n` times each. Raises `ProbeStopped` (with the
     rows so far) when the cap or a refusal stops it."""
     spent = [0.0]
     extra = {} if sleep_fn is None else {"sleep_fn": sleep_fn}
+    if patience is not None:
+        extra["patience"] = patience
     model = ModelReplier({}, prices, {}, completion_fn, cap=cap, spent=lambda: spent[0], cost_fn=cost_fn,
-                         lost=lambda d: spent.__setitem__(0, spent[0] + d), seat=seat_family, **extra)
+                         lost=lambda d: spent.__setitem__(0, spent[0] + d), seat=seat_family, echo=echo, **extra)
     frozen = pickle.dumps(store)
     rows: list[Row] = []
     for inst in [i.id for i in store.all("instances")]:

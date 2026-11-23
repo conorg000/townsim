@@ -258,7 +258,7 @@ def test_cli_never_shows_a_key_from_an_error(tmp_path, monkeypatch):
     prices = tmp_path / "prices.yaml"
     prices.write_text("".join(f"{m}:\n  input_per_mtok: 0.1\n  output_per_mtok: 0.5\n" for m in PRICES))
     got = CliRunner().invoke(app, ["town-live", "--db", str(tmp_path / "r.sqlite"), "--weeks", "1", "--cap", "1",
-                                   "--families", str(families), "--prices", str(prices)])
+                                   "--families", str(families), "--prices", str(prices), "--patience", "0"])
     assert got.exit_code == 1 and "stopped on day 0: unavailable: " in got.output
     assert "SECRET" not in got.output and fake.calls
 
@@ -394,3 +394,111 @@ def test_plainly_says_nothing_kept_only_for_what_the_database_has_not_kept(capsy
         said.append(capsys.readouterr().err.strip())
     assert said == ["runs/b.sqlite has nothing kept for ('b4', 68)", "engine fault: KeyError: 'members'",
                     "engine fault: RuntimeError: [removed] broke"]
+
+
+# --- patience: a provider briefly unreachable -------------------------------------------------
+
+class APIError(Exception):
+    status_code = 502
+
+
+OUTAGE = APIError('OpenrouterException - {"error":{"message":"Provider returned error","code":522,'
+                  '"metadata":{"provider_name":"Fakeprov"}},"user_id":"user_2xQfakeFAKE9zz7Lm"}')
+
+
+class Outage(Fake):
+    """`Fake`, but every call raises a 522 until `rounds` of patience's waits have passed (None: always);
+    the waits are told by `sleep`, the run's sleep function; every attempt that raised is recorded."""
+
+    def __init__(self, rounds):
+        super().__init__()
+        self.rounds, self.sleeps, self.raised = rounds, [], []
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+
+    def __call__(self, **kwargs):
+        with self.lock:
+            down = self.rounds is None or len([s for s in self.sleeps if s >= 30]) < self.rounds
+            if down:
+                self.raised.append((kwargs["model"], kwargs["messages"]))
+        if down:
+            raise OUTAGE
+        return super().__call__(**kwargs)
+
+
+def _worst(model, messages):
+    from townsim.town.families import worst_case
+    [family] = [f for f in FAMILIES.values() if "openrouter/" + f.model == model]
+    return worst_case(family, PRICES[family.model], messages)
+
+
+def _hashes(lines):
+    return [ln.split("  ")[2] for ln in lines if ln.startswith("week ")]
+
+
+@pytest.mark.parametrize("rounds", [1, 3])
+def test_a_short_outage_is_waited_out_and_the_run_goes_on(tmp_path, rounds):
+    with RunDB(str(tmp_path / "clean.sqlite")) as db:
+        _, clean = play(db, Fake())
+    with RunDB(str(tmp_path / "r.sqlite")) as db:
+        fake, lines = Outage(rounds), []
+        got = live.play(db, "live", 1, 2, FAMILIES, PRICES, 5.0, fake, cost_fn=lambda resp: COST, echo=lines.append,
+                        sleep_fn=fake.sleep)
+        assert got.stopped is None and got.days_done == 14
+        waiting = [ln for ln in lines if ln.startswith("waiting ")]
+        assert len(waiting) == rounds == len([s for s in fake.sleeps if s >= 30])
+        assert waiting[0].startswith("waiting 30 seconds: maker/") and "gave no answer (522 from Fakeprov)" in waiting[0]
+        assert live.lost_spend(db, "live") == pytest.approx(sum(_worst(m, msgs) for m, msgs in fake.raised))
+        assert len(fake.raised) % (3 * rounds) == 0 and fake.raised
+        assert len(fake.calls) == len(db.replies("live"))      # the answered calls: nothing answered twice
+        assert replay(db, "live") == [] and _hashes(lines) == _hashes(clean)
+        assert all("user_2xQ" not in ln for ln in lines)
+
+
+def test_an_outage_that_does_not_pass_stops_the_run_with_its_cause(tmp_path):
+    with RunDB(str(tmp_path / "r.sqlite")) as db:
+        fake, lines = Outage(None), []
+        got = live.play(db, "live", 1, 2, FAMILIES, PRICES, 5.0, fake, cost_fn=lambda resp: COST, echo=lines.append,
+                        sleep_fn=fake.sleep)
+        assert got.days_done == 0 and got.stopped.startswith("unavailable: maker/")
+        assert ": 522 from Fakeprov: APIError: " in got.stopped and got.stopped.endswith("(no answer after 12 attempts)")
+        assert "user_2xQ" not in got.stopped and all("user_2xQ" not in ln for ln in lines)
+        assert [ln.split(":")[0] for ln in lines] == ["waiting 30 seconds", "waiting 2 minutes", "waiting 5 minutes",
+                                                      "stopped on day 0"]
+        assert live.lost_spend(db, "live") == pytest.approx(sum(_worst(m, msgs) for m, msgs in fake.raised))
+        assert db.replies("live") == [] and fake.calls == [] and len(fake.raised) % 12 == 0
+
+
+def test_patience_zero_stops_on_the_first_outage_and_bad_patience_is_refused(tmp_path):
+    with RunDB(str(tmp_path / "r.sqlite")) as db:
+        fake, lines = Outage(1), []
+        got = live.play(db, "live", 1, 2, FAMILIES, PRICES, 5.0, fake, cost_fn=lambda resp: COST, echo=lines.append,
+                        sleep_fn=fake.sleep, patience=0)
+        assert got.days_done == 0 and got.stopped.endswith("(no answer after 3 attempts)")
+        assert not any(ln.startswith("waiting") for ln in lines) and fake.sleeps.count(30) == 0
+    with RunDB(str(tmp_path / "s.sqlite")) as db:
+        for bad in (-1, 61):
+            with pytest.raises(ValueError, match="patience"):
+                live.play(db, "live", 1, 1, FAMILIES, PRICES, 1.0, Fake(), patience=bad)
+        with pytest.raises(KeyError):
+            db.get_run("live")
+
+
+def test_cli_takes_patience_in_minutes(tmp_path, monkeypatch):
+    import townsim.cli as cli
+    from townsim.town import live as live_mod
+    seen = {}
+    monkeypatch.setenv("OPENROUTER_API_KEY", "not-a-real-key")
+    monkeypatch.setattr(cli, "_litellm", lambda: (Fake(), lambda resp: COST))
+    real = live_mod.play
+    monkeypatch.setattr(live_mod, "play", lambda *a, **kw: seen.update(kw) or real(*a, **kw))
+    families = tmp_path / "families.yaml"
+    families.write_text("".join(f"{n}:\n  model: {f.model}\n  params: {{max_tokens: 4000}}\n" for n, f in FAMILIES.items()))
+    prices = tmp_path / "prices.yaml"
+    prices.write_text("".join(f"{m}:\n  input_per_mtok: 0.1\n  output_per_mtok: 0.5\n" for m in PRICES))
+    base = ["town-live", "--db", str(tmp_path / "r.sqlite"), "--weeks", "1", "--cap", "1",
+            "--families", str(families), "--prices", str(prices)]
+    assert CliRunner().invoke(app, base).exit_code == 0 and seen["patience"] == 7.5
+    assert CliRunner().invoke(app, base + ["--patience", "2.5"]).exit_code == 0 and seen["patience"] == 2.5
+    assert CliRunner().invoke(app, base + ["--patience", "-1"]).exit_code == 2

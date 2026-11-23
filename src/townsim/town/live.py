@@ -25,7 +25,7 @@ from townsim.town import clock, gen
 from townsim.town.clock import date_text
 from townsim.town.families import Family
 from townsim.town.hamlet import RUN_WEEKS
-from townsim.town.modelreplier import ModelReplier, safe
+from townsim.town.modelreplier import DEFAULT_PATIENCE, ModelReplier, patience_waits, safe
 from townsim.town.replies import is_instance_id
 from townsim.town.rundb import RunDB
 from townsim.town.runs import DayFault, resume, run
@@ -152,7 +152,8 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
          cap: float, completion_fn: Callable, cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
          sleep_fn: Callable[[float], None] | None = None, past_refusal: bool = False,
          seat: Family | None = None, start: str | None = None, outside: dict[str, Family] | None = None,
-         settings: dict | None = None, lanes: str | None = None) -> LiveResult:
+         settings: dict | None = None, lanes: str | None = None,
+         patience: float = DEFAULT_PATIENCE) -> LiveResult:
     """Make the run `run_id` (or resume it) and run it to `weeks` weeks from day 0, echoing a
     line a week; stop when the replier stops, echoing why, or when a fault escapes a day (`runs.DayFault`: its
     morning and every reply paid for are kept), echoing what failed, its type and message made `safe`.
@@ -169,11 +170,15 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
     which are noted with the run: a resume with other outside families or settings is refused, and so
     is a run with lane B installed and no outside families. `lanes` "b" installs lane B on day 0 of a new
     run (`lane_b.install`), noted with the run; arms forked from it have it too. A resume naming lanes
-    other than the run's is refused, and so is lane B without outside families."""
+    other than the run's is refused, and so is lane B without outside families. A call with no
+    answer is asked again over `patience` minutes (`modelreplier.patience_waits`), a line echoed
+    for each wait, before the run stops; patience outside 0 to `modelreplier.MAX_PATIENCE` is
+    refused before anything is asked."""
     if not (isinstance(cap, (int, float)) and 0 < cap <= MAX_CAP):
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     if weeks < 1:
         raise ValueError(f"weeks must be 1 or more, got {weeks}")
+    patience_waits(patience)
     if start is not None:
         start = clock.parse_start(start).isoformat()
     if lanes not in (None, "b"):
@@ -182,7 +187,7 @@ def play(db: RunDB, run_id: str, seed: int, weeks: int, families: dict[str, Fami
         raise ValueError("lane B's tasks, desks and web need the outside families (--outside)")
     with _only_process(db, run_id):
         return _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-                     past_refusal, seat, start, outside, settings, lanes)
+                     past_refusal, seat, start, outside, settings, lanes, patience)
 
 
 def _noted_outside(outside: dict[str, Family] | None, settings: dict | None) -> dict | None:
@@ -204,7 +209,8 @@ def _check_outside(db: RunDB, run_id: str, store, outside: dict[str, Family] | N
 
 
 def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn, echo, sleep_fn,
-          past_refusal, seat=None, start=None, outside=None, settings=None, lanes=None) -> LiveResult:
+          past_refusal, seat=None, start=None, outside=None, settings=None, lanes=None,
+          patience=DEFAULT_PATIENCE) -> LiveResult:
     try:
         db.get_run(run_id)
     except KeyError:
@@ -246,7 +252,8 @@ def _play(db, run_id, seed, weeks, families, prices, cap, completion_fn, cost_fn
     family_of = {p.id: p.family for p in store.all("people")}
     extra = {} if sleep_fn is None else {"sleep_fn": sleep_fn}
     replier = ModelReplier(families, prices, family_of, completion_fn, cap=cap, spent=lambda: spent(db, run_id),
-                           cost_fn=cost_fn, lost=lost, seat=seat, outside=outside, **extra)
+                           cost_fn=cost_fn, lost=lost, seat=seat, outside=outside, patience=patience, echo=echo,
+                           **extra)
     end = 7 * weeks
     stopped = None
     while store.day < end:

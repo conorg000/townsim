@@ -666,7 +666,8 @@ def reader_family(seat: Family) -> Family:
 
 def run(p: Plan, kept: Kept, family: Family, prices: dict[str, Price], completion_fn: Callable, cap: float,
         cost_fn: Callable | None = None, echo: Callable[[str], None] = print,
-        sleep_fn: Callable[[float], None] | None = None, estimate_only: bool = False) -> str | None:
+        sleep_fn: Callable[[float], None] | None = None, estimate_only: bool = False,
+        patience: float | None = None) -> str | None:
     """Ask for every reply the plan lacks, in rounds (each question after the one before it), at
     most `BATCH` at a time, writing each to `kept` as its batch returns. Echoes the number of
     calls and their worst case first, and sends nothing if the spend kept plus that worst case
@@ -682,8 +683,10 @@ def run(p: Plan, kept: Kept, family: Family, prices: dict[str, Price], completio
     if estimate_only or not pending:
         return None
     extra = {} if sleep_fn is None else {"sleep_fn": sleep_fn}
+    if patience is not None:
+        extra["patience"] = patience
     model = ModelReplier({"reader": family}, prices, {"reader": "reader"}, completion_fn, cap=cap,
-                         spent=kept.spent, cost_fn=cost_fn, lost=kept.lose, workers=BATCH, **extra)
+                         spent=kept.spent, cost_fn=cost_fn, lost=kept.lose, workers=BATCH, echo=echo, **extra)
     while True:
         ready = [c for c in calls(p, kept, family.params["max_tokens"])
                  if all(k in kept.replies for k in c.needs) and not any(kept.text(k) is None for k in c.needs)]

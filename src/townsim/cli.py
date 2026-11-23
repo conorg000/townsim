@@ -20,6 +20,11 @@ _FAMILIES = str(_ROOT / "config" / "families.yaml")
 Db = Annotated[str, typer.Option("--db", help="SQLite file holding the runs.")]
 Start = Annotated[str | None, typer.Option("--start", help="Day 0 of a new place, a Monday written YYYY-MM-DD "
                                                             "(Monday 2 March 2026 when not given).")]
+Patience = Annotated[float, typer.Option("--patience", min=0, max=60, metavar="MINUTES",
+                                         help="Minutes a call with no answer is asked again over (after 30 seconds, "
+                                              "2 minutes, then 5 minutes, then every 5 minutes) before the run stops; "
+                                              "0 for none.")]
+_PATIENCE = 7.5     # modelreplier.DEFAULT_PATIENCE, kept here so the help loads without the replier
 
 
 def _fail(message: str) -> None:
@@ -259,6 +264,7 @@ def town_live_cmd(
     lanes: Annotated[str | None, typer.Option("--lanes", help="Install lane B on day 0 of a new run (b): tasks, "
                                                               "rules, clubs, the web, the desks and the company's "
                                                               "controls. Needs --outside.")] = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """Run the hamlet with its people played by language models, behind a spending cap, then
     replay it. A run already in the file is resumed to the same total of weeks. CALLS MODELS
@@ -281,7 +287,7 @@ def town_live_cmd(
         try:
             got = live.play(rdb, run_id, seed, weeks, fams, price_list, dollars, completion_fn, cost_fn=cost_fn,
                             past_refusal=past_refusal, echo=typer.echo, seat=seat_family, start=day0,
-                            outside=outside_families, settings=settings, lanes=lanes)
+                            outside=outside_families, settings=settings, lanes=lanes, patience=patience)
         except ReplayMismatch as e:
             _fail(f"the run cannot go on: {e}")
         for name, n, spent in live.spend_by_family(rdb, run_id):
@@ -313,6 +319,7 @@ def town_probe_cmd(
     n: Annotated[int, typer.Option("--n", min=1, help="Times each family is asked each case.")] = 3,
     out: Annotated[str, typer.Option("--out", help="JSON file the rows and replies are written to.")] = _PROBE_OUT,
     start: Start = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """Show every family the same four views of a scripted hamlet, n times each, behind a
     spending cap; write the rows and replies to --out and print a table. CALLS MODELS AND
@@ -332,7 +339,8 @@ def town_probe_cmd(
     completion_fn, cost_fn = _litellm()
     stopped = None
     try:
-        rows = probe.run(cs, fams, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
+        rows = probe.run(cs, fams, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn, patience=patience,
+                         echo=typer.echo)
     except probe.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
     kept = {"seed": seed, "start": day0, "n": n, "cap": dollars, "stopped": stopped,
@@ -367,6 +375,7 @@ def town_seat_probe_cmd(
     n: Annotated[int, typer.Option("--n", min=1, help="Times each drawn instance's first turn is run.")] = 2,
     out: Annotated[str, typer.Option("--out", help="JSON file the rows are written to.")] = _SEAT_PROBE_OUT,
     start: Start = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """Run each drawn instance's first turn n times on the seat's model, after a week of the
     hamlet's script and the launch made in memory, behind a spending cap; write the rows to --out
@@ -388,7 +397,8 @@ def town_seat_probe_cmd(
     completion_fn, cost_fn = _litellm()
     stopped = None
     try:
-        rows = seatprobe.run(store, seat_family, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn)
+        rows = seatprobe.run(store, seat_family, price_list, completion_fn, dollars, n=n, cost_fn=cost_fn,
+                             patience=patience, echo=typer.echo)
     except seatprobe.ProbeStopped as e:
         rows, stopped = e.rows, str(e)
     kept = {"seed": seed, "start": day0, "n": n, "cap": dollars, "stopped": stopped, "seat": seat_family.model,
@@ -428,6 +438,7 @@ def town_awareness_cmd(
     material: Annotated[str | None, typer.Option("--material", help="Read only this variant (b-surfaces: the morning "
                                                                     "with the day's results from the web, tasks and "
                                                                     "rules), with no pairs.")] = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """Show sampled mornings of a kept run's instances, rebuilt in each variant of the seat, to a
     fresh reader model: three fixed questions per morning, a judge of the first answer, and
@@ -460,7 +471,8 @@ def town_awareness_cmd(
             return
         _need_key("town-awareness")
         completion_fn, cost_fn = _litellm()
-        stopped = aw.run(plan, kept, family, price_list, completion_fn, dollars, cost_fn=cost_fn, echo=typer.echo)
+        stopped = aw.run(plan, kept, family, price_list, completion_fn, dollars, cost_fn=cost_fn, echo=typer.echo,
+                         patience=patience)
     typer.echo(aw.table(plan, kept))
     typer.echo(f"replies kept in {out}")
     if stopped:
@@ -617,6 +629,7 @@ def town_narrator_probe_cmd(
                                         show_default="config/prices.yaml")] = _PRICES,
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     start: Start = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """A probe of the setup: file the 26 statements of tests/data/attempts_b.jsonl by their named actors on
     seed 1 with lane B installed at day 7, each with one lift and two filings, behind a spending cap; write the
@@ -632,7 +645,8 @@ def town_narrator_probe_cmd(
     from townsim.town import tasks
     tasks.configure(store, settings)
     completion_fn, cost_fn = _litellm()
-    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
+    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn,
+                                       patience=patience, echo=typer.echo)
     stopped = None
     try:
         rows = npb.run(store, replier, npb.statements(store), spent=spent)
@@ -659,6 +673,7 @@ def town_desk_probe_cmd(
                                         show_default="config/prices.yaml")] = _PRICES,
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     start: Start = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """A probe of the setup: twelve letters to the outside desks on seed 1 with lane B (two per kind of desk,
     four asking more than its table allows), answered by the desks' model behind a spending cap; write the
@@ -672,7 +687,8 @@ def town_desk_probe_cmd(
     fams, _ = _load_outside(outside, prices)
     store = dpb.morning(seed, start=day0)
     completion_fn, cost_fn = _litellm()
-    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn)
+    replier, spent = npb.model_replier(fams, load_prices(prices), completion_fn, dollars, cost_fn,
+                                       patience=patience, echo=typer.echo)
     stopped = None
     try:
         rows = dpb.run(store, replier, spent=spent)
@@ -701,6 +717,7 @@ def town_mandate_probe_cmd(
                                         show_default="config/prices.yaml")] = _PRICES,
     seed: Annotated[int, typer.Option("--seed", help="The seed the hamlet is generated from.")] = 1,
     start: Start = None,
+    patience: Patience = _PATIENCE,
 ) -> None:
     """A probe of the setup, not an arm: one scripted shop owner subscribes, connects everything with access to
     act and writes one broad request; the seat and what is beyond the people run for a week on their models
@@ -724,7 +741,7 @@ def town_mandate_probe_cmd(
             rdb.put_note(run_id, "lost_spend", repr(live.lost_spend(rdb, run_id) + float(amount)))
         model = ModelReplier({}, load_prices(prices), {}, completion_fn, cap=dollars,
                              spent=lambda: live.spent(rdb, run_id), cost_fn=cost_fn, lost=lost, seat=seat_family,
-                             outside=fams)
+                             outside=fams, patience=patience, echo=typer.echo)
         try:
             store = mp.make(rdb, run_id, mp.Mixed(model), seed=seed, start=day0, settings=settings,
                             seat=seat_family, outside=fams)

@@ -231,11 +231,13 @@ def score(case: Case, text: str | None) -> tuple[bool, int, int, list[str]]:
 
 def run(cases: list[Case], families: dict[str, Family], prices: dict[str, Price], completion_fn: Callable,
         cap: float, n: int = 3, cost_fn: Callable | None = None,
-        sleep_fn: Callable[[float], None] = time.sleep) -> list[Row]:
+        sleep_fn: Callable[[float], None] = time.sleep, patience: float | None = None,
+        echo: Callable[[str], None] | None = None) -> list[Row]:
     """One row per family x case x repeat, family by family in the families' order, each
     family's calls asked as one batch. Spend for the cap is the rows' costs so far plus what
     failed attempts lost. Raises `ProbeStopped` (a `StopRun`) at the cap, on a provider's
-    refusal or when a model gives no answer, carrying the rows so far."""
+    refusal or when a model gives no answer, carrying the rows so far. `patience` (minutes; the
+    replier's default when None) and `echo` are the replier's."""
     if not (isinstance(cap, (int, float)) and 0 < cap <= MAX_CAP):
         raise ValueError(f"the cap must be above $0 and at most ${MAX_CAP:g}, got {cap!r}")
     rows: list[Row] = []
@@ -254,9 +256,10 @@ def run(cases: list[Case], families: dict[str, Family], prices: dict[str, Price]
     def spent() -> float:
         return sum(r.cost for r in rows) + sum(lost)
 
+    waiting = {} if patience is None else {"patience": patience}
     for name, family in families.items():
         replier = ModelReplier({name: family}, prices, {c.pid: name for c in cases}, timed, cap=cap, spent=spent,
-                               cost_fn=cost_fn, sleep_fn=sleep_fn, lost=lost.append)
+                               cost_fn=cost_fn, sleep_fn=sleep_fn, lost=lost.append, echo=echo, **waiting)
         asked = [(c, ReplyKey("probe", family.model, c.day, c.pid, c.kind, c.ref, i), list(c.messages))
                  for c in cases for i in range(n)]
         got = replier.ask_many([(k, m) for _, k, m in asked])
