@@ -117,3 +117,47 @@ def view(store: Store, text: str) -> str:
 def day(d: int) -> str:
     """A day as the seat writes it: `Mon 2026-03-09`."""
     return f"{clock.DAYS[clock.dow(d)][:3]} {clock.iso(d)}"
+
+
+# --- one id on both sides --------------------------------------------------------------------------------------
+
+def _seen_by_assistant(store: Store, pid: str) -> set[str]:
+    """The store's ids of what `pid`'s own assistant also sees: the requests it sent, and the agreements on an
+    account of theirs connected to it (at any access)."""
+    from townsim.town.acts import accounts_of
+    mine = set(accounts_of(store, pid)) if store.has("people", pid) else set()
+    insts = [s.instance for s in store.all("subscriptions") if s.status == "active" and s.client in mine]
+    out: set[str] = set()
+    for iid in insts:
+        out |= {r.id for r in store.where("requests", sender=iid)}
+        for c in store.where("connections", instance=iid):
+            if c.status == "active" and c.system.startswith("account:"):
+                acct = c.system.removeprefix("account:")
+                out |= {o.id for o in store.all("obligations") if acct in (o.payer, o.payee)}
+    return out
+
+
+def for_client(store: Store, pid: str, text: str) -> str:
+    """`text` as `pid` reads it: with lane B, the id of anything their own assistant also sees (a request it sent;
+    an agreement on an account of theirs connected to it) written as the assistant is shown it, so that the two can
+    name the same thing; every other id as it is."""
+    from townsim.town import lane_b
+    if not text or not lane_b.installed(store):
+        return text
+    seen = _seen_by_assistant(store, pid)
+    if not seen:
+        return text
+    return re.sub(r"\b(?:ob|rq)\d+\b", lambda m: display(store, m.group(0)) if m.group(0) in seen else m.group(0),
+                  text)
+
+
+def from_client(store: Store, args: Any) -> Any:
+    """A person's act's arguments, with lane B, as the store reads them: an argument that is wholly a shown id of
+    an agreement or a request (`agr_7K2Q9X`, `req_M4T8Z`) is the store's own id; anything else as written."""
+    if not isinstance(args, dict):
+        return args
+    out = {}
+    for k, v in args.items():
+        m = _DISPLAY.fullmatch(v.strip()) if isinstance(v, str) else None
+        out[k] = (_lookup(store, m.group(1), m.group(2)) or v) if m and m.group(1) in ("agr", "req") else v
+    return out

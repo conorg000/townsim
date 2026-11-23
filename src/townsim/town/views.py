@@ -851,7 +851,9 @@ def _system(store: Store, pid: str) -> str:
 def view(store: Store, pid: str) -> tuple[list[dict], list[str]]:
     """`person_view` and `shown_ids` together, laid out once."""
     v = layout(store, pid)
-    return [{"role": "system", "content": v.system}, {"role": "user", "content": v.user}], v.ids
+    from townsim.town import seat_ids
+    user = seat_ids.for_client(store, pid, v.user)       # with lane B, ids their assistant sees, as it sees them
+    return [{"role": "system", "content": v.system}, {"role": "user", "content": user}], v.ids
 
 
 def shown_ids(store: Store, pid: str) -> list[str]:

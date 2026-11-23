@@ -141,6 +141,11 @@ def apply_act(store: Store, act: Act, n: int, via: str = "") -> Outcome:
     if spec is not None and not available(store, spec.name):
         spec = None
     person = isinstance(act.actor, str) and store.has("people", act.actor)
+    if person and isinstance(act.args, dict) and _lane_b_on(store):    # an id as their assistant is shown it
+        from townsim.town import seat_ids
+        args = seat_ids.from_client(store, act.args)
+        if args != act.args:
+            act = Act(act.actor, act.principal, act.op, args)
     held = _positions_or_none(store, act.actor if person else act.principal)
     outside = spec is not None and spec.who != "all" and spec.who not in held
     lacking = ""
@@ -405,9 +410,15 @@ def name_of_who(store: Store, who: str) -> str:
     return who
 
 
+def _lane_b_on(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
 def not_a_person(store: Store, who: str) -> str:
-    """Why `who` cannot be addressed as a person: a household names its adults, who can be."""
-    if store.has("households", who):
+    """Why `who` cannot be addressed as a person: with lane B, a household names its adults, who can be."""
+    from townsim.town import lane_b
+    if store.has("households", who) and lane_b.installed(store):
         h = store.get("households", who)
         adults = [store.get("people", p).name for p in h.members
                   if store.has("people", p) and store.get("people", p).age >= 18]

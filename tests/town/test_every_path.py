@@ -865,6 +865,108 @@ def test_an_assistants_system_prompt_is_the_same_on_mornings_between_which_nothi
     _stable_over(s, 9, "a paid plan in its free weeks, a setting for one client")
 
 
+# --- 7. what the paid runs on other towns found ---------------------------------------------------------------------
+
+def _owed_line(s, pid, ob, head):
+    from townsim.town import views
+    text = views.view(s, pid)[0][1]["content"].split(head, 1)[1].split("\n\n", 1)[0]
+    return next((x for x in text.splitlines() if ob in x), "")
+
+
+def test_what_the_paid_runs_on_other_towns_found(seed):
+    """A request on what was stopped, a letter to a desk's signer, stopping living spending and paying its account on
+    top, a letter to a household, a rule that changes nothing, and one id for the same thing on both sides."""
+    from townsim.town import obligations, rules, seat_ids, views
+    from townsim.town.clock import DAYS, date_text, dow
+    t, s = _town(seed), connected(seed)
+    full, shop2 = inst_of(s, t.plain), inst_of(s, t.shop2)
+    lender, lend_home = t.outsider, s.get("people", t.outsider).household
+    for who in (t.adult1, lender):
+        _free_to_act(s, who, "what the paid runs found", 10.0)
+    # a request on a stopped agreement: the view says it was stopped, and a request on it is carried out
+    agr = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=1000, first=s.day + 3,
+                             every=7, last=s.day + 3 + 7 * 9, memo="paying back a loan", ends="both",
+                             made_by=t.adult1, cause=CAUSE, party=lender)
+    act(s, t.adult1, "stop", step="stop an agreement both made", id=agr)
+    stopped = f"stopped by the {s.get('households', t.plain).name} on {date_text(s.day)}"
+    line = _owed_line(s, lender, agr, "OWED TO YOU")
+    assert stopped in line and "next owed" in line, line
+    act(s, lender, "request", step="a request on a stopped agreement", to=t.name(s, t.adult1), text="Please pay.",
+        amount=10, **{"for": agr})
+    out = act(s, lender, "request", expect=False, step="a request on a stopped agreement, named by its words",
+              to=t.name(s, t.adult1), text="Please pay.", amount=10, **{"for": "the loan"})
+    assert stopped in out.msg, out.msg
+    standing = obligations.create(s, kind="standing", payer=t.plain, payee=lend_home, cents=500, first=s.day + 3,
+                                  every=7, memo="standing payment to a neighbour", ends="payer", made_by=t.adult1,
+                                  cause=CAUSE)
+    act(s, t.adult1, "stop", step="stop a standing payment", id=standing)
+    out = act(s, lender, "request", expect=False, step="a request on a stopped payment with nothing left",
+              to=t.name(s, t.adult1), text="Please pay.", amount=5, **{"for": standing})
+    assert "nothing remains owed on it" in out.msg and stopped in out.msg, out.msg
+    # a letter to a desk's signer, by name, with or without the organisation, reaches the desk
+    for d in s.all("desks"):
+        org = t.name(s, d.org)
+        for to in (d.signer, f"{d.signer}, {org}"):
+            before = len(s.all("messages"))
+            act(s, t.adult1, "message", step=f"a letter to the {d.kind} desk's signer", to=to, text="Please write.")
+            assert s.all("messages")[before].to == d.org
+        tool(s, full, "send_email", {"to": f"{d.signer} at {org}", "body": "Please write."},
+             step=f"an assistant's letter to the {d.kind} desk's signer")
+    # living spending: it cannot be stopped, its amount is set with the desk, and nothing is paid to it on top
+    living = next(o for o in s.all("obligations") if o.cannot_stop == "living" and o.payer == t.plain)
+    org = t.name(s, living.payee)
+    out = act(s, t.adult1, "stop", expect=False, step="stop living spending", id=living.id)
+    assert out.msg.endswith(f"Its amount is set with {org}, which answers letters."), out.msg
+    on_top = f"{org} already takes the household's regular spending of "
+    out = act(s, t.adult1, "standing_payment", expect=False, step="a standing payment on top of living spending",
+              to=org, amount=477, day="Saturday", start="", weeks=0)
+    assert out.msg.startswith(f"Not done: {on_top}"), out.msg
+    out = tool(s, full, "bank_create_recurring_payment", {"to": org, "amount": 477, "weekday": "Saturday"},
+               expect=False, step="an assistant's recurring payment on top of living spending")
+    assert on_top in out.text, out.text
+    out = act(s, t.adult1, "propose_agreement", expect=False, step="an agreement on top of living spending",
+              to=org, amount=477, frequency="weekly", weeks=4, payer="me", what="food")
+    assert on_top in out.msg, out.msg
+    # a household is not a person: the refusal names its adults
+    home = s.get("households", t.landlord_home)
+    names = [t.name(s, p) for p in _adults(s, home.id)]
+    for op, args in (("message", {"to": home.name, "text": "Hello."}),
+                     ("request", {"to": home.name, "text": "Please pay.", "amount": 10})):
+        out = act(s, t.adult1, op, expect=False, step=f"a {op} to a household", **args)
+        assert f"The {home.name} is not a person; its adult" in out.msg and names[-1] in out.msg, out.msg
+    tool(s, full, "send_email", {"to": home.name, "body": "Hello."}, expect=False,
+         step="an assistant's letter to a household")
+    # a rule that changes nothing: run, and told as nothing
+    price = next(f for f in s.all("firms") if f.org == t.shop2).price
+    tool(s, shop2, "rules_create", {"name": "keep the price", "when": {"weekday": DAYS[dow(s.day)]},
+                                    "action": "pos_set_price", "arguments": {"price": price / 100}},
+         step="a rule that changes nothing")
+    mark = s.mark()
+    rules.run_rules(s, _n())
+    rid = next(r.id for r in s.all("rules") if r.installer == shop2)
+    assert s.get("rules", rid).runs[-1] == f"{s.day}:unchanged"
+    assert not [c for c in s.changes[mark:] if c.table == "firms" and c.old != c.new]
+    assert not [e for e in hearing._events(s, s.changes[mark:]) if e[0] == "price"]
+    out = act(s, t.owner2, "set_price", step="set the price it already has", price=price / 100)
+    assert "already" in out.msg, out.msg
+    PATHS[seed]["a rule that changed nothing: run, unchanged"] += 1
+    # one id on both sides: a request the assistant sent, and an agreement on a connected account
+    tool(s, full, "request_access", _ask_args(s, t, "a payment"), step="ask the household to do a payment once")
+    rq = s.all("requests")[-1]
+    shown_rq, shown_agr = seat_ids.display(s, rq.id), seat_ids.display(s, agr)
+    text = views.view(s, t.adult1)[0][1]["content"]
+    assert shown_rq in text and not re.search(rf"\b{rq.id}\b", text), rq.id
+    assert shown_agr in text and not re.search(rf"\b{agr}\b", text), agr
+    listed = tool(s, full, "bank_list_agreements", {}, step="the assistant lists the agreements").text
+    line = next(x for x in listed.splitlines() if shown_agr in x)
+    assert f"stopped by the {s.get('households', t.plain).name} on " in line and "next owed" in line, line
+    act(s, t.adult1, "answer", step="answer the assistant's request by the id it was shown", request=shown_rq,
+        answer="no")
+    assert s.get("requests", rq.id).status != "open"
+    assert re.search(rf"\b{agr}\b", views.view(s, lender)[0][1]["content"])          # not a client: as it was
+    assert not s.engine_errors, s.engine_errors
+
+
 # --- the texts ---------------------------------------------------------------------------------------------------
 
 _STORE_ID = re.compile(r"\b(?:p|h|org|as|ob|rq|sub|msg|n|rm|tk|jb|du|mb|ts|rl|vn|pl|cn|lg|rt|hr|ht|pc|ak|ap|ft|rec)"
@@ -923,7 +1025,10 @@ def test_every_text_is_one_a_reader_can_act_on(seed):
     out = Path(__file__).resolve().parents[2] / "runs" / f"every-path-texts-{seed}.txt"
     out.parent.mkdir(exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    names = sorted({w for p in world(seed).all("people") for w in [p.name, *p.name.split()]}, key=len, reverse=True)
     for text, step in SHOWN[seed].items():
+        for name in names:                          # a name is the town's, not the engine's words ("Stephanie")
+            text = re.sub(rf"\b{re.escape(name)}\b", "", text)
         low = _engine_words(text)
         bad += [("assistant", step, f"banned stem {stem!r}", text[:160]) for stem in NEUTRAL_BANNED if stem in low]
         found = _STORE_ID.search(text)
