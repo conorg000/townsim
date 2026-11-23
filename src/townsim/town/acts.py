@@ -143,14 +143,16 @@ def apply_act(store: Store, act: Act, n: int, via: str = "") -> Outcome:
     person = isinstance(act.actor, str) and store.has("people", act.actor)
     held = _positions_or_none(store, act.actor if person else act.principal)
     outside = spec is not None and spec.who != "all" and spec.who not in held
+    lacking = ""
     if outside and person:
+        lacking = position_lacked(store, act.actor, spec)     # with lane B, said as the position it is for
         spec = None   # an operation outside the actor's positions is one they do not have
     who = act.actor if act.principal == act.actor else f"{act.actor}/{act.principal}"
     cause = f"{via or 'op'}:{who}:{spec.name if spec is not None else '?'}:d{store.day}.{n}"
     if not isinstance(act.args, dict):
         return _not_done(act, "that operation was not written in a form that can be read.", cause)
     if spec is None:
-        return _not_done(act, f"there is no operation called '{shown(act.op)}'.", cause)
+        return _not_done(act, lacking or f"there is no operation called '{shown(act.op)}'.", cause)
     before = store.mark()
     try:
         for authorise in AUTHORISERS:
@@ -515,6 +517,37 @@ def _alternatives(names: list[str]) -> str:
     return " | ".join('"' + n.replace('"', "'") + '"' for n in names)
 
 
+def position_lacked(store: Store, pid: str, spec) -> str:
+    """With lane B, why `pid` cannot do `spec`'s operation, named by the position it is for: `connect is for a client
+    of Tessaly Assistant; your household has no subscription.`; "" without lane B (the operation is not theirs)."""
+    from townsim.town import lane_b
+    if not lane_b.installed(store):
+        return ""
+    op, place = spec.name, store.place or "the place"
+    products = _rows(store, "products")
+    product = products[0].name if products else "the product"
+    if spec.who == "client":
+        owns = any(o.owner == pid and not o.outside for o in store.all("orgs"))
+        if store.get("people", pid).age < 18:
+            return f"{op} is for a client of {product}, by an adult of the household."
+        return f"{op} is for a client of {product}; your household" + (" and your business have" if owns else " has") + \
+            " no subscription."
+    if spec.who == "owner":
+        return f"{op} is for the owner of a business in {place}; you own none."
+    if spec.who == "employed":
+        return f"{op} is for someone in a job; you have none today."
+    if spec.who == "landlord":
+        return f"{op} is for a landlord; you let no house."
+    if spec.who == "banker":
+        return f"{op} is for the banker."
+    if spec.who == "company":
+        firm = next((o.name for o in store.all("orgs") if products and o.id == products[0].org), "the firm")
+        return f"{op} is for {firm}'s owner and the people working there."
+    if spec.who == "market":
+        return f"{op} opens once a product is sold in {place}."
+    return ""
+
+
 def positions(store: Store, pid: str) -> list[str]:
     """What `pid` is in the town, in the order of `POSITIONS`: everyone is `all`; `owner` of
     an org in the town; `employed` in a job held today; `landlord` to a household, themselves or
@@ -587,7 +620,11 @@ def forms(store: Store, actor: str) -> list[str]:
     for spec in sorted(REGISTRY.values(), key=lambda spec: (spec.order, spec.name)):
         if spec.who not in held or not available(store, spec.name):
             continue
-        form = spec.form.replace(YOUR_ACCOUNTS, _alternatives(names))
+        offered = names
+        if spec.name == "subscribe" and drawn != names:        # with lane B, savings are never subscribed for
+            from townsim.town import lane_b
+            offered = drawn if lane_b.installed(store) else names
+        form = spec.form.replace(YOUR_ACCOUNTS, _alternatives(offered))
         for holder, fill in FILLED.items():
             if holder in form:
                 form = form.replace(holder, fill(store, actor))

@@ -152,7 +152,7 @@ def test_set_product_only_for_company_people_and_in_range():
     assert not emp.ok and emp.msg == "Not done: the product's settings are set by the owner of Tessaly Software."
     assert apply_act(s, Act("p11", "p11", "set_product", {"control": "actions_per_run", "value": 20}), 0).ok
     no = apply_act(s, Act("p3", "p3", "set_product", {"control": "actions_per_run", "value": 20}), 0)
-    assert not no.ok and "no operation called" in no.msg
+    assert not no.ok and no.msg == "Not done: set_product is for Tessaly Software's owner and the people working there."
     # no instance can set it: not as a tool, not as an operation, not even the company's own
     product.subscribe(s, "p11", "org13", "", CAUSE)
     own = connections.instance_of_client(s, "org13")

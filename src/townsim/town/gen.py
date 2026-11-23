@@ -1240,7 +1240,8 @@ def describe(s: Store) -> str:
 _HOUSEHOLD_TIES = ("partner", "parent", "child", "sibling")
 _KIND_WORD = {"shop": "food shop", "bank": "bank", "firm": "software firm", "employer": "employer",
               "supplier": "food wholesaler", "agency": "letting agent", "utility": "energy supplier",
-              "region": "pensions and benefits", "investor": "investor", "market": "shops and services"}
+              "region": "pensions and benefits", "investor": "investor", "market": "shops and services",
+              "trades": "trade services", "club": "club", "service": "service"}          # the last three: lane B
 _TIE_WORD = {"partner": "partner", "parent": "parent", "child": "child", "sibling": "sibling of",
              "kin": "family in another house", "friend": "friends with", "coworker": "works with",
              "employer": "works for", "employee": "employs", "landlord": "rents from", "tenant": "lets to",

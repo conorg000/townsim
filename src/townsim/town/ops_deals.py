@@ -423,8 +423,9 @@ def _loan_terms(store: Store, act: Act) -> tuple[Loan | None, str]:
         return None, "the bank has no banker."
     if bank.contact == act.principal:
         from townsim.town import lane_b
-        if act.actor != act.principal and lane_b.installed(store):     # an assistant, for its client
-            return None, f"{store.get('people', act.principal).name} is the bank's banker, who lends and does not borrow from it."
+        if lane_b.installed(store):
+            who = "you are" if act.actor == act.principal else f"{store.get('people', act.principal).name} is"
+            return None, f"{who} the banker at {bank.name}; the bank does not lend to its own banker."
         return None, "you are the banker."
     cents = to_cents(act.args.get("amount"))
     if cents is None or not MIN_LOAN <= cents <= MAX_LOAN:

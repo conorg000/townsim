@@ -117,6 +117,7 @@ def client_record(store: Store, sub) -> str:
     to = sum(1 for m in store.where("messages", sender=inst.id) if m.to in people)
     back = sum(1 for m in store.where("messages", to=inst.id) if m.sender in people)
     made = sum(1 for r in runs for c in r.calls if c[0] in PAYMENT_OR_ORDER and c[2] == "1")
+    made += sum(1 for _, c in done_once(store, inst) if c[0] in PAYMENT_OR_ORDER and c[2] == "1")   # done once
     words = sub.asks.split()
     asked = (f'"{" ".join(words[:ASKS_SHOWN])}{"…" if len(words) > ASKS_SHOWN else ""}"' if words
              else "nothing written")
@@ -129,7 +130,7 @@ def _week_line(store: Store, inst, monday: int) -> str:
     status = f" ({inst.status})"
     if not runs:
         return f"{inst.name}{status}: no runs."
-    calls = [c for r in runs for c in r.calls]
+    calls = [c for r in runs for c in r.calls] + [c for d, c in done_once(store, inst) if d >= monday]
     done = [c[4] for c in calls if c[4]]
     names = list(dict.fromkeys(c[5] for c in calls if c[5]))
     declined = sum(1 for c in calls if c[2] == "0")

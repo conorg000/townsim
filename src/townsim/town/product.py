@@ -636,8 +636,11 @@ def client_line(store: Store, pr: Product, sub: Subscription) -> str:
         out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
         ob = store.get("obligations", sub.fee_ob) if sub.fee_ob else None
         nxt = obligations.instalment_days(ob, store.day, 1) if ob is not None and ob.status in obligations.SCHEDULED else []
+        if nxt and lane_b_on(store):                # what is still to be taken on it, after anything paid ahead
+            day = obligations.next_instalment(store, ob)
+            nxt = [day] if day is not None else []
         if nxt:
-            out.append(f"next fee {money(obligations.instalment_cents(ob, nxt[0]))} on {date_text(nxt[0])}")
+            out.append(f"next fee {money(_fee_left(store, ob, nxt[0]))} on {date_text(nxt[0])}")
     elif plans.current(store, sub) is not None:
         out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
     elif not sub.fee_ob:
@@ -650,10 +653,21 @@ def client_line(store: Store, pr: Product, sub: Subscription) -> str:
         out.append(f"fees received {money(firm_money.fees_from(store, sub))}")
         nxt = obligations.instalment_days(ob, store.day, 1) if ob.status == "active" else []
         if sub.status == "active" and nxt:
-            out.append(f"next fee {money(obligations.instalment_cents(ob, nxt[0]))} on {date_text(nxt[0])}")
+            out.append(f"next fee {money(_fee_left(store, ob, nxt[0]))} on {date_text(nxt[0])}")
     if sub.status != "active":
         out.append(f"ended {date_text(sub.ended_on)}")
     return "; ".join(out)
+
+
+def lane_b_on(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
+def _fee_left(store: Store, ob, day: int) -> int:
+    """A fee's instalment as the firm's view states it: with lane B what is still to be taken on it
+    (`obligations.left_on`), as the client's own view and statement have it."""
+    return obligations.left_on(store, ob, day) if lane_b_on(store) else obligations.instalment_cents(ob, day)
 
 
 def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
@@ -697,7 +711,7 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     return store.get("orgs", pr.org).name.upper(), lines
 
 
-# the sections a person's view shows after their business (`views.EXTRA_SECTIONS` takes them)
+# the sections a person's view shows after their business (`views.extra_sections` takes them)
 SECTIONS_OF_PRODUCT = (client_section, company_section)
 
 

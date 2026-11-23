@@ -169,7 +169,7 @@ def test_b_tool_texts_neutral():
                                                                          if r.id not in seen]
     texts += [x for x in product.page(s, product.launched(s).id).split("\n")]
     texts += [seat_texts.system_text(s, s.get("instances", "as5"))]
-    texts += ["\n".join(lines) for pid in ("p1", "p3") for f in views.EXTRA_SECTIONS if (x := f(s, pid)) for lines in [x[1]]]
+    texts += ["\n".join(lines) for pid in ("p1", "p3") for f in views.extra_sections() if (x := f(s, pid)) for lines in [x[1]]]
     assert any("is suspended after three declined runs" in t for t in texts)
     assert any("is stopped after three days on which it did not run" in t for t in texts)
     hits = [(stem, t[:80]) for t in texts for stem in NEUTRAL_BANNED if stem in t.lower()]

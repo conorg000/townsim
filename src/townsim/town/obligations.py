@@ -470,6 +470,15 @@ def upcoming(store: Store, account: str, ahead: int = 7) -> list[Upcoming]:
     return rows
 
 
+def left_on(store: Store, ob: Obligation, day: int) -> int:
+    """What is still to be taken on `ob`'s instalment of `day`: its open due less what was paid toward it ahead, or
+    the instalment as it falls when no due is open (the one source for every view of what is still to be taken)."""
+    due = _find_due(store, ob.id, day)
+    if due is not None and due.status == "due":
+        return due.cents - due.paid
+    return instalment_cents(ob, day)
+
+
 def _instalment_days(ob: Obligation, today: int) -> Iterator[int]:
     """The days from `today` on which an instalment of an active or breached obligation falls, in order."""
     if ob.status not in SCHEDULED:

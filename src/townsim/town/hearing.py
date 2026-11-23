@@ -310,9 +310,12 @@ def _events(store: Store, changes: list) -> list[tuple[str, str, str, list[str]]
             till, f = c.new, store.get("firms", c.new.firm)
             monday = store.day - dow(store.day)
             placed = [h for h in sorted(store.all("heard"), key=lambda h: (h.day, id_key(h.id)))
-                      if h.kind == "order" and h.about == f.org and monday - 7 <= h.day < monday and "; " not in h.text]
+                      if h.kind == "order" and h.about == f.org and monday - 7 <= h.day < monday and ": the shop " not in h.text]
             if placed and _news(till):                  # the last placed last week is the one delivered this week
-                add("order", f.org, f"{placed[-1].text[:-1]}; {_lasted(till)}.", list(placed[-1].to))
+                by = placed[-1].text[:-1].rsplit(", by ", 1)
+                who = f", by {by[1]}" if len(by) == 2 else ""
+                add("order", f.org, f"At {_name(store, f.org)}, of the order for {f.last_units} baskets a week placed "
+                                    f"in the week of {date_text(monday - 7)}{who}: {_lasted(till)}.", list(placed[-1].to))
         elif c.table == "ventures" and c.field == "+":
             v = c.new
             what = f"a {v.kind}" + (f" ({acts.cut(v.offering, 60)})" if v.offering else "")

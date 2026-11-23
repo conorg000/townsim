@@ -109,7 +109,7 @@ def _verb(word: str) -> str | None:
     return word[:-1]
 
 
-def _second_person(line: str) -> str:
+def _second_person(line: str, clauses: bool = False) -> str:
     """A line about someone, as said to them: `works on the till at X` gives `You work on the
     till at X`, and a verb after `and` changes too; a line that does not start with a verb,
     such as `retired`, gives `You are retired`."""
@@ -118,8 +118,10 @@ def _second_person(line: str) -> str:
     if first is None:
         return "You are " + line
     out = [first]
+    clause = False                      # with `clauses`, inside `which …` or `who …` the verbs are the clause's own
     for prev, w in zip(words, words[1:]):
-        out.append((_verb(w) or w) if prev == "and" else w)
+        clause = clause or (clauses and prev.strip(",") in ("which", "who"))
+        out.append((_verb(w) or w) if prev == "and" and not clause else w)
     return "You " + " ".join(out)
 
 
@@ -426,6 +428,9 @@ def _housemates(store: Store, pid: str, known: list[tuple[str, int, str]]) -> li
         at_work = any(w in words for w in ("works for you", "your employer", "works with you"))
         does = ", ".join(x for x in ("" if at_work and jobs.held(store, person=other) else _does_at_home(store, other),
                                      _paid(store, other)) if x)
+        kin = {"partner", "parent", "child", "sibling", "kin"} & set(ties.kinds(store, pid).get(other, ()))
+        if _lane_b(store) and not kin:
+            words = f"shares the house, {words}" if words else "shares the house"   # no relation: say why they are here
         lines.append(f"{store.get('people', other).name}, {words}" + (f", {does}." if does else "."))
     return lines
 
@@ -441,7 +446,11 @@ def _paid(store: Store, pid: str) -> str:
     benefit = jobs.benefit_held(store, pid)
     if benefit:
         ob = store.get("obligations", benefit)
-        out.append(f"paid jobseeker's benefit of {money(ob.cents)} a week by {name_of(store, ob.payer)}")
+        if ob.first > store.day and _lane_b(store):
+            out.append(f"to be paid jobseeker's benefit of {money(ob.cents)} a week by {name_of(store, ob.payer)} "
+                       f"from {date_text(ob.first)}")
+        else:
+            out.append(f"paid jobseeker's benefit of {money(ob.cents)} a week by {name_of(store, ob.payer)}")
     pension = _pension_of(store, pid)
     if pension is not None:
         out.append(f"paid a state pension of {money(pension.cents)} a week by {name_of(store, pension.payer)}")
@@ -475,7 +484,8 @@ def _work(store: Store, pid: str) -> list[str]:
         mine = org.owner == pid
         if not told and said and org.name in said:
             told = True
-            head = _second_person(said) + (", which you own" if mine else "")
+            runs = said.startswith("runs ") and _lane_b(store)       # "You run X" says it is theirs already
+            head = _second_person(said, _lane_b(store)) + (", which you own" if mine and not runs else "")
             pay = f"drawing {money(j.weekly)} a week" if mine else f"for {money(j.weekly)} a week"
             lines.append(f"{head}: {j.hours:g} hours a week, {pay}{paid}.")
         elif mine:
@@ -484,7 +494,7 @@ def _work(store: Store, pid: str) -> list[str]:
         else:
             lines.append(f"You work {j.hours:g} hours a week at {org.name} for {money(j.weekly)} a week{paid}.")
     if said and not told:
-        lines.insert(0, _second_person(said) + ".")
+        lines.insert(0, _second_person(said, _lane_b(store)) + ".")
     for org in owned:
         if not any(j.org == org.id for j in held) and org.name not in said:
             lines.append(f"You own {org.name}.")
@@ -512,6 +522,10 @@ def _work(store: Store, pid: str) -> list[str]:
                 continue
             if o.id in mine:
                 what = "a state pension" if o.memo == "state pension" else memo(o.memo)
+                if o.first > store.day and _lane_b(store):     # not yet paid: when it starts, not that it is paid
+                    lines.append(f"Your {what} of {money(o.cents)} a week from {name_of(store, o.payer)} starts on "
+                                 f"{date_text(o.first)}, then on {_payday(o)}.")
+                    continue
                 lines.append(f"You are paid {what} of {money(o.cents)} a week by {name_of(store, o.payer)}, "
                              f"on {_payday(o)}.")
             else:
@@ -1099,3 +1113,8 @@ def knowhow(store: Store, pid: str) -> list[str]:
 
 __all__ = ["KNOWHOW", "RELATION", "bank_book", "business", "knowhow", "owed_lines", "people_known", "people_lines",
            "ranks", "till_weeks", "when", "who"]
+
+
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)

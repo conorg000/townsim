@@ -533,7 +533,8 @@ def agreement_line(store: Store, ob, accounts: set[str] = frozenset()) -> str:
     when = began(store, ob).replace("first ", "starting ")
     out += f" {party}, {when}"
     if nxt is not None:
-        out += f", next due {seat_ids.day(nxt)} {money(O.instalment_cents(ob, nxt))}"
+        cents = O.left_on(store, ob, nxt) if _lane_b(store) else O.instalment_cents(ob, nxt)   # after paid ahead
+        out += f", next due {seat_ids.day(nxt)} {money(cents)}"
     end = O.last_instalment(ob)
     if ob.last is not None and end is not None:
         out += f", last {seat_ids.day(end)}"

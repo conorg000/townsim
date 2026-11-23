@@ -61,7 +61,7 @@ READ_WORDS = 250
 READ_CUT = 120
 
 # Sections shown after YOUR BUSINESS: each gives (heading, lines) for a reader, or None
-# (`product` adds its client's and its firm's people's sections).
+# (more may be added here; `extra_sections` puts the product's, the digest's, the rules' and the clubs' first).
 EXTRA_SECTIONS: list[Callable[[Store, str], tuple[str, list[str]] | None]] = []
 
 REPLY_FORM = ('Reply with JSON only, in this form:\n'
@@ -379,7 +379,7 @@ class _Parts(NamedTuple):
     operations: list[str]
     pid: str = ""
     built: dict | None = None          # lines already laid out, by what they depend on
-    extras: tuple = ()                 # (heading, lines) of each of `EXTRA_SECTIONS` that has any
+    extras: tuple = ()                 # (heading, lines) of each of `extra_sections()` that has any
 
 
 class _Choice(NamedTuple):
@@ -449,7 +449,7 @@ def _parts(store: Store, pid: str) -> _Parts:
                   _appointments(store, pid),
                   people, also_here(store, pid, {who for who, _ in people}), facts.knowhow(store, pid), aims.lines(store, pid),
                   person.notes if person.notes.strip() else "", own_time(store, pid), acts.forms(store, pid), pid,
-                  {}, tuple(x for f in EXTRA_SECTIONS if (x := f(store, pid)) is not None))
+                  {}, tuple(x for f in extra_sections() if (x := f(store, pid)) is not None))
 
 
 COUNTED = "#counted"               # the owner of a line that counts what is not shown
@@ -808,6 +808,9 @@ def also_here(store: Store, pid: str, listed: set[str]) -> list[str]:
         out.append(", ".join([p.name] + ([h.street] if h.street else []) + ([" and ".join(work)] if work else [])))
     from townsim.town import product
     line = product.firm_line(store)
+    pr = product.launched(store)
+    if line and pr is not None and pid in product.company_people(store, pr.org):
+        line = None                                   # the firm's own people know their firm
     return out + ([line] if line else [])
 
 
@@ -876,18 +879,12 @@ def mark_seen(store: Store, pid: str, ids: list[str], cause: str) -> None:
                     store.set(table, i, cause, seen=True)
 
 
-# and the product's sections, from `product` (imported with the operations)
-from townsim.town import product as _product  # noqa: E402
+# the sections after a person's business, resolved when a view is built (not at import, when `product` may be only
+# half loaded): the product's, what they heard, and the rules and the services and clubs they run (lane B)
+def extra_sections() -> list[Callable[[Store, str], tuple[str, list[str]] | None]]:
+    from townsim.town import hearing, product, rules, ventures
+    return [*product.SECTIONS_OF_PRODUCT, hearing.section, rules.section, ventures.section, *EXTRA_SECTIONS]
 
-EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _product.__name__]
-EXTRA_SECTIONS += list(getattr(_product, "SECTIONS_OF_PRODUCT", ()))
-from townsim.town import hearing as _hearing  # noqa: E402
 
-EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") != _hearing.__name__]
-EXTRA_SECTIONS.append(_hearing.section)
-
-# and the rules people set and the services and clubs they run (lane B)
-from townsim.town import rules as _rules, ventures as _ventures  # noqa: E402
-
-EXTRA_SECTIONS[:] = [f for f in EXTRA_SECTIONS if getattr(f, "__module__", "") not in (_rules.__name__, _ventures.__name__)]
-EXTRA_SECTIONS += [_rules.section, _ventures.section]
+# the modules whose operations and sections a view reads, imported with it as before (nothing is read from them here)
+from townsim.town import hearing as _hearing, product as _product, rules as _rules, ventures as _ventures  # noqa: E402, F401

@@ -246,7 +246,8 @@ def test_three_scripted_weeks_with_lane_b_hear_friends_news_and_what_came_of_an_
             subject = h.about
             assert all(any(t.person == p and t.other == subject and t.kind == "friend" for t in end.all("ties"))
                        for p in h.to)
-        assert any("; the shop " in h.text for h in heard if h.kind == "order")
+        outcomes = [h.text for h in heard if h.kind == "order" and ": the shop " in h.text]
+        assert outcomes and all(" placed in the week of " in x and "the order was" not in x for x in outcomes)
         texts = [h.text for h in heard]
         hits = [(w, t[:60]) for t in texts for w in NEUTRAL_BANNED if w in t.lower()]
         assert not hits, hits
