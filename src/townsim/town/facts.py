@@ -750,6 +750,11 @@ def _end(ob) -> str:
     return f" until {ends_on(ob)}"
 
 
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
 def owed_rows(store: Store, account: str, out: bool, most: int = OWED_LINES) -> list[str]:
     """What `account` owes (`out`) or is owed that matters week to week: rents, loans, agreements
     and standing payments in force, and anything at all with arrears; one line each, in id order,
@@ -772,13 +777,20 @@ def owed_rows(store: Store, account: str, out: bool, most: int = OWED_LINES) -> 
                 and ob.kind in ("standing", "agreement")]
         also_text = (f" (as well as {', '.join(also[:2])}" + (f" and {len(also) - 2} more" if len(also) > 2 else "")
                      + ")") if also else ""
-        parts = [f"{ob.id}: {memo(ob.memo)}, {how} {party}{also_text}{_end(ob) if ob.status in SCHEDULED else ''}",
-                 paid_last(store, ob)]
+        parts = [f"{ob.id}: {memo(ob.memo)}, {how} {party}{also_text}{_end(ob) if ob.status in SCHEDULED else ''}"]
+        stopped = ob.stopped_on >= 0 and _lane_b(store)
+        if stopped:                     # with lane B: who stopped it and when, and what that means
+            from townsim.town.ops_core import stopped_note
+            parts.append(stopped_note(store, ob, account) + (", so nothing is taken for it" if ob.status == "breached"
+                                                              else ""))
+        parts.append(paid_last(store, ob))
         if late:
             parts.append(f"{money(late)} overdue since {date_text(since)}")
+        elif stopped:
+            parts.append("nothing overdue")
         nxt = next_due(store, ob) if ob.status in SCHEDULED else ""
         if nxt:
-            parts.append(nxt)
+            parts.append(nxt.replace("next due", "next owed", 1) if stopped and ob.status == "breached" else nxt)
         rows.append("; ".join(parts))
     if len(rows) > most:
         rows = rows[:most] + [Counted(f"({len(rows) - most} more not shown)")]

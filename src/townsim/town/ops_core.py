@@ -371,6 +371,9 @@ def _check_standing(store: Store, act: Act) -> str | None:
     payee, why = _payee(store, act)
     if payee is None:
         return why
+    living = living_to(store, [source], payee)
+    if living is not None:
+        return living
     cents, why = _amount(act.args.get("amount"))
     if cents is None:
         return why
@@ -485,8 +488,27 @@ def _check_stop(store: Store, act: Act) -> str | None:
     if (isinstance(ob_id, str) and store.has("obligations", ob_id)
             and controls(store, act.principal, store.get("obligations", ob_id).payer)
             and store.get("obligations", ob_id).status == "active"):
-        return obligations.UNSTOPPABLE.get(store.get("obligations", ob_id).cannot_stop)
+        ob = store.get("obligations", ob_id)
+        why = obligations.UNSTOPPABLE.get(ob.cannot_stop)
+        if why and ob.cannot_stop == "living" and _lane_b(store) and _desk(store, ob.payee):
+            why += f" Its amount is set with {name_of(store, ob.payee)}, which answers letters."
+        return why
     return f"you have nothing with the id '{shown(ob_id)}'."
+
+
+def living_to(store: Store, payers: list[str], payee: str) -> str | None:
+    """With lane B, when `payee` already takes the regular spending of one of `payers` (what a household spends to
+    live), that said: a second payment to it is not something it accepts; else None."""
+    if not _lane_b(store):
+        return None
+    for ob in store.where("obligations", payee=payee):
+        if ob.payer in payers and ob.cannot_stop == "living" and ob.status in obligations.SCHEDULED:
+            every = {7: "a week", 28: "every 4 weeks", 1: "a day"}.get(ob.every, f"every {ob.every} days")
+            whose = "the household's" if store.has("households", ob.payer) else f"{name_of(store, ob.payer)}'s"
+            return (f"{name_of(store, payee)} already takes {whose} regular spending of "
+                    f"{money(obligations.cents_now(store, ob))} {every}; a second payment to it is not something it "
+                    f"accepts.")
+    return None
 
 
 def _do_stop(store: Store, act: Act, cause: str) -> str:
@@ -574,6 +596,11 @@ def _also_reads(store: Store, org: str, to: str, writer: str = "") -> list[str]:
     return [p for p in _product.company_people(store, org) if p not in (to, writer)]
 
 
+def _lane_b(store: Store) -> bool:
+    from townsim.town import lane_b
+    return lane_b.installed(store)
+
+
 def _desk(store: Store, org_id: str) -> bool:
     from townsim.town.narrator import has_desk
     return has_desk(store, org_id)
@@ -583,7 +610,7 @@ def _check_message(store: Store, act: Act) -> str | None:
     found = _addressee(store, act)
     if found is None:
         who = _resolve(store, act.args.get("to"), act.actor)
-        if who is not None and store.has("households", who):
+        if who is not None and store.has("households", who) and _lane_b(store):
             return not_a_person(store, who)
         why = _product.assistant_refusal(store, act.args.get("to"), act.actor)
         return why or f"your letter to '{shown(act.args.get('to'))}' came back undelivered."
@@ -634,9 +661,85 @@ def _owed_on(store: Store, act: Act, who: str) -> str | None:
     if not isinstance(ob_id, str) or not store.has("obligations", ob_id):
         return None
     ob = store.get("obligations", ob_id)
-    if ob.status != "active" or not controls(store, who, ob.payer) or not controls(store, act.actor, ob.payee):
+    payer_ok = controls(store, who, ob.payer) or ob.payer == _addressed_org(store, act)
+    if not payer_ok or not controls(store, act.actor, ob.payee):
+        return None
+    if ob.status != "active" and not (_lane_b(store) and _still_owed(store, ob)):
         return None
     return None if _ended_wage(store, ob.id) else ob.id
+
+
+def _still_owed(store: Store, ob) -> bool:
+    """With lane B, whether a stopped or breached obligation is still owed: a breached one still falls due; one
+    stopped or ended has what is outstanding on its dues."""
+    return ob.status in obligations.SCHEDULED or obligations.outstanding(store, ob) > 0
+
+
+def _addressed_org(store: Store, act: Act) -> str:
+    """With lane B, the organisation a request is addressed to by its name (the bank, not its banker), or ""."""
+    if not _lane_b(store):
+        return ""
+    who = _resolve(store, act.args.get("to"), act.actor)
+    return who if who is not None and store.has("orgs", who) else ""
+
+
+def stopped_note(store: Store, ob, reader: str = "") -> str:
+    """`stopped by the Foster household on Wednesday 25 November` for an obligation its payer stopped (or `you
+    stopped it on ...` when `reader` is that payer's account), or ""."""
+    if ob.stopped_on < 0:
+        return ""
+    if reader and reader == ob.payer:
+        return f"you stopped it on {date_text(ob.stopped_on)}"
+    payer = name_of(store, ob.payer)
+    payer = f"the {payer}" if "household" in payer.split() else payer
+    return f"stopped by {payer} on {date_text(ob.stopped_on)}"
+
+
+def _remains(store: Store, ob) -> str:
+    """What remains owed on an obligation that was stopped: its arrears, and whether more still falls due."""
+    from townsim.town import facts
+    late, since = facts.arrears(store, ob.id)
+    owed = f"{money(late)} of it is overdue since {date_text(since)}" if late else "nothing of it is overdue"
+    if ob.status == "breached":
+        day = obligations.next_instalment(store, ob)
+        if day is not None:
+            owed += (f"; nothing is taken for it, and each instalment is still owed on its day, the next "
+                     f"{money(obligations.instalment_cents(ob, day))} on {date_text(day)}")
+    elif not late:
+        owed = "nothing remains owed on it"
+    return owed
+
+
+def _not_owed_on(store: Store, act: Act, who: str) -> str:
+    """Why a request's `for` names nothing the one asked owes the asker: with lane B, a stopped obligation with
+    nothing left on it is named with who stopped it and when; the one asked is the organisation addressed (the
+    bank, not its banker), and what they owe lists what was stopped as stopped."""
+    b = _lane_b(store)
+    org = _addressed_org(store, act)
+    name = name_of_who(store, org or who)
+    payers = [org] if org else accounts_of(store, who)
+    ref = act.args.get("for")
+    if b and isinstance(ref, str) and store.has("obligations", ref):
+        ob = store.get("obligations", ref)
+        if ob.payer in payers and controls(store, act.actor, ob.payee) and ob.stopped_on >= 0 \
+                and not _still_owed(store, ob):
+            return (f"{memo_shown(ob.memo)} ({ob.id}) was {stopped_note(store, ob)}; nothing remains owed on it.")
+    owed = [o for a in payers for o in store.where("obligations", payer=a)
+            if controls(store, act.actor, o.payee) and not _ended_wage(store, o.id)
+            and (o.status == "active" or (b and _still_owed(store, o)))]
+    if org:
+        head = "It owes you"
+    else:
+        them = _them(store, account_of(store, who), name)
+        head = {"her": "She", "him": "He"}.get(them, "They") + (" owe" if them == "them" else " owes") + " you"
+
+    def line(o) -> str:
+        if not (b and o.stopped_on >= 0):
+            return f"{memo_shown(o.memo)} ({o.id})"
+        return f"{memo_shown(o.memo)} ({o.id}), {stopped_note(store, o)}: {_remains(store, o)}"
+    listed = ("; ".join(line(o) for o in owed) + ".") if owed else "nothing on a schedule."
+    return (f"'{shown(ref)}' is not the id of anything {name} owes you. "
+            + (f"{head}: {listed}" if owed else f"{head} {listed}"))
 
 
 def _request_to(store: Store, act: Act) -> tuple[str | None, str]:
@@ -695,15 +798,7 @@ def _check_request(store: Store, act: Act) -> str | None:
         return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)
     if _request_ref(act) is not None:
         if _owed_on(store, act, who) is None:
-            name = name_of_who(store, who)
-            owed = [o for a in accounts_of(store, who) for o in store.where("obligations", payer=a)
-                    if controls(store, act.actor, o.payee) and o.status == "active" and not _ended_wage(store, o.id)]
-            them = _them(store, account_of(store, who), name)
-            head = {"her": "She", "him": "He"}.get(them, "They") + (" owe" if them == "them" else " owes") + " you"
-            listed = ("; ".join(f"{memo_shown(o.memo)} ({o.id})" for o in owed) + ".") if owed else \
-                "nothing on a schedule."
-            return (f"'{shown(act.args.get('for'))}' is not the id of anything {name} owes you. "
-                    + (f"{head}: {listed}" if owed else f"{head} {listed}"))
+            return _not_owed_on(store, act, who)
     elif cents > 0 and account_of(store, who) == _own(store, act):
         return own_household(store, who)
     return _text(act.args.get("text"), "that is too long for one request.", REQUEST_WORDS)

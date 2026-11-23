@@ -532,9 +532,17 @@ def agreement_line(store: Store, ob, accounts: set[str] = frozenset()) -> str:
     nxt = O.next_instalment(store, ob)
     when = began(store, ob).replace("first ", "starting ")
     out += f" {party}, {when}"
+    stopped = ob.stopped_on >= 0 and _lane_b(store)
+    if stopped:                         # with lane B, as its client's own view says it: who stopped it, and when
+        payer = name_of(store, ob.payer)
+        payer = f"the {payer}" if "household" in payer.split() else payer
+        late, since = facts.arrears(store, ob.id)
+        out += (f", stopped by {payer} on {seat_ids.day(ob.stopped_on)}"
+                + (", so nothing is taken for it" if ob.status == "breached" else "")
+                + (f", {money(late)} overdue since {seat_ids.day(since)}" if late else ", nothing overdue"))
     if nxt is not None:
         cents = O.left_on(store, ob, nxt) if _lane_b(store) else O.instalment_cents(ob, nxt)   # after paid ahead
-        out += f", next due {seat_ids.day(nxt)} {money(cents)}"
+        out += f", next {'owed' if stopped else 'due'} {seat_ids.day(nxt)} {money(cents)}"
     end = O.last_instalment(ob)
     if ob.last is not None and end is not None:
         out += f", last {seat_ids.day(end)}"

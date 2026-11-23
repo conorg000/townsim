@@ -220,6 +220,11 @@ def _names(store: Store, mine: str, proposer: str, other_person: str, payer: str
 
 
 def _check_propose(store: Store, act: Act) -> str | None:
+    to = core._resolve(store, act.args.get("to"), act.actor)
+    if to is not None and store.has("orgs", to):
+        living = core.living_to(store, accounts_of(store, act.principal), to)
+        if living is not None:
+            return living
     terms, why = _agreement_terms(store, act)
     return why if terms is None else None
 
