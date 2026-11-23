@@ -425,9 +425,32 @@ def _alternatives(names: list[str], none: str) -> str:
     return acts._alternatives(names) if names else f'"<{none}>"'
 
 
+def _subscribed(store: Store, system_id: str) -> bool:
+    """Whether the client a system belongs to has a subscription (an instance) for it to be connected to."""
+    return instance_of_client(store, client_of(store, system_id)) is not None
+
+
 def _fill_systems(store: Store, pid: str) -> str:
+    """The systems the form offers to connect: with lane B, only those of a client that has a subscription."""
+    from townsim.town import lane_b
     from townsim.town.systems import grantable
-    return _alternatives([s.short for s in grantable(store, pid)], "none")
+    found = [s for s in grantable(store, pid) if not lane_b.installed(store) or _subscribed(store, s.id)]
+    return _alternatives([s.short for s in found], "none")
+
+
+def no_subscription(store: Store, client: str) -> str:
+    """Why a system of `client` cannot be connected: it has no subscription. With lane B, a business, club or service
+    is told how one is taken out in its own name."""
+    from townsim.town import lane_b
+    if not lane_b.installed(store) or not store.has("orgs", client):
+        return f"{client_name(store, client)} has no subscription."
+    org = store.get("orgs", client)
+    kind = {"club": "a club", "service": "a service"}.get(org.kind, "a business")
+    from townsim.town.product import launched
+    pr = launched(store)
+    to = f'"to": "{pr.name}", ' if pr is not None else ""
+    return (f'{org.name} has no subscription of its own; {kind} is subscribed in its own name '
+            f'({{"op": "subscribe", {to}"for": "{org.name}"}}).')
 
 
 def _fill_connected(store: Store, pid: str) -> str:
@@ -513,7 +536,7 @@ def _system(store: Store, act: Act, connected: bool = False):
     client = client_of(store, found.id)
     inst = instance_of_client(store, client)
     if inst is None:
-        return None, None, f"{client_name(store, client)} has no subscription."
+        return None, None, no_subscription(store, client)
     if connected and connection_on(store, inst.id, found.id) is None:
         return None, None, f"{found.short} is not connected."
     return found, inst, ""

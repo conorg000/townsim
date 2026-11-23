@@ -967,6 +967,85 @@ def test_what_the_paid_runs_on_other_towns_found(seed):
     assert not s.engine_errors, s.engine_errors
 
 
+# --- 8. what the thirteen-week paid run on a second town found ---------------------------------------------------
+
+@functools.cache
+def _late_bytes(seed: int) -> bytes:
+    """The town begun on Monday 23 November 2026 with lane B, the product launched, and a household
+    subscribed with its account connected to read (its own town: a later start may draw it apart): a run that crosses into the new year."""
+    s = gen.generate(seed, FAMILIES, start="2026-11-23")
+    lane_b.install(s)
+    product.launch(s)
+    home = next(h.id for h in s.all("households") if _adults(s, h.id))
+    who = _adults(s, home)[0]
+    product.subscribe(s, who, home, "", CAUSE, tell=False)
+    connections.make(s, who, s.get("instances", inst_of(s, home)), f"account:{home}", "read", 0, CAUSE)
+    other = next(p.id for p in s.all("people") if p.age >= 18 and p.household != home)
+    return pickle.dumps((s, home, who, other))
+
+
+_DATED = re.compile(r"\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (\d{1,2}) (January|February|March|"
+                    r"April|May|June|July|August|September|October|November|December) (\d{4})\b")
+
+
+def _dates_real(text: str) -> set[int]:
+    """The years of every `Monday 28 December 2026` in `text`, each checked to fall on the weekday written."""
+    from datetime import date
+    from townsim.town.clock import DAYS, MONTHS
+    years = set()
+    for m in _DATED.finditer(text):
+        d = date(int(m.group(4)), MONTHS.index(m.group(3)) + 1, int(m.group(2)))
+        assert DAYS[d.weekday()] == m.group(1), m.group(0)
+        years.add(d.year)
+    return years
+
+
+def test_what_the_paid_run_on_a_second_town_found(seed):
+    """Dates across the turn of the year, a shop its owner brings in, what was stopped or breached or has ended named
+    in the operations that apply to it, putting money by, a desk's page and its signer."""
+    from townsim.town import obligations, rules, views
+    from townsim.town.clock import DAYS, date_text, dow
+    from townsim.town.obligations import money
+    t = _town(seed)
+    # dates across the turn of the year: an assistant reads each date in its own year; a person is told one passed
+    s, home, who, other = pickle.loads(_late_bytes(seed))
+    full = inst_of(s, home)
+    years = set()
+    for until in (36, 44):
+        _days(s, until - s.day)
+        for name in ("bank_get_account", "bank_list_agreements"):
+            text = tool(s, full, name, {}, step=f"an assistant's {name} across the turn of the year").text
+            years |= _dates_real(text)
+            assert not seat_ids._DATE.search(text), text
+        loop.routine(s)
+        _dates_real(views.view(s, who)[0][1]["content"])
+    assert {2026, 2027} <= years, years
+    _free_to_act(s, who, "a date that has passed, in the new year", 2.0)
+    other = s.get("people", other).name
+    out = act(s, who, "book_appointment", expect=False, step="book a day of the new year that has passed",
+              day="Monday 4 January", about="the bills", **{"with": other})
+    assert out.msg == "Not done: Monday 4 January has passed.", out.msg
+    out = act(s, who, "propose_agreement", expect=False, step="start an agreement on a day of last year",
+              to=other, amount=5, per="week", weeks=4, start="Monday 28 December", payer="me", what="the bills")
+    assert out.msg == "Not done: Monday 28 December 2026 has passed.", out.msg
+    assert not s.engine_errors, s.engine_errors
+    # a shop its owner brings in: offered to connect once the shop subscribes, and the refusal before says how
+    s = world(seed)
+    _free_to_act(s, t.owner1, "a shop its owner brings in", 3.0)
+    shop = t.name(s, t.shop1)
+    act(s, t.owner1, "subscribe", step="the owner subscribes the household", **{"to": t.product, "for": "household",
+                                                                               "asks": ""})
+    ordering = next(x.short for x in systems_of_client(s, t.shop1) if x.kind == "ordering")
+    assert f'"{ordering}"' not in connections._fill_systems(s, t.owner1)
+    out = act(s, t.owner1, "connect", expect=False, step="connect the shop before it subscribes", system=ordering,
+              scope="read only")
+    assert out.msg == (f'Not done: {shop} has no subscription of its own; a business is subscribed in its own name '
+                       f'({{"op": "subscribe", "to": "{t.product}", "for": "{shop}"}}).'), out.msg
+    act(s, t.owner1, "subscribe", step="the owner subscribes the shop", **{"to": t.product, "for": shop, "asks": ""})
+    assert f'"{ordering}"' in connections._fill_systems(s, t.owner1)
+    act(s, t.owner1, "connect", step="connect the shop once it subscribes", system=ordering, scope="read only")
+
+
 # --- the texts ---------------------------------------------------------------------------------------------------
 
 _STORE_ID = re.compile(r"\b(?:p|h|org|as|ob|rq|sub|msg|n|rm|tk|jb|du|mb|ts|rl|vn|pl|cn|lg|rt|hr|ht|pc|ak|ap|ft|rec)"

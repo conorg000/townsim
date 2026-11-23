@@ -117,3 +117,44 @@ def test_across_the_turn_of_the_year_an_assistant_and_a_person_see_each_date_in_
              start="Monday 28 December", payer="me", what="the bills")
     assert out.msg == "Not done: Monday 28 December 2026 has passed.", out.msg
 
+
+@functools.cache
+def _town_bytes(seed: int) -> bytes:
+    s = gen.generate(seed, FAMILIES)
+    lane_b.install(s)
+    product.launch(s)
+    return pickle.dumps(s)
+
+
+def town(seed: int):
+    return pickle.loads(_town_bytes(seed))
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_a_shop_is_offered_to_connect_once_it_subscribes_and_the_refusal_before_says_how(seed):
+    from townsim.town.systems import grantable
+    s = town(seed)
+    shop = next(o for o in s.all("orgs") if o.kind == "shop" and not o.outside and o.owner
+                and s.where("firms", org=o.id) and s.get("people", o.owner).age >= 18)
+    owner, P = shop.owner, product.launched(s).name
+    assert do(s, owner, "subscribe", to=P, **{"for": "household", "asks": ""}).ok
+    mine = {x.short: x for x in grantable(s, owner)}
+    shops = [k for k, x in mine.items() if connections.client_of(s, x.id) == shop.id]
+    homes = [k for k, x in mine.items() if connections.client_of(s, x.id) != shop.id]
+    form = connections._fill_systems(s, owner)
+    assert shops and homes and all(f'"{k}"' in form for k in homes) and not any(f'"{k}"' in form for k in shops), form
+    out = do(s, owner, "connect", system=shops[0], scope="read only")
+    assert out.msg == (f'Not done: {shop.name} has no subscription of its own; a business is subscribed in its own '
+                       f'name ({{"op": "subscribe", "to": "{P}", "for": "{shop.name}"}}).'), out.msg
+    assert do(s, owner, "subscribe", to=P, **{"for": shop.name, "asks": ""}).ok
+    form = connections._fill_systems(s, owner)
+    assert all(f'"{k}"' in form for k in shops), form
+    assert do(s, owner, "connect", system=shops[0], scope="read only").ok
+
+
+def test_without_lane_b_the_connect_form_and_refusal_are_as_they_were():
+    s = gen.generate(3, FAMILIES)
+    product.launch(s)
+    shop = next(o for o in s.all("orgs") if o.kind == "shop" and not o.outside and o.owner)
+    assert connections.no_subscription(s, shop.id) == f"{shop.name} has no subscription."
+
