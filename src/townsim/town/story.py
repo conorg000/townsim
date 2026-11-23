@@ -693,6 +693,20 @@ def _seat_counts(r: _Run, s: Store, turns: list) -> list[str]:
     out += ["", "Connections asked for:", ""] + (asks or ["None."])
     out += ["", "Asked to do one thing:", ""] + (once_asks or ["None."])
     out += ["", "Paid out under its connections, by account:", ""] + (paid or ["None."])
+    out += ["", "Runs that ended with text written outside a tool call, which is delivered to no one (the first "
+                "quoted):", ""] + (_undelivered(s, turns) or ["None."])
+    return out
+
+
+def _undelivered(s: Store, turns: list) -> list[str]:
+    """For each instance, how many of its runs ended with words outside a tool call, and the first of them."""
+    out = []
+    for inst in sorted(s.all("instances"), key=lambda i: id_key(i.id)):
+        mine = [t for t in turns if t.instance == inst.id]
+        ended = [t for t in mine if (t.closing or "").strip()]
+        if ended:
+            out.append(f"- {inst.id}: {len(ended)} of {len(mine)} runs; the first, {date_text(ended[0].day)}:")
+            out += quote(ended[0].closing, INSTANCE_WORDS, "  ")
     return out
 
 
