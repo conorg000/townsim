@@ -143,11 +143,27 @@ def nearest_year(weekday: int | None, day: int, month: int, today: int) -> int |
 DATE_FORM = "Write it like Monday 16 March."
 _ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 
+# Each example date a form or refusal shows, as written without lane B (right for a town begun on the default
+# Monday): the day of the week it falls on and how many days ahead of the day shown it lies at least, with lane B.
+EXAMPLES: dict[str, tuple[int, int]] = {"Monday 16 March": (0, 7), "Monday 13 April": (0, 7),
+                                        "Thursday 12 March": (3, 3)}
 
-def unreadable(value: object) -> str:
-    """The refusal for a date that cannot be read, with the form one is written in."""
+
+def example(text: str, today: int | None) -> str:
+    """An example date (`EXAMPLES`) as shown on `today`: the first such weekday at least so many days ahead, a real
+    coming day written with its right weekday; with `today` None (no lane B), `text` as written."""
+    if today is None:
+        return text
+    wd, ahead = EXAMPLES[text]
+    return _bare(today + ahead + (wd - dow(today + ahead)) % 7)
+
+
+def unreadable(value: object, today: int | None = None) -> str:
+    """The refusal for a date that cannot be read, with the form one is written in (its example a coming day near
+    `today` when one is given, with lane B)."""
     from townsim.town.acts import shown           # acts reads the calendar
-    return f"'{shown(value)}' is not a date that can be read. {DATE_FORM}"
+    form = DATE_FORM if today is None else DATE_FORM.replace("Monday 16 March", example("Monday 16 March", today))
+    return f"'{shown(value)}' is not a date that can be read. {form}"
 
 
 def nearest_date(day: int, month: int, today: int, weekday: int | None = None) -> int | None:

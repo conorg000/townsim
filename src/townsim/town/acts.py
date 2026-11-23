@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
-from townsim.town import jobs, ties
+from townsim.town import clock, jobs, ties
 from townsim.town.store import TABLES, Store, id_key
 
 MAX_CENTS = 100_000_000
@@ -606,6 +606,19 @@ def positions(store: Store, pid: str) -> list[str]:
 # Parts of forms that are filled with the reader's own few things: each part, and what gives
 # the text in its place for a reader (`forms`). Registered with the operations they belong to.
 FILLED: dict[str, Callable[[Store, str], str]] = {}
+
+
+def _example_fill(text: str) -> Callable[[Store, str], str]:
+    """A form's example date (`clock.EXAMPLES`): with lane B a coming day near the day it is shown on, with its right
+    weekday; without, as written."""
+    def fill(store: Store, actor: str) -> str:
+        from townsim.town import lane_b
+        return f"e.g. {clock.example(text, store.day if lane_b.installed(store) else None)}"
+    return fill
+
+
+for _text in clock.EXAMPLES:
+    FILLED[f"e.g. {_text}"] = _example_fill(_text)
 
 
 _ANSWERS = '"accept" | "decline"'

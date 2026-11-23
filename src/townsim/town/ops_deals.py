@@ -83,7 +83,7 @@ def _start(store: Store, value: Any) -> tuple[int | None, str]:
     if core._lane_b(store):
         day = parse_near(value, store.day) if readable else None
         if day is None:
-            return None, unreadable(value)
+            return None, unreadable(value, store.day)
         if day < store.day:
             return None, f"{date_in(day, store.day)} has passed."
     else:

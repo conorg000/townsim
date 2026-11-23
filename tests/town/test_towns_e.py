@@ -3,6 +3,8 @@ generated town with lane B. Nothing here calls a model."""
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from townsim.town import clock
@@ -58,3 +60,48 @@ def test_every_operation_reads_a_date_with_no_year_as_the_nearest_such_date(seed
     done = ST.run_tool(s, inst, "schedule_followup", {"date": "Thursday 4 February", "note": "the bills"}, ctx, 2)
     assert not done.ok and "A follow-up is for a day after today." in done.text, done.text
     assert ST.run_tool(s, inst, "search_email", {"since": "Thursday 4 February"}, ctx, 3).ok
+
+
+_EXAMPLE = re.compile(r"(?:e\.g\. |Write it like )(" + "|".join(clock.DAYS) + r") (\d{1,2}) (" + "|".join(clock.MONTHS)
+                      + r")\b")
+
+
+def examples_shown(text: str, today: int) -> list[int]:
+    """Each example date in `text` (`e.g. Monday 30 November`, `Write it like ...`), checked to be a coming day near
+    `today` with its right weekday; the days it names."""
+    found = []
+    for m in _EXAMPLE.finditer(text):
+        day = clock.nearest_date(int(m.group(2)), clock.MONTHS.index(m.group(3)) + 1, today)
+        assert clock.DAYS[clock.dow(day)] == m.group(1), (m.group(0), clock.date_year(today))
+        assert today < day <= today + 14, (m.group(0), clock.date_year(today))
+        found.append(day)
+    return found
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_an_example_date_is_a_coming_day_near_the_day_it_is_shown_on(seed):
+    from townsim.town import loop, views
+    s, home, _ = late(seed)
+    who, other = adults(s, home)[0], _other(s, home)
+    for until in (0, 35, 40, 60, 74):                    # November, the turn of the year, January, February
+        _days(s, until - s.day)
+        loop.routine(s)
+        text = "\n".join(m["content"] for m in views.view(s, who)[0])
+        assert len(examples_shown(text, s.day)) >= 2, text
+        for op, args in (("book_appointment", {"day": "soon", "about": "the bills", "with": other.name}),
+                         ("standing_payment", {"to": other.name, "amount": 5, "day": "Friday", "start": "soon"}),
+                         ("propose_agreement", {"to": other.name, "amount": 5, "per": "week", "weeks": 4,
+                                                "start": "soon", "payer": "me", "what": "the bills"})):
+            out = do(s, who, op, **args)
+            assert "Write it like" in out.msg and len(examples_shown(out.msg, s.day)) == 1, out.msg
+
+
+def test_without_lane_b_the_example_dates_are_as_they_were():
+    from townsim.town import gen, loop, views
+    s = gen.generate(3, ["a", "b", "c", "d"])
+    loop.routine(s)
+    who = next(p.id for p in s.all("people") if p.age >= 18)
+    text = "\n".join(m["content"] for m in views.view(s, who)[0])
+    assert "e.g. Monday 13 April" in text and "e.g. Thursday 12 March" in text
+    assert clock.unreadable("soon") == "'soon' is not a date that can be read. Write it like Monday 16 March."
+

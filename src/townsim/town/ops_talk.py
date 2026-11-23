@@ -110,7 +110,7 @@ def _when(store: Store, act: Act) -> tuple[int | None, str]:
     if core._lane_b(store):
         day = parse_near(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
         if day is None:
-            return None, unreadable(value)
+            return None, unreadable(value, store.day)
         if day < store.day:
             return None, f"{date_in(day, store.day)} has passed."
         if day > store.day + AHEAD_DAYS:

@@ -1119,12 +1119,37 @@ def test_what_the_paid_run_on_a_second_town_found(seed):
 
 # --- 9. what the second thirteen-week paid run on that town found -----------------------------------------------
 
+_EXAMPLE = re.compile(r"(?:e\.g\. |Write it like )(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (\d{1,2}) "
+                      r"(January|February|March|April|May|June|July|August|September|October|November|December)\b")
+
+
+def _examples_real(text: str, today: int) -> int:
+    """How many example dates `text` shows, each checked to be a coming day within two weeks of `today` on the
+    weekday written."""
+    from townsim.town import clock
+    n = 0
+    for m in _EXAMPLE.finditer(text):
+        day = clock.nearest_date(int(m.group(2)), clock.MONTHS.index(m.group(3)) + 1, today)
+        assert clock.DAYS[clock.dow(day)] == m.group(1) and today < day <= today + 14, (m.group(0), clock.iso(today))
+        n += 1
+    return n
+
+
 def test_what_the_second_paid_run_on_that_town_found(seed):
     """Every operation that takes a date reads one with no year as the nearest such date, on either side of the turn
-    of the year."""
-    from townsim.town import clock
+    of the year; every example date shown is a coming day with its right weekday."""
+    from townsim.town import clock, views
     s, home, who, other = pickle.loads(_late_bytes(seed))
     full, name = inst_of(s, home), s.get("people", other).name
+    for until in (0, 35, 60):                                     # November, the turn of the year, January
+        _days(s, until - s.day)
+        loop.routine(s)
+        assert _examples_real("\n".join(m["content"] for m in views.view(s, who)[0]), s.day) >= 2
+        _free_to_act(s, who, "a date that cannot be read", 2.0)
+        out = act(s, who, "book_appointment", expect=False, step="book a day that cannot be read",
+                  day="soon", about="the bills", **{"with": name})
+        assert _examples_real(out.msg, s.day) == 1, out.msg
+    s, home, who, other = pickle.loads(_late_bytes(seed))
     _days(s, 35 - s.day)                                          # Monday 28 December 2026
     _free_to_act(s, who, "a date of the new year with the wrong weekday", 2.0)
     out = act(s, who, "book_appointment", step="book a day of the new year written with another weekday",

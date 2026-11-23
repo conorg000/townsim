@@ -371,7 +371,7 @@ def _start(store: Store, act: Act) -> tuple[int | None, str]:
             return None, f"{date_in(day, store.day)} has passed."
     else:
         day = parse_date(start, store.day)
-    return day, "" if day is not None else unreadable(start)
+    return day, "" if day is not None else unreadable(start, store.day if _lane_b(store) else None)
 
 
 def _check_standing(store: Store, act: Act) -> str | None:
