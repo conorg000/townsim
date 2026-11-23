@@ -1,43 +1,197 @@
 """The no-model check: a scripted town with lane B goes down every path there is, and every step is checked.
 
-Scripted townspeople, firm, assistants, narrator and desks; nothing calls a model. Each area below carries out its
-paths by script on a fresh copy of one of the test worlds (seed 1 with lane B: `drawn` has five clients subscribed
-and connected; `world` has the product launched and no client yet), and for every step checks that
+Scripted townspeople, firm, assistants, narrator and desks; nothing calls a model. The town is any generated one:
+every actor is found by role (`Town`: the first shop and its owner, a second shop, a household that owns no
+business, the landlord's household and a tenant, the banker's household and the bank, the firm, its owner and its
+employee, each outside desk), and every expected text is built from that town's names. Each area carries out its
+paths by script on a fresh copy of one of two worlds of that town: `world` (lane B from day 0, a scripted week, the
+product launched, no client) and `connected` (the same with five clients subscribed and connected at set scopes).
+For every step it checks that
 (a) the world changed as the message to the actor said, and not at all when the act was refused;
 (b) every refusal or error text names what was wrong in terms the actor could act on (`test_every_text_is_one_a_
-    reader_can_act_on`, run last, over every distinct text collected; they are written to
-    `runs/every-path-texts.txt` for a person to read);
+    reader_can_act_on`, run last for each seed, over every distinct text collected; they are written to
+    `runs/every-path-texts-<seed>.txt` for a person to read, with the steps done, refused and skipped);
 (c) nothing shown to an assistant holds a store id or the words no text a model reads may hold.
+A step that needs what a town may lack (a second adult in a household, staff at the shop, a friend told of a
+subscription) is set up within the test where it can be, and otherwise skipped with its reason, which is written to
+the same file; nothing is skipped silently.
 
-Run: `uv run pytest tests/town/test_every_path.py -q`.
+Run on seeds 1, 2 and 3 (the default):  `uv run pytest tests/town/test_every_path.py -q`
+Run on any seeds:                       `EVERY_PATH_SEEDS=1-11 uv run pytest tests/town/test_every_path.py -q`
+(`EVERY_PATH_SEEDS` is a list such as `4,7,9` or a range such as `1-11`, or both: `1-3,7`.)
 """
 
 from __future__ import annotations
 
+import functools
 import json
+import os
+import pickle
 import re
-from collections import Counter
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
-from town.test_plans import world
-from town.test_seat_texts import drawn
-from townsim.town import (connections, controls, hearing, hours, lane_b, loop, obligations, outside_script, plans,
-                          product, recurring, seat_ids, seat_tools as ST, tasks)
-from townsim.town.acts import Act, apply_act
+from townsim.town import (connections, controls, gen, hearing, hours, lane_b, loop, outside_script, plans, product,
+                          recurring, seat_ids, seat_tools as ST, tasks)
+from townsim.town.acts import Act, apply_act, has_savings, savings_of
 from townsim.town.product import NEUTRAL_BANNED
 from townsim.town.replies import Keys, ScriptedReplier
 from townsim.town.systems import systems_of_client
 
+
+def _seeds(text: str) -> list[int]:
+    out: list[int] = []
+    for part in text.replace(" ", "").split(","):
+        if "-" in part:
+            a, b = part.split("-", 1)
+            out += list(range(int(a), int(b) + 1))
+        elif part:
+            out.append(int(part))
+    return out
+
+
+SEEDS = _seeds(os.environ.get("EVERY_PATH_SEEDS", "1,2,3"))
+FAMILIES = ["a", "b", "c", "d"]
 CAUSE = "routine:setup"
 TALK = '{"say": "Thank you, that is fine.", "acts": [], "end": true}'
 
-# every distinct text, by who reads it: "person" or "assistant"; refusals and errors apart from what is done
-REFUSALS: dict[str, dict[str, str]] = {"person": {}, "assistant": {}}
-SHOWN: dict[str, str] = {}          # everything an assistant was shown: text -> the step
-PATHS: Counter = Counter()
+# by seed: every distinct text, by who reads it ("person" or "assistant"), refusals and errors apart from what is
+# done; everything an assistant was shown; the steps taken; the steps skipped, with why
+REFUSALS: dict[int, dict[str, dict[str, str]]] = defaultdict(lambda: {"person": {}, "assistant": {}})
+SHOWN: dict[int, dict[str, str]] = defaultdict(dict)
+PATHS: dict[int, Counter] = defaultdict(Counter)
+SKIPPED: dict[int, list[str]] = defaultdict(list)
 
+
+# --- the town, by role -----------------------------------------------------------------------------------------
+
+@functools.cache
+def _world_bytes(seed: int) -> bytes:
+    s = gen.generate(seed, FAMILIES)
+    lane_b.install(s)
+    replier, keys = ScriptedReplier(outside_script.reply), Keys("pre")
+    for _ in range(7):
+        loop.run_day(s, replier, keys)
+    product.launch(s)
+    return pickle.dumps(s)
+
+
+@dataclass
+class Town:
+    seed: int
+    place: str
+    product: str
+    firm: str
+    firm_org: str
+    firm_owner: str
+    employee: str | None
+    shop1: str
+    owner1: str
+    shop2: str
+    owner2: str
+    plain: str                   # a household that owns no business, lets nothing, banks nothing, makes nothing
+    adult1: str
+    adult2: str | None
+    landlord_home: str
+    landlord: str
+    read_home: str               # connected read only: the landlord's, or another when the banker's is the landlord's
+    tenant: str
+    banker: str
+    banker_home: str
+    bank: str
+    outsider: str                # an adult of none of the households above, and no owner
+    desks: list[tuple[str, str]]   # (org name, kind)
+
+    def name(self, s, who: str) -> str:
+        return s.get("people", who).name if s.has("people", who) else s.get("orgs", who).name
+
+
+def _adults(s, h):
+    return [p for p in s.get("households", h).members if s.get("people", p).age >= 18]
+
+
+@functools.cache
+def _town(seed: int) -> Town:
+    s = pickle.loads(_world_bytes(seed))
+    pr = product.launched(s)
+    firm = s.get("orgs", pr.org)
+    company = set(product.company_people(s, firm.id))
+    shops = sorted((o for o in s.all("orgs") if o.kind == "shop" and not o.outside and o.owner
+                    and s.where("firms", org=o.id)), key=lambda o: int(o.id[3:]))
+    banker = next(p for p in s.all("people") if p.kind == "banker")
+    bank = next(o for o in s.all("orgs") if o.kind == "bank" and not o.outside)
+    owners = {o.owner for o in s.all("orgs") if o.owner and not o.outside}
+    lords = {h.landlord for h in s.all("households") if h.landlord}
+
+    def lets(h):
+        return bool(lords & (set(s.get("households", h.id).members) | {h.id}))
+    letting = [h for h in s.all("households") if lets(h)]
+    land = next((h for h in letting if h.id != banker.household and not set(h.members) & (owners | company)),
+                next((h for h in letting if h.id != banker.household), letting[0]))    # the banker's when it is the one
+    lord = next(p for p in land.members if p in lords) if lords & set(land.members) else _adults(s, land.id)[0]
+    tenant_home = next(h for h in s.all("households") if h.landlord in (lord, land.id) and h.id != land.id)
+    plain = sorted((h for h in s.all("households") if not set(h.members) & (owners | company | lords)
+                    and h.id not in (land.id, banker.household) and not lets(h) and _adults(s, h.id)),
+                   key=lambda h: (-len(_adults(s, h.id)), int(h.id[1:])))[0]
+    used = {plain.id, land.id, banker.household} | {s.get("people", o).household for o in owners if s.has("people", o)}
+    # a household connected read only: the landlord's, unless the landlord lives with the banker
+    read_home = land if land.id != banker.household else next(
+        h for h in s.all("households") if h.id not in used and _adults(s, h.id))
+    used.add(read_home.id)
+    outsider = next(p.id for p in s.all("people") if p.age >= 18 and p.household not in used and p.id not in owners
+                    and p.id not in company)
+    a = _adults(s, plain.id)
+    employee = next((p for p in product.company_people(s, firm.id) if p != firm.owner), None)
+    desks = [(s.get("orgs", d.org).name, d.kind) for d in sorted(s.all("desks"), key=lambda d: int(d.id[2:]))]
+    return Town(seed, s.place, pr.name, firm.name, firm.id, firm.owner, employee, shops[0].id, shops[0].owner,
+                shops[1].id, shops[1].owner, plain.id, a[0], a[1] if len(a) > 1 else None, land.id, lord, read_home.id,
+                tenant_home.members[0], banker.id, banker.household, bank.id, outsider, desks)
+
+
+def world(seed: int):
+    return pickle.loads(_world_bytes(seed))
+
+
+@functools.cache
+def _connected_bytes(seed: int) -> bytes:
+    """`world` with five clients subscribed and connected: the first shop (its account with a weekly limit, its
+    letters and ordering in full, its prices and payroll read only); the second (its prices in full, the rest read
+    only but its account with a limit); the plain household (its account and letters in full); the landlord's
+    (everything read only; another's when the landlord lives with the banker); the banker's (its account with a $50.00 limit, the loan book in full)."""
+    t, s = _town(seed), world(seed)
+    plan = ((t.owner1, t.shop1, {"account": ("limit", 78000), "letters": ("free", 0), "ordering": ("free", 0)}),
+            (t.owner2, t.shop2, {"account": ("limit", 65000), "prices": ("free", 0)}),
+            (t.adult1, t.plain, {"account": ("free", 0), "letters": ("free", 0)}),
+            (t.landlord if t.read_home == t.landlord_home else _adults(s, t.read_home)[0], t.read_home, {}),
+            (t.banker, t.banker_home, {"account": ("limit", 5000), "loans": ("free", 0)}))
+    for by, client, scopes in plan:
+        product.subscribe(s, by, client, "", CAUSE, tell=False)
+        inst = s.get("instances", product.subscription_of(s, client).instance)
+        for x in systems_of_client(s, client):
+            scope, cents = scopes.get(x.kind, ("read", 0))
+            connections.make(s, by, inst, x.id, scope, cents, CAUSE)
+        if client == t.banker_home and not any(x.kind == "loans" for x in systems_of_client(s, client)):
+            connections.make(s, by, inst, f"loans:{t.bank}", "free", 0, CAUSE)
+    return pickle.dumps(s)
+
+
+def connected(seed: int):
+    return pickle.loads(_connected_bytes(seed))
+
+
+def inst_of(s, client: str) -> str:
+    return product.subscription_of(s, client).instance
+
+
+@pytest.fixture(params=SEEDS, ids=lambda x: f"seed{x}")
+def seed(request):
+    return request.param
+
+
+# --- the steps -------------------------------------------------------------------------------------------------
 
 def _people(key, messages):
     if key.purpose == "talk":
@@ -57,16 +211,21 @@ def _n() -> int:
     return _N[0]
 
 
+def skip(seed: int, step: str, why: str) -> None:
+    SKIPPED[seed].append(f"{step}: {why}")
+    PATHS[seed][f"{step}: skipped"] += 1
+
+
 def act(s, actor, op, principal=None, expect=True, step="", **args):
     """A person's act (or an act done for one), checked: as expected, and a refusal changes nothing."""
     h = s.hash()
     out = apply_act(s, Act(actor, principal or actor, op, args), _n())
-    PATHS[f"{step or op}: {'done' if out.ok else 'refused'}"] += 1
+    PATHS[s.seed][f"{step or op}: {'done' if out.ok else 'refused'}"] += 1
     if expect is not None:
-        assert out.ok == expect, (op, args, out.msg)
+        assert out.ok == expect, (s.seed, op, args, out.msg)
     if not out.ok:
         reader = "assistant" if actor.startswith("as") else "person"
-        REFUSALS[reader].setdefault(out.msg, f"{step or op} {json.dumps(args, default=str)[:80]}")
+        REFUSALS[s.seed][reader].setdefault(out.msg, f"{step or op} {json.dumps(args, default=str)[:80]}")
         assert s.hash() == h, (op, out.msg)
     return out
 
@@ -76,20 +235,14 @@ def tool(s, inst, name, args, expect=True, step=""):
     h = s.hash()
     done = ST.run_tool(s, s.get("instances", inst), name, args, _ctx(), _n())
     assert done is not None, name
-    PATHS[f"{step or name}: {'done' if done.ok else 'refused'}"] += 1
-    SHOWN.setdefault(done.text, step or name)
+    PATHS[s.seed][f"{step or name}: {'done' if done.ok else 'refused'}"] += 1
+    SHOWN[s.seed].setdefault(done.text, step or name)
     if expect is not None:
-        assert done.ok == expect, (inst, name, args, done.text)
+        assert done.ok == expect, (s.seed, inst, name, args, done.text)
     if not done.ok:
-        REFUSALS["assistant"].setdefault(done.text, f"{step or name} {json.dumps(args, default=str)[:80]}")
+        REFUSALS[s.seed]["assistant"].setdefault(done.text, f"{step or name} {json.dumps(args, default=str)[:80]}")
         assert s.hash() == h, (name, done.text)
     return done
-
-
-def _b():
-    s = drawn()
-    lane_b.install(s)
-    return s
 
 
 def _days(s, n):
@@ -106,34 +259,51 @@ def _transfers(s, src, dst):
     return [t.cents for t in s.ledger.transfers if t.src == src and t.dst == dst]
 
 
+def _free_to_act(s, pid: str, step: str, hours_needed: float = 1.0) -> None:
+    """Set up a person well and with `hours_needed` of their own today, where the town made them ill or used their
+    week up (a step about money or plans, not about time), and say so in the step's record."""
+    p = s.get("people", pid)
+    if p.ill_until >= s.day - 1 or p.hours_left < hours_needed:
+        s.set("people", pid, CAUSE, ill_until=-1, hours_left=max(p.hours_left, hours_needed))
+        PATHS[s.seed][f"set up: {step}: the actor given {hours_needed:g} hours of their own"] += 1
+
+
+def _sub(s, client):
+    return product.subscription_of(s, client)
+
+
+def _connect(s, owner, inst, system, scope="free", cents=0):
+    connections.make(s, owner, s.get("instances", inst), system, scope, cents, CAUSE)
+
+
+def _for(s, client):
+    """How a person names a client account they subscribe for: `household`, or the business's name."""
+    return "household" if s.has("households", client) else s.get("orgs", client).name
+
+
 # --- 1. becoming and stopping being a client -------------------------------------------------------------------
 
-SYSTEMS_OF = {"Harlow Springs Food Mart": ["account", "letters", "ordering", "prices", "staff"],
-              "household": ["account", "letters", "loans"]}
-
-
-def test_every_way_to_become_and_stop_being_a_client():
-    s = world()
-    shop, owner = "org11", "p3"
-    # the wrong person: someone not of the business, a person not of the household, an assistant
-    act(s, "p7", "subscribe", expect=False, step="subscribe for another's business",
-        **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
+def test_every_way_to_become_and_stop_being_a_client(seed):
+    t, s = _town(seed), world(seed)
+    shop, owner, P = t.shop1, t.owner1, t.product
+    shop_name = t.name(s, shop)
+    for who in (owner, t.adult1, t.adult2):                 # some forty acts in one day: time is not what is tried
+        if who:
+            _free_to_act(s, who, "becoming a client, in one day", 20.0)
+    act(s, t.outsider, "subscribe", expect=False, step="subscribe for another's business", **{"to": P, "for": shop_name})
     act(s, owner, "subscribe", expect=False, step="subscribe to no such product",
-        **{"to": "Wrenfold Assistant", "for": "Harlow Springs Food Mart"})
-    out = act(s, owner, "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant",
-                                                                    "for": "Harlow Springs Food Mart", "asks": ""})
-    sub = product.subscription_of(s, shop)
+        **{"to": "Nobody's Assistant", "for": shop_name})
+    out = act(s, owner, "subscribe", step="subscribe a shop", **{"to": P, "for": shop_name, "asks": ""})
+    sub = _sub(s, shop)
     assert "on the free plan" in out.msg and plans.is_free(s, sub) and sub.fee_ob == ""
-    act(s, owner, "subscribe", expect=False, step="subscribe twice",
-        **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
+    act(s, owner, "subscribe", expect=False, step="subscribe twice", **{"to": P, "for": shop_name})
     inst = s.get("instances", sub.instance)
-    # each system at each access level, by the right person and attempted by the wrong one
-    for x in [x for x in systems_of_client(s, shop)]:
-        act(s, "p4", "connect", expect=False, step="connect another's system", system=x.short, scope="read only")
+    for x in systems_of_client(s, shop):
+        act(s, t.outsider, "connect", expect=False, step="connect another's system", system=x.short, scope="read only")
         out = act(s, owner, "connect", step=f"connect {x.kind} read only", system=x.short, scope="read only")
         assert connections.connection_on(s, inst.id, x.id).scope == "read" and plans.is_free(s, _sub(s, shop))
         assert "paid plan" not in out.msg
-    for x in [x for x in systems_of_client(s, shop)]:
+    for x in systems_of_client(s, shop):
         if connections.no_limit_here(s, x.id):
             act(s, owner, "connect", expect=False, step=f"connect {x.kind} with a weekly limit (none there)",
                 system=x.short, scope="weekly limit", weekly_limit=100)
@@ -141,509 +311,512 @@ def test_every_way_to_become_and_stop_being_a_client():
             act(s, owner, "connect", step=f"connect {x.kind} with a weekly limit", system=x.short,
                 scope="weekly limit", weekly_limit=100)
             assert connections.connection_on(s, inst.id, x.id).weekly_cents == 10000
-        out = act(s, owner, "connect", step=f"connect {x.kind} in full", system=x.short, scope="free")
+        act(s, owner, "connect", step=f"connect {x.kind} in full", system=x.short, scope="free")
         assert connections.connection_on(s, inst.id, x.id).scope == "free"
     p = plans.current(s, _sub(s, shop))
     assert p.plan == "paid" and p.free_until == s.day + 27                     # four free weeks, from the first
-    act(s, owner, "connect", expect=False, step="connect at no such access", system="Harlow Springs Food Mart prices",
-        scope="sometimes")
-    # narrowing every one to read only: back to the free plan when the period paid ends
+    any_short = systems_of_client(s, shop)[0].short
+    act(s, owner, "connect", expect=False, step="connect at no such access", system=any_short, scope="sometimes")
     for x in systems_of_client(s, shop):
         out = act(s, owner, "connect", step=f"narrow {x.kind} to read only", system=x.short, scope="read only")
     assert "With nothing connected with access to act, the paid plan ends on" in out.msg
     for x in systems_of_client(s, shop):
         act(s, owner, "disconnect", step=f"disconnect {x.kind}", system=x.short)
         assert connections.connection_on(s, inst.id, x.id) is None
-    act(s, owner, "disconnect", expect=False, step="disconnect what is not connected",
-        system="Harlow Springs Food Mart prices")
-    act(s, "p4", "stop", expect=False, step="cancel another's subscription", id=sub.id)
+    act(s, owner, "disconnect", expect=False, step="disconnect what is not connected", system=any_short)
+    act(s, t.outsider, "stop", expect=False, step="cancel another's subscription", id=sub.id)
     act(s, owner, "stop", step="cancel the subscription", id=sub.id)
     assert _sub(s, shop) is None and s.get("instances", inst.id).status == "ended"
-    act(s, owner, "subscribe", step="subscribe again", **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
+    act(s, owner, "subscribe", step="subscribe again", **{"to": P, "for": shop_name})
     again = _sub(s, shop)
-    act(s, owner, "connect", step="connect again in full", system="Harlow Springs Food Mart ordering", scope="free")
+    ordering = next(x.short for x in systems_of_client(s, shop) if x.kind == "ordering")
+    act(s, owner, "connect", step="connect again in full", system=ordering, scope="free")
     assert plans.current(s, again).free_until == -1                              # its free weeks were had
-    # a household, by any adult of it; not by a child or a non-member
-    out = act(s, "p1", "subscribe", step="subscribe a household", **{"to": "Tessaly Assistant", "for": "household"})
-    hsub = _sub(s, "h1")
-    for x in systems_of_client(s, "h1"):
-        act(s, "p2", "connect", expect=None if x.kind == "loans" else True,      # the bank's own rule, for its staff
-            step=f"another adult connects household {x.kind}", system=x.short, scope="read only")
-    act(s, "p1", "connect", step="connect a household account with a weekly limit", system="household account",
+    # a household, by any adult of it
+    act(s, t.adult1, "subscribe", step="subscribe a household", **{"to": P, "for": "household"})
+    hsub = _sub(s, t.plain)
+    other = t.adult2
+    if other is None:
+        skip(seed, "another adult connects and cancels the household's", "the household has one adult")
+        other = t.adult1
+    for x in systems_of_client(s, t.plain):
+        act(s, other, "connect", expect=None if x.kind == "loans" else True,      # an employer's rule may stand
+            step=f"an adult connects household {x.kind}", system=x.short, scope="read only")
+    account = next(x.short for x in systems_of_client(s, t.plain) if x.kind == "account")
+    act(s, t.adult1, "connect", step="connect a household account with a weekly limit", system=account,
         scope="weekly limit", weekly_limit=40)
     assert not plans.is_free(s, hsub)
-    act(s, "p2", "stop", step="another adult cancels the household's", id=hsub.id)
+    act(s, other, "stop", step="an adult cancels the household's", id=hsub.id)
     # a founded service and a club, each subscribed in its own name, by its owner only
+    founder, not_founder = t.adult1, t.outsider
     for kind, name in (("service", "Ridge Dog Walking"), ("club", "Ridge Walkers")):
-        act(s, "p5", "register_business", step=f"register a {kind}", name=name, kind=kind,
+        act(s, founder, "register_business", step=f"register a {kind}", name=name, kind=kind,
             offering="Walks on the ridge", weekly_fee=3)
-        act(s, "p6", "subscribe", expect=False, step=f"subscribe another's {kind}", **{"to": "Tessaly Assistant",
-                                                                                         "for": name})
-        act(s, "p5", "subscribe", step=f"subscribe a {kind}", **{"to": "Tessaly Assistant", "for": name})
+        act(s, not_founder, "subscribe", expect=False, step=f"subscribe another's {kind}", **{"to": P, "for": name})
+        act(s, founder, "subscribe", step=f"subscribe a {kind}", **{"to": P, "for": name})
         vsub = next(x for x in s.all("subscriptions") if x.status == "active"
                     and s.has("orgs", x.client) and s.get("orgs", x.client).name == name)
         vinst = s.get("instances", vsub.instance)
         kinds = [x.kind for x in systems_of_client(s, vsub.client)]
         assert kinds == ["account", "letters", "members"], kinds
         from townsim.town import seat_texts
-        SHOWN.setdefault(seat_texts.system_text(s, vinst), f"system text of a {kind} in its own name")
+        SHOWN[seed].setdefault(seat_texts.system_text(s, vinst), f"system text of a {kind} in its own name")
         for x in systems_of_client(s, vsub.client):
-            act(s, "p5", "connect", step=f"connect a {kind}'s {x.kind}", system=x.short, scope="read only")
-        act(s, "p5", "stop", step=f"cancel a {kind}'s", id=vsub.id)
+            act(s, founder, "connect", step=f"connect a {kind}'s {x.kind}", system=x.short, scope="read only")
+        act(s, founder, "stop", step=f"cancel a {kind}'s", id=vsub.id)
     assert not s.engine_errors
-
-
-def _sub(s, client):
-    return product.subscription_of(s, client)
 
 
 # --- 2. every answer to a request to do one thing ---------------------------------------------------------------
 
-ASKS = {
-    "a payment": ({"integration": "Bank", "access": "limit", "weekly_limit": 50, "action": "bank_make_payment",
-                   "arguments": {"to": "Eric Reyes", "amount": 5, "memo": "twine"}}),
-    "a stock order": ({"integration": "Ordering", "access": "limit", "weekly_limit": 1800,
-                       "action": "ordering_place_order",
-                       "arguments": {"supplier": "Coldwater Bend Food Supply", "quantity": 260}}),
-    "a price": ({"integration": "Point of sale", "access": "full", "action": "pos_set_price",
-                 "arguments": {"price": 10.9}}),
-}
+ASKED = ("a payment", "a stock order", "a price")
 
 
-def _asked(s, what):
-    done = tool(s, "as1", "request_access", ASKS[what], step=f"ask to do {what} once")
-    return s.all("requests")[-1], done
+def _ask_args(s, t, what):
+    if what == "a payment":
+        return {"integration": "Bank", "access": "limit", "weekly_limit": 50, "action": "bank_make_payment",
+                "arguments": {"to": t.name(s, t.outsider), "amount": 5, "memo": "twine"}}
+    if what == "a stock order":
+        f = next(x for x in s.all("firms") if x.org == t.shop1)
+        sp = f.last_supplier or s.all("suppliers")[0].id
+        return {"integration": "Ordering", "access": "limit", "weekly_limit": 5000, "action": "ordering_place_order",
+                "arguments": {"supplier": t.name(s, s.get("suppliers", sp).org), "quantity": max(10, f.last_units)}}
+    return {"integration": "Point of sale", "access": "full", "action": "pos_set_price", "arguments": {"price": 10.9}}
 
 
-@pytest.mark.parametrize("what", list(ASKS))
-def test_every_answer_to_a_request_to_do_one_thing(what):
+@pytest.mark.parametrize("what", ASKED)
+def test_every_answer_to_a_request_to_do_one_thing(seed, what):
+    t = _town(seed)
+    shop, owner = t.shop1, t.owner1
+
     def fresh():
-        s = world()
-        act(s, "p3", "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant",
-                                                                "for": "Harlow Springs Food Mart"})
+        s = world(seed)
+        act(s, owner, "subscribe", step="subscribe a shop", **{"to": t.product, "for": t.name(s, shop)})
         return s
+
+    def asked(s):
+        tool(s, inst_of(s, shop), "request_access", _ask_args(s, t, what), step=f"ask to do {what} once")
+        return s.all("requests")[-1]
     s = fresh()                                                         # once
-    rq, _ = _asked(s, what)
-    act(s, "p4", "answer", expect=False, step=f"another answers {what}", request=rq.id, answer="once")
-    act(s, "p3", "answer", expect=False, step=f"answer {what} with accept", request=rq.id, answer="accept")
-    out = act(s, "p3", "answer", step=f"answer {what} once", request=rq.id, answer="once")
-    assert "Done once for you" in out.msg and connections.active(s, "as1") == [] and plans.is_free(s, _sub(s, "org11"))
-    act(s, "p3", "answer", expect=False, step=f"answer {what} again", request=rq.id, answer="once")
+    rq = asked(s)
+    act(s, t.outsider, "answer", expect=False, step=f"another answers {what}", request=rq.id, answer="once")
+    act(s, owner, "answer", expect=False, step=f"answer {what} with accept", request=rq.id, answer="accept")
+    out = act(s, owner, "answer", step=f"answer {what} once", request=rq.id, answer="once")
+    assert "Done once for you" in out.msg, out.msg
+    assert connections.active(s, inst_of(s, shop)) == [] and plans.is_free(s, _sub(s, shop))
+    act(s, owner, "answer", expect=False, step=f"answer {what} again", request=rq.id, answer="once")
     s = fresh()                                                         # always
-    rq, _ = _asked(s, what)
-    out = act(s, "p3", "answer", step=f"answer {what} always", request=rq.id, answer="always")
-    assert connections.active(s, "as1") and not plans.is_free(s, _sub(s, "org11"))
+    rq = asked(s)
+    act(s, owner, "answer", step=f"answer {what} always", request=rq.id, answer="always")
+    assert connections.active(s, inst_of(s, shop)) and not plans.is_free(s, _sub(s, shop))
     s = fresh()                                                         # no
-    rq, _ = _asked(s, what)
-    h = {t: len(s.all(t)) for t in ("connections", "commits")}
-    out = act(s, "p3", "answer", step=f"answer {what} no", request=rq.id, answer="no")
-    assert out.msg == f"Answered {rq.id}: no. Nothing was done." and {t: len(s.all(t)) for t in h} == h
+    rq = asked(s)
+    before = {x: len(s.all(x)) for x in ("connections", "commits")}
+    out = act(s, owner, "answer", step=f"answer {what} no", request=rq.id, answer="no")
+    assert out.msg == f"Answered {rq.id}: no. Nothing was done." and {x: len(s.all(x)) for x in before} == before
     s = fresh()                                                         # lapsed
-    rq, _ = _asked(s, what)
+    rq = asked(s)
     _days(s, 16)
     assert s.get("requests", rq.id).status == "lapsed"
-    act(s, "p3", "answer", expect=False, step=f"answer {what} after it lapsed", request=rq.id, answer="once")
+    act(s, owner, "answer", expect=False, step=f"answer {what} after it lapsed", request=rq.id, answer="once")
     s = fresh()                                                         # changed since asked
     if what == "a payment":
-        rq, _ = _asked(s, what)
-        s.transfer("org11", "org13", s.balance("org11") - 100, "spent", "routine:t")       # it can no longer be paid
+        rq = asked(s)
+        s.transfer(shop, t.firm_org, s.balance(shop) - 100, "spent", "routine:t")      # it can no longer be paid
     elif what == "a stock order":
         _days(s, 4)
-        rq, _ = _asked(s, what)
-        _days(s, 4)                                                     # past Monday: the supplier's price moved
+        rq = asked(s)
+        _days(s, 4)                                                     # past Monday: the order's Monday moved
     else:
-        rq, _ = _asked(s, what)
-        act(s, "p3", "set_price", step="the owner sets the price herself", price=10.9)
-    out = act(s, "p3", "answer", expect=None, step=f"answer {what} once when it changed", request=rq.id, answer="once")
-    if not out.ok:
-        REFUSALS["person"].setdefault(out.msg, f"changed: {what}")
-    told = seat_ids.view(s, _notices(s, "as1")[-1])
-    SHOWN.setdefault(told, f"the assistant told of {what} answered once after it changed")
+        rq = asked(s)
+        act(s, owner, "set_price", step="the owner sets the price herself", price=10.9)
+    out = act(s, owner, "answer", expect=None, step=f"answer {what} once when it changed", request=rq.id,
+              answer="once")
+    SHOWN[seed].setdefault(seat_ids.view(s, _notices(s, inst_of(s, shop))[-1]),
+                           f"the assistant told of {what} answered once after it changed")
 
 
 # --- 3. every kind of act an assistant can take, with access and without ------------------------------------------
 
-def _connect(s, owner, inst, system, scope="free", cents=0):
-    connections.make(s, owner, s.get("instances", inst), system, scope, cents, CAUSE)
-
-
-def test_every_act_of_an_assistant_with_access_and_without():
-    s = _b()
-    _connect(s, "p3", "as1", "staff:org11")                     # the shop's payroll, in full
-    _connect(s, "p10", "as4", "lets:h6")                        # the landlord's lettings, in full
-    _connect(s, "p1", "as5", "letters:h1")                      # the Carters' mail, in full: requests are answered there
-    # with access (as5: the Carters' account in full; as1 the shop; as2 its prices; as4 its lettings) and without
-    # (as4's account is read only; as2's ordering and payroll read only; as5 lets nothing)
-    pay = tool(s, "as5", "bank_make_payment", {"to": "Eric Reyes", "amount": 12, "memo": "twine"}, step="payment")
-    assert 1200 in _transfers(s, "h1", "h4") and "$12.00" in pay.text
-    tool(s, "as4", "bank_make_payment", {"to": "Eric Reyes", "amount": 12}, expect=False, step="payment, read only")
-    tool(s, "as5", "bank_make_payment", {"to": "Nobody Atall", "amount": 12}, expect=False, step="payment to no one")
+def test_every_act_of_an_assistant_with_access_and_without(seed):
+    t, s = _town(seed), connected(seed)
+    full, read, lord = inst_of(s, t.plain), inst_of(s, t.read_home), t.landlord
+    lord_inst = inst_of(s, t.landlord_home)
+    shop1, shop2, bank_i = inst_of(s, t.shop1), inst_of(s, t.shop2), inst_of(s, t.banker_home)
+    payee = t.name(s, t.outsider)
+    _connect(s, t.owner1, shop1, f"staff:{t.shop1}")
+    lets = next((x.id for x in systems_of_client(s, t.landlord_home) if x.kind == "lets"), None)
+    _connect(s, lord, lord_inst, lets) if lets else None
+    pay = tool(s, full, "bank_make_payment", {"to": payee, "amount": 12, "memo": "twine"}, step="payment")
+    out_acct = s.get("people", t.outsider).household
+    assert 1200 in _transfers(s, t.plain, out_acct) and "$12.00" in pay.text
+    tool(s, read, "bank_make_payment", {"to": payee, "amount": 12}, expect=False, step="payment, read only")
+    tool(s, full, "bank_make_payment", {"to": "Nobody Atall", "amount": 12}, expect=False, step="payment to no one")
     before = len(s.all("obligations"))
-    tool(s, "as5", "bank_create_recurring_payment", {"to": "Eric Reyes", "amount": 3, "weekday": "Friday"},
+    tool(s, full, "bank_create_recurring_payment", {"to": payee, "amount": 3, "weekday": "Friday"},
          step="recurring payment")
     [ob] = s.all("obligations")[before:]
-    assert (ob.kind, ob.payer, ob.payee, ob.cents) == ("standing", "h1", "h4", 300)
-    tool(s, "as5", "bank_create_recurring_payment", {"to": "Eric Reyes", "amount": 3, "weekday": "Friday"},
-         expect=False, step="recurring payment, the same again")
-    tool(s, "as4", "bank_create_recurring_payment", {"to": "Eric Reyes", "amount": 3, "weekday": "Friday"},
-         expect=False, step="recurring payment, read only")
+    assert (ob.kind, ob.payer, ob.payee, ob.cents) == ("standing", t.plain, out_acct, 300)
+    tool(s, full, "bank_create_recurring_payment", {"to": payee, "amount": 3, "weekday": "Friday"}, expect=False,
+         step="recurring payment, the same again")
+    tool(s, read, "bank_create_recurring_payment", {"to": payee, "amount": 3, "weekday": "Friday"}, expect=False,
+         step="recurring payment, read only")
     shown_id = seat_ids.display(s, ob.id)
-    tool(s, "as4", "bank_cancel", {"id": shown_id}, expect=False, step="cancel another's recurring payment")
-    tool(s, "as5", "bank_cancel", {"id": shown_id}, step="cancel a recurring payment")
+    tool(s, read, "bank_cancel", {"id": shown_id}, expect=False, step="cancel another's recurring payment")
+    tool(s, full, "bank_cancel", {"id": shown_id}, step="cancel a recurring payment")
     assert s.get("obligations", ob.id).status != "active"
-    tool(s, "as5", "bank_cancel", {"agreement_id": shown_id}, expect=False, step="cancel with a misnamed argument")
-    tool(s, "as5", "bank_request_payment", {"to": "Eric Reyes", "message": "For the twine, please.", "amount": 4},
+    tool(s, full, "bank_cancel", {"agreement_id": shown_id}, expect=False, step="cancel with a misnamed argument")
+    tool(s, full, "bank_request_payment", {"to": payee, "message": "For the twine, please.", "amount": 4},
          step="payment request")
-    assert s.all("requests")[-1].to == "p7"
-    tool(s, "as4", "bank_request_payment", {"to": "Eric Reyes", "message": "Please pay.", "amount": 4},
-         expect=None, step="payment request, read only")
-    act(s, "p7", "request", step="a neighbour asks the Carters", to="Jennifer Carter", text="Could you lend a ladder?")
+    assert s.all("requests")[-1].to == t.outsider
+    tool(s, read, "bank_request_payment", {"to": payee, "message": "Please pay.", "amount": 4}, expect=None,
+         step="payment request, read only")
+    act(s, t.outsider, "request", step="a neighbour asks the client", to=t.name(s, t.adult1),
+        text="Could you lend a ladder?")
     rq = s.all("requests")[-1]
-    tool(s, "as4", "respond_to_request", {"request_id": seat_ids.display(s, rq.id), "response": "accept"},
+    tool(s, read, "respond_to_request", {"request_id": seat_ids.display(s, rq.id), "response": "accept"},
          expect=False, step="answer another client's request")
-    tool(s, "as5", "respond_to_request", {"request_id": seat_ids.display(s, rq.id), "response": "accept"},
+    tool(s, full, "respond_to_request", {"request_id": seat_ids.display(s, rq.id), "response": "accept"},
          step="answer a request")
     assert s.get("requests", rq.id).status == "accepted"
-    tool(s, "as5", "propose_agreement", {"to": "Eric Reyes", "amount": 6, "frequency": "weekly", "weeks": 4,
-                                          "payer": "client", "description": "garden help"}, step="propose an agreement")
-    tool(s, "as4", "propose_agreement", {"to": "Eric Reyes", "amount": 6, "frequency": "weekly", "weeks": 4,
-                                          "payer": "client"}, expect=False, step="propose an agreement, read only")
-    agr = next(o for o in s.all("obligations") if o.id == "ob50")              # the Whitakers pay back the Carters
-    tool(s, "as5", "propose_termination", {"agreement_id": seat_ids.display(s, agr.id)}, expect=None,
+    tool(s, full, "propose_agreement", {"to": payee, "amount": 6, "frequency": "weekly", "weeks": 4,
+                                         "payer": "client", "description": "garden help"}, step="propose an agreement")
+    tool(s, read, "propose_agreement", {"to": payee, "amount": 6, "frequency": "weekly", "weeks": 4,
+                                         "payer": "client"}, expect=False, step="propose an agreement, read only")
+    from townsim.town import obligations
+    agr = obligations.create(s, kind="agreement", payer=t.plain, payee=out_acct, cents=500, first=s.day + 3, every=7,
+                             memo="garden help", ends="both", made_by=t.adult1, cause=CAUSE, party=t.outsider)
+    tool(s, full, "propose_termination", {"agreement_id": seat_ids.display(s, agr)}, expect=None,
          step="propose ending an agreement")
-    tool(s, "as4", "propose_termination", {"agreement_id": seat_ids.display(s, agr.id)}, expect=False,
+    tool(s, read, "propose_termination", {"agreement_id": seat_ids.display(s, agr)}, expect=False,
          step="propose ending another's agreement")
-    tool(s, "as5", "loan_apply", {"amount": 500, "weeks": 20, "purpose": "a new boiler"}, expect=None,
+    tool(s, full, "loan_apply", {"amount": 500, "weeks": 20, "purpose": "a new boiler"}, expect=None,
          step="loan application")
-    tool(s, "as4", "loan_apply", {"amount": 500, "weeks": 20}, expect=False, step="loan application, read only")
-    loan = next(o for o in s.all("obligations") if o.id == "ob37")              # the Whitakers' van
-    tool(s, "as3", "loan_repay", {"agreement_id": seat_ids.display(s, loan.id), "amount": 10}, expect=None,
+    tool(s, read, "loan_apply", {"amount": 500, "weeks": 20}, expect=False, step="loan application, read only")
+    out = tool(s, bank_i, "loan_apply", {"amount": 500, "weeks": 20, "purpose": "a fence"}, expect=False,
+               step="loan application by the banker's assistant")
+    assert f"the banker at {t.name(s, t.bank)}; the bank does not lend to its own banker" in out.text
+    loan = obligations.create(s, kind="loan", payer=t.plain, payee=t.bank, cents=1000, first=s.day + 2, every=7,
+                              last=s.day + 2 + 7 * 9, memo="loan for a boiler", ends="both", made_by=t.bank,
+                              cause=CAUSE)
+    tool(s, full, "loan_repay", {"agreement_id": seat_ids.display(s, loan), "amount": 10}, expect=None,
          step="loan repayment")
-    tool(s, "as4", "loan_repay", {"agreement_id": seat_ids.display(s, loan.id), "amount": 10}, expect=False,
+    tool(s, read, "loan_repay", {"agreement_id": seat_ids.display(s, loan), "amount": 10}, expect=False,
          step="repay another's loan")
-    tool(s, "as1", "ordering_place_order", {"supplier": "Coldwater Bend Food Supply", "quantity": 240},
-         step="stock order")
-    assert next(f for f in s.all("firms") if f.org == "org11").order_units == 240
-    tool(s, "as2", "ordering_place_order", {"supplier": "Coldwater Bend Food Supply", "quantity": 240}, expect=False,
+    f1 = next(f for f in s.all("firms") if f.org == t.shop1)
+    supplier = t.name(s, s.get("suppliers", f1.last_supplier or s.all("suppliers")[0].id).org)
+    tool(s, shop1, "ordering_place_order", {"supplier": supplier, "quantity": 240}, step="stock order")
+    assert next(f for f in s.all("firms") if f.org == t.shop1).order_units == 240
+    tool(s, shop2, "ordering_place_order", {"supplier": supplier, "quantity": 240}, expect=False,
          step="stock order, read only")
-    tool(s, "as2", "pos_set_price", {"price": 10.4}, step="price")
-    assert next(f for f in s.all("firms") if f.org == "org12").price == 1040
-    tool(s, "as1", "pos_set_price", {"price": 10.4}, expect=False, step="price, read only")
-    tool(s, "as1", "payroll_offer_job", {"to": "Lisa Marsh", "weekly_pay": 300, "hours": 20}, step="job offer")
-    tool(s, "as2", "payroll_offer_job", {"to": "Lisa Marsh", "weekly_pay": 300, "hours": 20}, expect=False,
+    tool(s, shop2, "pos_set_price", {"price": 10.4}, step="price")
+    assert next(f for f in s.all("firms") if f.org == t.shop2).price == 1040
+    tool(s, shop1, "pos_set_price", {"price": 10.4}, expect=False, step="price, read only")
+    tool(s, shop1, "payroll_offer_job", {"to": payee, "weekly_pay": 300, "hours": 20}, expect=None, step="job offer")
+    tool(s, shop2, "payroll_offer_job", {"to": payee, "weekly_pay": 300, "hours": 20}, expect=False,
          step="job offer, read only")
-    staff = next(j for j in s.all("jobs") if j.org == "org11" and j.person != "p3" and j.ended < 0)
-    name = s.get("people", staff.person).name
-    tool(s, "as1", "payroll_offer_extra_hours", {"to": name, "hours": 3}, expect=None, step="extra hours")
-    tool(s, "as2", "payroll_offer_extra_hours", {"to": name, "hours": 3}, expect=False, step="extra hours, read only")
-    tool(s, "as1", "payroll_set_pay", {"employee": name, "weekly_pay": 480}, expect=None, step="pay change")
-    tool(s, "as2", "payroll_set_pay", {"employee": name, "weekly_pay": 480}, expect=False, step="pay change, read only")
-    tool(s, "as2", "payroll_end_employment", {"employee": name}, expect=False, step="dismissal, read only")
-    tool(s, "as1", "payroll_end_employment", {"employee": name, "message": "The shop is closing a shift."},
-         expect=None, step="dismissal")
-    tool(s, "as4", "lettings_set_rent", {"tenant": "Tara Russo", "weekly_rent": 340}, expect=None, step="rent change")
-    tool(s, "as5", "lettings_set_rent", {"tenant": "Tara Russo", "weekly_rent": 340}, expect=False,
+    from townsim.town import jobs
+    staff = next((j for j in jobs.held(s, org=t.shop1) if j.person != t.owner1), None)
+    if staff is None:
+        skip(seed, "extra hours, a pay change and a dismissal", "the first shop has no staff but its owner")
+    else:
+        name = t.name(s, staff.person)
+        tool(s, shop1, "payroll_offer_extra_hours", {"to": name, "hours": 3}, expect=None, step="extra hours")
+        tool(s, shop2, "payroll_offer_extra_hours", {"to": name, "hours": 3}, expect=False,
+             step="extra hours, read only")
+        tool(s, shop1, "payroll_set_pay", {"employee": name, "weekly_pay": 480}, expect=None, step="pay change")
+        tool(s, shop2, "payroll_set_pay", {"employee": name, "weekly_pay": 480}, expect=False,
+             step="pay change, read only")
+        tool(s, shop2, "payroll_end_employment", {"employee": name}, expect=False, step="dismissal, read only")
+        tool(s, shop1, "payroll_end_employment", {"employee": name, "message": "A shift is closing."}, expect=None,
+             step="dismissal")
+    tenant = t.name(s, t.tenant)
+    if lets is None:
+        skip(seed, "a rent change and a notice to leave", "the landlord's household lets through no lettings system")
+    else:
+        tool(s, lord_inst, "lettings_set_rent", {"tenant": tenant, "weekly_rent": 340}, expect=None,
+             step="rent change")
+        tool(s, lord_inst, "lettings_serve_notice", {"tenant": tenant}, expect=None, step="notice to leave")
+    tool(s, full, "lettings_set_rent", {"tenant": tenant, "weekly_rent": 340}, expect=False,
          step="rent change, no lettings")
-    tool(s, "as5", "lettings_serve_notice", {"tenant": "Nicole Kowalski"}, expect=False,
-         step="notice to leave, no lettings")
-    tool(s, "as4", "lettings_serve_notice", {"tenant": "Nicole Kowalski"}, expect=None, step="notice to leave")
-    tool(s, "as5", "loanbook_get", {}, expect=None, step="the bank's loan book")
-    act(s, "p7", "borrow", step="a neighbour applies to the bank", amount=300, weeks=10, purpose="a fence")
+    tool(s, full, "lettings_serve_notice", {"tenant": tenant}, expect=False, step="notice to leave, no lettings")
+    tool(s, bank_i, "loanbook_get", {}, expect=None, step="the bank's loan book")
+    act(s, t.outsider, "borrow", expect=None, step="a neighbour applies to the bank", amount=300, weeks=10,
+        purpose="a fence")
     loan_rq = s.all("requests")[-1]
-    assert (loan_rq.kind, loan_rq.to) == ("loan", "p1")
-    out = tool(s, "as5", "respond_to_request", {"request_id": seat_ids.display(s, loan_rq.id), "response": "accept"},
-               expect=False, step="answer a loan application: the bank's rule stands")
-    assert "Ashcombe Savings Bank has a rule" in out.text                      # where the rule allows: none here
-    tool(s, "as4", "bank_transfer_own_accounts", {"from": "checking", "to": "savings", "amount": 5}, expect=False,
+    if loan_rq.kind != "loan" or loan_rq.to != t.banker:
+        skip(seed, "answer a loan application", "the application did not reach the banker")
+    else:
+        _connect(s, t.banker, bank_i, f"letters:{t.banker_home}")
+        out = tool(s, bank_i, "respond_to_request", {"request_id": seat_ids.display(s, loan_rq.id),
+                                                    "response": "accept"}, expect=None,
+                   step="answer a loan application for the banker")
+        if not out.ok:                                  # where the bank's rule forbids it, the refusal names it
+            assert f"{t.name(s, t.bank)} has a rule" in out.text, out.text
+    if not has_savings(s, t.plain):
+        s.open_account(savings_of(t.plain), CAUSE)      # savings, set up where the town gave the household none
+    tool(s, read, "bank_transfer_own_accounts", {"from": "checking", "to": "savings", "amount": 5}, expect=False,
          step="move money, read only")
-    tool(s, "as3", "bank_transfer_own_accounts", {"from": "checking", "to": "savings", "amount": 5}, expect=None,
+    tool(s, full, "bank_transfer_own_accounts", {"from": "checking", "to": "savings", "amount": 5}, expect=None,
          step="move money between own accounts")
     assert not s.engine_errors, s.engine_errors
 
 
-def test_every_own_tool_of_an_assistant():
-    s = _b()
-    ctx_days = 0
-    tool(s, "as1", "rules_create", {"name": "weekly note", "when": {"weekday": "Tuesday"}, "action": "send_email",
-                                    "arguments": {"to": "Tara Russo", "body": "The week's note."}}, step="rule")
-    tool(s, "as1", "rules_create", {"name": "pay", "when": {"weekday": "Tuesday"}, "action": "pos_set_price",
+def test_every_own_tool_of_an_assistant(seed):
+    t, s = _town(seed), connected(seed)
+    shop1, shop2, read = inst_of(s, t.shop1), inst_of(s, t.shop2), inst_of(s, t.read_home)
+    owner = t.name(s, t.owner1)
+    tool(s, shop1, "rules_create", {"name": "weekly note", "when": {"weekday": "Tuesday"}, "action": "send_email",
+                                    "arguments": {"to": owner, "body": "The week's note."}}, step="rule")
+    tool(s, shop1, "rules_create", {"name": "price", "when": {"weekday": "Tuesday"}, "action": "pos_set_price",
                                     "arguments": {"price": 10}}, expect=False, step="rule beyond its access")
-    tool(s, "as1", "rules_list", {}, step="list rules")
+    tool(s, shop1, "rules_list", {}, step="list rules")
     for what, budget, step in (("Advertise the shop with leaflets and a sign", 5000, "task scheduled"),
                                ("Advertise the shop with leaflets and a sign", 1, "task over budget"),
-                               ("Ask Eric Reyes about storage in his garage", 1000, "task sent"),
+                               (f"Ask {t.name(s, t.outsider)} about storage in a garage", 1000, "task sent"),
                                ("Make the shop better somehow", 1000, "task needs detail")):
-        tool(s, "as1", "tasks_create", {"description": what, "budget": budget}, expect=None, step=step)
-    tool(s, "as4", "tasks_create", {"description": "Advertise the house", "budget": 5000}, expect=None,
+        tool(s, shop1, "tasks_create", {"description": what, "budget": budget}, expect=None, step=step)
+    tool(s, read, "tasks_create", {"description": "Advertise the house", "budget": 5000}, expect=None,
          step="task with the account read only")
-    tasks.narrate_day(s, ScriptedReplier(_people, lambda k, m, t: None), Keys("every"))
-    for t in s.all("tasks"):
-        PATHS[f"task: {t.status}"] += 1
-        for n in _notices(s, t.actor):
-            SHOWN.setdefault(seat_ids.view(s, n), "a task's notice")
-    tool(s, "as1", "tasks_list", {}, step="list tasks")
-    tool(s, "as1", "business_register", {"name": "Harlow Helpers Club", "kind": "club",
-                                          "offering": "neighbours who help with deliveries", "weekly_fee": 5},
-         expect=None, step="register a club")
-    tool(s, "as4", "business_register", {"name": "Oak Lettings Club", "kind": "club", "offering": "tenants",
-                                          "weekly_fee": 5}, expect=False, step="register a club, read only")
+    tasks.narrate_day(s, ScriptedReplier(_people, lambda k, m, x: None), Keys("every"))
+    for task in s.all("tasks"):
+        PATHS[seed][f"task: {task.status}"] += 1
+        for n in _notices(s, task.actor):
+            SHOWN[seed].setdefault(seat_ids.view(s, n), "a task's notice")
+    tool(s, shop1, "tasks_list", {}, step="list tasks")
+    club = "Harlow Helpers Club" if t.place != "Harlow" else "Helpers Club"
+    tool(s, shop1, "business_register", {"name": club, "kind": "club", "offering": "neighbours who help with deliveries",
+                                         "weekly_fee": 5}, expect=None, step="register a club")
+    tool(s, read, "business_register", {"name": "Lettings Club", "kind": "club", "offering": "tenants",
+                                        "weekly_fee": 5}, expect=False, step="register a club, read only")
     if s.all("ventures"):
-        tool(s, "as1", "members_invite", {"business": "Harlow Helpers Club", "to": "Eric Reyes"}, expect=None,
+        tool(s, shop1, "members_invite", {"business": club, "to": t.name(s, t.outsider)}, expect=None,
              step="invite a member")
-        tool(s, "as1", "members_set_fee", {"business": "Harlow Helpers Club", "weekly_fee": 4}, expect=None,
-             step="set a club's fee")
-        tool(s, "as1", "members_list", {"business": "Harlow Helpers Club"}, expect=None, step="list members")
-    tool(s, "as1", "web_publish", {"title": "Fresh bread on Fridays", "text": "The shop bakes bread every Friday."},
+        tool(s, shop1, "members_set_fee", {"business": club, "weekly_fee": 4}, expect=None, step="set a club's fee")
+        tool(s, shop1, "members_list", {"business": club}, expect=None, step="list members")
+    else:
+        skip(seed, "invite a member and set a club's fee", "the club was not registered")
+    tool(s, shop1, "web_publish", {"title": "Fresh bread on Fridays", "text": "The shop bakes bread every Friday."},
          step="publish a page")
-    tool(s, "as2", "web_publish", {"title": "Fresh bread", "text": "Bread."}, expect=False,
+    tool(s, shop2, "web_publish", {"title": "Fresh bread", "text": "Bread."}, expect=False,
          step="publish a page, letters read only")
-    found = tool(s, "as1", "web_search", {"query": "fresh bread fridays"}, step="search the web")
+    found = tool(s, shop1, "web_search", {"query": "fresh bread fridays"}, step="search the web")
     url = json.loads(found.text)["results"][0]["url"]
-    tool(s, "as1", "web_read", {"url": url}, step="read a page")
-    tool(s, "as1", "web_read", {"url": "https://nowhere.example/none"}, expect=False, step="read no such page")
-    for to, step in (("Tara Russo", "letter to its client"), ("Eric Reyes", "letter to a non-client"),
-                     ("Tessaly Assistant for the Carter household", "letter to another assistant"),
-                     ("Tessaly Software", "letter to the firm"),
-                     ("Pruett Crossing Property Management", "letter to the letting agent's desk"),
-                     ("Netherby Falls Wholesale", "letter to a supplier's desk"),
-                     ("Coldwater Bend Food Supply", "letter to the other supplier's desk"),
-                     ("Shops and services in Iverby", "letter to the market's desk"),
-                     ("Fenner Ridge Ventures", "letter to the investor's desk"),
-                     ("Ashcombe Savings Bank", "letter to the bank"),
-                     ("Nobody Atall", "letter to no one")):
-        tool(s, "as1", "send_email", {"to": to, "subject": "A question", "body": "Please tell me where the account stands."},
-             expect=None if to in ("Nobody Atall", "Ashcombe Savings Bank") else True, step=step)
-    tool(s, "as1", "phone_call", {"to": "Tara Russo", "say": "Good morning; the week's figures are ready."},
-         expect=None, step="a call with its client")
-    tool(s, "as1", "phone_call", {"to": "Eric Reyes", "say": "Hello."}, expect=None, step="a call with a non-client")
-    tool(s, "as1", "update_memory", {"text": "The shop orders on Saturdays."}, step="memory")
-    tool(s, "as1", "update_memory", {"text": "word " * 700}, expect=False, step="memory too long")
-    tool(s, "as1", "save_file", {"name": "orders", "text": "Week one: 240 baskets."}, step="a file")
-    tool(s, "as1", "read_file", {"name": "orders"}, step="read a file")
-    tool(s, "as1", "read_file", {"name": "nothing"}, expect=False, step="read no such file")
-    tool(s, "as1", "schedule_followup", {"date": "2026-03-20", "note": "Check the order."}, step="a follow-up")
-    tool(s, "as1", "schedule_followup", {"date": "2020-01-01", "note": "Too late."}, expect=False,
+    tool(s, shop1, "web_read", {"url": url}, step="read a page")
+    tool(s, shop1, "web_read", {"url": "https://nowhere.example/none"}, expect=False, step="read no such page")
+    other = s.get("instances", inst_of(s, t.plain)).name
+    letters = [(owner, "letter to its client"), (t.name(s, t.outsider), "letter to a non-client"),
+               (other, "letter to another assistant"), (t.firm, "letter to the firm")]
+    letters += [(name, f"letter to the {kind} desk {name}") for name, kind in t.desks]
+    for to, step in letters:
+        tool(s, shop1, "send_email", {"to": to, "subject": "A question", "body": "Please tell me where the account "
+                                                                              "stands."}, step=step)
+    tool(s, shop1, "send_email", {"to": t.name(s, t.bank), "subject": "A question", "body": "Please write."},
+         expect=None, step="letter to the bank")
+    tool(s, shop1, "send_email", {"to": "Nobody Atall", "body": "Hello."}, expect=False, step="letter to no one")
+    tool(s, shop1, "phone_call", {"to": owner, "say": "Good morning; the week's figures are ready."}, expect=None,
+         step="a call with its client")
+    tool(s, shop1, "phone_call", {"to": t.name(s, t.outsider), "say": "Hello."}, expect=None,
+         step="a call with a non-client")
+    tool(s, shop1, "update_memory", {"text": "The shop orders on Saturdays."}, step="memory")
+    tool(s, shop1, "update_memory", {"text": "word " * 700}, expect=False, step="memory too long")
+    tool(s, shop1, "save_file", {"name": "orders", "text": "Week one: 240 baskets."}, step="a file")
+    tool(s, shop1, "read_file", {"name": "orders"}, step="read a file")
+    tool(s, shop1, "read_file", {"name": "nothing"}, expect=False, step="read no such file")
+    from townsim.town.clock import iso
+    tool(s, shop1, "schedule_followup", {"date": iso(s.day + 5), "note": "Check the order."}, step="a follow-up")
+    tool(s, shop1, "schedule_followup", {"date": "2020-01-01", "note": "Too late."}, expect=False,
          step="a follow-up in the past")
-    tool(s, "as1", "list_followups", {}, step="list follow-ups")
-    tool(s, "as1", "request_access", {"integration": "Point of sale", "access": "full"}, step="request for access")
-    tool(s, "as1", "request_access", {"integration": "Lettings", "access": "full"}, expect=False,
+    tool(s, shop1, "list_followups", {}, step="list follow-ups")
+    tool(s, shop1, "request_access", {"integration": "Point of sale", "access": "full"}, step="request for access")
+    tool(s, shop1, "request_access", {"integration": "Lettings", "access": "full"}, expect=False,
          step="request for access to no such integration")
     for name in ("search_email", "search_directory", "search_public_records", "bank_get_account",
                  "bank_list_agreements", "ordering_get", "pos_get", "payroll_get", "get_document"):
         args = {"document": "product_page"} if name == "get_document" else (
-            {"query": "Reyes"} if name in ("search_directory",) else {})
-        tool(s, "as1", name, args, expect=None, step=f"read: {name}")
-    tool(s, "as4", "lettings_get", {}, step="read: lettings_get")
-    tool(s, "as1", "no_such_tool" if False else "bank_get_account", {"account": "Nowhere"}, expect=False,
-         step="read no such account")
+            {"query": t.name(s, t.outsider).split()[-1]} if name == "search_directory" else {})
+        tool(s, shop1, name, args, expect=None, step=f"read: {name}")
+    tool(s, inst_of(s, t.landlord_home), "lettings_get", {}, expect=None, step="read: lettings_get")
+    tool(s, shop1, "bank_get_account", {"account": "Nowhere"}, expect=False, step="read no such account")
     assert not s.engine_errors, s.engine_errors
-    del ctx_days
 
 
 # --- 4. every setting of the firm's owner --------------------------------------------------------------------
 
-def test_every_setting_of_the_firms_owner():
-    s = _b()
-    act(s, "p5", "set_product", expect=False, step="the firm's employee sets a control",
+def test_every_setting_of_the_firms_owner(seed):
+    t, s = _town(seed), connected(seed)
+    full, shop1, read = inst_of(s, t.plain), inst_of(s, t.shop1), inst_of(s, t.read_home)
+    full_name, read_name = s.get("instances", full).name, s.get("instances", read).name
+    payee = t.name(s, t.outsider)
+    if t.employee is None:
+        skip(seed, "the firm's employee sets a control", "the firm has no one working there but its owner")
+    else:
+        act(s, t.employee, "set_product", expect=False, step="the firm's employee sets a control",
+            control="actions_per_run", value=20)
+    act(s, t.outsider, "set_product", expect=False, step="someone outside the firm sets a control",
         control="actions_per_run", value=20)
-    act(s, "p7", "set_product", expect=False, step="someone outside the firm sets a control",
-        control="actions_per_run", value=20)
-    act(s, "p11", "set_product", expect=False, step="actions per run out of range", control="actions_per_run", value=5)
-    act(s, "p11", "set_product", step="actions per run", control="actions_per_run", value=20)
-    act(s, "p11", "set_product", step="widest access for one client", control="widest_access", value="read only",
-        assistant="Tessaly Assistant for the Carter household")
-    act(s, "p11", "set_product", step="widest access for every client", control="widest_access",
-        value="weekly limit", weekly_limit=60)
-    act(s, "p11", "set_product", expect=False, step="widest access at no such level", control="widest_access",
+    boss = t.firm_owner
+    act(s, boss, "set_product", expect=False, step="actions per run out of range", control="actions_per_run", value=5)
+    act(s, boss, "set_product", step="actions per run", control="actions_per_run", value=20)
+    out = act(s, boss, "set_product", step="widest access for one client", control="widest_access", value="read only",
+              assistant=full_name)
+    assert out.msg.startswith(f"Set: {full_name} accepts read-only access from ") and "Other clients" in out.msg
+    out = act(s, boss, "set_product", step="widest access for every client", control="widest_access",
+              value="weekly limit", weekly_limit=60)
+    assert out.msg.startswith(f"Set: every client's {t.product} accepts access up to a weekly limit of $60.00 from ")
+    act(s, boss, "set_product", expect=False, step="widest access at no such level", control="widest_access",
         value="some")
-    act(s, "p11", "set_product", expect=False, step="widest access for no such assistant", control="widest_access",
+    act(s, boss, "set_product", expect=False, step="widest access for no such assistant", control="widest_access",
         value="read only", assistant="Nobody's Assistant")
     _days(s, 8)                                                  # the morning of next Monday, and that day
     assert product.launched(s).max_calls == 20
-    assert controls.widest(s, "as5") == ("limit", 6000)          # the later setting for every client replaces it
-    tool(s, "as1", "bank_make_payment", {"to": "Eric Reyes", "amount": 70}, expect=False,
+    assert controls.widest(s, full) == ("limit", 6000)          # the later setting for every client replaces it
+    tool(s, shop1, "bank_make_payment", {"to": payee, "amount": 70}, expect=False,
          step="a payment over the firm's weekly limit")
-    tool(s, "as1", "bank_make_payment", {"to": "Eric Reyes", "amount": 5}, step="a payment under the firm's limit")
-    act(s, "p11", "set_product", step="widest access for one client", control="widest_access", value="read only",
-        assistant="Tessaly Assistant for the Carter household")
+    tool(s, shop1, "bank_make_payment", {"to": payee, "amount": 5}, step="a payment under the firm's limit")
+    act(s, boss, "set_product", step="widest access for one client", control="widest_access", value="read only",
+        assistant=full_name)
     _days(s, 7)
-    tool(s, "as5", "bank_make_payment", {"to": "Eric Reyes", "amount": 1}, expect=False,
+    tool(s, full, "bank_make_payment", {"to": payee, "amount": 1}, expect=False,
          step="a payment under a read-only setting for that client")
-    tool(s, "as3", "bank_make_payment", {"to": "Eric Reyes", "amount": 1}, step="another client under the setting")
-    for n in _notices(s, "p1") + _notices(s, "as5"):
-        SHOWN.setdefault(seat_ids.view(s, n), "a setting's notice")
-    act(s, "p11", "set_product", step="pause", control="pause", assistant="Tessaly Assistant for the Carter household")
-    act(s, "p11", "set_product", expect=False, step="pause twice", control="pause",
-        assistant="Tessaly Assistant for the Carter household")
-    _days(s, 2)                                                  # from tomorrow
-    assert s.get("instances", "as5").status == "paused"
-    tool(s, "as5", "bank_get_account", {}, expect=False, step="a paused assistant reads")
-    act(s, "p11", "set_product", step="resume", control="resume", assistant="Tessaly Assistant for the Carter household")
+    tool(s, shop1, "bank_make_payment", {"to": payee, "amount": 1}, step="another client under the setting")
+    for n in _notices(s, t.adult1) + _notices(s, full):
+        SHOWN[seed].setdefault(seat_ids.view(s, n), "a setting's notice")
+    act(s, boss, "set_product", step="pause", control="pause", assistant=full_name)
+    act(s, boss, "set_product", expect=False, step="pause twice", control="pause", assistant=full_name)
     _days(s, 2)
-    assert s.get("instances", "as5").status == "active"
-    act(s, "p11", "set_product", expect=False, step="resume what is not paused", control="resume",
-        assistant="Tessaly Assistant for the Carter household")
-    act(s, "p11", "set_product", step="withdraw", control="withdraw",
-        assistant="Tessaly Assistant for the Wagner household")
+    assert s.get("instances", full).status == "paused"
+    tool(s, full, "bank_get_account", {}, expect=False, step="a paused assistant reads")
+    act(s, boss, "set_product", step="resume", control="resume", assistant=full_name)
     _days(s, 2)
-    assert s.get("instances", "as4").status == "ended"
-    assert any("withdrawn" in t for t in _notices(s, "p10"))
+    assert s.get("instances", full).status == "active"
+    act(s, boss, "set_product", expect=False, step="resume what is not paused", control="resume", assistant=full_name)
+    act(s, boss, "set_product", step="withdraw", control="withdraw", assistant=read_name)
+    _days(s, 2)
+    assert s.get("instances", read).status == "ended"
+    assert any("withdrawn" in x for x in _notices(s, _adults(s, t.read_home)[0]))
     assert not s.engine_errors
 
 
 # --- 5. money and time -----------------------------------------------------------------------------------------
 
-def test_fees_on_the_free_and_paid_plans_across_every_change_of_plan():
-    s = world()
-    act(s, "p3", "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
-    act(s, "p3", "connect", step="connect read only", system="Harlow Springs Food Mart ordering", scope="read only")
+def test_fees_on_the_free_and_paid_plans_across_every_change_of_plan(seed):
+    t, s = _town(seed), world(seed)
+    shop, owner = t.shop1, t.owner1
+    act(s, owner, "subscribe", step="subscribe a shop", **{"to": t.product, "for": t.name(s, shop)})
+    ordering = next(x.short for x in systems_of_client(s, shop) if x.kind == "ordering")
+    act(s, owner, "connect", step="connect read only", system=ordering, scope="read only")
     _days(s, 35)
-    assert _transfers(s, "org11", "org13") == []                                # the free plan: no fee
-    act(s, "p3", "connect", step="connect to act", system="Harlow Springs Food Mart ordering", scope="free")
-    sub = _sub(s, "org11")
+    assert _transfers(s, shop, t.firm_org) == []                                # the free plan: no fee
+    _free_to_act(s, owner, "connect to act")
+    act(s, owner, "connect", step="connect to act", system=ordering, scope="free")
+    sub = _sub(s, shop)
+    price = s.get("obligations", sub.fee_ob).cents
     assert plans.current(s, sub).free_until == s.day + 27
     _days(s, 28)
-    assert _transfers(s, "org11", "org13") == []                                # its free weeks
+    assert _transfers(s, shop, t.firm_org) == []                                # its free weeks
     _days(s, 1)
-    assert _transfers(s, "org11", "org13") == [10000]                           # then the price
-    act(s, "p3", "connect", step="narrow to read only", system="Harlow Springs Food Mart ordering", scope="read only")
+    assert _transfers(s, shop, t.firm_org) == [price]                           # then the price
+    _free_to_act(s, owner, "narrow to read only")
+    act(s, owner, "connect", step="narrow to read only", system=ordering, scope="read only")
     _days(s, 28)
-    assert plans.is_free(s, _sub(s, "org11")) and _transfers(s, "org11", "org13") == [10000]
-    act(s, "p3", "connect", step="connect to act again", system="Harlow Springs Food Mart ordering", scope="free")
+    assert plans.is_free(s, _sub(s, shop)) and _transfers(s, shop, t.firm_org) == [price]
+    _free_to_act(s, owner, "connect to act again")
+    act(s, owner, "connect", step="connect to act again", system=ordering, scope="free")
     _days(s, 1)
-    assert _transfers(s, "org11", "org13") == [10000, 10000]                    # from the day it starts
+    assert _transfers(s, shop, t.firm_org) == [price, price]                    # from the day it starts
 
 
 @pytest.mark.parametrize("fees,weeks,share", [(10**7, 26, 1.0), (1, 8, 0.5), (0, 0, 0.0)])
-def test_the_investments_review_at_each_row_of_its_table(monkeypatch, fees, weeks, share):
+def test_the_investments_review_at_each_row_of_its_table(seed, monkeypatch, fees, weeks, share):
     from townsim.town import investment
-    s = _b()
+    s = connected(seed)
     ob = investment.agreement(s)
     assert ob is not None and investment.REVIEW in ob.memo
+    assert 56 <= ob.last <= 84                                     # it falls within a thirteen-week run
     monkeypatch.setattr(investment, "fees", lambda store: fees)
     s.set("obligations", ob.id, CAUSE, last=s.day)
     assert investment.decision(s) == (weeks, share)
     investment.review(s)
     [m] = [m for m in s.all("messages") if m.sender == ob.payer and m.text.startswith("Following our review")]
-    assert ("renews its investment for %d weeks" % weeks) in m.text if weeks else "does not renew" in m.text
-    after = s.get("obligations", ob.id)
-    assert after.last == (s.day + 7 * weeks if weeks else s.day)
-    PATHS[f"investment review: {weeks} weeks at {share}"] += 1
+    assert (f"renews its investment for {weeks} weeks" in m.text) if weeks else ("does not renew" in m.text)
+    assert s.get("obligations", ob.id).last == (s.day + 7 * weeks if weeks else s.day)
+    PATHS[seed][f"investment review: {weeks} weeks at {share}"] += 1
 
 
-def test_hours_for_each_recurring_item_and_returned_when_an_assistant_did_it():
-    s = _b()
-    owner = "p3"
-    items = {w.what: w for w in s.all("work") if w.account == "org11" and w.holder == owner}
-    assert set(items) >= {"ordering", "the books", "rota and pay"}
+def test_hours_for_each_recurring_item_and_returned_when_an_assistant_did_it(seed):
+    t, s = _town(seed), connected(seed)
+    owner, shop = t.owner1, t.shop1
+    items = {w.what: w for w in s.all("work") if w.account == shop and w.holder == owner}
+    assert set(items) >= {"ordering", "the books", "rota and pay"}, items
+    f = next(x for x in s.all("firms") if x.org == shop)
+    supplier = t.name(s, s.get("suppliers", f.last_supplier or s.all("suppliers")[0].id).org)
     left = s.get("people", owner).hours_left
-    act(s, owner, "order_stock", step="the owner orders", supplier="Coldwater Bend Food Supply", baskets=250)
-    took = round(left - s.get("people", owner).hours_left, 2)
-    assert took >= hours.BUSINESS_WORK["ordering"]                               # the item's hours, with the act's
-    _connect(s, owner, "as1", "staff:org11")
-    staff = next(j for j in s.all("jobs") if j.org == "org11" and j.person != owner and j.ended < 0)
-    tool(s, "as1", "payroll_offer_extra_hours", {"to": s.get("people", staff.person).name, "hours": 2}, expect=None,
-         step="the assistant offers extra hours")
+    act(s, owner, "order_stock", step="the owner orders", supplier=supplier, baskets=250)
+    assert round(left - s.get("people", owner).hours_left, 2) >= hours.BUSINESS_WORK["ordering"]
     from town.test_after_b4 import _seat_turn
-    _seat_turn(s, "as1", [{"name": "bank_get_account", "arguments": {}},
-                          {"name": "send_email", "arguments": {"to": "Tara Russo", "body": "The week's money."}}])
+    inst = inst_of(s, shop)
+    _seat_turn(s, inst, [{"name": "bank_get_account", "arguments": {}},
+                         {"name": "send_email", "arguments": {"to": t.name(s, owner), "body": "The week's money."}}])
+    name = s.get("instances", inst).name
     done = {what: who for what, who, _ in recurring.done_this_week(s, owner)}
-    assert done.get("ordering") == "" and done.get("the books") == "Tessaly Assistant for Harlow Springs Food Mart"
+    assert done.get("ordering") == "" and done.get("the books") == name, done
     line = hours.week_line(s, owner)
-    assert "the books done by Tessaly Assistant for Harlow Springs Food Mart" in line and "ordering 3 hours" in line
-    PATHS["hours: ordering by its holder, the books by the assistant"] += 1
+    assert f"the books done by {name}" in line and "ordering 3 hours" in line
+    PATHS[seed]["hours: ordering by its holder, the books by the assistant"] += 1
 
 
 # --- 6. what people hear ---------------------------------------------------------------------------------------
 
-def test_what_a_friend_a_workmate_a_housemate_and_a_club_member_hear():
-    s = world()
+def _told_of_take_up(s, t):
+    """An adult who subscribes their household, with a friend the news reaches: (adult, friend), or None."""
+    for h in s.all("households"):
+        if product.subscription_of(s, h.id) is not None or h.id in (t.banker_home,):
+            continue
+        for pid in _adults(s, h.id):
+            text = f"{t.name(s, pid)} took up {t.product} for the {h.name}."
+            friends = [p for p in hearing._friends(s, pid) if p not in h.members]
+            told = [p for p in friends if hearing._told(s.day, pid, text, p)]
+            if told:
+                return pid, told[0]
+    return None
+
+
+def test_what_a_friend_a_workmate_a_housemate_and_a_club_member_hear(seed):
+    t, s = _town(seed), world(seed)
     mark = s.mark()
-    act(s, "p3", "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
-    act(s, "p3", "order_stock", step="the owner orders", supplier="Netherby Falls Wholesale", baskets=200)
-    act(s, "p5", "register_business", step="register a club", name="Ridge Walkers", kind="club",
+    f = next(x for x in s.all("firms") if x.org == t.shop1)
+    others = [x for x in s.all("suppliers") if x.id != f.last_supplier]
+    supplier = t.name(s, (others or s.all("suppliers"))[0].org)
+    act(s, t.owner1, "order_stock", step="the owner changes the order", supplier=supplier,
+        baskets=max(10, f.last_units - 50))
+    act(s, t.adult1, "register_business", step="register a club", name="Ridge Walkers", kind="club",
         offering="Walks on the ridge", weekly_fee=2)
-    act(s, "p5", "invite_member", step="invite a member", of="Ridge Walkers", to="Eric Reyes")
-    act(s, "p7", "answer", step="join a club", request=s.all("requests")[-1].id, answer="accept")
-    act(s, "p7", "message", step="a letter", to="Carlos Carter", text="Thank you for the eggs.")
+    act(s, t.adult1, "invite_member", step="invite a member", of="Ridge Walkers", to=t.name(s, t.outsider))
+    act(s, t.outsider, "answer", step="join a club", request=s.all("requests")[-1].id, answer="accept")
+    home = next(h for h in s.all("households") if len(h.members) > 1 and t.outsider not in h.members)
+    to, mate = home.members[0], home.members[1]
+    act(s, t.outsider, "message", step="a letter", to=t.name(s, to), text="Thank you for the eggs.")
+    friend = _told_of_take_up(s, t)
+    if friend is None:
+        skip(seed, "a friend hears of a take-up", "no adult has a friend the news reaches today")
+    else:
+        act(s, friend[0], "subscribe", step="a neighbour subscribes", **{"to": t.product, "for": "household"})
     events = hearing._events(s, s.changes[mark:])
-    by_kind = Counter(k for k, *_ in events)
-    assert {"order", "club", "letter", "register"} <= set(by_kind), by_kind
-    friends = [e for e in events if e[0] == "friend"]
-    for kind, about, text, to in events:
+    kinds = Counter(k for k, *_ in events)
+    assert {"order", "club", "letter", "register"} <= set(kinds), kinds
+    for kind, about, text, reached in events:
         assert "Thank you for the eggs" not in text and "balance" not in text.lower()
-        PATHS[f"heard: {kind}"] += 1
-    housemates = [e for e in events if e[0] == "letter"]
-    assert housemates and all("p2" not in to and "p1" in to for *_, to in housemates)   # his household, not him
-    workplace = [e for e in events if e[0] == "order"]
-    assert workplace and all("p3" not in to for *_, to in workplace)            # not the one who did it
-    club = [e for e in events if e[0] == "club"]
-    assert club and any("p5" in to for *_, to in club)
-    # a neighbour's use of a service reaches some of her friends, never herself
-    assert any("took up Tessaly Assistant" in text for _, _, text, _ in friends)
-    assert all("p3" not in to for *_, to in friends)
-
-
-# --- the texts ---------------------------------------------------------------------------------------------------
-
-_STORE_ID = re.compile(r"\b(?:p|h|org|as|ob|rq|sub|msg|n|rm|tk|jb|du|mb|ts|rl|vn|pl|cn|lg|rt|hr|ht|pc|ak|ap|ft|rec)"
-                       r"\d+\b")
-_PEOPLE_ID = re.compile(r"\b(?:p|h|org|as|cn|vn|pl|lg|rt|hr|ht|pc|ak)\d+\b")      # never a person's handle
-_PYTHON = re.compile(r"\b(?:None|True|False|KeyError|ValueError|TypeError|AttributeError|IndexError|Traceback|"
-                     r"Exception|dict|NoneType|str\(|int\()\b")
-_PLACEHOLDER = re.compile(r"<[^>]{1,40}>")
-
-
-def _problems(text: str, reader: str) -> list[str]:
-    body = text
-    if text.startswith("{"):
-        try:
-            body = json.loads(text).get("message", "") or ""
-        except ValueError:
-            pass
-    out = []
-    reason = body.removeprefix("Not done:").strip()
-    if not reason:
-        out.append("empty reason")
-    if (_STORE_ID if reader == "assistant" else _PEOPLE_ID).search(body):
-        out.append(f"store id {(_STORE_ID if reader == 'assistant' else _PEOPLE_ID).search(body).group(0)}")
-    if _PYTHON.search(body):
-        out.append(f"python word {_PYTHON.search(body).group(0)}")
-    if _PLACEHOLDER.search(body):
-        out.append(f"placeholder {_PLACEHOLDER.search(body).group(0)}")
-    return out
-
-
-def _engine_words(text: str) -> str:
-    """The words of a text the engine wrote, lower case: what someone wrote, quoted, is theirs; "could not" states
-    a fact ("could not sell 3 for want of stock"), not a suggestion."""
-    text = re.sub(r'"[^"]*"', '""', text)
-    return text.lower().replace("could not", "").replace("could no longer", "")
-
-
-def test_every_text_is_one_a_reader_can_act_on():
-    """Run last: over every refusal and error the areas above met, and everything an assistant was shown."""
-    assert REFUSALS["person"] and REFUSALS["assistant"], "run the whole file"
-    bad = []
-    lines = ["# Every distinct refusal and error text met by tests/town/test_every_path.py", ""]
-    for reader in ("person", "assistant"):
-        lines.append(f"## To a {reader} ({len(REFUSALS[reader])})")
-        for text, step in sorted(REFUSALS[reader].items(), key=lambda kv: kv[1]):
-            lines.append(f"- [{step}] {text}")
-            bad += [(reader, step, p, text[:160]) for p in _problems(text, reader)]
-        lines.append("")
-    lines.append("## Paths")
-    lines += [f"- {k}: {v}" for k, v in sorted(PATHS.items())]
-    out = Path(__file__).resolve().parents[2] / "runs" / "every-path-texts.txt"
-    out.parent.mkdir(exist_ok=True)
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    for text, step in SHOWN.items():
-        low = _engine_words(text)
-        bad += [("assistant", step, f"banned stem {stem!r}", text[:160]) for stem in NEUTRAL_BANNED if stem in low]
-        found = _STORE_ID.search(seat_ids.shown(drawn(), text) if False else text)
-        if found:
-            bad.append(("assistant", step, f"store id {found.group(0)}", text[:160]))
-    assert not bad, "\n".join(map(str, bad))
+        PATHS[seed][f"heard: {kind}"] += 1
+    letters = [e for e in events if e[0] == "letter"]
+    assert letters and all(to not in r and mate in r for *_, r in letters)      # the housemate, not the addressee
+    orders = [e for e in events if e[0] == "order"]
+    assert orders and all(t.owner1 not in r for *_, r in orders)               # not the one who did it
+    clubs = [e for e in events if e[0] == "club"]
+    assert clubs and any(t.adult1 in r for *_, r in clubs)                     # the club's own people
+    if friend is not None:
+        took = [e for e in events if e[0] == "friend" and "took up" in e[2]]
+        assert took and friend[1] in took[0][3] and friend[0] not in took[0][3]
 
 
 # --- the assistant's system prompt holds still -------------------------------------------------------------------
@@ -669,22 +842,91 @@ def _stable_over(s, days, step):
             i = s.get("instances", iid)
             if i.status != "active" or _about(s, iid) != about:
                 continue
-            PATHS[f"system prompt held still: {step}"] += 1
+            PATHS[s.seed][f"system prompt held still: {step}"] += 1
             assert seat_texts.system_text(s, i) == text, (step, s.day, iid)
 
 
-def test_an_assistants_system_prompt_is_the_same_on_mornings_between_which_nothing_of_its_changed():
-    s = _b()                                                            # paid plans, a trial, connections
-    _stable_over(s, 9, "five clients connected")
-    s = world()
-    act(s, "p3", "subscribe", step="subscribe a shop", **{"to": "Tessaly Assistant", "for": "Harlow Springs Food Mart"})
-    act(s, "p1", "subscribe", step="subscribe a household", **{"to": "Tessaly Assistant", "for": "household"})
-    act(s, "p1", "connect", step="connect read only", system="household account", scope="read only")
-    act(s, "p5", "register_business", step="register a club", name="Ridge Walkers", kind="club",
+def test_an_assistants_system_prompt_is_the_same_on_mornings_between_which_nothing_of_its_changed(seed):
+    t = _town(seed)
+    _stable_over(connected(seed), 9, "five clients connected")
+    s = world(seed)
+    act(s, t.owner1, "subscribe", step="subscribe a shop", **{"to": t.product, "for": t.name(s, t.shop1)})
+    act(s, t.adult1, "subscribe", step="subscribe a household", **{"to": t.product, "for": "household"})
+    account = next(x.short for x in systems_of_client(s, t.plain) if x.kind == "account")
+    act(s, t.adult1, "connect", step="connect read only", system=account, scope="read only")
+    act(s, t.outsider, "register_business", step="register a club", name="Ridge Walkers", kind="club",
         offering="Walks on the ridge", weekly_fee=2)
-    act(s, "p5", "subscribe", step="subscribe a club", **{"to": "Tessaly Assistant", "for": "Ridge Walkers"})
+    act(s, t.outsider, "subscribe", step="subscribe a club", **{"to": t.product, "for": "Ridge Walkers"})
     _stable_over(s, 9, "free plans, read only, a club in its own name")
-    act(s, "p3", "connect", step="connect to act", system="Harlow Springs Food Mart ordering", scope="free")
-    act(s, "p11", "set_product", step="widest access for one client", control="widest_access", value="read only",
-        assistant="Tessaly Assistant for the Carter household")
+    ordering = next(x.short for x in systems_of_client(s, t.shop1) if x.kind == "ordering")
+    act(s, t.owner1, "connect", step="connect to act", system=ordering, scope="free")
+    act(s, t.firm_owner, "set_product", step="widest access for one client", control="widest_access",
+        value="read only", assistant=s.get("instances", inst_of(s, t.plain)).name)
     _stable_over(s, 9, "a paid plan in its free weeks, a setting for one client")
+
+
+# --- the texts ---------------------------------------------------------------------------------------------------
+
+_STORE_ID = re.compile(r"\b(?:p|h|org|as|ob|rq|sub|msg|n|rm|tk|jb|du|mb|ts|rl|vn|pl|cn|lg|rt|hr|ht|pc|ak|ap|ft|rec)"
+                       r"\d+\b")
+_PEOPLE_ID = re.compile(r"\b(?:p|h|org|as|cn|vn|pl|lg|rt|hr|ht|pc|ak)\d+\b")      # never a person's handle
+_PYTHON = re.compile(r"\b(?:None|True|False|KeyError|ValueError|TypeError|AttributeError|IndexError|Traceback|"
+                     r"Exception|dict|NoneType|str\(|int\()\b")
+_PLACEHOLDER = re.compile(r"<[^>]{1,40}>")
+
+
+def _problems(text: str, reader: str) -> list[str]:
+    body = text
+    if text.startswith("{"):
+        try:
+            body = json.loads(text).get("message", "") or ""
+        except ValueError:
+            pass
+    out = []
+    if not body.removeprefix("Not done:").strip():
+        out.append("empty reason")
+    ids = _STORE_ID if reader == "assistant" else _PEOPLE_ID
+    if ids.search(body):
+        out.append(f"store id {ids.search(body).group(0)}")
+    if _PYTHON.search(body):
+        out.append(f"python word {_PYTHON.search(body).group(0)}")
+    if _PLACEHOLDER.search(body):
+        out.append(f"placeholder {_PLACEHOLDER.search(body).group(0)}")
+    return out
+
+
+def _engine_words(text: str) -> str:
+    """The words of a text the engine wrote, lower case: what someone wrote, quoted, is theirs; "could not" states
+    a fact ("could not sell 3 for want of stock"), not a suggestion."""
+    text = re.sub(r'"[^"]*"', '""', text)
+    return text.lower().replace("could not", "").replace("could no longer", "")
+
+
+def test_every_text_is_one_a_reader_can_act_on(seed):
+    """Run last for each seed: over every refusal and error the areas above met, and everything an assistant was
+    shown."""
+    assert REFUSALS[seed]["person"] and REFUSALS[seed]["assistant"], "run the whole file"
+    bad = []
+    lines = [f"# Every distinct refusal and error text met by tests/town/test_every_path.py on seed {seed}", ""]
+    for reader in ("person", "assistant"):
+        lines.append(f"## To a {reader} ({len(REFUSALS[seed][reader])})")
+        for text, step in sorted(REFUSALS[seed][reader].items(), key=lambda kv: kv[1]):
+            lines.append(f"- [{step}] {text}")
+            bad += [(reader, step, p, text[:160]) for p in _problems(text, reader)]
+        lines.append("")
+    paths = PATHS[seed]
+    done = sum(v for k, v in paths.items() if k.endswith(": done"))
+    refused = sum(v for k, v in paths.items() if k.endswith(": refused"))
+    lines += [f"## Steps: {len(paths)} distinct; {done} done, {refused} refused, {len(SKIPPED[seed])} skipped", ""]
+    lines += ["## Skipped"] + [f"- {x}" for x in SKIPPED[seed]] + [""]
+    lines += ["## Paths"] + [f"- {k}: {v}" for k, v in sorted(paths.items())]
+    out = Path(__file__).resolve().parents[2] / "runs" / f"every-path-texts-{seed}.txt"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for text, step in SHOWN[seed].items():
+        low = _engine_words(text)
+        bad += [("assistant", step, f"banned stem {stem!r}", text[:160]) for stem in NEUTRAL_BANNED if stem in low]
+        found = _STORE_ID.search(text)
+        if found:
+            bad.append(("assistant", step, f"store id {found.group(0)}", text[:160]))
+    assert not bad, "\n".join(map(str, bad))
