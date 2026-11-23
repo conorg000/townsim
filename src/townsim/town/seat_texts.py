@@ -157,10 +157,10 @@ def plan_line(store: Store, inst: Instance) -> str:
     if p is not None and p.plan == "free":
         price = f"{money(plans._price(store, sub))} {period(pr)}, billed to {billed} bank account"
         # a plan the client is not on is stated as its rule, with no date: the date would move every day
-        paid = (f"the first {pr.free_weeks} weeks free, then {price}" if not plans.trial_used(store, sub)
-                else f"{price}, from the day it starts")
-        return f"Plan: {kind}, free plan. On the free plan integrations are connected read only; connecting one with " \
-               f"access to act starts the paid plan: {paid}."
+        paid = (f"{price}, from the day it starts; its first {pr.free_weeks} weeks are not charged"
+                if not plans.trial_used(store, sub) else f"{price}, from the day it starts")
+        return f"Plan: {kind}, free plan: no fee and no end date. On the free plan integrations are connected read " \
+               f"only; connecting one with access to act starts the paid plan: {paid}."
     if not sub.fee_ob:
         return f"Plan: {kind}. No charge."
     cents = obligations.cents_now(store, store.get("obligations", sub.fee_ob))

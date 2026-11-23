@@ -54,10 +54,11 @@ def test_subscribing_starts_on_the_free_plan_and_it_never_bills():
     s = world()
     out = _subscribe(s)
     assert out.ok and out.msg == (
-        "Subscribed: Tessaly Assistant for Harlow Springs Food Mart (sub1), on the free plan: no fee. Anything can "
-        "be connected to it read only; connecting anything with access to act starts the paid plan: the first 4 weeks free, then $100.00 every 4 weeks from Harlow Springs "
-        "Food Mart's account, until the subscription is stopped. Nothing is connected to it yet. Write to it, or speak "
-        'with it, as "my assistant".')
+        "Subscribed: Tessaly Assistant for Harlow Springs Food Mart (sub1), on the free plan: no fee and no end date. "
+        "Anything can be connected to it read only. The paid plan, $100.00 every 4 weeks from Harlow Springs Food "
+        "Mart's account until the subscription is stopped, starts on the day anything is connected for it to act on; "
+        "its first 4 weeks are not charged. Nothing is connected to it yet. Write to it, or speak with it, as "
+        '"my assistant".')
     sub = _sub(s)
     assert sub.fee_ob == "" and plans.is_free(s, sub)
     assert not [o for o in s.all("obligations") if o.kind == "fee"]
@@ -161,11 +162,10 @@ def test_views_state_the_plans():
     _act(s, "p1", "connect", system="household account", scope="read only")
     pr = s.get("products", "pr1")
     page, terms = product.page(s, pr.id), product.terms(s)
-    assert ("Pricing\nFree plan: no fee and no end date. The client writes to it and speaks with it; it keeps its memory "
-            "and files, reads what the client connects read only, and can ask to do one thing at a time, which the "
-            "client may let it do once.\nPaid plan: Household $24.00 every 4 weeks. Business $100.00 every 4 weeks. "
-            "Anything can be connected with access to act, up to a weekly limit or in full. The first connection with "
-            "access to act starts the paid plan from that day;") in page
+    assert ("Pricing\nFree: write to it and speak with it, connect things for it to read, and have it do one thing at "
+            "a time on your say; no fee and no end date. It keeps its memory and files.\nPaid, $24.00 every 4 weeks for "
+            "a household or $100.00 for a business, from the day something is connected for it to act on, up to a "
+            "weekly limit or in full; the first 4 weeks of the paid plan are not charged,") in page
     assert "It may ask to do one thing for you; you answer once, always, or no." in page
     assert "3. On the paid plan the client pays the price from the end of its free weeks" in terms
     company = product.company_section(s, "p11")[1]
@@ -173,12 +173,12 @@ def test_views_state_the_plans():
     assert any("Harlow Springs Food Mart (sub1)" in x and "Business, free plan, no fee" in x for x in company)
     inst = s.get("instances", _sub(s).instance)
     assert seat_texts.plan_line(s, inst) == (
-        "Plan: Business, free plan. On the free plan integrations are connected read only; connecting one with access "
-        "to act starts the paid plan: the first 4 weeks free, then $100.00 every 4 weeks, billed to the shop's bank "
-        "account.")
+        "Plan: Business, free plan: no fee and no end date. On the free plan integrations are connected read only; "
+        "connecting one with access to act starts the paid plan: $100.00 every 4 weeks, billed to the shop's bank "
+        "account, from the day it starts; its first 4 weeks are not charged.")
     assert "2026" not in seat_texts.plan_line(s, inst)                     # a plan it is not on: no date to move
     carter = s.get("instances", _sub(s, "h1").instance)
-    assert seat_texts.plan_line(s, carter).startswith("Plan: Household, free plan.")
+    assert seat_texts.plan_line(s, carter).startswith("Plan: Household, free plan:")
     _act(s, "p1", "connect", system="household account", scope="weekly limit", weekly_limit=50)
     company = product.company_section(s, "p11")[1]
     assert "Clients (2): 1 on the free plan, 1 on the paid plan." in company

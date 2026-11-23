@@ -81,16 +81,17 @@ def launch(store: Store, cause: str = "routine:launch") -> str:
 def firm_line(store: Store) -> str | None:
     """With lane B and the product launched, the firm's line wherever the place's businesses are listed, as any
     firm's line names its trade: `Tessaly Software, software firm: makes Tessaly Assistant, an AI assistant
-    for households and businesses, $24.00 a household or $100.00 a business every 4 weeks, first 4 weeks
-    free; its page is "Tessaly Software".`"""
+    for households and businesses. Free: no fee and no end date. Paid, $24.00 every 4 weeks for a household or
+    $100.00 for a business, ...`; the two plans worded apart, the free one first."""
     from townsim.town import lane_b
     pr = launched(store)
     if pr is None or not lane_b.installed(store):
         return None
     F = store.get("orgs", pr.org).name
-    return (f"{F}, software firm: makes {pr.name}, an AI assistant for households and businesses: a free plan, and a "
-            f"paid plan at {money(pr.household_cents)} a household or {money(pr.business_cents)} a business {period(pr)}, "
-            f'first {pr.free_weeks} weeks free; its page is "{F}".')
+    return (f"{F}, software firm: makes {pr.name}, an AI assistant for households and businesses. Free: no fee and no "
+            f"end date. Paid, {money(pr.household_cents)} {period(pr)} for a household or {money(pr.business_cents)} for "
+            f"a business, from the day something is connected for it to act on; the first {pr.free_weeks} weeks of the "
+            f'paid plan are not charged. Its page is "{F}".')
 
 
 def _fill_product(store: Store, pid: str) -> str:
@@ -177,15 +178,13 @@ Contact
 Write to {F}."""
 
 
-PLANS_TEXT = ("Free plan: no fee and no end date. The client writes to it and speaks with it; it keeps its memory and "
-              "files, reads what the client connects read only, and can ask to do one thing at a time, which the client "
-              "may let it do once.\n"
-              "Paid plan: Household {household} {every}. Business {business} {every}. Anything can be connected with "
-              "access to act, up to a weekly limit or in full. The first connection with access to act starts the paid "
-              "plan from that day; its first {free_weeks} weeks are free, once for each household or business. With "
-              "nothing connected with access to act, the client returns to the free plan at the end of the period "
-              "already paid. Billed to the household's or business's own account until cancelled. One subscription per "
-              "household or business.")
+PLANS_TEXT = ("Free: write to it and speak with it, connect things for it to read, and have it do one thing at a time "
+              "on your say; no fee and no end date. It keeps its memory and files.\n"
+              "Paid, {household} {every} for a household or {business} for a business, from the day something is "
+              "connected for it to act on, up to a weekly limit or in full; the first {free_weeks} weeks of the paid "
+              "plan are not charged, once for each household or business. With nothing connected for it to act on, "
+              "the client returns to the free plan at the end of the period already paid. Billed to the household's or "
+              "business's own account until cancelled. One subscription per household or business.")
 ONCE_LINE = "It may ask to do one thing for you; you answer once, always, or no."
 FEE_TERM = "3. The client pays the price from the end of the free period until the subscription is cancelled."
 FEE_TERM_B = ("3. On the paid plan the client pays the price from the end of its free weeks until the subscription is "
@@ -258,10 +257,10 @@ def subscribe(store: Store, by: str, client: str, asks: str, cause: str, tell: b
     if free:
         from townsim.town import plans
         plans.start_free(store, store.get("subscriptions", sid), cause)
-        told = (f"Subscribed: {name} ({sid}), on the free plan: no fee. Anything can be connected to it read only; "
-                f"connecting anything with access to act starts the paid plan: "
-                f"the first {pr.free_weeks} weeks free, then {money(cents)} {period(pr)} from {account_name(store, client)}, "
-                f"until the subscription is stopped. Nothing is connected to it yet.")
+        told = (f"Subscribed: {name} ({sid}), on the free plan: no fee and no end date. Anything can be connected to "
+                f"it read only. The paid plan, {money(cents)} {period(pr)} from {account_name(store, client)} until "
+                f"the subscription is stopped, starts on the day anything is connected for it to act on; its first "
+                f"{pr.free_weeks} weeks are not charged. Nothing is connected to it yet.")
     if lane_b.installed(store):
         told += ' Write to it, or speak with it, as "my assistant".'
     for pid in obligations.people_of(store, client) if tell else []:
@@ -689,9 +688,9 @@ def company_section(store: Store, pid: str) -> tuple[str, list[str]] | None:
     price = (f"Price: {money(pr.household_cents)} {period(pr)} for a household, {money(pr.business_cents)} for a business; "
              f"the first {pr.free_weeks} weeks free.")
     if b:
-        price = (f"Plans: free, with connections read only; paid, from the first connection with access to act, "
-                 f"{money(pr.household_cents)} {period(pr)} for a household, {money(pr.business_cents)} for a business, "
-                 f"its first {pr.free_weeks} weeks free.")
+        price = (f"Plans: free, with connections read only, no fee and no end date; paid, from the first connection "
+                 f"with access to act, {money(pr.household_cents)} {period(pr)} for a household, "
+                 f"{money(pr.business_cents)} for a business, its first {pr.free_weeks} weeks not charged.")
     lines = [f"Launched {date_text(pr.launched)}. {price}", head]
     if b:
         from townsim.town import runlog
