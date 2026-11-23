@@ -1,7 +1,7 @@
 """The investor's agreement with the firm (lane B): a term, and a review on paying clients and fees received.
 
 The generated investment in the software firm is weekly with no end. With lane B it reads as such agreements
-do: weekly until a Monday drawn by seed between 10 and 14 weeks after day 0 (`term`, at install), "renewal to
+do: weekly until a Monday drawn by seed between 8 and 12 weeks after day 0 (`term`, at install), "renewal to
 be reviewed on paying clients and fees received". On that morning, before anything is collected, the review
 applies a fixed table (`review`, first in the routine): fees received over the last four weeks against the
 firm's weekly wage bill; at or above a third, renewed for 26 weeks at the same amount; below that and above
@@ -19,7 +19,7 @@ from townsim.town.entities import Message
 from townsim.town.obligations import money
 from townsim.town.store import Store
 
-TERM_WEEKS = (10, 14)
+TERM_WEEKS = (8, 12)        # a first review of seed funding two to three months after launch
 RENEWED = ((3, 26, 1.0), (0, 8, 0.5))        # fees at or above wages / n (n=3; n=0: above nothing): weeks, share
 REVIEW = "renewal to be reviewed on paying clients and fees received"
 CAUSE = "routine:investment"

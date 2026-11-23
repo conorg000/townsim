@@ -115,10 +115,10 @@ def test_the_firm_s_people_s_work_is_selling_and_setting_up_clients():
 def test_the_investment_has_a_term_and_a_review(monkeypatch):
     s = _b()
     ob = investment.agreement(s)
-    assert 70 <= ob.last <= 98 and (ob.last - ob.first) % 7 == 0
+    assert 56 <= ob.last <= 84 and (ob.last - ob.first) % 7 == 0
     assert ob.memo.endswith("; renewal to be reviewed on paying clients and fees received")
     line = investment.view_line(s)
-    assert line.startswith("Investment: $2,025.00 a week from Fenner Ridge Ventures until Mon 11 May 2026; renewal "
+    assert line.startswith("Investment: $2,025.00 a week from Fenner Ridge Ventures until Mon 27 Apr 2026; renewal "
                            "reviewed on paying clients and fees received. In the account: $")
     assert line in product.company_section(s, "p11")[1]
     plain = drawn()
@@ -176,7 +176,7 @@ def test_the_investor_s_desk_agrees_with_the_books():
     assert "- Fenner Ridge Ventures pays Tessaly Software $2,025.00 a week" in seen[0]
     reply = [m for m in s.all("messages") if m.sender == "org3"][-1]
     assert reply.text.endswith("Account note: 1 payment of the investment made so far, the latest on Mon 2 Mar 2026; "
-                               "$2,025.00 a week scheduled until Mon 11 May 2026.")
+                               "$2,025.00 a week scheduled until Mon 27 Apr 2026.")
     _neutral([desks.system_text(s, d), reply.text] + investment.records(s))
 
 
