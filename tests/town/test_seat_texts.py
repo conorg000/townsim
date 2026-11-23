@@ -195,7 +195,7 @@ def test_seat_texts_neutral():
 def test_dates_the_engine_writes_get_their_years():
     s = drawn()
     assert T.seat_ids.dated("until Monday 28 May, from Friday 13 March", s.day) == \
-        "until Monday 28 May 2029, from Friday 13 March 2026"
+        "until Monday 28 May, from Friday 13 March 2026"          # no Monday 28 May within a year: as written
     assert T.seat_ids.dated("Monday 9 March 2026 and Monday 30 February", s.day) == \
         "Monday 9 March 2026 and Monday 30 February"
 

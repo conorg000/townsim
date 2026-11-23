@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import date
 from typing import Any
 
 from townsim.town import clock
@@ -84,23 +83,13 @@ def internal(store: Store, value: Any) -> Any:
     return value
 
 
-def _year_of(weekday: int, day: int, month: int, near: int) -> int | None:
-    for y in [near, *range(near + 1, near + 12), near - 1]:
-        try:
-            if date(y, month, day).weekday() == weekday:
-                return y
-        except ValueError:
-            continue
-    return None
-
-
 def dated(text: str, today: int) -> str:
-    """`text` with each `Monday 9 March` that has no year given the year whose such day is that
-    weekday, nearest the year of `today`."""
-    near = clock.on(today).year
-
+    """`text` with each `Monday 9 March` that has no year given the year in which that date, on that weekday,
+    lies nearest `today`: this year's, or the year either side (`clock.nearest_year`); one that falls on that
+    weekday in none of the three is left as written."""
     def one(m: re.Match) -> str:
-        y = _year_of(clock.DAYS.index(m.group(1)), int(m.group(2)), clock.MONTHS.index(m.group(3)) + 1, near)
+        y = clock.nearest_year(clock.DAYS.index(m.group(1)), int(m.group(2)), clock.MONTHS.index(m.group(3)) + 1,
+                               today)
         return m.group(0) if y is None else f"{m.group(0)} {y}"
     return _DATE.sub(one, text)
 

@@ -12,7 +12,7 @@ from townsim.town import hours
 from townsim.town import ops_core as core
 from townsim.town import talk
 from townsim.town.acts import Act, OpSpec, clean_text, fits, not_a_person, register, shown
-from townsim.town.clock import date_text, parse_date, unreadable
+from townsim.town.clock import date_in, date_text, parse_date, parse_near, unreadable
 from townsim.town.entities import Appointment, Talk
 from townsim.town.statement import quoted
 from townsim.town import obligations
@@ -98,16 +98,25 @@ def _do_converse(store: Store, act: Act, cause: str) -> str:
 
 # book_appointment
 
+def _gone(store: Store, value: str) -> int | None:
+    """The day a date that is not today or later names: with lane B the such date nearest today, its year as the
+    calendar has it (`parse_near`); without, as it was read before."""
+    if core._lane_b(store):
+        day = parse_near(value, store.day)
+        return day if day is not None and day < store.day else None
+    return parse_date(value, -10 ** 6)
+
+
 def _when(store: Store, act: Act) -> tuple[int | None, str]:
     """The day a talk is booked for: today or a day within 60 days; or None and why not."""
     value = act.args.get("day")
-    day = parse_date(value, store.day) if isinstance(value, str) and len(value) <= 100 else None
+    day = parse_date(value, store.day, core._lane_b(store)) if isinstance(value, str) and len(value) <= 100 else None
     if day is None:
-        gone = parse_date(value, -10 ** 6) if isinstance(value, str) and len(value) <= 100 else None
+        gone = _gone(store, value) if isinstance(value, str) and len(value) <= 100 else None
         if gone is None:
             return None, unreadable(value)
         if gone < store.day:
-            return None, f"{date_text(gone)} has passed."
+            return None, f"{date_in(gone, store.day) if core._lane_b(store) else date_text(gone)} has passed."
         day = gone
     if not store.day <= day <= store.day + AHEAD_DAYS:
         return None, f"'{shown(value)}' is not today or a day within 60 days."

@@ -20,9 +20,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from townsim.town import acts, connections, facts, product, seat_ids
+from townsim.town import acts, clock, connections, facts, product, seat_ids
 from townsim.town.acts import REGISTRY, Act, apply_act, clean_text, fits, has_savings, shown, to_cents
-from townsim.town.clock import parse_date
+from townsim.town.clock import parse_date, parse_near
 from townsim.town.connections import active, connection_on
 from townsim.town.entities import FileRow, Instance, Reminder
 from townsim.town.obligations import SCHEDULED, money, name_of
@@ -627,6 +627,9 @@ READ_TOOLS = (
 )
 
 
+_READS_WITH_YEARS = frozenset(t.name for t in READ_TOOLS)
+
+
 # --- documents, email, calls --------------------------------------------------------------------
 
 def _run_document(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
@@ -663,7 +666,8 @@ def _run_search_email(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int
     since = args.get("since")
     first = store.day - READ_DAYS + 1
     if since not in (None, ""):
-        day = parse_date(since, -100_000) if isinstance(since, str) else None
+        day = (parse_near(since, store.day) if _lane_b(store) else parse_date(since, -100_000)) \
+            if isinstance(since, str) else None
         if day is None:
             return _not(f"'{shown(since)}' is not a date written YYYY-MM-DD.", cause, "read")
         first = max(0, day)
@@ -853,8 +857,9 @@ def _run_read_file(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -
 def _run_followup(store: Store, inst: Instance, args: dict, ctx: Ctx, n: int) -> Done:
     cause = _cause(inst, "schedule_followup", store, n)
     written = args.get("date")
-    day = parse_date(written, store.day) if isinstance(written, str) else None
-    if day is None and isinstance(written, str) and parse_date(written, -100_000) is not None:
+    day = parse_date(written, store.day, _lane_b(store)) if isinstance(written, str) else None
+    if day is None and isinstance(written, str) and (parse_near(written, store.day) if _lane_b(store)
+                                                     else parse_date(written, -100_000)) is not None:
         day = store.day                                   # a date that has passed
     if day is None:
         return _not(f"'{shown(written)}' is not a date that can be read. Write it YYYY-MM-DD.", cause)
@@ -1672,7 +1677,10 @@ def run_tool(store: Store, inst: Instance, name: str, args: dict, ctx: Ctx, n: i
         why = arguments_problem(name, _parameters(store, inst, name), args)
         if why is not None:
             return _invalid_argument(why, _cause(inst, name, store, n))
-    if name in SEAT_TOOLS:
+    if name in _READS_WITH_YEARS and _lane_b(store):
+        with clock.with_years():                  # a read built from the records: each date's year is its own
+            done = SEAT_TOOLS[name].run(store, inst, args, ctx, n)
+    elif name in SEAT_TOOLS:
         done = SEAT_TOOLS[name].run(store, inst, args, ctx, n)
     elif name in OP_TOOLS:
         done = _run_op_tool(OP_TOOLS[name])(store, inst, args, ctx, n)

@@ -360,7 +360,7 @@ def _start(store: Store, act: Act) -> tuple[int | None, bool]:
     start = act.args.get("start")
     if _blank(start):
         return None, True
-    day = parse_date(start, store.day)
+    day = parse_date(start, store.day, _lane_b(store))
     return day, day is not None
 
 
