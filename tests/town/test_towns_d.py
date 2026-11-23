@@ -158,3 +158,79 @@ def test_without_lane_b_the_connect_form_and_refusal_are_as_they_were():
     shop = next(o for o in s.all("orgs") if o.kind == "shop" and not o.outside and o.owner)
     assert connections.no_subscription(s, shop.id) == f"{shop.name} has no subscription."
 
+
+def _two_households(s):
+    hs = [h for h in s.all("households") if adults(s, h.id)]
+    return hs[0], hs[1]
+
+
+def _view(s, pid):
+    from townsim.town import views
+    loop.routine(s)
+    return "\n".join(m["content"] for m in views.view(s, pid)[0])
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_a_stopped_or_breached_agreement_can_be_named_and_is_told_as_it_stands(seed):
+    from townsim.town import obligations
+    from townsim.town.clock import date_text
+    from townsim.town.obligations import money
+    s = town(seed)
+    payer, payee = _two_households(s)
+    debtor, lender = adults(s, payer.id)[0], adults(s, payee.id)[0]
+    ob = obligations.create(s, kind="agreement", payer=payer.id, payee=payee.id, cents=300, first=s.day + 3, every=7,
+                            memo="club membership", ends="both", made_by=debtor, cause="routine:t", party=lender)
+    _days(s, 7)
+    assert do(s, debtor, "stop", id=ob).ok
+    on = date_text(s.day)
+    _days(s, 15)
+    late = sum(d.cents - d.paid for d in obligations.owed_dues(s, ob))
+    assert late >= 600
+    out = do(s, debtor, "stop", id=ob)
+    assert out.msg == (f"Not done: {ob} was stopped by you on {on} and recorded as a breach; {money(late)} remains owed "
+                       f"on it and can be paid."), out.msg
+    out = do(s, debtor, "propose_end", id=ob)
+    assert out.msg.startswith(f"Not done: {ob} was stopped by you on {on} and recorded as a breach;"), out.msg
+    out = do(s, lender, "stop", id=ob)
+    assert not out.ok and "nothing with the id" not in out.msg and ob in out.msg, out.msg
+    text = _view(s, debtor)
+    worry = next(x for x in text.splitlines() if x.startswith("What worries you:"))
+    assert f"you stopped it on {on}, so nothing is taken for it" in worry, worry
+    going = [x for x in text.splitlines() if f"({ob}" in x and x.startswith("  ")]
+    assert going and all(f"stopped on {on}, not taken" in x for x in going), going
+    worry = next(x for x in _view(s, lender).splitlines() if x.startswith("What worries you:"))
+    assert "keeps up the $3.00 a week" not in worry or "stopped" in worry, worry
+    assert do(s, debtor, "pay", to=s.get("people", lender).name, amount=9, **{"for": ob}).ok
+
+
+@pytest.mark.parametrize("seed", [2, 3])
+def test_stop_on_a_payment_stopped_ended_or_repaid_and_on_an_ended_subscription_says_what_it_is(seed):
+    from townsim.town import obligations
+    from townsim.town.clock import date_text
+    s = town(seed)
+    payer, payee = _two_households(s)
+    debtor = adults(s, payer.id)[0]
+    standing = obligations.create(s, kind="standing", payer=payer.id, payee=payee.id, cents=500, first=s.day + 3,
+                                  every=7, memo="standing payment to a neighbour", ends="payer", made_by=debtor,
+                                  cause="routine:t")
+    ended = obligations.create(s, kind="agreement", payer=payer.id, payee=payee.id, cents=200, first=s.day + 1,
+                               every=7, last=s.day + 8, memo="lessons", ends="both", made_by=debtor,
+                               cause="routine:t", party=adults(s, payee.id)[0])
+    loan = obligations.create(s, kind="loan", payer=payer.id, payee=payee.id, cents=100, first=s.day + 1, every=7,
+                              last=s.day + 1, memo="loan for a bicycle", ends="both", made_by=debtor,
+                              cause="routine:t", party=adults(s, payee.id)[0])
+    assert do(s, debtor, "stop", id=standing).ok
+    on = date_text(s.day)
+    _days(s, 10)
+    assert s.get("obligations", ended).status == "finished" and s.get("obligations", loan).status == "finished"
+    out = do(s, debtor, "stop", id=standing)
+    assert out.msg == f"Not done: {standing} was stopped by you on {on}; nothing remains owed on it.", out.msg
+    out = do(s, debtor, "stop", id=ended)
+    assert out.msg.startswith(f"Not done: {ended} (lessons) ended on ") and "nothing remains owed on it" in out.msg, out.msg
+    out = do(s, debtor, "stop", id=loan)
+    assert out.msg.startswith(f"Not done: {loan} (loan for a bicycle) was repaid in full") and "nothing remains owed" in out.msg, out.msg
+    product.subscribe(s, debtor, payer.id, "", "routine:t", tell=False)
+    sub = product.subscription_of(s, payer.id)
+    assert do(s, debtor, "stop", id=sub.id).ok
+    out = do(s, debtor, "stop", id=sub.id)
+    assert out.msg.startswith(f"Not done: {sub.id} ended on {date_text(s.day)}"), out.msg

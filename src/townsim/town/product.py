@@ -340,6 +340,14 @@ def _check_stop_subscription(store: Store, act: Act) -> str | None:
     if not controls(store, act.principal, sub.client):
         return f"you have nothing with the id '{shown(act.args.get('id'))}'."
     if sub.status != "active":
+        from townsim.town import lane_b
+        if lane_b.installed(store) and sub.ended_on >= 0:
+            from townsim.town.clock import date_in
+            from townsim.town.facts import arrears
+            late = arrears(store, sub.fee_ob)[0] if sub.fee_ob and store.has("obligations", sub.fee_ob) else 0
+            owed = (f"{money(late)} of its fee remains owed and can be paid." if late
+                    else "nothing remains owed on it.")
+            return f"{sub.id} ended on {date_in(sub.ended_on, store.day)}; {owed}"
         return f"{sub.id} has ended."
     return None
 

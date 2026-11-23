@@ -1044,6 +1044,55 @@ def test_what_the_paid_run_on_a_second_town_found(seed):
     act(s, t.owner1, "subscribe", step="the owner subscribes the shop", **{"to": t.product, "for": shop, "asks": ""})
     assert f'"{ordering}"' in connections._fill_systems(s, t.owner1)
     act(s, t.owner1, "connect", step="connect the shop once it subscribes", system=ordering, scope="read only")
+    # what was stopped, breached or has ended is named in the operations that apply to it
+    s = connected(seed)
+    lender, lend_home = t.outsider, s.get("people", t.outsider).household
+    for who in (t.adult1, lender):
+        _free_to_act(s, who, "what was stopped or has ended", 10.0)
+    agr = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=300, first=s.day + 3, every=7,
+                             memo="club membership", ends="both", made_by=t.adult1, cause=CAUSE, party=lender)
+    standing = obligations.create(s, kind="standing", payer=t.plain, payee=lend_home, cents=500, first=s.day + 3,
+                                  every=7, memo="standing payment to a neighbour", ends="payer", made_by=t.adult1,
+                                  cause=CAUSE)
+    ended = obligations.create(s, kind="agreement", payer=t.plain, payee=lend_home, cents=200, first=s.day + 1, every=7,
+                               last=s.day + 8, memo="lessons", ends="both", made_by=t.adult1, cause=CAUSE, party=lender)
+    loan = obligations.create(s, kind="loan", payer=t.plain, payee=lend_home, cents=100, first=s.day + 1, every=7,
+                              last=s.day + 1, memo="loan for a bicycle", ends="both", made_by=t.adult1, cause=CAUSE,
+                              party=lender)
+    _days(s, 7)
+    _free_to_act(s, t.adult1, "what was stopped or has ended", 10.0)
+    act(s, t.adult1, "stop", step="stop an agreement both made", id=agr)
+    act(s, t.adult1, "stop", step="stop a standing payment", id=standing)
+    on = date_text(s.day)
+    _days(s, 15)
+    for who in (t.adult1, lender):
+        _free_to_act(s, who, "what was stopped or has ended", 10.0)
+    late = sum(d.cents - d.paid for d in obligations.owed_dues(s, agr))
+    out = act(s, t.adult1, "stop", expect=False, step="stop what is breached", id=agr)
+    assert out.msg == (f"Not done: {agr} was stopped by you on {on} and recorded as a breach; {money(late)} remains "
+                       f"owed on it and can be paid."), out.msg
+    act(s, t.adult1, "propose_end", expect=False, step="propose an end to what is breached", id=agr)
+    out = act(s, lender, "stop", expect=False, step="stop what is owed to you", id=agr)
+    assert "nothing with the id" not in out.msg, out.msg
+    out = act(s, t.adult1, "stop", expect=False, step="stop what is stopped", id=standing)
+    assert out.msg == f"Not done: {standing} was stopped by you on {on}; nothing remains owed on it.", out.msg
+    assert s.get("obligations", ended).status == "finished"
+    out = act(s, t.adult1, "stop", expect=False, step="stop what has ended", id=ended)
+    assert "nothing remains owed on it" in out.msg, out.msg
+    assert s.get("obligations", loan).status == "finished"
+    out = act(s, t.adult1, "stop", expect=False, step="stop a loan repaid", id=loan)
+    assert "was repaid in full" in out.msg and "nothing remains owed on it" in out.msg, out.msg
+    from townsim.town import facts
+    worry = " ".join(facts.worries(s, t.adult1, 20))
+    assert f"you stopped it on {on}, so nothing is taken for it" in worry, worry
+    going = facts.coming(s, [u for u in obligations.upcoming(s, t.plain, 7) if u.out and u.obligation == agr], 10)
+    assert going and all(f"stopped on {on}, not taken" in x for x in going), going
+    act(s, t.adult1, "pay", step="pay toward what is breached", to=t.name(s, lender), amount=3, **{"for": agr})
+    sub = _sub(s, t.plain)
+    act(s, t.adult1, "stop", step="end the household's subscription", id=sub.id)
+    out = act(s, t.adult1, "stop", expect=False, step="stop a subscription that has ended", id=sub.id)
+    assert out.msg.startswith(f"Not done: {sub.id} ended on {date_text(s.day)}"), out.msg
+    assert not s.engine_errors, s.engine_errors
 
 
 # --- the texts ---------------------------------------------------------------------------------------------------

@@ -327,6 +327,17 @@ def _side(store: Store, household: str, ob) -> str:
         f"the {h.name.split(' household')[0]} household"
 
 
+def _stopped_worry(store: Store, ob, account: str, line: str) -> str:
+    """With lane B, a worry about a payment its payer stopped (a breach: it is owed but no longer taken) says so,
+    with what of it is overdue; any other line as it is."""
+    if not (_lane_b(store) and ob.status == "breached" and ob.stopped_on >= 0):
+        return line
+    from townsim.town.ops_core import stopped_note
+    late, _ = arrears(store, ob.id)
+    owed = f"{money(late)} of it is overdue" if late else "each instalment is still owed on its day"
+    return f"{line.rstrip('.')}: {stopped_note(store, ob, account)}, so nothing is taken for it; {owed}."
+
+
 def worries(store: Store, pid: str, n: int) -> list[str]:
     """The first `n` of what is on `pid`'s mind about money and work, each true of the rows
     today: more going out than coming in; debts between people and when they end; the
@@ -346,14 +357,17 @@ def worries(store: Store, pid: str, n: int) -> list[str]:
     for o in _live(store, payer=home):
         if o.kind == "agreement" and store.has("households", o.payee) and pid in ties.agreed(store, o, home):
             back = o.memo.removeprefix("paying back ").split()[0] if o.memo.startswith("paying back ") else ""
-            found.append(f"Paying back {back}: {money(o.cents)} a week until {ends_on(o)}." if back else
-                         f"Paying {_side(store, o.payee, o)} {money(o.cents)} a week until {ends_on(o)}.")
+            found.append(_stopped_worry(store, o, home,
+                                        f"Paying back {back}: {money(o.cents)} a week until {ends_on(o)}." if back else
+                                        f"Paying {_side(store, o.payee, o)} {money(o.cents)} a week until {ends_on(o)}."))
     for o in _live(store, payee=home):
         if o.kind == "agreement" and store.has("households", o.payer) and pid in ties.agreed(store, o, home):
-            found.append(f"Whether {_side(store, o.payer, o)} keeps up the {money(o.cents)} a week owed to you.")
+            found.append(_stopped_worry(store, o, home, f"Whether {_side(store, o.payer, o)} keeps up the "
+                                                        f"{money(o.cents)} a week owed to you."))
     for o in _live(store, payer=home):
         if o.kind == "loan" and not o.memo.startswith("mortgage") and mine:
-            found.append(f"The {o.memo} costs {money(o.cents)} a week until {ends_on(o)}.")
+            found.append(_stopped_worry(store, o, home,
+                                        f"The {o.memo} costs {money(o.cents)} a week until {ends_on(o)}."))
     food = [f for f in store.all("firms") if f.need == firms.NEED]
     smallest = min(food, key=lambda f: (f.last_units, id_key(f.id))).org if food else ""
     for org in [o for o in store.all("orgs") if o.owner == pid and not o.outside and store.where("firms", org=o.id)]:
@@ -859,8 +873,11 @@ def coming(store: Store, ups: list, most: int) -> list[str]:
     for u in ups:
         late = any(d.status in OWED for d in store.where("dues", obligation=u.obligation, day=u.day))
         day = f"overdue since {date_text(u.day)}" if late else date_text(u.day)
+        ob = store.get("obligations", u.obligation) if store.has("obligations", u.obligation) else None
+        held = (f"; stopped on {date_text(ob.stopped_on)}, not taken" if ob is not None and ob.status == "breached"
+                and ob.stopped_on >= 0 and _lane_b(store) else "")
         rows.append((not late, u.day, f"  {day}  {money(u.cents)}  {name_of(store, u.other)}  {memo(u.memo)} "
-                                      f"({u.obligation})"))
+                                      f"({u.obligation}{held})"))
     rows.sort(key=lambda r: r[:2])
     out = [r[2] for r in rows[:most]]
     if len(rows) > most:

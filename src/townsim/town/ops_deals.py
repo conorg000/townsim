@@ -315,6 +315,8 @@ def _ending(store: Store, act: Act) -> tuple[Any, str, str]:
     mine = [a for a in (ob.payer, ob.payee) if controls(store, act.principal, a)]
     if mine and ob.status == "active" and ob.kind != "agreement":
         return None, "", not_an_agreement(ob)
+    if mine and ob.status != "active" and ob.payer in mine and core._lane_b(store):
+        return None, "", core.no_longer_in_force(store, ob)
     if ob.kind != "agreement" or ob.status != "active" or not mine:
         return None, "", none
     if len(mine) == 2:

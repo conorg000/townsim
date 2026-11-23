@@ -493,7 +493,40 @@ def _check_stop(store: Store, act: Act) -> str | None:
         if why and ob.cannot_stop == "living" and _lane_b(store) and _desk(store, ob.payee):
             why += f" Its amount is set with {name_of(store, ob.payee)}, which answers letters."
         return why
+    if _lane_b(store) and isinstance(ob_id, str) and store.has("obligations", ob_id):
+        ob = store.get("obligations", ob_id)
+        if controls(store, act.principal, ob.payer):
+            return no_longer_in_force(store, ob)
+        if controls(store, act.principal, ob.payee) and ob.payee != ob.payer:
+            return (f"{ob_id} ({memo_shown(ob.memo)}) is paid to you by {name_of(store, ob.payer)}; stop is for what "
+                    f"you pay.")
     return f"you have nothing with the id '{shown(ob_id)}'."
+
+
+def no_longer_in_force(store: Store, ob) -> str:
+    """With lane B, what an obligation its reader pays and that is no longer active is: stopped by them and when (and
+    recorded as a breach), ended, or repaid; and what remains owed on it, which can be paid."""
+    from townsim.town import facts
+    from townsim.town.clock import date_in
+    late, _ = facts.arrears(store, ob.id)
+    owed = f"{money(late)} remains owed on it and can be paid." if late else "nothing remains owed on it."
+    if ob.stopped_on >= 0 and ob.status in ("breached", "stopped"):
+        head = f"{ob.id} was stopped by you on {date_in(ob.stopped_on, store.day)}"
+        if ob.status == "breached":
+            head += " and recorded as a breach"
+            if not late:
+                day = obligations.next_instalment(store, ob)
+                if day is not None:
+                    owed = (f"nothing of it is overdue, and each instalment is still owed on its day, the next "
+                            f"{money(obligations.instalment_cents(ob, day))} on {date_in(day, store.day)}.")
+        return f"{head}; {owed}"
+    last = obligations.last_instalment(ob)
+    on = f" on {date_in(last, store.day)}" if last is not None and last <= store.day else ""
+    if ob.status == "finished" and ob.kind == "loan":
+        return f"{ob.id} ({memo_shown(ob.memo)}) was repaid in full, its last payment due{on or ' before now'}; {owed}"
+    if ob.status == "finished":
+        return f"{ob.id} ({memo_shown(ob.memo)}) ended{on}, its last payment made; {owed}"
+    return f"{ob.id} ({memo_shown(ob.memo)}) is no longer in force; {owed}"
 
 
 def living_to(store: Store, payers: list[str], payee: str) -> str | None:
